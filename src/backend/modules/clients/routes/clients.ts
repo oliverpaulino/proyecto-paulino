@@ -1,5 +1,7 @@
 import { Hono } from "hono";
 import db from "@/backend/database";
+import { KyselyClientRepository } from "../infraestructure/clients.infraestructure";
+import { ClientService } from "../service/clients.service";
 
 const clientsRoute = new Hono();
 const repo = new KyselyClientRepository(db);
