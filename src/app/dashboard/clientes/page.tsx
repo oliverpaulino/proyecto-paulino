@@ -1,10 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { ClientProps, TipoCliente, TipoIdentificacion } from "@/modules/clients/domain/client";
-import { ClientTable } from "@/components/clients/client-table";
-import { ClientForm } from "@/components/clients/client-form";
-import { DeleteClientDialog } from "@/components/clients/delete-client-dialog";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,8 +11,13 @@ import {
    DialogTitle,
    DialogTrigger,
 } from "@/components/ui/dialog";
-import { fetchClients, createClient, updateClient, deleteClient } from "@/lib/clients-api";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Users } from "lucide-react";
+import { TipoCliente, TipoIdentificacion } from "@/backend/modules/clients/domain/clients.domain";
+import { useClientStore } from "@/stores/useClientStore";
+import type { Client } from "@/dtos/client.dto";
+import { ClientForm } from "./components/client-form";
+import { ClientTable } from "./components/client-table";
+import { DeleteClientDialog } from "./components/delete-client-dialog";
 
 interface FormValues {
    nombre: string;
@@ -28,29 +29,47 @@ interface FormValues {
    direccion: string;
 }
 
+const STAT_STYLES = {
+   blue: {
+      card: "bg-brand-blue shadow-lg shadow-brand-blue/20",
+      label: "text-blue-200",
+      value: "text-white",
+      bar: "bg-brand-yellow",
+   },
+   yellow: {
+      card: "bg-brand-yellow shadow-lg shadow-brand-yellow/30",
+      label: "text-yellow-700",
+      value: "text-brand-black",
+      bar: "bg-brand-blue",
+   },
+   red: {
+      card: "bg-brand-red shadow-lg shadow-brand-red/20",
+      label: "text-red-200",
+      value: "text-white",
+      bar: "bg-brand-yellow",
+   },
+   dark: {
+      card: "bg-brand-black shadow-lg shadow-black/30",
+      label: "text-gray-400",
+      value: "text-white",
+      bar: "bg-brand-yellow",
+   },
+} as const;
+
 export default function ClientsPage() {
-   const [clients, setClients] = useState<ClientProps[]>([]);
-   const [loading, setLoading] = useState(true);
+   const { Clients, loading, GetClients, CreateClient, UpdateClient, DeleteClient } = useClientStore();
+
    const [formLoading, setFormLoading] = useState(false);
    const [search, setSearch] = useState("");
-
    const [createOpen, setCreateOpen] = useState(false);
-   const [editTarget, setEditTarget] = useState<ClientProps | null>(null);
-   const [deleteTarget, setDeleteTarget] = useState<ClientProps | null>(null);
+   const [editTarget, setEditTarget] = useState<Client | null>(null);
+   const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
 
-   const loadClients = useCallback(async () => {
-      setLoading(true);
-      try {
-         const data = await fetchClients();
-         setClients(data);
-      } finally {
-         setLoading(false);
-      }
-   }, []);
+   useEffect(() => {
+      GetClients();
+   }, [GetClients]);
 
-   useEffect(() => { loadClients(); }, [loadClients]);
-
-   const filtered = clients.filter((c) => {
+   const filtered = Clients.filter((c) => {
       const q = search.toLowerCase();
       return (
          c.nombre.toLowerCase().includes(q) ||
@@ -60,22 +79,22 @@ export default function ClientsPage() {
       );
    });
 
-   const total = clients.length;
-   const fisica = clients.filter((c) => c.tipo_cliente === "fisica").length;
-   const juridica = clients.filter((c) => c.tipo_cliente === "juridica").length;
-   const gubernamental = clients.filter((c) => c.tipo_cliente === "gubernamental").length;
+   const total = Clients.length;
+   const fisica = Clients.filter((c) => c.tipo_cliente === "fisica").length;
+   const juridica = Clients.filter((c) => c.tipo_cliente === "juridica").length;
+   const gubernamental = Clients.filter((c) => c.tipo_cliente === "gubernamental").length;
 
    async function handleCreate(data: FormValues) {
       setFormLoading(true);
       try {
-         await createClient({
+         const result = await CreateClient({
             ...data,
             email: data.email || null,
             telefono: data.telefono || null,
             direccion: data.direccion || null,
          });
+         if (result instanceof Error) throw result;
          setCreateOpen(false);
-         await loadClients();
       } finally {
          setFormLoading(false);
       }
@@ -85,14 +104,14 @@ export default function ClientsPage() {
       if (!editTarget) return;
       setFormLoading(true);
       try {
-         await updateClient(editTarget.id, {
+         const result = await UpdateClient(editTarget.id, {
             ...data,
             email: data.email || null,
             telefono: data.telefono || null,
             direccion: data.direccion || null,
          });
+         if (result instanceof Error) throw result;
          setEditTarget(null);
-         await loadClients();
       } finally {
          setFormLoading(false);
       }
@@ -102,9 +121,9 @@ export default function ClientsPage() {
       if (!deleteTarget) return;
       setFormLoading(true);
       try {
-         await deleteClient(deleteTarget.id);
+         const result = await DeleteClient(deleteTarget.id);
+         if (result instanceof Error) throw result;
          setDeleteTarget(null);
-         await loadClients();
       } finally {
          setFormLoading(false);
       }
@@ -112,18 +131,31 @@ export default function ClientsPage() {
 
    return (
       <div className="flex flex-col gap-6 p-6">
-         {/* Header */}
-         <h1 className="text-2xl font-bold">Clientes</h1>
 
-         {/* Stats cards */}
-         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard label="Total Clientes" value={total} />
-            <StatCard label="Personas Físicas" value={fisica} color="text-green-600 dark:text-green-400" />
-            <StatCard label="Jurídicas" value={juridica} color="text-blue-600 dark:text-blue-400" />
-            <StatCard label="Gubernamentales" value={gubernamental} color="text-purple-600 dark:text-purple-400" />
+         {/* Header */}
+         <div>
+            <div className="flex items-center gap-3">
+               <div className="h-9 w-1.5 rounded-full bg-brand-yellow" />
+               <Users className="size-7 text-brand-blue dark:text-blue-400" />
+               <h1 className="text-3xl font-bold text-brand-blue dark:text-white tracking-tight">
+                  Clientes
+               </h1>
+            </div>
+            <p className="mt-1.5 ml-11 text-sm text-muted-foreground">
+               Gestiona tu cartera de clientes
+            </p>
+            <div className="mt-4 h-px bg-gradient-to-r from-brand-blue via-brand-yellow/50 to-transparent" />
          </div>
 
-         {/* Search + New button */}
+         {/* Stat cards */}
+         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard label="Total Clientes" value={total} accent="blue" />
+            <StatCard label="Personas Físicas" value={fisica} accent="yellow" />
+            <StatCard label="Jurídicas" value={juridica} accent="red" />
+            <StatCard label="Gubernamentales" value={gubernamental} accent="dark" />
+         </div>
+
+         {/* Search + New */}
          <div className="flex items-center gap-3">
             <div className="relative flex-1 max-w-sm">
                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
@@ -131,15 +163,17 @@ export default function ClientsPage() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Buscar clientes..."
-                  className="pl-9"
+                  className="pl-9 focus-visible:border-brand-blue focus-visible:ring-brand-blue/20"
                />
             </div>
 
             <div className="ml-auto">
-               <Dialog open={createOpen} onOpenChange={(open: boolean) => setCreateOpen(open)}>
-                  <DialogTrigger render={<Button />}>
-                     <Plus className="size-4" />
-                     Nuevo Cliente
+               <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+                  <DialogTrigger asChild>
+                     <Button className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold shadow-md shadow-brand-yellow/30 border-0">
+                        <Plus className="size-4 mr-2" />
+                        Nuevo Cliente
+                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-md">
                      <DialogHeader>
@@ -160,21 +194,22 @@ export default function ClientsPage() {
 
          {/* Table */}
          {loading ? (
-            <div className="flex items-center justify-center p-12 text-sm text-muted-foreground">
-               Cargando…
+            <div className="flex items-center justify-center gap-3 p-12 text-sm text-muted-foreground">
+               <div className="size-5 animate-spin rounded-full border-2 border-brand-blue/20 border-t-brand-blue" />
+               Cargando clientes…
             </div>
          ) : (
             <ClientTable
                clients={filtered}
-               onEdit={(client) => setEditTarget(client)}
-               onDelete={(client) => setDeleteTarget(client)}
+               onEdit={setEditTarget}
+               onDelete={setDeleteTarget}
             />
          )}
 
          {/* Edit dialog */}
          <Dialog
             open={!!editTarget}
-            onOpenChange={(open: boolean) => { if (!open) setEditTarget(null); }}
+            onOpenChange={(open) => { if (!open) setEditTarget(null); }}
          >
             <DialogContent className="sm:max-w-md">
                <DialogHeader>
@@ -195,7 +230,6 @@ export default function ClientsPage() {
             </DialogContent>
          </Dialog>
 
-         {/* Delete dialog */}
          <DeleteClientDialog
             client={deleteTarget}
             onConfirm={handleDelete}
@@ -209,16 +243,18 @@ export default function ClientsPage() {
 function StatCard({
    label,
    value,
-   color = "text-foreground",
+   accent,
 }: {
    label: string;
    value: number;
-   color?: string;
+   accent: keyof typeof STAT_STYLES;
 }) {
+   const s = STAT_STYLES[accent];
    return (
-      <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-         <p className="text-sm text-muted-foreground">{label}</p>
-         <p className={`mt-1 text-3xl font-bold ${color}`}>{value}</p>
+      <div className={`rounded-xl ${s.card} p-5`}>
+         <p className={`text-sm font-medium ${s.label}`}>{label}</p>
+         <p className={`mt-1 text-4xl font-bold ${s.value}`}>{value}</p>
+         <div className={`mt-3 h-1 w-10 rounded-full ${s.bar}`} />
       </div>
    );
 }

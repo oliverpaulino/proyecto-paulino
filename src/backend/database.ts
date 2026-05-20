@@ -1,8 +1,20 @@
-import { Kysely, PostgresDialect } from "kysely";
+import { Kysely, PostgresDialect, Generated } from "kysely";
 import { Pool } from "pg";
 
 // DB SCHEMA
-interface DB {
+export interface DB {
+  cliente: {
+    id: Generated<string>;
+    nombre: string;
+    identificacion: string;
+    tipo_identificacion: string;
+    tipo_cliente: string;
+    email: string | null;
+    telefono: string | null;
+    direccion: string | null;
+    created_at: Generated<Date>;
+    updated_at: Generated<Date>;
+  };
   categories: {
     id: string;
     name: string;
