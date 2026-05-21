@@ -3,15 +3,17 @@
 import * as React from "react"
 import {
   AudioWaveform,
-  BookOpen,
-  Bot,
+  Building2,
   Command,
-  Frame,
-  GalleryVerticalEnd,
-  Map,
-  PieChart,
+  HardHat,
   Settings2,
-  SquareTerminal,
+  Users,
+  Calendar,
+  Truck,
+  Calculator,
+  Wrench,
+  Package,
+  ClipboardList
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -26,132 +28,124 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 
-// This is sample data.
 const data = {
   user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
+    name: "Paulino",
+    email: "paulino@kissimmee.com",
+    avatar: "",
   },
   teams: [
     {
-      name: "Acme Inc",
-      logo: GalleryVerticalEnd,
-      plan: "Enterprise",
-    },
-    {
-      name: "Acme Corp.",
+      name: "Constructora Kissimmee",
       logo: AudioWaveform,
       plan: "Startup",
     },
     {
-      name: "Evil Corp.",
+      name: "Constructora Bésame",
       logo: Command,
       plan: "Free",
     },
   ],
   navMain: [
     {
-      title: "Playground",
-      url: "#",
-      icon: SquareTerminal,
-      isActive: true,
+      title: "Proyectos",
+      url: "/dashboard/proyectos",
+      icon: Building2,
       items: [
         {
-          title: "History",
-          url: "#",
+          title: "Cotizaciones",
+          url: "/dashboard/proyectos/cotizaciones",
         },
         {
-          title: "Starred",
-          url: "#",
+          title: "Gastos",
+          url: "/dashboard/proyectos/gastos",
         },
         {
-          title: "Settings",
-          url: "#",
+          title: "Tareas",
+          url: "/dashboard/proyectos/tareas",
         },
       ],
     },
     {
-      title: "Models",
-      url: "#",
-      icon: Bot,
+      title: "Servicios",
+      url: "/dashboard/servicios",
+      icon: ClipboardList,
+    },
+    {
+      title: "Citas",
+      url: "/dashboard/citas",
+      icon: Calendar,
+    },
+    {
+      title: "Clientes",
+      url: "/dashboard/clientes",
+      icon: Users,
+    },
+    {
+      title: "Proveedores",
+      url: "/dashboard/proveedores",
+      icon: Truck,
       items: [
         {
-          title: "Genesis",
-          url: "#",
+          title: "Catálogo de Proveedores",
+          url: "/dashboard/proveedores/catalogo",
         },
         {
-          title: "Explorer",
-          url: "#",
-        },
-        {
-          title: "Quantum",
-          url: "#",
+          title: "Compras",
+          url: "/dashboard/proveedores/compras",
         },
       ],
     },
     {
-      title: "Documentation",
-      url: "#",
-      icon: BookOpen,
+      title: "Empleados",
+      url: "/dashboard/empleados",
+      icon: HardHat,
       items: [
         {
-          title: "Introduction",
-          url: "#",
-        },
-        {
-          title: "Get Started",
-          url: "#",
-        },
-        {
-          title: "Tutorials",
-          url: "#",
-        },
-        {
-          title: "Changelog",
-          url: "#",
+          title: "Amonestaciones",
+          url: "/dashboard/empleados/amonestaciones",
         },
       ],
     },
     {
-      title: "Settings",
-      url: "#",
+      title: "Contabilidad",
+      url: "/dashboard/contabilidad",
+      icon: Calculator,
+      items: [
+        {
+          title: "Ventas",
+          url: "/dashboard/contabilidad/ventas",
+        },
+        {
+          title: "Pagos",
+          url: "/dashboard/contabilidad/pagos",
+        },
+        {
+          title: "Nómina",
+          url: "/dashboard/contabilidad/nomina",
+        },
+      ],
+    },
+    {
+      title: "Equipos",
+      url: "/dashboard/equipos",
+      icon: Wrench,
+      items: [
+        {
+          title: "Mantenimientos",
+          url: "/dashboard/equipos/mantenimientos",
+        },
+      ],
+    },
+    {
+      title: "Inventario",
+      url: "/dashboard/inventario",
+      icon: Package,
+    },
+    {
+      title: "Configuración",
+      url: "/dashboard/configuracion",
       icon: Settings2,
-      items: [
-        {
-          title: "General",
-          url: "#",
-        },
-        {
-          title: "Team",
-          url: "#",
-        },
-        {
-          title: "Billing",
-          url: "#",
-        },
-        {
-          title: "Limits",
-          url: "#",
-        },
-      ],
-    },
-  ],
-  projects: [
-    {
-      name: "Design Engineering",
-      url: "#",
-      icon: Frame,
-    },
-    {
-      name: "Sales & Marketing",
-      url: "#",
-      icon: PieChart,
-    },
-    {
-      name: "Travel",
-      url: "#",
-      icon: Map,
     },
   ],
 }
@@ -164,7 +158,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavProjects projects={data.projects} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={data.user} />
