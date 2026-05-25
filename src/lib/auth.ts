@@ -3,7 +3,9 @@ import { Pool } from "pg";
 import { admin, jwt } from "better-auth/plugins";
 import { organization } from "better-auth/plugins";
 import { Resend } from "resend";
+import { ac, roles } from "./permission";
 const resend = new Resend(process.env.RESEND_API_KEY);
+
 export const auth = betterAuth({
   database: new Pool({
     // connection options
@@ -14,7 +16,14 @@ export const auth = betterAuth({
       role: { type: "string", input: false },
     },
   },
-  plugins: [organization(), jwt(), admin()],
+  plugins: [
+    organization(),
+    jwt(),
+    admin({
+      ac,
+      roles,
+    }),
+  ],
   emailAndPassword: {
     enabled: true,
     sendResetPassword: async ({ user, url }) => {
