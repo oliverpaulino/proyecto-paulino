@@ -46,6 +46,16 @@ export interface DB {
     quantity: number;
     min_stock: number;
   };
+  contact: {
+    id: string;
+    client_id: string;
+    name: string;
+    email: string;
+    phone: string;
+    job_title: string;
+    created_at: Date;
+    updated_at: Date;
+  };
 }
 
 // Initialize the database connection

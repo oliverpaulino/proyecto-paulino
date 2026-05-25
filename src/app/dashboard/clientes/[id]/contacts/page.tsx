@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ClientContactsView } from "./components/clientContactsView";
 
@@ -39,15 +38,10 @@ export default async function ClientContactsPage({ params }: ClientContactsPageP
                            </BreadcrumbLink>
                         </BreadcrumbItem>
                         <BreadcrumbSeparator />
-                        <BreadcrumbItem className="hidden md:block">
-                           <BreadcrumbLink href="/dashboard/crm">
-                              CRM
-                           </BreadcrumbLink>
-                        </BreadcrumbItem>
                         <BreadcrumbSeparator />
                         <BreadcrumbItem className="hidden md:block">
-                           <BreadcrumbLink href="/dashboard/crm/clients">
-                              Clients
+                           <BreadcrumbLink href="/dashboard/clients">
+                              Clientes
                            </BreadcrumbLink>
                         </BreadcrumbItem>
                         <BreadcrumbSeparator />
@@ -57,7 +51,6 @@ export default async function ClientContactsPage({ params }: ClientContactsPageP
                      </BreadcrumbList>
                   </Breadcrumb>
                </div>
-               <ThemeToggle />
             </div>
          </header>
          <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
