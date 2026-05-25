@@ -1,6 +1,6 @@
 import { Kysely } from "kysely";
-import { IClientRepository, UpdateClientDTO } from "../domain/clients.domain";
-import { Client } from "better-auth/plugins";
+import { IClientRepository, CreateClientDTO, UpdateClientDTO, Client, TipoIdentificacion, TipoCliente } from "../domain/clients.domain";
+import { DB } from "@/backend/database";
 
 export class KyselyClientRepository implements IClientRepository {
    constructor(private readonly db: Kysely<DB>) { }
@@ -15,6 +15,8 @@ export class KyselyClientRepository implements IClientRepository {
       return rows.map((row) =>
          Client.create({
             ...row,
+            tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
+            tipo_cliente: row.tipo_cliente as TipoCliente,
             created_at: new Date(row.created_at),
             updated_at: new Date(row.updated_at),
          })
@@ -32,6 +34,8 @@ export class KyselyClientRepository implements IClientRepository {
 
       return Client.create({
          ...row,
+         tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
+         tipo_cliente: row.tipo_cliente as TipoCliente,
          created_at: new Date(row.created_at),
          updated_at: new Date(row.updated_at),
       });
@@ -54,6 +58,8 @@ export class KyselyClientRepository implements IClientRepository {
 
       return Client.create({
          ...row,
+         tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
+         tipo_cliente: row.tipo_cliente as TipoCliente,
          created_at: new Date(row.created_at),
          updated_at: new Date(row.updated_at),
       });
@@ -71,6 +77,8 @@ export class KyselyClientRepository implements IClientRepository {
 
       return Client.create({
          ...row,
+         tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
+         tipo_cliente: row.tipo_cliente as TipoCliente,
          created_at: new Date(row.created_at),
          updated_at: new Date(row.updated_at),
       });
