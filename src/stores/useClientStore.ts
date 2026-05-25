@@ -142,10 +142,10 @@ export const useClientStore = create<ClientStore>((set, get) => ({
 
          const filtered = search
             ? allClients.filter((c) =>
-                 c.nombre.toLowerCase().includes(search.toLowerCase()) ||
-                 c.identificacion.toLowerCase().includes(search.toLowerCase()) ||
-                 (c.email ?? "").toLowerCase().includes(search.toLowerCase())
-              )
+               c.nombre.toLowerCase().includes(search.toLowerCase()) ||
+               c.identificacion.toLowerCase().includes(search.toLowerCase()) ||
+               (c.email ?? "").toLowerCase().includes(search.toLowerCase())
+            )
             : allClients;
 
          const total = filtered.length;
@@ -291,7 +291,10 @@ export const useClientStore = create<ClientStore>((set, get) => ({
       try {
          const res = await fetch(`/api/clients/contacts`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+               "Content-Type": "application/json"
+            },
+            credentials: "include",
             body: JSON.stringify(contactData),
          });
 

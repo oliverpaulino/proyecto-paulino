@@ -31,32 +31,6 @@ const TIPO_LABEL: Record<string, string> = {
 
 export function ClientTable({ clients, onEdit, onDelete }: ClientTableProps) {
    const router = useRouter();
-   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-   const [editingClientId, setEditingClientId] = useState<string | null>(null);
-
-   // Fixed to correctly match your exact ClientForm shape
-   const [editingClientData, setEditingClientData] = useState<
-      ClientForm & {
-         website?: string;
-         credit_limit?: number;
-         payment_terms?: number;
-         default_comprobante?: string;
-         customer_profile_id?: string;
-      }
-   >({
-      nombre: "",
-      identificacion: "",
-      tipo_identificacion: "RNC", // Providing a valid fallback literal value
-      tipo_cliente: "fisica",      // Providing a valid fallback literal value
-      email: "",
-      telefono: "",
-      direccion: "",
-      website: "",
-      credit_limit: undefined,
-      payment_terms: undefined,
-      default_comprobante: "",
-      customer_profile_id: "",
-   });
 
    if (clients.length === 0) {
       return (
@@ -66,25 +40,6 @@ export function ClientTable({ clients, onEdit, onDelete }: ClientTableProps) {
          </div>
       );
    }
-
-   const handleOpenEditDialog = (client: ClientProps) => {
-      setEditingClientId(client.id);
-      setEditingClientData({
-         nombre: client.nombre,
-         identificacion: client.identificacion,
-         tipo_identificacion: client.tipo_identificacion as "CEDULA" | "PASAPORTE" | "RNC",
-         tipo_cliente: client.tipo_cliente as "fisica" | "juridica" | "gubernamental",
-         email: client.email || "",
-         telefono: client.telefono || "",
-         direccion: client.direccion || "",
-         website: (client as any).website || "",
-         credit_limit: (client as any).credit_limit,
-         payment_terms: (client as any).payment_terms,
-         default_comprobante: (client as any).default_comprobante || "",
-         customer_profile_id: (client as any).customer_profile_id || "",
-      });
-      setIsEditDialogOpen(true);
-   };
 
    return (
       <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
@@ -169,21 +124,21 @@ export function ClientTable({ clients, onEdit, onDelete }: ClientTableProps) {
                               <DropdownMenuContent align="end" className="z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md">
                                  <DropdownMenuItem
                                     className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground"
-                                    onClick={() => router.push(`/dashboard/clients/${client.id}`)}
+                                    onClick={() => router.push(`/dashboard/clientes/${client.id}`)}
                                  >
                                     <Eye className="w-4 h-4 mr-2" />
                                     View Details
                                  </DropdownMenuItem>
                                  <DropdownMenuItem
                                     className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground"
-                                    onClick={() => router.push(`/dashboard/clients/${client.id}/contacts`)}
+                                    onClick={() => router.push(`/dashboard/clientes/${client.id}/contacts`)}
                                  >
                                     <Contact className="w-4 h-4 mr-2" />
                                     View Contacts
                                  </DropdownMenuItem>
                                  <DropdownMenuItem
                                     className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground"
-                                    onClick={() => handleOpenEditDialog(client)}
+                                    onClick={() => onEdit(client)}
                                  >
                                     <Pencil className="w-4 h-4 mr-2" />
                                     Edit Client

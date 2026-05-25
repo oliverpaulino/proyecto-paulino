@@ -228,7 +228,7 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
                   variant="outline"
                   size="icon"
                   className="shrink-0"
-                  onClick={() => router.push("/dashboard/crm/clients")}
+                  onClick={() => router.push("/dashboard/clientes")}
                >
                   <ArrowLeft className="h-4 w-4" />
                </Button>
@@ -241,7 +241,7 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
                   </p>
                </div>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="flex flex-col gap-2 sm:flex-row min-w-[25vw]  sm:items-center">
                <TableSearch
                   value={search}
                   onValueChange={setSearch}

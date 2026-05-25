@@ -38,7 +38,6 @@ export default async function ClientContactsPage({ params }: ClientContactsPageP
                            </BreadcrumbLink>
                         </BreadcrumbItem>
                         <BreadcrumbSeparator />
-                        <BreadcrumbSeparator />
                         <BreadcrumbItem className="hidden md:block">
                            <BreadcrumbLink href="/dashboard/clients">
                               Clientes
