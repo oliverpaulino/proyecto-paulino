@@ -234,7 +234,7 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
                </Button>
                <div className="min-w-0">
                   <h1 className="text-lg font-bold tracking-tight sm:text-2xl truncate">
-                     Contactos {client ? `— ${client.nombre}` : ""}
+                     Contactos {client ? `— ${client.nombre}` : <Loader2 className="h-6 w-6 inline animate-spin" />}
                   </h1>
                   <p className="text-sm text-muted-foreground hidden sm:block">
                      Gestiona los contactos asociados a este cliente.

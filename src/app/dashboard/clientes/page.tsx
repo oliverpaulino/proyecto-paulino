@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
    Dialog,
    DialogContent,
@@ -11,13 +10,14 @@ import {
    DialogTitle,
    DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Search, Users } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 import { TipoCliente, TipoIdentificacion } from "@/backend/modules/clients/domain/clients.domain";
 import { useClientStore } from "@/stores/useClientStore";
 import type { Client } from "@/dtos/client.dto";
 import { ClientForm } from "./components/client-form";
 import { ClientTable } from "./components/client-table";
 import { DeleteClientDialog } from "./components/delete-client-dialog";
+import { TableSearch } from "@/components/table-search";
 
 interface FormValues {
    nombre: string;
@@ -60,6 +60,7 @@ export default function ClientsPage() {
    const { Clients, loading, GetClients, CreateClient, UpdateClient, DeleteClient } = useClientStore();
 
    const [formLoading, setFormLoading] = useState(false);
+   const [searchInput, setSearchInput] = useState("");
    const [search, setSearch] = useState("");
    const [createOpen, setCreateOpen] = useState(false);
    const [editTarget, setEditTarget] = useState<Client | null>(null);
@@ -157,15 +158,14 @@ export default function ClientsPage() {
 
          {/* Search + New */}
          <div className="flex items-center gap-3">
-            <div className="relative flex-1 max-w-sm">
-               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-               <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Buscar clientes..."
-                  className="pl-9 focus-visible:border-brand-blue focus-visible:ring-brand-blue/20"
-               />
-            </div>
+            <TableSearch
+               value={searchInput}
+               onValueChange={setSearchInput}
+               onSearch={setSearch}
+               placeholder="Buscar clientes..."
+               debounceDelay={350}
+               className="w-full max-w-sm"
+            />
 
             <div className="ml-auto">
                <Dialog open={createOpen} onOpenChange={setCreateOpen}>
