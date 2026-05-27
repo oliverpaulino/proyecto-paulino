@@ -7,8 +7,9 @@ import type {
    ClientSalesSummary,
    ClientProjectSummary,
    CreateContactForm,
-   UpdateContactForm,
 } from "@/dtos/client.dto";
+
+type ContactWithMeta = Contact & { id: string; client_id: string };
 
 type ClientStore = {
    Clients: Client[];
@@ -27,19 +28,14 @@ type ClientStore = {
    _fetchedDetails: Set<string>;
    _fetchedContacts: Set<string>;
 
-   // Actions
-   CreateClient: (ClientForm: ClientForm) => Promise<Client | Error>;
+   CreateClient: (form: ClientForm) => Promise<Client | Error>;
    GetClients: (params?: {
       page?: number;
       limit?: number;
       search?: string;
       force?: boolean;
    }) => Promise<void>;
-
-   GetClientDetails: (
-      clientId: string,
-      force?: boolean,
-   ) => Promise<ClientDetails | null>;
+   GetClientDetails: (clientId: string, force?: boolean) => Promise<ClientDetails | null>;
    GetClientSales: (
       clientId: string,
       params?: Record<string, string>,
@@ -55,28 +51,19 @@ type ClientStore = {
       pagination: { page: number; totalPages: number; totalCount: number };
    }>;
    UploadBulkClients: (file: File) => Promise<boolean>;
-   UpdateClient: (
-      clientId: string,
-      data: Partial<ClientForm>,
-   ) => Promise<void | Error>;
+   UpdateClient: (clientId: string, data: Partial<ClientForm>) => Promise<void | Error>;
    DeleteClient: (clientId: string) => Promise<void | Error>;
 
-   // Pagination helpers
    NextPage: () => Promise<void>;
    PrevPage: () => Promise<void>;
    GoToPage: (page: number) => Promise<void>;
    SearchClients: (search: string) => Promise<void>;
 
-   //contacts
    GetClientContacts: (clientId: string, force?: boolean) => Promise<void>;
-   CreateContact: (
-      contactData: Partial<CreateContactForm>,
-   ) => Promise<void | Error>;
-   UpdateContact: (
-      contactData: Partial<UpdateContactForm>,
-   ) => Promise<void | Error>;
+   CreateContact: (contactData: Partial<CreateContactForm>) => Promise<void | Error>;
+   UpdateContact: (contactData: Partial<ContactWithMeta>) => Promise<void | Error>;
    DeleteContact: (clientId: string, contactId: string) => Promise<void | Error>;
-   // State setters
+
    setSelectedClient: (client: ClientDetails | null) => void;
    setLoading: (loading: boolean) => void;
    clearSelectedClient: () => void;
@@ -108,104 +95,91 @@ export const useClientStore = create<ClientStore>((set, get) => ({
       });
    },
 
-   CreateClient: async (ClientForm) => {
-      console.log(ClientForm);
-
+   CreateClient: async (form) => {
       try {
          const res = await fetch(`/api/clients`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ClientForm }),
+            body: JSON.stringify(form),
          });
 
+         const data = await res.json();
+
          if (!res.ok) {
-            throw new Error((await res.json()).message);
+            throw new Error(data.error || data.message || "Error al crear cliente");
          }
-         // refresh after create
+
          get().invalidateCache();
          await get().GetClients();
-         const data: { data: Client } = await res.json();
-         return data.data;
+         return data as Client;
       } catch (error) {
          return error as Error;
       }
    },
-   UploadBulkClients: async (file: File) => {
+
+   UploadBulkClients: async (file) => {
       const formData = new FormData();
       formData.append("file", file);
       const res = await fetch(`/api/clients/bulk/upload`, {
          method: "POST",
          body: formData,
       });
-      if (!res.ok) {
-         const error = await res.json();
-         console.error("Error uploading file:", error);
-         return false;
-      }
-      const data = await res.json();
-      console.log("File uploaded successfully:", data);
+      if (!res.ok) return false;
       return true;
    },
+
    GetClients: async (params = {}) => {
       const { page = 1, limit = 20, search = "", force = false } = params;
       const cacheKey = `${page}:${limit}:${search}`;
       if (!force && get()._fetchedClientLists.has(cacheKey)) return;
 
+      set({ loading: true });
       try {
-         const queryParams = new URLSearchParams();
-         queryParams.append("page", page.toString());
-         queryParams.append("limit", limit.toString());
-         if (search) {
-            queryParams.append("search", search);
-         }
+         const res = await fetch(`/api/clients`);
+         if (!res.ok) throw new Error("Error al cargar clientes");
 
-         const res = await fetch(`/api/clients?${queryParams}`, {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-         });
+         const allClients: Client[] = await res.json();
 
-         if (!res.ok) {
-            const data = await res.json();
-            throw new Error(data.message || "Failed to fetch clients");
-         }
+         const filtered = search
+            ? allClients.filter((c) =>
+               c.nombre.toLowerCase().includes(search.toLowerCase()) ||
+               c.identificacion.toLowerCase().includes(search.toLowerCase()) ||
+               (c.email ?? "").toLowerCase().includes(search.toLowerCase())
+            )
+            : allClients;
 
-         const data: {
-            clients: Client[];
-            pagination: {
-               page: number;
-               limit: number;
-               total: number;
-               totalPages: number;
-               hasNext: boolean;
-               hasPrev: boolean;
-            };
-         } = await res.json();
+         const total = filtered.length;
+         const totalPages = Math.max(1, Math.ceil(total / limit));
+         const start = (page - 1) * limit;
 
          set((state) => ({
-            Clients: data.clients,
-            pagination: data.pagination,
+            Clients: filtered.slice(start, start + limit),
+            pagination: {
+               page,
+               limit,
+               total,
+               totalPages,
+               hasNext: page < totalPages,
+               hasPrev: page > 1,
+            },
             _fetchedClientLists: new Set(state._fetchedClientLists).add(cacheKey),
          }));
       } catch (error) {
          console.error("Error fetching clients:", error);
          throw error;
+      } finally {
+         set({ loading: false });
       }
    },
 
-   GetClientDetails: async (clientId: string, force?: boolean) => {
+   GetClientDetails: async (clientId, force) => {
       if (!force && get()._fetchedDetails.has(clientId)) {
          return get().selectedClient;
       }
       set({ loading: true });
       try {
-         const res = await fetch(`/api/clients/${clientId}/details`, {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-         });
-
-         if (!res.ok) {
-            throw new Error("Failed to fetch client details");
-         }
+         const res = await fetch(`/api/clients/${clientId}/details`);
+         if (!res.ok) throw new Error("Error al cargar detalles del cliente");
 
          const data = await res.json();
          const clientDetails = data.client_details;
@@ -223,48 +197,21 @@ export const useClientStore = create<ClientStore>((set, get) => ({
       }
    },
 
-   GetClientSales: async (clientId: string, params = {}) => {
-      try {
-         const queryParams = new URLSearchParams(params);
-         const res = await fetch(`/api/clients/${clientId}/sales?${queryParams}`, {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-         });
-
-         if (!res.ok) {
-            throw new Error("Failed to fetch client sales");
-         }
-
-         return await res.json();
-      } catch (error) {
-         console.error("Error fetching client sales:", error);
-         throw error;
-      }
+   GetClientSales: async (clientId, params = {}) => {
+      const queryParams = new URLSearchParams(params);
+      const res = await fetch(`/api/clients/${clientId}/sales?${queryParams}`);
+      if (!res.ok) throw new Error("Error al cargar ventas del cliente");
+      return res.json();
    },
 
-   GetClientProjects: async (clientId: string, params = {}) => {
-      try {
-         const queryParams = new URLSearchParams(params);
-         const res = await fetch(
-            `/api/clients/${clientId}/projects?${queryParams}`,
-            {
-               method: "GET",
-               headers: { "Content-Type": "application/json" },
-            },
-         );
-
-         if (!res.ok) {
-            throw new Error("Failed to fetch client projects");
-         }
-
-         return await res.json();
-      } catch (error) {
-         console.error("Error fetching client projects:", error);
-         throw error;
-      }
+   GetClientProjects: async (clientId, params = {}) => {
+      const queryParams = new URLSearchParams(params);
+      const res = await fetch(`/api/clients/${clientId}/projects?${queryParams}`);
+      if (!res.ok) throw new Error("Error al cargar proyectos del cliente");
+      return res.json();
    },
 
-   UpdateClient: async (clientId: string, data: Partial<ClientForm>) => {
+   UpdateClient: async (clientId, data) => {
       try {
          const res = await fetch(`/api/clients/${clientId}`, {
             method: "PATCH",
@@ -272,11 +219,11 @@ export const useClientStore = create<ClientStore>((set, get) => ({
             body: JSON.stringify(data),
          });
 
+         const responseData = await res.json();
          if (!res.ok) {
-            throw new Error((await res.json()).message);
+            throw new Error(responseData.error || responseData.message || "Error al actualizar cliente");
          }
 
-         // Refresh clients list
          get().invalidateCache();
          await get().GetClients();
       } catch (error) {
@@ -284,18 +231,17 @@ export const useClientStore = create<ClientStore>((set, get) => ({
       }
    },
 
-   DeleteClient: async (clientId: string) => {
+   DeleteClient: async (clientId) => {
       try {
          const res = await fetch(`/api/clients/${clientId}`, {
             method: "DELETE",
-            headers: { "Content-Type": "application/json" },
          });
 
+         const responseData = await res.json();
          if (!res.ok) {
-            throw new Error((await res.json()).message);
+            throw new Error(responseData.error || responseData.message || "Error al eliminar cliente");
          }
 
-         // Refresh clients list
          get().invalidateCache();
          await get().GetClients();
       } catch (error) {
@@ -303,74 +249,57 @@ export const useClientStore = create<ClientStore>((set, get) => ({
       }
    },
 
-   // Pagination helpers
    NextPage: async () => {
       const { pagination } = get();
       if (pagination.hasNext) {
-         await get().GetClients({
-            page: pagination.page + 1,
-            limit: pagination.limit,
-         });
+         await get().GetClients({ page: pagination.page + 1, limit: pagination.limit, force: true });
       }
    },
 
    PrevPage: async () => {
       const { pagination } = get();
       if (pagination.hasPrev) {
-         await get().GetClients({
-            page: pagination.page - 1,
-            limit: pagination.limit,
-         });
+         await get().GetClients({ page: pagination.page - 1, limit: pagination.limit, force: true });
       }
    },
 
-   GoToPage: async (page: number) => {
+   GoToPage: async (page) => {
       const { pagination } = get();
       if (page >= 1 && page <= pagination.totalPages) {
-         await get().GetClients({ page, limit: pagination.limit });
+         await get().GetClients({ page, limit: pagination.limit, force: true });
       }
    },
 
-   SearchClients: async (search: string) => {
+   SearchClients: async (search) => {
       const { pagination } = get();
-      await get().GetClients({ page: 1, limit: pagination.limit, search });
+      await get().GetClients({ page: 1, limit: pagination.limit, search, force: true });
    },
 
-   GetClientContacts: async (clientId: string, force?: boolean) => {
+   GetClientContacts: async (clientId, force) => {
       if (!force && get()._fetchedContacts.has(clientId)) return;
-      try {
-         const res = await fetch(`/api/clients/${clientId}/contacts`, {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-         });
+      const res = await fetch(`/api/clients/${clientId}/contacts`);
+      if (!res.ok) throw new Error("Error al cargar contactos del cliente");
 
-         if (!res.ok) {
-            throw new Error("Failed to fetch client contacts");
-         }
-
-         const data = await res.json();
-         set((state) => ({
-            Contacts: data.contacts,
-            _fetchedContacts: new Set(state._fetchedContacts).add(clientId),
-         }));
-      } catch (error) {
-         console.error("Error fetching client contacts:", error);
-         throw error;
-      }
+      const data = await res.json();
+      set((state) => ({
+         Contacts: data.contacts,
+         _fetchedContacts: new Set(state._fetchedContacts).add(clientId),
+      }));
    },
-   CreateContact: async (contactData: Partial<Contact>) => {
+
+   CreateContact: async (contactData) => {
       try {
          const res = await fetch(`/api/clients/contacts`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...contactData }),
+            headers: {
+               "Content-Type": "application/json"
+            },
+            credentials: "include",
+            body: JSON.stringify(contactData),
          });
 
-         if (!res.ok) {
-            throw new Error((await res.json()).message);
-         }
+         if (!res.ok) throw new Error((await res.json()).error || "Error al crear contacto");
 
-         // Refresh contacts list
          set((state) => {
             const next = new Set(state._fetchedContacts);
             next.delete(contactData.client_id!);
@@ -381,23 +310,18 @@ export const useClientStore = create<ClientStore>((set, get) => ({
          return error as Error;
       }
    },
-   UpdateContact: async (contactData: Partial<Contact>) => {
+
+   UpdateContact: async (contactData) => {
       const clientId = contactData.client_id;
       try {
-         const res = await fetch(
-            `/api/clients/${clientId}/contacts/${contactData.id}`,
-            {
-               method: "PATCH",
-               headers: { "Content-Type": "application/json" },
-               body: JSON.stringify(contactData),
-            },
-         );
+         const res = await fetch(`/api/clients/${clientId}/contacts/${contactData.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(contactData),
+         });
 
-         if (!res.ok) {
-            throw new Error((await res.json()).message);
-         }
+         if (!res.ok) throw new Error((await res.json()).error || "Error al actualizar contacto");
 
-         // Refresh contacts list
          set((state) => {
             const next = new Set(state._fetchedContacts);
             next.delete(clientId!);
@@ -408,21 +332,15 @@ export const useClientStore = create<ClientStore>((set, get) => ({
          return error as Error;
       }
    },
-   DeleteContact: async (clientId: string, contactId: string) => {
+
+   DeleteContact: async (clientId, contactId) => {
       try {
-         const res = await fetch(
-            `/api/clients/${clientId}/contacts/${contactId}`,
-            {
-               method: "DELETE",
-               headers: { "Content-Type": "application/json" },
-            },
-         );
+         const res = await fetch(`/api/clients/${clientId}/contacts/${contactId}`, {
+            method: "DELETE",
+         });
 
-         if (!res.ok) {
-            throw new Error((await res.json()).message);
-         }
+         if (!res.ok) throw new Error((await res.json()).error || "Error al eliminar contacto");
 
-         // Refresh contacts list
          set((state) => {
             const next = new Set(state._fetchedContacts);
             next.delete(clientId);
@@ -435,7 +353,6 @@ export const useClientStore = create<ClientStore>((set, get) => ({
    },
 
    clearSelectedClient: () => set({ selectedClient: null }),
-   setSelectedClient: (client: ClientDetails | null) =>
-      set({ selectedClient: client }),
-   setLoading: (loading: boolean) => set({ loading }),
+   setSelectedClient: (client) => set({ selectedClient: client }),
+   setLoading: (loading) => set({ loading }),
 }));
