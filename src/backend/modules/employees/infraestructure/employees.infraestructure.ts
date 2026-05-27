@@ -1,9 +1,16 @@
 import { Kysely } from "kysely";
-import { IEmployeeRepository, CreateEmployeeDTO, UpdateEmployeeDTO, Employee, TipoIdentificacion, TipoRolEmpleado } from "../domain/employees.domain";
+import {
+   IEmployeeRepository,
+   CreateEmployeeDTO,
+   UpdateEmployeeDTO,
+   Employee,
+   TipoIdentificacion,
+   TipoRolEmpleado,
+} from "../domain/employees.domain";
 import { DB } from "@/backend/database";
 
 export class KyselyEmployeeRepository implements IEmployeeRepository {
-   constructor(private readonly db: Kysely<DB>) { }
+   constructor(private readonly db: Kysely<DB>) {}
 
    async findAll(): Promise<Employee[]> {
       const rows = await this.db
@@ -39,6 +46,20 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
          created_at: new Date(row.created_at),
          updated_at: new Date(row.updated_at),
       });
+   }
+
+   async existsByIdentificacion(identificacion: string, excludeId?: string): Promise<boolean> {
+      let query = this.db
+         .selectFrom("empleado")
+         .select("id")
+         .where("identificacion", "=", identificacion);
+
+      if (excludeId) {
+         query = query.where("id", "!=", excludeId);
+      }
+
+      const row = await query.executeTakeFirst();
+      return !!row;
    }
 
    async create(data: CreateEmployeeDTO): Promise<Employee> {
