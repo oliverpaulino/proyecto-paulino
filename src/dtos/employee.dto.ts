@@ -2,7 +2,9 @@ import { z } from "zod";
 
 const TipoIdentificacionSchema = z.enum(["CEDULA", "PASAPORTE"]);
 const TipoRolEmpleadoSchema = z.enum(["INGENIERO", "SECRETARIO", "CAMIONERO"]);
+const TipoContactoEmpleadoSchema = z.enum(["TELEFONO", "EMAIL"]);
 
+//Empleado
 const EmployeeDTO = z.object({
    id: z.string().uuid(),
    user_id: z.string().nullable(),
@@ -10,8 +12,6 @@ const EmployeeDTO = z.object({
    identificacion: z.string(),
    tipo_identificacion: TipoIdentificacionSchema,
    rol: TipoRolEmpleadoSchema,
-   telefono: z.string().nullable(),
-   email: z.string().email().nullable(),
    salario: z.number(),
    activo: z.boolean(),
    created_at: z.coerce.date(),
@@ -24,13 +24,29 @@ const CreateEmployeeDTO = z.object({
    identificacion: z.string().min(1),
    tipo_identificacion: TipoIdentificacionSchema,
    rol: TipoRolEmpleadoSchema,
-   telefono: z.string().nullable().optional(),
-   email: z.string().email().nullable().optional(),
    salario: z.number().min(0),
    activo: z.boolean().default(true),
 });
 
 const UpdateEmployeeDTO = CreateEmployeeDTO.partial();
+
+// Contacto empleado
+const ContactEmployeeDTO = z.object({
+   id: z.string().uuid(),
+   empleado_id: z.string().uuid(),
+   tipo_contacto: TipoContactoEmpleadoSchema,
+   contacto: z.string(),
+   created_at: z.coerce.date(),
+   updated_at: z.coerce.date(),
+});
+
+const CreateContactEmployeeDTO = z.object({
+   empleado_id: z.string().uuid(),
+   tipo_contacto: TipoContactoEmpleadoSchema,
+   contacto: z.string(),
+});
+
+const UpdateContactEmployeeDTO = CreateContactEmployeeDTO.partial();
 
 //Operador
 const OperatorDTO = z.object({
@@ -72,6 +88,9 @@ const UpdateEmployeeWarningDTO = CreateEmployeeWarningDTO.omit({ empleado_id: tr
 export type Employee = z.infer<typeof EmployeeDTO>;
 export type CreateEmployeeForm = z.infer<typeof CreateEmployeeDTO>;
 export type UpdateEmployeeForm = z.infer<typeof UpdateEmployeeDTO>;
+export type ContactEmployee = z.infer<typeof ContactEmployeeDTO>;
+export type CreateContactEmployeeForm = z.infer<typeof CreateContactEmployeeDTO>;
+export type UpdateContactEmployeeForm = z.infer<typeof UpdateContactEmployeeDTO>;
 export type Operator = z.infer<typeof OperatorDTO>;
 export type CreateOperatorForm = z.infer<typeof CreateOperatorDTO>;
 export type UpdateOperatorForm = z.infer<typeof UpdateOperatorDTO>;

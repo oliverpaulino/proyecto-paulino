@@ -28,22 +28,29 @@ export interface DB {
   };
 
   empleado: {
-    id: string;
+    id: Generated<string>;
     user_id: string | null;
     nombre: string;
     identificacion: string;
     tipo_identificacion: string;
-    rolEmpleado: string;
-    email: string | null;
-    telefono: string | null;
+    rol: string;
     salario: number;
     activo: boolean;
     created_at: Generated<Date>;
     updated_at: Generated<Date>;
   }
 
+  contact_empleado: {
+    id: Generated<string>;
+    empleado_id: string;
+    tipo_contacto: string;
+    contacto: string;
+    created_at: Date;
+    updated_at: Date;
+  }
+
   operador: {
-     id: string;
+     id: Generated<string>;
      empleado_id: string | null;
      licencia: string;
      created_at: Generated<Date>;
@@ -51,7 +58,7 @@ export interface DB {
   }
 
   amonestacion: {
-    id: string;
+    id: Generated<string>;
     empleado_id: string | null;
     fecha: Date;
     descripcion: string;

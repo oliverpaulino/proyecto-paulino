@@ -1,5 +1,5 @@
-export type TipoIdentificacion = "CEDULA" | "PASAPORTE";
-export type TipoRolEmpleado = "INGENIERO" | "SECRETARIO" | "CAMIONERO";
+export type TipoIdentificacion = "CEDULA" | "RNC"| "PASAPORTE"
+export type TipoRolEmpleado = "OPERADOR"| "INGENIERO" | "MECANICO"| "CONTABLE" | "MENSAJERO";
 
 export interface EmployeeProps {
    id: string;
@@ -7,9 +7,7 @@ export interface EmployeeProps {
    nombre: string;
    identificacion: string;
    tipo_identificacion: TipoIdentificacion;
-   rolEmpleado: TipoRolEmpleado;
-   email: string | null;
-   telefono: string | null;
+   rol: TipoRolEmpleado;
    salario: number;
    activo: boolean;
    created_at: Date;
@@ -28,8 +26,7 @@ export class Employee {
    get nombre() { return this.props.nombre; }
    get identificacion() { return this.props.identificacion; }
    get tipo_identificacion() { return this.props.tipo_identificacion; }
-   get email() { return this.props.email; }
-   get telefono() { return this.props.telefono; }
+   get rol() { return this.props.rol; }
    get salario() { return this.props.salario; }
    get activo() { return this.props.activo; }
    get created_at() { return this.props.created_at; }
@@ -45,10 +42,9 @@ export interface CreateEmployeeDTO {
    nombre: string;
    identificacion: string;
    tipo_identificacion: TipoIdentificacion;
-   rolEmpleado: TipoRolEmpleado;
-   email?: string | null;
-   telefono?: string | null;
+   rol: TipoRolEmpleado;
    salario: number;
+   activo?: boolean;
 }
 
 export interface UpdateEmployeeDTO {
@@ -56,10 +52,11 @@ export interface UpdateEmployeeDTO {
    nombre?: string;
    identificacion?: string;
    tipo_identificacion?: TipoIdentificacion;
-   rolEmpleado?: TipoRolEmpleado;
+   rol?: TipoRolEmpleado;
    email?: string | null;
    telefono?: string | null;
    salario?: number;
+   activo?: boolean;
 }
 
 export interface IEmployeeRepository {
