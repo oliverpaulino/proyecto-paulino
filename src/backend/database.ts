@@ -1,39 +1,64 @@
-import { Kysely, PostgresDialect } from "kysely";
+import { Kysely, PostgresDialect, Generated } from "kysely";
 import { Pool } from "pg";
 
 // DB SCHEMA
-interface DB {
-  categories: {
+export interface DB {
+  cliente: {
+    id: Generated<string>;
+    nombre: string;
+    identificacion: string;
+    tipo_identificacion: string;
+    tipo_cliente: string;
+    email: string | null;
+    telefono: string | null;
+    direccion: string | null;
+    created_at: Generated<Date>;
+    updated_at: Generated<Date>;
+  };
+  
+  contact: {
     id: string;
+    client_id: string;
     name: string;
-    organization_id: string;
+    email: string;
+    phone: string;
+    job_title: string;
+    created_at: Date;
+    updated_at: Date;
   };
-  product: {
+
+  empleado: {
     id: string;
-    category_id?: string;
-    name: string;
-    description?: string;
-    is_active: boolean;
-    organization_id: string;
-  };
-  product_variants: {
+    user_id: string | null;
+    nombre: string;
+    identificacion: string;
+    tipo_identificacion: string;
+    rolEmpleado: string;
+    email: string | null;
+    telefono: string | null;
+    salario: number;
+    activo: boolean;
+    created_at: Generated<Date>;
+    updated_at: Generated<Date>;
+  }
+
+  operador: {
+     id: string;
+     empleado_id: string | null;
+     licencia: string;
+     created_at: Generated<Date>;
+     updated_at: Generated<Date>;
+  }
+
+  amonestacion: {
     id: string;
-    product_id: string;
-    sku: string;
-    barcode?: string;
-    attributes: Record<string, string>;
-    price: number;
-    is_active: boolean;
-    organization_id: string;
-  };
-  stock_levels: {
-    id: string;
-    organization_id: string;
-    variant_id: string;
-    warehouse: string;
-    quantity: number;
-    min_stock: number;
-  };
+    empleado_id: string | null;
+    fecha: Date;
+    descripcion: string;
+    monto_descuento: string;
+    created_at: Generated<Date>;
+    updated_at: Generated<Date>;
+  }
 }
 
 // Initialize the database connection
