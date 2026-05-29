@@ -7,6 +7,8 @@ import {
   Command,
   HardHat,
   Settings2,
+  SquareTerminal,
+  Users,
   Users,
   Calendar,
   Truck,
@@ -27,7 +29,80 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar"
+import { useSession } from "@/lib/auth-client"
 
+const ROLE_HIERARCHY: Record<string, number> = {
+  usuario: 1,
+  asistente: 2,
+  coordinador: 3,
+  contable: 3,
+  administrador: 4,
+};
+
+const teams = [
+  {
+    name: "Acme Inc",
+    logo: GalleryVerticalEnd,
+    plan: "Enterprise",
+  },
+  {
+    name: "Acme Corp.",
+    logo: AudioWaveform,
+    plan: "Startup",
+  },
+  {
+    name: "Evil Corp.",
+    logo: Command,
+    plan: "Free",
+  },
+]
+
+const projects = [
+  {
+    name: "Design Engineering",
+    url: "#",
+    icon: Frame,
+  },
+  {
+    name: "Sales & Marketing",
+    url: "#",
+    icon: PieChart,
+  },
+  {
+    name: "Travel",
+    url: "#",
+    icon: Map,
+  },
+]
+
+export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { data: session } = useSession()
+  const role = (session?.user as { role?: string } | undefined)?.role
+  const roleLevel = ROLE_HIERARCHY[role ?? ""] ?? 0
+  const isAdmin = roleLevel >= ROLE_HIERARCHY["administrador"]
+
+  const settingsItems = [
+    { title: "General", url: "/dashboard/settings" },
+    { title: "Equipo", url: "/dashboard/equipo" },
+    ...(isAdmin ? [{ title: "Usuarios", url: "/dashboard/settings/users" }] : []),
+    { title: "Límites", url: "/dashboard/limites" },
+  ]
+
+  const navMain = [
+    {
+      title: "Panel",
+      url: "/dashboard",
+      icon: SquareTerminal,
+      isActive: true,
+      items: [],
+    },
+    {
+      title: "Configuración",
+      url: "#",
+      icon: Settings2,
+      items: settingsItems,
+    },
+  ]
 const data = {
   user: {
     name: "Paulino",
@@ -150,17 +225,17 @@ const data = {
   ],
 }
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={data.teams} />
+        <TeamSwitcher teams={teams} />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={navMain} />
+        <NavProjects projects={projects} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
