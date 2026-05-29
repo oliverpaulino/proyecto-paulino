@@ -10,44 +10,40 @@ import { useRouter } from "next/navigation";
 export function LoginForm({
   className,
   ...props
-}: React.ComponentProps<"form">) {
+}: React.ComponentProps<"div">) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-   const router = useRouter();
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Handle form submission logic here
-    console.log("Name:", name);
-    console.log("Email:", email);
-    console.log("Password:", password);
-    authClient.signIn
-      .email({
-        email,
-        password,
-        // callbackURL: "/dashboard",
-      })
-      .then(() => {
-        // Handle successful sign-up
-        router.push("/dashboard");
-        console.log("Sign-up successful");
-      })
-      .catch((error: unknown) => {
-        // Handle sign-up error
-        console.error("Sign-up error:", error);
-      });
+    setError("");
+    setLoading(true);
+
+    const { error } = await authClient.signIn.email({ email, password });
+
+    if (error) {
+      setError(error.message ?? "Error al iniciar sesión");
+      setLoading(false);
+      return;
+    }
+
+    router.push("/dashboard");
   };
+
   return (
-    <form className={cn("flex flex-col gap-6", className)} {...props}>
+    <div className={cn("flex flex-col gap-6", className)} {...props}>
       <div className="flex flex-col items-center gap-2 text-center">
-        <h1 className="text-2xl font-bold">Login to your account</h1>
+        <h1 className="text-2xl font-bold">Iniciar sesión</h1>
         <p className="text-muted-foreground text-sm text-balance">
-          Enter your email below to login to your account
+          Ingresa tu correo electrónico para acceder a tu cuenta
         </p>
       </div>
-      <div className="grid gap-6">
+      <form className="grid gap-6" onSubmit={handleSubmit}>
         <div className="grid gap-3">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email">Correo electrónico</Label>
           <Input
             id="email"
             type="email"
@@ -59,12 +55,12 @@ export function LoginForm({
         </div>
         <div className="grid gap-3">
           <div className="flex items-center">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">Contraseña</Label>
             <a
               href="/auth/forgot-password"
               className="ml-auto text-sm underline-offset-4 hover:underline"
             >
-              Forgot your password?
+              ¿Olvidaste tu contraseña?
             </a>
           </div>
           <Input
@@ -75,17 +71,19 @@ export function LoginForm({
             onChange={(e) => setPassword(e.target.value)}
           />
         </div>
-        <Button type="submit" className="w-full" onClick={handleSubmit}>
-          Login
+        {error && (
+          <p className="text-destructive text-sm text-center">{error}</p>
+        )}
+        <Button type="submit" className="w-full" disabled={loading}>
+          {loading ? "Iniciando sesión..." : "Iniciar sesión"}
         </Button>
-        
-      </div>
+      </form>
       <div className="text-center text-sm">
-        Don&apos;t have an account?{" "}
+        ¿No tienes una cuenta?{" "}
         <a href="/auth/signup" className="underline underline-offset-4">
-          Sign up
+          Regístrate
         </a>
       </div>
-    </form>
+    </div>
   );
 }

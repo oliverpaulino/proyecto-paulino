@@ -10,12 +10,16 @@ app.use(
   "/*",
   cors({
     origin: ["http://localhost:3000", "https://example.org"],
+    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
   })
 );
+
 app.get("/hello", (c) => {
   return c.json({ message: "Hello from Hono!" });
 });
 
-app.on(["POST", "GET"], "/auth/**", (c) => auth.handler(c.req.raw));
+app.all("/auth/**", (c) => auth.handler(c.req.raw));
 
 export default app;
