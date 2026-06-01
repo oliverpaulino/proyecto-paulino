@@ -4,22 +4,25 @@ import * as React from "react"
 import {
   AudioWaveform,
   Building2,
-  Command,
   HardHat,
   Settings2,
   SquareTerminal,
-  Users,
   Users,
   Calendar,
   Truck,
   Calculator,
   Wrench,
   Package,
-  ClipboardList
+  ClipboardList,
+  FileText,
+  DollarSign,
+  CheckSquare,
+  ShoppingCart,
+  CreditCard,
+  Banknote,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
-import { NavProjects } from "@/components/nav-projects"
 import { NavUser } from "@/components/nav-user"
 import { TeamSwitcher } from "@/components/team-switcher"
 import {
@@ -39,42 +42,6 @@ const ROLE_HIERARCHY: Record<string, number> = {
   administrador: 4,
 };
 
-const teams = [
-  {
-    name: "Acme Inc",
-    logo: GalleryVerticalEnd,
-    plan: "Enterprise",
-  },
-  {
-    name: "Acme Corp.",
-    logo: AudioWaveform,
-    plan: "Startup",
-  },
-  {
-    name: "Evil Corp.",
-    logo: Command,
-    plan: "Free",
-  },
-]
-
-const projects = [
-  {
-    name: "Design Engineering",
-    url: "#",
-    icon: Frame,
-  },
-  {
-    name: "Sales & Marketing",
-    url: "#",
-    icon: PieChart,
-  },
-  {
-    name: "Travel",
-    url: "#",
-    icon: Map,
-  },
-]
-
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: session } = useSession()
   const role = (session?.user as { role?: string } | undefined)?.role
@@ -82,14 +49,30 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const isAdmin = roleLevel >= ROLE_HIERARCHY["administrador"]
 
   const settingsItems = [
-    { title: "General", url: "/dashboard/settings" },
-    { title: "Equipo", url: "/dashboard/equipo" },
-    ...(isAdmin ? [{ title: "Usuarios", url: "/dashboard/settings/users" }] : []),
-    { title: "Límites", url: "/dashboard/limites" },
+    { id: "settings-general", title: "General", url: "/dashboard/settings" },
+    { id: "settings-equipo", title: "Equipo", url: "/dashboard/equipo" },
+    ...(isAdmin ? [{ id: "settings-usuarios", title: "Usuarios", url: "/dashboard/settings/users" }] : []),
+    { id: "settings-limites", title: "Límites", url: "/dashboard/limites" },
+  ]
+
+  const teams = [
+    {
+      name: "Constructora Kissimmee",
+      logo: AudioWaveform,
+      plan: "Startup",
+    },
   ]
 
   const navMain = [
     {
+      id: "configuracion",
+      title: "Configuración",
+      url: "#",
+      icon: Settings2,
+      items: settingsItems,
+    },
+    {
+      id: "panel",
       title: "Panel",
       url: "/dashboard",
       icon: SquareTerminal,
@@ -97,133 +80,140 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       items: [],
     },
     {
-      title: "Configuración",
-      url: "#",
-      icon: Settings2,
-      items: settingsItems,
-    },
-  ]
-const data = {
-  user: {
-    name: "Paulino",
-    email: "paulino@kissimmee.com",
-    avatar: "",
-  },
-  teams: [
-    {
-      name: "Constructora Kissimmee",
-      logo: AudioWaveform,
-      plan: "Startup",
-    },
-    {
-      name: "Constructora Bésame",
-      logo: Command,
-      plan: "Free",
-    },
-  ],
-  navMain: [
-    {
+      id: "proyectos",
       title: "Proyectos",
       url: "/dashboard/proyectos",
       icon: Building2,
-      items: [
-        {
-          title: "Cotizaciones",
-          url: "/dashboard/proyectos/cotizaciones",
-        },
-        {
-          title: "Gastos",
-          url: "/dashboard/proyectos/gastos",
-        },
-        {
-          title: "Tareas",
-          url: "/dashboard/proyectos/tareas",
-        },
-      ],
+      items: [],
     },
     {
+      id: "proyectos-cotizaciones",
+      title: "Cotizaciones",
+      url: "/dashboard/proyectos/cotizaciones",
+      icon: FileText,
+      items: [],
+    },
+    {
+      id: "proyectos-gastos",
+      title: "Gastos",
+      url: "/dashboard/proyectos/gastos",
+      icon: DollarSign,
+      items: [],
+    },
+    {
+      id: "proyectos-tareas",
+      title: "Tareas",
+      url: "/dashboard/proyectos/tareas",
+      icon: CheckSquare,
+      items: [],
+    },
+    {
+      id: "servicios",
       title: "Servicios",
       url: "/dashboard/servicios",
       icon: ClipboardList,
+      items: [],
     },
     {
+      id: "citas",
       title: "Citas",
       url: "/dashboard/citas",
       icon: Calendar,
+      items: [],
     },
     {
+      id: "clientes",
       title: "Clientes",
       url: "/dashboard/clientes",
       icon: Users,
+      items: [],
     },
     {
+      id: "proveedores",
       title: "Proveedores",
       url: "/dashboard/proveedores",
       icon: Truck,
-      items: [
-        {
-          title: "Catálogo de Proveedores",
-          url: "/dashboard/proveedores/catalogo",
-        },
-        {
-          title: "Compras",
-          url: "/dashboard/proveedores/compras",
-        },
-      ],
+      items: [],
     },
     {
+      id: "proveedores-compras",
+      title: "Compras",
+      url: "/dashboard/proveedores/compras",
+      icon: ShoppingCart,
+      items: [],
+    },
+    {
+      id: "empleados",
       title: "Empleados",
-      url: "/dashboard/empleados",
+      url: "#",
       icon: HardHat,
       items: [
         {
-          title: "Amonestaciones",
-          url: "/dashboard/empleados/amonestaciones",
+          id: "empleados-empleados",
+          title: "Empleados",
+          url: "/dashboard/empleados",
+        },
+        {
+          id: "empleados-conceptos",
+          title: "Conceptos",
+          url: "/dashboard/empleados/conceptos",
         },
       ],
     },
     {
+      id: "contabilidad",
       title: "Contabilidad",
       url: "/dashboard/contabilidad",
       icon: Calculator,
-      items: [
-        {
-          title: "Ventas",
-          url: "/dashboard/contabilidad/ventas",
-        },
-        {
-          title: "Pagos",
-          url: "/dashboard/contabilidad/pagos",
-        },
-        {
-          title: "Nómina",
-          url: "/dashboard/contabilidad/nomina",
-        },
-      ],
+      items: [],
     },
     {
+      id: "contabilidad-ventas",
+      title: "Ventas",
+      url: "/dashboard/contabilidad/ventas",
+      icon: Banknote,
+      items: [],
+    },
+    {
+      id: "contabilidad-pagos",
+      title: "Pagos",
+      url: "/dashboard/contabilidad/pagos",
+      icon: CreditCard,
+      items: [],
+    },
+    {
+      id: "contabilidad-nomina",
+      title: "Nómina",
+      url: "/dashboard/contabilidad/nomina",
+      icon: DollarSign,
+      items: [],
+    },
+    {
+      id: "equipos",
       title: "Equipos",
-      url: "/dashboard/equipos",
+      url: "#",
       icon: Wrench,
       items: [
         {
+          id: "equipos-equipos",
+          title: "Equipos",
+          url: "/dashboard/equipos",
+        },
+        {
+          id: "equipos-mantenimientos",
           title: "Mantenimientos",
           url: "/dashboard/equipos/mantenimientos",
         },
       ],
     },
     {
+      id: "inventario",
       title: "Inventario",
       url: "/dashboard/inventario",
       icon: Package,
+      items: [],
     },
-    {
-      title: "Configuración",
-      url: "/dashboard/configuracion",
-      icon: Settings2,
-    },
-  ],
-}
+  ]
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -232,7 +222,6 @@ const data = {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navMain} />
-        <NavProjects projects={projects} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser />
