@@ -3,6 +3,8 @@ export const runtime = "nodejs";
 import { Hono } from "hono";
 import { auth } from "@/lib/auth";
 import { cors } from "hono/cors";
+import clientsRoute from "@/backend/modules/clients/routes/clients";
+import employeesRoute from "@/backend/modules/employees/routes/employees";
 
 const app = new Hono().basePath("/api");
 
@@ -21,5 +23,8 @@ app.get("/hello", (c) => {
 });
 
 app.all("/auth/**", (c) => auth.handler(c.req.raw));
+
+app.route("/clients", clientsRoute);
+app.route("/employees", employeesRoute);
 
 export default app;
