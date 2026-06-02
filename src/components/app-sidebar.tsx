@@ -144,7 +144,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     },
     {
       id: "empleados",
-      title: "Empleados",
+      title: "Nuestro Equipo",
       url: "#",
       icon: HardHat,
       items: [

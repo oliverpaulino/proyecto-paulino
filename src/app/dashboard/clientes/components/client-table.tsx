@@ -127,28 +127,14 @@ export function ClientTable({ clients, onEdit, onDelete }: ClientTableProps) {
                                     onClick={() => router.push(`/dashboard/clientes/${client.id}`)}
                                  >
                                     <Eye className="w-4 h-4 mr-2" />
-                                    View Details
+                                    Ver en detalle
                                  </DropdownMenuItem>
                                  <DropdownMenuItem
                                     className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground"
                                     onClick={() => router.push(`/dashboard/clientes/${client.id}/contacts`)}
                                  >
                                     <Contact className="w-4 h-4 mr-2" />
-                                    View Contacts
-                                 </DropdownMenuItem>
-                                 <DropdownMenuItem
-                                    className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground"
-                                    onClick={() => onEdit(client)}
-                                 >
-                                    <Pencil className="w-4 h-4 mr-2" />
-                                    Edit Client
-                                 </DropdownMenuItem>
-                                 <DropdownMenuItem
-                                    className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground text-destructive"
-                                    onClick={() => onDelete(client)}
-                                 >
-                                    <Trash2 className="w-4 h-4 mr-2" />
-                                    Delete
+                                    Ver Contactos
                                  </DropdownMenuItem>
                               </DropdownMenuContent>
                            </DropdownMenu>
