@@ -22,7 +22,7 @@ app.get("/hello", (c) => {
   return c.json({ message: "Hello from Hono!" });
 });
 
-app.all("/auth/**", (c) => auth.handler(c.req.raw));
+app.all("/auth/*", (c) => auth.handler(c.req.raw));
 
 app.route("/clients", clientsRoute);
 app.route("/employees", employeesRoute);
