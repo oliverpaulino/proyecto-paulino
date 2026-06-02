@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCookieCache } from "better-auth/cookies";
 
 const ADMIN_ONLY_ROUTES = [
   "/dashboard/settings",
@@ -34,13 +33,6 @@ function matchesRoute(pathname: string, routes: string[]): boolean {
 }
 
 async function getSession(request: NextRequest) {
-  // Try the cookie cache first (fast, no DB hit)
-  const cached = await getCookieCache(request, {
-    secret: process.env.BETTER_AUTH_SECRET,
-  });
-  if (cached) return cached;
-
-  // Fall back to a direct API call (covers the case where cache is stale/missing)
   try {
     const url = new URL("/api/auth/get-session", request.url);
     const res = await fetch(url, {
