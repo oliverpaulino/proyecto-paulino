@@ -28,7 +28,6 @@ export interface DB {
 
    empleado: {
       id: Generated<string>;
-      user_id: string | null;
       nombre: string;
       identificacion: string;
       tipo_identificacion: string;

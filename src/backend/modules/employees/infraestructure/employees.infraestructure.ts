@@ -66,7 +66,6 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
       const row = await this.db
          .insertInto("empleado")
          .values({
-            user_id: data.user_id ?? null,
             nombre: data.nombre,
             identificacion: data.identificacion,
             tipo_identificacion: data.tipo_identificacion,

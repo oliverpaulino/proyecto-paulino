@@ -4,7 +4,6 @@ export type TipoContactoEmpleado = "TELEFONO" | "EMAIL";
 
 export interface EmployeeProps {
    id: string;
-   user_id: string | null;
    nombre: string;
    identificacion: string;
    tipo_identificacion: TipoIdentificacion;
@@ -23,7 +22,6 @@ export class Employee {
    }
 
    get id() { return this.props.id; }
-   get user_id() { return this.props.user_id; }
    get nombre() { return this.props.nombre; }
    get identificacion() { return this.props.identificacion; }
    get tipo_identificacion() { return this.props.tipo_identificacion; }
@@ -39,7 +37,6 @@ export class Employee {
 }
 
 export interface CreateEmployeeDTO {
-   user_id?: string | null;
    nombre: string;
    identificacion: string;
    tipo_identificacion: TipoIdentificacion;
@@ -49,7 +46,6 @@ export interface CreateEmployeeDTO {
 }
 
 export interface UpdateEmployeeDTO {
-   user_id?: string | null;
    nombre?: string;
    identificacion?: string;
    tipo_identificacion?: TipoIdentificacion;
