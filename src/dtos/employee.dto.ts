@@ -7,7 +7,6 @@ const TipoContactoEmpleadoSchema = z.enum(["TELEFONO", "EMAIL"]);
 // Empleado
 const EmployeeDTO = z.object({
    id: z.string().uuid(),
-   user_id: z.string().nullable(),
    nombre: z.string(),
    identificacion: z.string(),
    tipo_identificacion: TipoIdentificacionSchema,
@@ -19,7 +18,6 @@ const EmployeeDTO = z.object({
 });
 
 const CreateEmployeeDTO = z.object({
-   user_id: z.string().nullable().optional(),
    nombre: z.string().min(1),
    identificacion: z.string().min(1),
    tipo_identificacion: TipoIdentificacionSchema,

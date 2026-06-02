@@ -45,7 +45,6 @@ export function EmployeeForm({
       rol: initialData?.rol ?? "INGENIERO",
       salario: initialData?.salario ?? 0,
       activo: initialData?.activo ?? true,
-      user_id: initialData?.user_id ?? null,
    });
    const [error, setError] = useState<string | null>(null);
 
