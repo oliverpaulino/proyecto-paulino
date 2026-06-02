@@ -7,8 +7,8 @@ import { ac, roles } from "./permission";
 // const resend = new Resend(process.env.RESEND_API_KEY);
 
 export const auth = betterAuth({
+  baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
   database: new Pool({
-    // connection options
     connectionString: process.env.DB_CONNECTION_STRING,
   }),
   user: {
