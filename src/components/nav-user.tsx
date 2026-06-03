@@ -83,10 +83,6 @@ export function NavUser() {
                 <BadgeCheck />
                 Mi cuenta
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleResetPassword}>
-                <KeyRound />
-                Cambiar contraseña
-              </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleSignOut}>

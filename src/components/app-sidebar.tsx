@@ -20,6 +20,7 @@ import {
   ShoppingCart,
   CreditCard,
   Banknote,
+  User2,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -48,84 +49,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const roleLevel = ROLE_HIERARCHY[role ?? ""] ?? 0
   const isAdmin = roleLevel >= ROLE_HIERARCHY["administrador"]
 
-  const settingsItems = [
-    { id: "settings-general", title: "General", url: "/dashboard/settings" },
-    { id: "settings-equipo", title: "Equipo", url: "/dashboard/equipo" },
-    ...(isAdmin ? [{ id: "settings-usuarios", title: "Usuarios", url: "/dashboard/settings/users" }] : []),
-    { id: "settings-limites", title: "Límites", url: "/dashboard/limites" },
-  ]
-
-  const teams = [
-    {
-      name: "Constructora Kissimmee",
-      logo: AudioWaveform,
-      plan: "Startup",
-    },
-  ]
-
-  const navMain = [
-    {
-      id: "configuracion",
-      title: "Configuración",
-      url: "#",
-      icon: Settings2,
-      items: settingsItems,
-    },
-    {
-      id: "panel",
-      title: "Panel",
-      url: "/dashboard",
-      icon: SquareTerminal,
-      isActive: true,
-      items: [],
-    },
-    {
-      id: "proyectos",
-      title: "Proyectos",
-      url: "/dashboard/proyectos",
-      icon: Building2,
-      items: [],
-    },
-    {
-      id: "cotizaciones",
-      title: "Cotizaciones",
-      url: "/dashboard/cotizaciones",
-      icon: FileText,
-      items: [],
-    },
-    {
-      id: "gastos",
-      title: "Gastos",
-      url: "/dashboard/gastos",
-      icon: DollarSign,
-      items: [],
-    },
-    {
-      id: "tareas",
-      title: "Tareas",
-      url: "/dashboard/tareas",
-      icon: CheckSquare,
-      items: [],
-    },
-    {
-      id: "servicios",
-      title: "Servicios",
-      url: "/dashboard/servicios",
-      icon: ClipboardList,
-      items: [],
-    },
-    {
-      id: "citas",
-      title: "Citas",
-      url: "/dashboard/citas",
-      icon: Calendar,
-      items: [],
-    },
+  const contactos = [
     {
       id: "clientes",
       title: "Clientes",
       url: "/dashboard/clientes",
-      icon: Users,
+      icon: User2,
       items: [],
     },
     {
@@ -135,83 +64,95 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       icon: Truck,
       items: [],
     },
+  ]
+
+  const teams = [
     {
-      id: "compras",
-      title: "Compras",
-      url: "/dashboard/compras",
-      icon: ShoppingCart,
+      name: "Constructora Kissimmee",
+      logo: AudioWaveform,
+      plan: "Startup",
+    },
+  ]
+  const settingsItems = [
+    { id: "settings-general", title: "General", url: "/dashboard/settings" },
+    { id: "settings-equipo", title: "Equipo", url: "/dashboard/equipo" },
+    ...(isAdmin ? [{ id: "settings-usuarios", title: "Usuarios", url: "/dashboard/settings/users" }] : []),
+    { id: "settings-limites", title: "Límites", url: "/dashboard/limites" },
+  ]
+
+  const navMain = [
+    {
+      id: "panel",
+      title: "Panel Principal",
+      url: "/dashboard",
+      icon: SquareTerminal,
+      isActive: true,
       items: [],
     },
     {
-      id: "empleados",
-      title: "Nuestro Equipo",
+      id: "operaciones",
+      title: "Gestión de Obras",
+      url: "#",
+      icon: Building2,
+      items: [
+        { id: "op-proyectos", title: "Proyectos", url: "/dashboard/proyectos" },
+        { id: "op-tareas", title: "Tareas", url: "/dashboard/tareas" },
+        { id: "op-servicios", title: "Servicios", url: "/dashboard/servicios" },
+        { id: "op-citas", title: "Citas", url: "/dashboard/citas" },
+      ],
+    },
+    {
+      id: "flota",
+      title: "Maquinaria e Inventario",
+      url: "#",
+      icon: Truck,
+      items: [
+        { id: "flota-equipos", title: "Equipos Pesados", url: "/dashboard/equipos" },
+        { id: "flota-mantenimientos", title: "Mantenimientos", url: "/dashboard/equipos/mantenimientos" },
+        { id: "flota-inventario", title: "Inventario de Repuestos", url: "/dashboard/inventario" },
+      ],
+    },
+    {
+      id: "finanzas",
+      title: "Control de Presupuesto",
+      url: "#",
+      icon: Calculator,
+      items: [
+        { id: "fin-cotizaciones", title: "Cotizaciones", url: "/dashboard/cotizaciones" },
+        { id: "fin-ventas", title: "Ventas", url: "/dashboard/ventas" },
+        { id: "fin-compras", title: "Compras", url: "/dashboard/compras" },
+        { id: "fin-gastos", title: "Gastos", url: "/dashboard/gastos" },
+        { id: "fin-pagos", title: "Pagos", url: "/dashboard/pagos" },
+        { id: "fin-contabilidad", title: "Contabilidad", url: "/dashboard/contabilidad" },
+      ],
+    },
+    {
+      id: "personal",
+      title: "Personal en Terreno",
       url: "#",
       icon: HardHat,
       items: [
-        {
-          id: "empleados-empleados",
-          title: "Empleados",
-          url: "/dashboard/empleados",
-        },
-        {
-          id: "empleados-conceptos",
-          title: "Conceptos",
-          url: "/dashboard/empleados/conceptos",
-        },
+        { id: "rh-empleados", title: "Empleados", url: "/dashboard/empleados" },
+        { id: "rh-conceptos", title: "Conceptos", url: "/dashboard/empleados/conceptos" },
+        { id: "rh-nomina", title: "Nómina", url: "/dashboard/nomina" },
       ],
     },
     {
-      id: "contabilidad",
-      title: "Contabilidad",
-      url: "/dashboard/contabilidad",
-      icon: Calculator,
-      items: [],
-    },
-    {
-      id: "ventas",
-      title: "Ventas",
-      url: "/dashboard/ventas",
-      icon: Banknote,
-      items: [],
-    },
-    {
-      id: "pagos",
-      title: "Pagos",
-      url: "/dashboard/pagos",
-      icon: CreditCard,
-      items: [],
-    },
-    {
-      id: "nomina",
-      title: "Nómina",
-      url: "/dashboard/nomina",
-      icon: DollarSign,
-      items: [],
-    },
-    {
-      id: "equipos",
-      title: "Equipos",
+      id: "directorio",
+      title: "Directorio",
       url: "#",
-      icon: Wrench,
+      icon: Users,
       items: [
-        {
-          id: "equipos-equipos",
-          title: "Equipos",
-          url: "/dashboard/equipos",
-        },
-        {
-          id: "equipos-mantenimientos",
-          title: "Mantenimientos",
-          url: "/dashboard/equipos/mantenimientos",
-        },
+        { id: "dir-clientes", title: "Clientes", url: "/dashboard/clientes" },
+        { id: "dir-proveedores", title: "Proveedores", url: "/dashboard/proveedores" },
       ],
     },
     {
-      id: "inventario",
-      title: "Inventario",
-      url: "/dashboard/inventario",
-      icon: Package,
-      items: [],
+      id: "configuracion",
+      title: "Configuración",
+      url: "#",
+      icon: Settings2,
+      items: settingsItems,
     },
   ]
 
