@@ -54,16 +54,6 @@ export interface DB {
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
-
-   amonestacion: {
-      id: Generated<string>;
-      empleado_id: string | null;
-      fecha: Date;
-      descripcion: string;
-      monto_descuento: string;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
 }
 
 const db = new Kysely<DB>({

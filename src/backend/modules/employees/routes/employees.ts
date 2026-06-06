@@ -22,18 +22,12 @@ employeesRoute.get("/:id/details", async (c) => {
    const empleado = await service.getById(id);
    if (!empleado) return c.json({ error: "Empleado no encontrado" }, 404);
 
-   const [contactos, amonestaciones, operadorRow] = await Promise.all([
+   const [contactos, operadorRow] = await Promise.all([
       db
          .selectFrom("contact_empleado")
          .selectAll()
          .where("empleado_id", "=", id)
          .orderBy("created_at", "desc")
-         .execute(),
-      db
-         .selectFrom("amonestacion")
-         .selectAll()
-         .where("empleado_id", "=", id)
-         .orderBy("fecha", "desc")
          .execute(),
       db
          .selectFrom("operador")
@@ -48,13 +42,6 @@ employeesRoute.get("/:id/details", async (c) => {
          ...c,
          created_at: new Date(c.created_at),
          updated_at: new Date(c.updated_at),
-      })),
-      amonestaciones: amonestaciones.map((a) => ({
-         ...a,
-         monto_descuento: Number(a.monto_descuento),
-         fecha: new Date(a.fecha),
-         created_at: new Date(a.created_at),
-         updated_at: new Date(a.updated_at),
       })),
       operador: operadorRow
          ? {
@@ -178,70 +165,6 @@ employeesRoute.delete("/contacts/:contactId", async (c) => {
          .deleteFrom("contact_empleado")
          .where("id", "=", contactId)
          .executeTakeFirst()
-   );
-
-   if (error) return c.json({ error: String(error) }, 400);
-   return c.json({ success: true });
-});
-
-// POST /api/employees/warnings
-employeesRoute.post("/warnings", async (c) => {
-   const body = await c.req.json();
-
-   if (!body.empleado_id) return c.json({ error: "empleado_id es requerido" }, 400);
-   if (!body.descripcion?.trim()) return c.json({ error: "descripcion es requerida" }, 400);
-   if (body.monto_descuento === undefined) return c.json({ error: "monto_descuento es requerido" }, 400);
-   if (Number(body.monto_descuento) < 0) return c.json({ error: "monto_descuento no puede ser negativo" }, 400);
-
-   const [error, warning] = await catchError(
-      db
-         .insertInto("amonestacion")
-         .values({
-            id: crypto.randomUUID(),
-            empleado_id: body.empleado_id,
-            fecha: new Date(body.fecha ?? Date.now()),
-            descripcion: body.descripcion,
-            monto_descuento: String(body.monto_descuento),
-            created_at: new Date(),
-            updated_at: new Date(),
-         })
-         .returningAll()
-         .executeTakeFirstOrThrow()
-   );
-
-   if (error) return c.json({ error: String(error) }, 400);
-   return c.json({ data: { ...warning, monto_descuento: Number(warning?.monto_descuento) } }, 201);
-});
-
-// PATCH /api/employees/warnings/:warningId
-employeesRoute.patch("/warnings/:warningId", async (c) => {
-   const { warningId } = c.req.param();
-   const body = await c.req.json();
-
-   const updateData: Record<string, unknown> = { updated_at: new Date() };
-   if (body.fecha !== undefined) updateData.fecha = new Date(body.fecha);
-   if (body.descripcion !== undefined) updateData.descripcion = body.descripcion;
-   if (body.monto_descuento !== undefined) updateData.monto_descuento = String(body.monto_descuento);
-
-   const [error, warning] = await catchError(
-      db
-         .updateTable("amonestacion")
-         .set(updateData)
-         .where("id", "=", warningId)
-         .returningAll()
-         .executeTakeFirstOrThrow()
-   );
-
-   if (error) return c.json({ error: String(error) }, 400);
-   return c.json({ warning: { ...warning, monto_descuento: Number(warning?.monto_descuento) } });
-});
-
-// DELETE /api/employees/warnings/:warningId
-employeesRoute.delete("/warnings/:warningId", async (c) => {
-   const { warningId } = c.req.param();
-
-   const [error] = await catchError(
-      db.deleteFrom("amonestacion").where("id", "=", warningId).executeTakeFirst()
    );
 
    if (error) return c.json({ error: String(error) }, 400);

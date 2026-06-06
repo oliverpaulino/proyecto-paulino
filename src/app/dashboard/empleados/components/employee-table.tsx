@@ -130,24 +130,13 @@ export function EmployeeTable({ employees, onEdit, onDelete }: EmployeeTableProp
                                     onClick={() => router.push(`/dashboard/empleados/${employee.id}`)}
                                  >
                                     <Eye className="w-4 h-4 mr-2" />
-                                    Ver Perfil
+                                    Ver en Detalle
                                  </DropdownMenuItem>
                                  <DropdownMenuItem
                                     onClick={() => router.push(`/dashboard/empleados/${employee.id}/contacts`)}
                                  >
                                     <Contact className="w-4 h-4 mr-2" />
                                     Ver Contactos
-                                 </DropdownMenuItem>
-                                 <DropdownMenuItem onClick={() => onEdit(employee)}>
-                                    <Pencil className="w-4 h-4 mr-2" />
-                                    Editar
-                                 </DropdownMenuItem>
-                                 <DropdownMenuItem
-                                    className="text-destructive"
-                                    onClick={() => onDelete(employee)}
-                                 >
-                                    <Trash2 className="w-4 h-4 mr-2" />
-                                    Eliminar
                                  </DropdownMenuItem>
                               </DropdownMenuContent>
                            </DropdownMenu>
