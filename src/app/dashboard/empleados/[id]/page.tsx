@@ -19,6 +19,7 @@ import {
    DialogHeader,
    DialogTitle,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
    Table,
    TableBody,
@@ -28,26 +29,19 @@ import {
    TableRow,
 } from "@/components/ui/table";
 import {
-   DropdownMenu,
-   DropdownMenuContent,
-   DropdownMenuItem,
-   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
    ArrowLeft,
-   AlertTriangle,
    User,
    Loader2,
-   MoreHorizontal,
-   Plus,
    Pencil,
    Trash2,
-   DollarSign,
    Contact,
+   Phone,
+   Mail,
+   ReceiptText,
 } from "lucide-react";
-import type { EmployeeWarning } from "@/dtos/employee.dto";
+import { EmployeeForm } from "../components/employee-form";
+import { DeleteEmployeeDialog } from "../components/delete-employee-dialog";
+import StatCard from "./components/StatCard";
 
 const ROL_LABEL: Record<string, string> = {
    OPERADOR: "Operador",
@@ -57,88 +51,48 @@ const ROL_LABEL: Record<string, string> = {
    MENSAJERO: "Mensajero",
 };
 
+const TIPO_ID_LABEL: Record<string, string> = {
+   CEDULA: "Cédula",
+   RNC: "RNC",
+   PASAPORTE: "Pasaporte",
+};
+
 export default function EmployeeDetailPage() {
    const params = useParams();
    const router = useRouter();
    const empleadoId = params.id as string;
 
-   const { selectedEmployee, loading, GetEmployeeDetails, CreateWarning, UpdateWarning, DeleteWarning } =
+   const { selectedEmployee, loading, GetEmployeeDetails, UpdateEmployee, DeleteEmployee } =
       useEmployeeStore();
 
-   const [createWarningOpen, setCreateWarningOpen] = useState(false);
-   const [editWarning, setEditWarning] = useState<EmployeeWarning | null>(null);
-   const [deleteWarning, setDeleteWarning] = useState<EmployeeWarning | null>(null);
+   const [editOpen, setEditOpen] = useState(false);
+   const [deleteOpen, setDeleteOpen] = useState(false);
    const [actionLoading, setActionLoading] = useState(false);
-
-   const [warningForm, setWarningForm] = useState({
-      fecha: new Date().toISOString().split("T")[0],
-      descripcion: "",
-      monto_descuento: 0,
-   });
 
    useEffect(() => {
       GetEmployeeDetails(empleadoId);
    }, [empleadoId, GetEmployeeDetails]);
 
-   function resetWarningForm() {
-      setWarningForm({
-         fecha: new Date().toISOString().split("T")[0],
-         descripcion: "",
-         monto_descuento: 0,
-      });
-   }
-
-   async function handleCreateWarning() {
-      if (!warningForm.descripcion.trim()) return;
+   async function handleEdit(data: Parameters<typeof UpdateEmployee>[1]) {
       setActionLoading(true);
       try {
-         await CreateWarning({
-            empleado_id: empleadoId,
-            fecha: new Date(warningForm.fecha),
-            descripcion: warningForm.descripcion,
-            monto_descuento: warningForm.monto_descuento,
-         });
-         setCreateWarningOpen(false);
-         resetWarningForm();
+         const result = await UpdateEmployee(empleadoId, data);
+         if (result instanceof Error) throw result;
+         setEditOpen(false);
       } finally {
          setActionLoading(false);
       }
    }
 
-   async function handleEditWarning() {
-      if (!editWarning || !warningForm.descripcion.trim()) return;
+   async function handleDelete() {
       setActionLoading(true);
       try {
-         await UpdateWarning(editWarning.id, {
-            fecha: new Date(warningForm.fecha),
-            descripcion: warningForm.descripcion,
-            monto_descuento: warningForm.monto_descuento,
-         });
-         setEditWarning(null);
-         resetWarningForm();
+         const result = await DeleteEmployee(empleadoId);
+         if (result instanceof Error) throw result;
+         router.push("/dashboard/empleados");
       } finally {
          setActionLoading(false);
       }
-   }
-
-   async function handleDeleteWarning() {
-      if (!deleteWarning) return;
-      setActionLoading(true);
-      try {
-         await DeleteWarning(empleadoId, deleteWarning.id);
-         setDeleteWarning(null);
-      } finally {
-         setActionLoading(false);
-      }
-   }
-
-   function openEditWarning(w: EmployeeWarning) {
-      setEditWarning(w);
-      setWarningForm({
-         fecha: new Date(w.fecha).toISOString().split("T")[0],
-         descripcion: w.descripcion,
-         monto_descuento: w.monto_descuento,
-      });
    }
 
    if (loading && !selectedEmployee) {
@@ -161,237 +115,260 @@ export default function EmployeeDetailPage() {
       );
    }
 
-   const { empleado, amonestaciones } = selectedEmployee;
-   const totalDescuentos = amonestaciones.reduce((sum, a) => sum + a.monto_descuento, 0);
+   const { empleado, contactos } = selectedEmployee;
+
+   const telefonos = contactos.filter((c) => c.tipo_contacto === "TELEFONO");
+   const emails = contactos.filter((c) => c.tipo_contacto === "EMAIL");
 
    return (
       <div className="flex flex-col gap-6 p-6">
          {/* Header */}
-         <div className="flex items-center gap-4">
-            <Button variant="outline" size="icon" onClick={() => router.push("/dashboard/empleados")}>
-               <ArrowLeft className="size-4" />
-            </Button>
-            <div>
-               <h1 className="text-2xl font-bold text-brand-blue dark:text-white">{empleado.nombre}</h1>
-               <p className="text-sm text-muted-foreground">
-                  {empleado.tipo_identificacion}: {empleado.identificacion} · {ROL_LABEL[empleado.rol] ?? empleado.rol}
-               </p>
+         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex items-start gap-4">
+               <Button variant="outline" size="icon" onClick={() => router.push("/dashboard/empleados")}>
+                  <ArrowLeft className="size-4" />
+               </Button>
+               <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                     <h1 className="text-2xl font-bold text-brand-blue dark:text-white">
+                        {empleado.nombre}
+                     </h1>
+                     <span className="rounded-full bg-brand-yellow/20 px-2.5 py-1 text-xs font-semibold text-brand-black dark:text-brand-yellow">
+                        {ROL_LABEL[empleado.rol] ?? empleado.rol}
+                     </span>
+                     <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                        empleado.activo
+                           ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                           : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                     }`}>
+                        {empleado.activo ? "Activo" : "Inactivo"}
+                     </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                     {TIPO_ID_LABEL[empleado.tipo_identificacion] ?? empleado.tipo_identificacion}: {empleado.identificacion}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                     Salario: RD$ {empleado.salario.toLocaleString("es-DO")} / mes
+                  </p>
+               </div>
             </div>
-            <div className="ml-auto flex gap-2">
-               <Button
-                  variant="outline"
-                  onClick={() => router.push(`/dashboard/empleados/${empleadoId}/contacts`)}
-               >
-                  <Contact className="size-4 mr-2" />
+
+            <div className="flex flex-wrap gap-2 lg:justify-end">
+               <Button variant="outline" onClick={() => router.push(`/dashboard/empleados/${empleadoId}/contacts`)}>
+                  <Contact className="mr-2 size-4" />
                   Contactos
+               </Button>
+               <Button variant="outline" onClick={() => setEditOpen(true)}>
+                  <Pencil className="mr-2 size-4" />
+                  Editar
+               </Button>
+               <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
+                  <Trash2 className="mr-2 size-4" />
+                  Eliminar
                </Button>
             </div>
          </div>
 
-         {/* Info cards */}
-         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Card>
-               <CardHeader className="pb-2">
-                  <CardDescription>Salario</CardDescription>
-                  <CardTitle className="text-2xl">
-                     RD$ {empleado.salario.toLocaleString("es-DO")}
-                  </CardTitle>
-               </CardHeader>
-            </Card>
-            <Card>
-               <CardHeader className="pb-2">
-                  <CardDescription>Total Descuentos por Amonestaciones</CardDescription>
-                  <CardTitle className="text-2xl text-destructive">
-                     RD$ {totalDescuentos.toLocaleString("es-DO")}
-                  </CardTitle>
-               </CardHeader>
-            </Card>
-            <Card>
-               <CardHeader className="pb-2">
-                  <CardDescription>Amonestaciones registradas</CardDescription>
-                  <CardTitle className="text-2xl">{amonestaciones.length}</CardTitle>
-               </CardHeader>
-            </Card>
-         </div>
+         {/* Tabs */}
+         <Tabs defaultValue="resumen" className="space-y-4">
+            <TabsList className="w-full flex-wrap justify-start gap-1 bg-transparent p-0">
+               <TabsTrigger value="resumen" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                  Resumen
+               </TabsTrigger>
+               <TabsTrigger value="conceptos" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                  Conceptos
+               </TabsTrigger>
+            </TabsList>
 
-         {/* Amonestaciones */}
-         <Card>
-            <CardHeader>
-               <div className="flex items-center justify-between">
-                  <div>
-                     <CardTitle className="flex items-center gap-2">
-                        <AlertTriangle className="size-5 text-destructive" />
-                        Amonestaciones
-                     </CardTitle>
-                     <CardDescription>Historial de amonestaciones y descuentos aplicados</CardDescription>
-                  </div>
-                  <Button
-                     size="sm"
-                     onClick={() => { resetWarningForm(); setCreateWarningOpen(true); }}
-                  >
-                     <Plus className="size-4 mr-2" />
-                     Nueva
-                  </Button>
+            {/* ── RESUMEN ── */}
+            <TabsContent value="resumen" className="space-y-4">
+               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <StatCard
+                     label="Salario mensual"
+                     value={`RD$ ${empleado.salario.toLocaleString("es-DO")}`}
+                     icon={<ReceiptText className="size-4" />}
+                     compact
+                     bgColor="bg-brand-blue"
+                     textColor="text-white"
+                     labelColor="text-brand-yellow"
+                  />
+                  <StatCard
+                     label="Contactos registrados"
+                     value={contactos.length}
+                     icon={<Contact className="size-4" />}
+                     bgColor="bg-brand-yellow"
+                     textColor="text-brand-black"
+                     labelColor="text-brand-blue"
+                  />
+                  <StatCard
+                     label="Última actualización"
+                     value={new Date(empleado.updated_at).toLocaleDateString("es-DO")}
+                     icon={<User className="size-4" />}
+                     compact
+                     bgColor="bg-brand-black"
+                     textColor="text-white"
+                     labelColor="text-brand-yellow"
+                  />
                </div>
-            </CardHeader>
-            <CardContent>
-               {amonestaciones.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-8 text-muted-foreground gap-2">
-                     <AlertTriangle className="size-8 opacity-30" />
-                     <p className="text-sm">Sin amonestaciones registradas.</p>
-                  </div>
-               ) : (
-                  <Table>
-                     <TableHeader>
-                        <TableRow>
-                           <TableHead>Fecha</TableHead>
-                           <TableHead>Descripción</TableHead>
-                           <TableHead>Descuento</TableHead>
-                           <TableHead className="w-[50px]"></TableHead>
-                        </TableRow>
-                     </TableHeader>
-                     <TableBody>
-                        {amonestaciones.map((w) => (
-                           <TableRow key={w.id}>
-                              <TableCell className="whitespace-nowrap">
-                                 {new Date(w.fecha).toLocaleDateString("es-DO")}
-                              </TableCell>
-                              <TableCell>{w.descripcion}</TableCell>
-                              <TableCell className="text-destructive font-semibold">
-                                 <span className="flex items-center gap-1">
-                                    <DollarSign className="size-3.5" />
-                                    {w.monto_descuento.toLocaleString("es-DO")}
-                                 </span>
-                              </TableCell>
-                              <TableCell>
-                                 <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                       <Button variant="ghost" size="icon" className="h-8 w-8">
-                                          <MoreHorizontal className="size-4" />
-                                       </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                       <DropdownMenuItem onClick={() => openEditWarning(w)}>
-                                          <Pencil className="size-4 mr-2" /> Editar
-                                       </DropdownMenuItem>
-                                       <DropdownMenuItem
-                                          className="text-destructive"
-                                          onClick={() => setDeleteWarning(w)}
-                                       >
-                                          <Trash2 className="size-4 mr-2" /> Eliminar
-                                       </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                 </DropdownMenu>
-                              </TableCell>
-                           </TableRow>
-                        ))}
-                     </TableBody>
-                  </Table>
-               )}
-            </CardContent>
-         </Card>
 
-         {/* Create Warning Dialog */}
-         <Dialog open={createWarningOpen} onOpenChange={(open) => { setCreateWarningOpen(open); if (!open) resetWarningForm(); }}>
+               <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                  <Card className="lg:col-span-2">
+                     <CardHeader>
+                        <CardTitle>Información del empleado</CardTitle>
+                        <CardDescription>Datos personales y laborales.</CardDescription>
+                     </CardHeader>
+                     <CardContent>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                           <InfoField label="Nombre" value={empleado.nombre} />
+                           <InfoField label="Identificación" value={empleado.identificacion} />
+                           <InfoField label="Tipo de identificación" value={TIPO_ID_LABEL[empleado.tipo_identificacion] ?? empleado.tipo_identificacion} />
+                           <InfoField label="Rol" value={ROL_LABEL[empleado.rol] ?? empleado.rol} />
+                           <InfoField label="Salario" value={`RD$ ${empleado.salario.toLocaleString("es-DO")}`} />
+                           <InfoField label="Estado" value={empleado.activo ? "Activo" : "Inactivo"} />
+                        </div>
+                     </CardContent>
+                  </Card>
+
+                  <Card>
+                     <CardHeader>
+                        <CardTitle>Actividad</CardTitle>
+                        <CardDescription>Fechas del registro.</CardDescription>
+                     </CardHeader>
+                     <CardContent className="space-y-4">
+                        <InfoField label="Creado" value={new Date(empleado.created_at).toLocaleDateString("es-DO")} />
+                        <InfoField label="Actualizado" value={new Date(empleado.updated_at).toLocaleDateString("es-DO")} />
+                     </CardContent>
+                  </Card>
+               </div>
+
+               {/* Contactos preview */}
+               <Card>
+                  <CardHeader>
+                     <div className="flex items-center justify-between">
+                        <div>
+                           <CardTitle className="flex items-center gap-2">
+                              <Contact className="size-5 text-brand-blue" />
+                              Contactos
+                           </CardTitle>
+                           <CardDescription>
+                              {contactos.length === 0
+                                 ? "No hay contactos registrados."
+                                 : `${contactos.length} contacto${contactos.length !== 1 ? "s" : ""} registrado${contactos.length !== 1 ? "s" : ""}`}
+                           </CardDescription>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard/empleados/${empleadoId}/contacts`)}>
+                           Gestionar
+                        </Button>
+                     </div>
+                  </CardHeader>
+                  <CardContent>
+                     {contactos.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center gap-2 py-8 text-muted-foreground">
+                           <Contact className="size-8 opacity-30" />
+                           <p className="text-sm">Agrega el primer contacto para este empleado.</p>
+                        </div>
+                     ) : (
+                        <Table>
+                           <TableHeader>
+                              <TableRow>
+                                 <TableHead>Tipo</TableHead>
+                                 <TableHead>Contacto</TableHead>
+                              </TableRow>
+                           </TableHeader>
+                           <TableBody>
+                              {contactos.map((c) => (
+                                 <TableRow key={c.id}>
+                                    <TableCell>
+                                       <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                          {c.tipo_contacto === "EMAIL"
+                                             ? <Mail className="size-3.5" />
+                                             : <Phone className="size-3.5" />}
+                                          {c.tipo_contacto === "EMAIL" ? "Email" : "Teléfono"}
+                                       </span>
+                                    </TableCell>
+                                    <TableCell className="font-medium">{c.contacto}</TableCell>
+                                 </TableRow>
+                              ))}
+                           </TableBody>
+                        </Table>
+                     )}
+                  </CardContent>
+               </Card>
+            </TabsContent>
+
+            {/* ── CONCEPTOS ── */}
+            <TabsContent value="conceptos" className="space-y-4">
+               <Card>
+                  <CardHeader>
+                     <CardTitle>Conceptos</CardTitle>
+                     <CardDescription>Bonos, descuentos, amonestaciones y otros conceptos aplicados al empleado.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                     <div className="grid gap-4 md:grid-cols-3">
+                        <MiniStat label="Bonos" value="0" />
+                        <MiniStat label="Descuentos" value="0" />
+                        <MiniStat label="Conceptos" value="0" />
+                     </div>
+                     <EmptyState
+                        title="Módulo en desarrollo"
+                        description="Aquí podrás registrar y consultar todos los conceptos aplicados a este empleado: bonos, descuentos, amonestaciones y más."
+                     />
+                  </CardContent>
+               </Card>
+            </TabsContent>
+         </Tabs>
+
+         {/* Edit Dialog */}
+         <Dialog open={editOpen} onOpenChange={(open) => { if (!open) setEditOpen(false); }}>
             <DialogContent className="sm:max-w-md">
                <DialogHeader>
-                  <DialogTitle>Nueva Amonestación</DialogTitle>
-                  <DialogDescription>Registra una amonestación para {empleado.nombre}.</DialogDescription>
+                  <DialogTitle>Editar empleado</DialogTitle>
+                  <DialogDescription>Actualiza los datos de {empleado.nombre}.</DialogDescription>
                </DialogHeader>
-               <WarningFormFields form={warningForm} onChange={setWarningForm} />
-               <DialogFooter>
-                  <Button variant="outline" onClick={() => setCreateWarningOpen(false)} disabled={actionLoading}>
-                     Cancelar
-                  </Button>
-                  <Button onClick={handleCreateWarning} disabled={actionLoading || !warningForm.descripcion.trim()}>
-                     {actionLoading ? "Guardando…" : "Registrar"}
-                  </Button>
-               </DialogFooter>
+               <EmployeeForm
+                  initialData={empleado}
+                  onSubmit={handleEdit}
+                  onCancel={() => setEditOpen(false)}
+                  loading={actionLoading}
+                  submitLabel="Guardar cambios"
+               />
             </DialogContent>
          </Dialog>
 
-         {/* Edit Warning Dialog */}
-         <Dialog open={!!editWarning} onOpenChange={(open) => { if (!open) { setEditWarning(null); resetWarningForm(); } }}>
-            <DialogContent className="sm:max-w-md">
-               <DialogHeader>
-                  <DialogTitle>Editar Amonestación</DialogTitle>
-               </DialogHeader>
-               <WarningFormFields form={warningForm} onChange={setWarningForm} />
-               <DialogFooter>
-                  <Button variant="outline" onClick={() => setEditWarning(null)} disabled={actionLoading}>
-                     Cancelar
-                  </Button>
-                  <Button onClick={handleEditWarning} disabled={actionLoading || !warningForm.descripcion.trim()}>
-                     {actionLoading ? "Guardando…" : "Guardar cambios"}
-                  </Button>
-               </DialogFooter>
-            </DialogContent>
-         </Dialog>
-
-         {/* Delete Warning Dialog */}
-         <Dialog open={!!deleteWarning} onOpenChange={(open) => { if (!open) setDeleteWarning(null); }}>
-            <DialogContent className="sm:max-w-md">
-               <DialogHeader>
-                  <DialogTitle>Eliminar Amonestación</DialogTitle>
-                  <DialogDescription>
-                     ¿Estás seguro de que deseas eliminar esta amonestación? Esta acción no se puede deshacer.
-                  </DialogDescription>
-               </DialogHeader>
-               <DialogFooter>
-                  <Button variant="outline" onClick={() => setDeleteWarning(null)} disabled={actionLoading}>
-                     Cancelar
-                  </Button>
-                  <Button variant="destructive" onClick={handleDeleteWarning} disabled={actionLoading}>
-                     {actionLoading ? "Eliminando…" : "Eliminar"}
-                  </Button>
-               </DialogFooter>
-            </DialogContent>
-         </Dialog>
+         {/* Delete Dialog */}
+         <DeleteEmployeeDialog
+            employee={deleteOpen ? empleado : null}
+            onConfirm={handleDelete}
+            onClose={() => setDeleteOpen(false)}
+            loading={actionLoading}
+         />
       </div>
    );
 }
 
-function WarningFormFields({
-   form,
-   onChange,
-}: {
-   form: { fecha: string; descripcion: string; monto_descuento: number };
-   onChange: (v: typeof form) => void;
-}) {
+function InfoField({ label, value }: { label: string; value: string }) {
    return (
-      <div className="flex flex-col gap-3 py-2">
-         <div className="flex flex-col gap-1.5">
-            <Label htmlFor="wf-fecha">Fecha *</Label>
-            <Input
-               id="wf-fecha"
-               type="date"
-               value={form.fecha}
-               onChange={(e) => onChange({ ...form, fecha: e.target.value })}
-               required
-            />
-         </div>
-         <div className="flex flex-col gap-1.5">
-            <Label htmlFor="wf-desc">Descripción *</Label>
-            <Input
-               id="wf-desc"
-               value={form.descripcion}
-               onChange={(e) => onChange({ ...form, descripcion: e.target.value })}
-               placeholder="Motivo de la amonestación"
-               required
-            />
-         </div>
-         <div className="flex flex-col gap-1.5">
-            <Label htmlFor="wf-monto">Monto descuento (RD$)</Label>
-            <Input
-               id="wf-monto"
-               type="number"
-               min={0}
-               step={0.01}
-               value={form.monto_descuento}
-               onChange={(e) => onChange({ ...form, monto_descuento: Number(e.target.value) })}
-               placeholder="0.00"
-            />
-         </div>
+      <div className="rounded-lg border border-border bg-muted/20 p-3">
+         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+         <p className="mt-1 break-words text-sm font-medium">{value}</p>
+      </div>
+   );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+   return (
+      <div className="rounded-lg border bg-muted/20 p-4">
+         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+         <p className="mt-1 text-2xl font-semibold text-foreground">{value}</p>
+      </div>
+   );
+}
+
+function EmptyState({ title, description }: { title: string; description: string }) {
+   return (
+      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed bg-muted/10 px-6 py-10 text-center">
+         <p className="text-base font-semibold">{title}</p>
+         <p className="mt-1 max-w-xl text-sm text-muted-foreground">{description}</p>
       </div>
    );
 }

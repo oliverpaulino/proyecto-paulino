@@ -74,30 +74,6 @@ export interface UpdateContactEmpleadoDTO {
    contacto?: string;
 }
 
-// Amonestación
-export interface AmonestacionProps {
-   id: string;
-   empleado_id: string;
-   fecha: Date;
-   descripcion: string;
-   monto_descuento: number;
-   created_at: Date;
-   updated_at: Date;
-}
-
-export interface CreateAmonestacionDTO {
-   empleado_id: string;
-   fecha: Date;
-   descripcion: string;
-   monto_descuento: number;
-}
-
-export interface UpdateAmonestacionDTO {
-   fecha?: Date;
-   descripcion?: string;
-   monto_descuento?: number;
-}
-
 // Operador
 export interface OperadorProps {
    id: string;
