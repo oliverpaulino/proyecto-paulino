@@ -64,6 +64,18 @@ export interface DB {
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
+
+   proveedor: {
+      id: Generated<string>;
+      nombre: string;
+      tipo: string;
+      rnc: string;
+      telefono: string | null;
+      email: string | null;
+      direccion: string | null;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
 }
 
 const db = new Kysely<DB>({
