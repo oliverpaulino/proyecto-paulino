@@ -71,7 +71,6 @@ export default function EmpleadosPage() {
    const total = Employees.length;
    const activos = Employees.filter((e) => e.activo).length;
    const inactivos = Employees.filter((e) => !e.activo).length;
-   const totalSalarios = Employees.reduce((sum, e) => sum + e.salario, 0);
 
    async function handleCreate(data: Parameters<typeof CreateEmployee>[0]) {
       setFormLoading(true);

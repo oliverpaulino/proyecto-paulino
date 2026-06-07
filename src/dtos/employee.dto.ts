@@ -62,30 +62,9 @@ const CreateOperatorDTO = z.object({
 
 const UpdateOperatorDTO = CreateOperatorDTO.omit({ empleado_id: true }).partial();
 
-// Amonestación
-const EmployeeWarningDTO = z.object({
-   id: z.string().uuid(),
-   empleado_id: z.string().uuid(),
-   fecha: z.coerce.date(),
-   descripcion: z.string(),
-   monto_descuento: z.number(),
-   created_at: z.coerce.date(),
-   updated_at: z.coerce.date(),
-});
-
-const CreateEmployeeWarningDTO = z.object({
-   empleado_id: z.string().uuid(),
-   fecha: z.coerce.date(),
-   descripcion: z.string().min(1),
-   monto_descuento: z.number().min(0),
-});
-
-const UpdateEmployeeWarningDTO = CreateEmployeeWarningDTO.omit({ empleado_id: true }).partial();
-
 const EmployeeDetailsDTO = z.object({
    empleado: EmployeeDTO,
    contactos: z.array(ContactEmployeeDTO).default([]),
-   amonestaciones: z.array(EmployeeWarningDTO).default([]),
    operador: OperatorDTO.nullable().default(null),
 });
 
@@ -98,7 +77,4 @@ export type UpdateContactEmployeeForm = z.infer<typeof UpdateContactEmployeeDTO>
 export type Operator = z.infer<typeof OperatorDTO>;
 export type CreateOperatorForm = z.infer<typeof CreateOperatorDTO>;
 export type UpdateOperatorForm = z.infer<typeof UpdateOperatorDTO>;
-export type EmployeeWarning = z.infer<typeof EmployeeWarningDTO>;
-export type CreateEmployeeWarningForm = z.infer<typeof CreateEmployeeWarningDTO>;
-export type UpdateEmployeeWarningForm = z.infer<typeof UpdateEmployeeWarningDTO>;
 export type EmployeeDetails = z.infer<typeof EmployeeDetailsDTO>;
