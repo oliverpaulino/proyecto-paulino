@@ -7,22 +7,24 @@ import { Label } from "@/components/ui/label";
 import { Truck, Loader2 } from "lucide-react";
 import type { Employee, CreateEmployeeForm, Operator } from "@/dtos/employee.dto";
 
+import { 
+   GeneralSchemasDTO, 
+   TipoIdentificacionEmpleado, 
+   TipoRolEmpleado 
+} from "@/dtos/schema.dto";
+
 const SELECT_CLASS =
    "h-9 w-full rounded-4xl border border-input bg-input/30 px-3 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 text-foreground";
 
-const TIPO_IDENTIFICACION = [
-   { value: "CEDULA", label: "Cédula" },
-   { value: "RNC", label: "RNC" },
-   { value: "PASAPORTE", label: "Pasaporte" },
-] as const;
+const tipoIdentificacionOptions = Object.entries(TipoIdentificacionEmpleado).map(([key, value]) => ({
+   value: key as keyof typeof TipoIdentificacionEmpleado,
+   label: value,
+}));
 
-const ROLES = [
-   { value: "OPERADOR", label: "Operador" },
-   { value: "INGENIERO", label: "Ingeniero" },
-   { value: "MECANICO", label: "Mecánico" },
-   { value: "CONTABLE", label: "Contable" },
-   { value: "MENSAJERO", label: "Mensajero" },
-] as const;
+const rolesOptions = Object.entries(TipoRolEmpleado).map(([key, value]) => ({
+   value: key as keyof typeof TipoRolEmpleado,
+   label: value,
+}));
 
 export type OperadorFormData = {
    licencia: string;
@@ -114,9 +116,29 @@ export function EmployeeForm({
       setOperadorData((prev) => ({ ...prev, [field]: value }));
    }
 
+   function handleIdentificacionChange(e: React.ChangeEvent<HTMLInputElement>) {
+      const cleanValue = e.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+      set("identificacion", cleanValue);
+   }
+
    async function handleSubmit(e: React.FormEvent) {
       e.preventDefault();
       setError(null);
+
+      if (values.tipo_identificacion === "CEDULA") {
+         const validation = GeneralSchemasDTO.CedulaSchema.safeParse(values.identificacion);
+         if (!validation.success) {
+            setError(validation.error.issues[0].message);
+            return;
+         }
+      } else if (values.tipo_identificacion === "PASAPORTE") {
+         const validation = GeneralSchemasDTO.PasaporteSchema.safeParse(values.identificacion);
+         if (!validation.success) {
+            setError(validation.error.issues[0].message);
+            return;
+         }
+      }
+
       try {
          await onSubmit(values, isOperador ? operadorData : undefined);
       } catch (err: unknown) {
@@ -147,7 +169,8 @@ export function EmployeeForm({
                   className={SELECT_CLASS}
                   required
                >
-                  {TIPO_IDENTIFICACION.map((t) => (
+                  {/* Options generadas desde el schema */}
+                  {tipoIdentificacionOptions.map((t) => (
                      <option key={t.value} value={t.value}>{t.label}</option>
                   ))}
                </select>
@@ -158,8 +181,8 @@ export function EmployeeForm({
                <Input
                   id="ef-identificacion"
                   value={values.identificacion}
-                  onChange={(e) => set("identificacion", e.target.value)}
-                  placeholder="001-0000000-0"
+                  onChange={handleIdentificacionChange}
+                  placeholder={values.tipo_identificacion === "CEDULA" ? "Ej: 40212345678" : "Ej: RD1234567"}
                   required
                />
             </div>
@@ -174,7 +197,8 @@ export function EmployeeForm({
                className={SELECT_CLASS}
                required
             >
-               {ROLES.map((r) => (
+               {/* Options generadas desde el schema */}
+               {rolesOptions.map((r) => (
                   <option key={r.value} value={r.value}>{r.label}</option>
                ))}
             </select>
@@ -237,7 +261,7 @@ export function EmployeeForm({
             <Label htmlFor="ef-activo">Empleado activo</Label>
          </div>
 
-         {error && <p className="text-sm text-destructive">{error}</p>}
+         {error && <p className="text-sm font-medium text-destructive">{error}</p>}
 
          <div className="flex gap-2 justify-end pt-2">
             {onCancel && (

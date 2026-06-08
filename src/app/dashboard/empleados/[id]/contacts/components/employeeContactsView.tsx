@@ -47,8 +47,15 @@ import {
 } from "lucide-react";
 import type { ContactEmployee } from "@/dtos/employee.dto";
 
+import { GeneralSchemasDTO, TipoContacto } from "@/dtos/schema.dto";
+
 const SELECT_CLASS =
    "h-9 w-full rounded-4xl border border-input bg-input/30 px-3 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 text-foreground";
+
+const tipoContactoOptions = Object.entries(TipoContacto).map(([key, value]) => ({
+   value: key as keyof typeof TipoContacto,
+   label: value,
+}));
 
 interface EmployeeContactsViewProps {
    empleadoId: string;
@@ -71,9 +78,11 @@ export function EmployeeContactsView({ empleadoId }: EmployeeContactsViewProps) 
    const [deleteOpen, setDeleteOpen] = useState(false);
    const [selectedContact, setSelectedContact] = useState<ContactEmployee | null>(null);
    const [loading, setLoading] = useState(false);
+   
+   const [error, setError] = useState<string | null>(null);
 
    const [formData, setFormData] = useState({
-      tipo_contacto: "TELEFONO" as "TELEFONO" | "EMAIL",
+      tipo_contacto: "TELEFONO" as keyof typeof TipoContacto,
       contacto: "",
    });
 
@@ -86,11 +95,11 @@ export function EmployeeContactsView({ empleadoId }: EmployeeContactsViewProps) 
             setLoading(false);
          }
       })();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
    }, [empleadoId]);
 
    function resetForm() {
       setFormData({ tipo_contacto: "TELEFONO", contacto: "" });
+      setError(null);
    }
 
    const contactos = selectedEmployee?.contactos ?? [];
@@ -106,8 +115,27 @@ export function EmployeeContactsView({ empleadoId }: EmployeeContactsViewProps) 
       );
    }, [contactos, search]);
 
+   function validateForm(): boolean {
+      setError(null);
+      if (formData.tipo_contacto === "TELEFONO") {
+         const validation = GeneralSchemasDTO.TelefonoSchema.safeParse(formData.contacto);
+         if (!validation.success) {
+            setError(validation.error.issues[0].message);
+            return false;
+         }
+      } else if (formData.tipo_contacto === "EMAIL") {
+         const validation = GeneralSchemasDTO.EmailSchema.safeParse(formData.contacto);
+         if (!validation.success) {
+            setError(validation.error.issues[0].message);
+            return false;
+         }
+      }
+      return true;
+   }
+
    async function handleCreate() {
-      if (!formData.contacto.trim()) return;
+      if (!formData.contacto.trim() || !validateForm()) return;
+      
       setLoading(true);
       try {
          await CreateContact({
@@ -123,7 +151,8 @@ export function EmployeeContactsView({ empleadoId }: EmployeeContactsViewProps) 
    }
 
    async function handleEdit() {
-      if (!selectedContact || !formData.contacto.trim()) return;
+      if (!selectedContact || !formData.contacto.trim() || !validateForm()) return;
+
       setLoading(true);
       try {
          await UpdateContact(selectedContact.id, {
@@ -153,9 +182,10 @@ export function EmployeeContactsView({ empleadoId }: EmployeeContactsViewProps) 
    function openEdit(contact: ContactEmployee) {
       setSelectedContact(contact);
       setFormData({
-         tipo_contacto: contact.tipo_contacto,
+         tipo_contacto: contact.tipo_contacto as keyof typeof TipoContacto,
          contacto: contact.contacto,
       });
+      setError(null);
       setEditOpen(true);
    }
 
@@ -242,7 +272,7 @@ export function EmployeeContactsView({ empleadoId }: EmployeeContactsViewProps) 
                               {filteredContacts.map((contact) => (
                                  <TableRow key={contact.id}>
                                     <TableCell>
-                                       <TipoBadge tipo={contact.tipo_contacto} />
+                                       <TipoBadge tipo={contact.tipo_contacto as keyof typeof TipoContacto} />
                                     </TableCell>
                                     <TableCell>
                                        <ContactoLink contact={contact} />
@@ -269,7 +299,7 @@ export function EmployeeContactsView({ empleadoId }: EmployeeContactsViewProps) 
                            <Card key={contact.id} className="p-4">
                               <div className="flex items-start justify-between gap-2">
                                  <div className="space-y-1">
-                                    <TipoBadge tipo={contact.tipo_contacto} />
+                                    <TipoBadge tipo={contact.tipo_contacto as keyof typeof TipoContacto} />
                                     <div className="pt-1">
                                        <ContactoLink contact={contact} />
                                     </div>
@@ -298,7 +328,9 @@ export function EmployeeContactsView({ empleadoId }: EmployeeContactsViewProps) 
                   <DialogTitle>Nuevo Contacto</DialogTitle>
                   <DialogDescription>Agrega un dato de contacto para este empleado.</DialogDescription>
                </DialogHeader>
-               <ContactFormFields form={formData} onChange={setFormData} selectClass={SELECT_CLASS} />
+               
+               <ContactFormFields form={formData} onChange={setFormData} selectClass={SELECT_CLASS} error={error} />
+               
                <DialogFooter>
                   <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={loading}>
                      Cancelar
@@ -319,7 +351,9 @@ export function EmployeeContactsView({ empleadoId }: EmployeeContactsViewProps) 
                <DialogHeader>
                   <DialogTitle>Editar Contacto</DialogTitle>
                </DialogHeader>
-               <ContactFormFields form={formData} onChange={setFormData} selectClass={SELECT_CLASS} />
+               
+               <ContactFormFields form={formData} onChange={setFormData} selectClass={SELECT_CLASS} error={error} />
+               
                <DialogFooter>
                   <Button variant="outline" onClick={() => setEditOpen(false)} disabled={loading}>
                      Cancelar
@@ -355,26 +389,29 @@ export function EmployeeContactsView({ empleadoId }: EmployeeContactsViewProps) 
    );
 }
 
-// ─── Sub-componentes ──────────────────────────────────────────────────────
-
-function TipoBadge({ tipo }: { tipo: "TELEFONO" | "EMAIL" }) {
+function TipoBadge({ tipo }: { tipo: keyof typeof TipoContacto }) {
    if (tipo === "EMAIL") {
       return (
          <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700">
             <Mail className="size-3" />
-            Email
+            {TipoContacto[tipo]}
          </span>
       );
    }
    return (
       <span className="inline-flex items-center gap-1.5 rounded-full border border-green-200 bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-800 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700">
          <Phone className="size-3" />
-         Teléfono
+         {TipoContacto[tipo] ?? "Teléfono"}
       </span>
    );
 }
 
 function ContactoLink({ contact }: { contact: ContactEmployee }) {
+   const formatPhone = (phone: string) => {
+      if (phone.length === 10) return phone.replace(/(\d{3})(\d{3})(\d{4})/, "$1-$2-$3");
+      return phone;
+   };
+
    if (contact.tipo_contacto === "EMAIL") {
       return (
          <a
@@ -390,7 +427,7 @@ function ContactoLink({ contact }: { contact: ContactEmployee }) {
          href={`tel:${contact.contacto}`}
          className="flex items-center gap-1.5 text-brand-blue hover:underline text-sm"
       >
-         {contact.contacto}
+         {formatPhone(contact.contacto)}
       </a>
    );
 }
@@ -427,11 +464,22 @@ function ContactFormFields({
    form,
    onChange,
    selectClass,
+   error,
 }: {
-   form: { tipo_contacto: "TELEFONO" | "EMAIL"; contacto: string };
+   form: { tipo_contacto: keyof typeof TipoContacto; contacto: string };
    onChange: (v: typeof form) => void;
    selectClass: string;
+   error: string | null;
 }) {
+   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+      if (form.tipo_contacto === "TELEFONO") {
+         const cleanValue = e.target.value.replace(/\D/g, "");
+         onChange({ ...form, contacto: cleanValue });
+      } else {
+         onChange({ ...form, contacto: e.target.value.toLowerCase().trim() });
+      }
+   }
+
    return (
       <div className="flex flex-col gap-3 py-2">
          <div className="flex flex-col gap-1.5">
@@ -440,12 +488,15 @@ function ContactFormFields({
                id="cf-tipo"
                value={form.tipo_contacto}
                onChange={(e) =>
-                  onChange({ ...form, tipo_contacto: e.target.value as "TELEFONO" | "EMAIL", contacto: "" })
+                  onChange({ ...form, tipo_contacto: e.target.value as keyof typeof TipoContacto, contacto: "" })
                }
                className={selectClass}
             >
-               <option value="TELEFONO">Teléfono</option>
-               <option value="EMAIL">Email</option>
+               {tipoContactoOptions.map((t) => (
+                  <option key={t.value} value={t.value}>
+                     {t.label}
+                  </option>
+               ))}
             </select>
          </div>
          <div className="flex flex-col gap-1.5">
@@ -456,13 +507,15 @@ function ContactFormFields({
                id="cf-contacto"
                type={form.tipo_contacto === "EMAIL" ? "email" : "tel"}
                value={form.contacto}
-               onChange={(e) => onChange({ ...form, contacto: e.target.value })}
+               onChange={handleChange}
                placeholder={
                   form.tipo_contacto === "EMAIL"
                      ? "ejemplo@correo.com"
-                     : "+1 (809) 000-0000"
+                     : "Ej: 8091234567"
                }
+               className={error ? "border-destructive focus-visible:ring-destructive/50" : ""}
             />
+            {error && <p className="text-sm font-medium text-destructive mt-1">{error}</p>}
          </div>
       </div>
    );
