@@ -213,35 +213,57 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(data),
          });
-         if (!res.ok) throw new Error((await res.json()).error || "Error al crear contacto");
+         
+         if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || "Error al crear contacto");
+         }
+         
          await get().GetEmployeeDetails(data.empleado_id, true);
+         
       } catch (error) {
-         return error as Error;
+         throw error; 
       }
    },
 
-   UpdateContact: async (contactoId, data,) => {
+   UpdateContact: async (contactoId, data) => {
       try {
          const res = await fetch(`/api/employees/contacts/${contactoId}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(data),
          });
-         if (!res.ok) throw new Error((await res.json()).error || "Error al actualizar contacto");
-         const empId = empleadoId ?? get().selectedEmployee?.empleado.id;
-         if (empId) await get().GetEmployeeDetails(empId, true);
+         
+         if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || "Error al actualizar contacto");
+         }
+         
+         const empId = get().selectedEmployee?.empleado.id;
+         if (empId) {
+            await get().GetEmployeeDetails(empId, true);
+         }
+         
       } catch (error) {
-         return error as Error;
+         throw error;
       }
    },
 
    DeleteContact: async (empleadoId, contactoId) => {
       try {
-         const res = await fetch(`/api/employees/contacts/${contactoId}`, { method: "DELETE" });
-         if (!res.ok) throw new Error((await res.json()).error || "Error al eliminar contacto");
+         const res = await fetch(`/api/employees/contacts/${contactoId}`, { 
+            method: "DELETE" 
+         });
+         
+         if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || "Error al eliminar contacto");
+         }
+         
          await get().GetEmployeeDetails(empleadoId, true);
+         
       } catch (error) {
-         return error as Error;
+         throw error;
       }
    },
 
