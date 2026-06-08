@@ -39,7 +39,7 @@ import {
    Mail,
    ReceiptText,
 } from "lucide-react";
-import { EmployeeForm } from "../components/employee-form";
+import { EmployeeForm, type OperadorFormData } from "../components/employee-form";
 import { DeleteEmployeeDialog } from "../components/delete-employee-dialog";
 import StatCard from "./components/StatCard";
 
@@ -62,7 +62,7 @@ export default function EmployeeDetailPage() {
    const router = useRouter();
    const empleadoId = params.id as string;
 
-   const { selectedEmployee, loading, GetEmployeeDetails, UpdateEmployee, DeleteEmployee } =
+   const { selectedEmployee, loading, GetEmployeeDetails, UpdateEmployee, DeleteEmployee, UpdateOperator, CreateOperator } =
       useEmployeeStore();
 
    const [editOpen, setEditOpen] = useState(false);
@@ -73,11 +73,28 @@ export default function EmployeeDetailPage() {
       GetEmployeeDetails(empleadoId);
    }, [empleadoId, GetEmployeeDetails]);
 
-   async function handleEdit(data: Parameters<typeof UpdateEmployee>[1]) {
+   async function handleEdit(data: Parameters<typeof UpdateEmployee>[1], operadorData?: OperadorFormData) {
       setActionLoading(true);
       try {
          const result = await UpdateEmployee(empleadoId, data);
          if (result instanceof Error) throw result;
+
+         if (data.rol === "OPERADOR" && operadorData) {
+            const existingOp = selectedEmployee?.operador;
+            if (existingOp) {
+               await UpdateOperator(existingOp.id, {
+                  licencia: operadorData.licencia || null,
+                  fecha_vencimiento: operadorData.fecha_vencimiento ? new Date(operadorData.fecha_vencimiento) : null,
+               });
+            } else {
+               await CreateOperator({
+                  empleado_id: empleadoId,
+                  licencia: operadorData.licencia || null,
+                  fecha_vencimiento: operadorData.fecha_vencimiento ? new Date(operadorData.fecha_vencimiento) : null,
+               });
+            }
+         }
+
          setEditOpen(false);
       } finally {
          setActionLoading(false);
@@ -307,7 +324,7 @@ export default function EmployeeDetailPage() {
                      <div className="grid gap-4 md:grid-cols-3">
                         <MiniStat label="Bonos" value="0" />
                         <MiniStat label="Descuentos" value="0" />
-                        <MiniStat label="Conceptos" value="0" />
+                        <MiniStat label="Amonestaciones" value="0" />
                      </div>
                      <EmptyState
                         title="Módulo en desarrollo"
@@ -327,6 +344,7 @@ export default function EmployeeDetailPage() {
                </DialogHeader>
                <EmployeeForm
                   initialData={empleado}
+                  existingOperador={selectedEmployee?.operador ?? null}
                   onSubmit={handleEdit}
                   onCancel={() => setEditOpen(false)}
                   loading={actionLoading}

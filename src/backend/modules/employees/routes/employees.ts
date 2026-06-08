@@ -60,6 +60,17 @@ employeesRoute.get("/:id", async (c) => {
    return c.json(employee);
 });
 
+// GET /api/employees/:id/operator
+employeesRoute.get("/:id/operator", async (c) => {
+   const { id } = c.req.param();
+   const operator = await db
+      .selectFrom("operador")
+      .selectAll()
+      .where("empleado_id", "=", id)
+      .executeTakeFirst();
+   return c.json(operator ?? null);
+});
+
 // POST /api/employees
 employeesRoute.post("/", async (c) => {
    const body = await c.req.json();
@@ -192,6 +203,7 @@ employeesRoute.post("/operators", async (c) => {
             id: crypto.randomUUID(),
             empleado_id: body.empleado_id,
             licencia: body.licencia ?? null,
+            fecha_vencimiento: body.fecha_vencimiento ? new Date(body.fecha_vencimiento) : null,
             created_at: new Date(),
             updated_at: new Date(),
          })
@@ -211,7 +223,7 @@ employeesRoute.patch("/operators/:operatorId", async (c) => {
    const [error, operator] = await catchError(
       db
          .updateTable("operador")
-         .set({ licencia: body.licencia ?? null, updated_at: new Date() })
+         .set({ licencia: body.licencia ?? null, fecha_vencimiento: body.fecha_vencimiento ?? null, updated_at: new Date() })
          .where("id", "=", operatorId)
          .returningAll()
          .executeTakeFirstOrThrow()
