@@ -1,4 +1,4 @@
-export type TipoCliente = "fisica" | "gubernamental" | "juridica";
+export type TipoCliente = "FISICA" | "GUBERNAMENTAL" | "JURIDICA";
 export type TipoIdentificacion = "CEDULA" | "PASAPORTE" | "RNC";
 
 export interface ClientProps {
