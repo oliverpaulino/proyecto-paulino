@@ -35,8 +35,9 @@ const validarRncModulo11 = (rnc: string): boolean => {
   return checkDigit === parseInt(rnc[8]);
 };
 
-// SCHEMAS GENERALES
 
+
+// SCHEMAS GENERALES
 export const TipoIdentificacion = {
   CEDULA: "Cédula",
   RNC: "RNC",
@@ -99,6 +100,8 @@ export const GeneralSchemasDTO = {
   TipoContactoSchema,
 };
 
+
+
 // SCHEMAS DE EMPLEADOS
 export const TipoIdentificacionEmpleado = {
   CEDULA: "Cédula",
@@ -130,4 +133,24 @@ const TipoRolEmpleadoSchema = z.enum(
 export const EmployeeSchemasDTO = {
   TipoIdentificacionEmpleadoSchema,
   TipoRolEmpleadoSchema,
+};
+
+
+
+//SCHEMAS DE CLIENTES
+export const TipoCliente = {
+  FISICA: "Persona Física",
+  JURIDICA: "Persona Jurídica",
+  GUBERNAMENTAL: "Entidad Gubernamental",
+} as const;
+
+const TipoClienteSchema = z.enum(
+  Object.keys(TipoCliente) as [
+    keyof typeof TipoCliente,
+    ...(keyof typeof TipoCliente)[]
+  ]
+);
+
+export const ClientSchemasDTO = {
+  TipoClienteSchema,
 };

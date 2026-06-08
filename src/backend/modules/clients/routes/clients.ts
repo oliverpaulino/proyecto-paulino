@@ -50,8 +50,8 @@ clientsRoute.post("/contacts", async (c) => {
       email: insertedContact.email ?? undefined,
       phone: insertedContact.phone ?? undefined,
       job_title: insertedContact.job_title ?? undefined,
-      created_at: insertedContact.created_at ? new Date(insertedContact.created_at).toISOString() : undefined,
-      updated_at: insertedContact.updated_at ? new Date(insertedContact.updated_at).toISOString() : undefined,
+      created_at: new Date(insertedContact.created_at),
+      updated_at: new Date(insertedContact.updated_at),
    };
 
    return c.json({ data: contact });
@@ -153,6 +153,7 @@ clientsRoute.patch("/:id/contacts/:contactId", async (c) => {
    }
    return c.json({ contact });
 });
+
 clientsRoute.delete("/:id/contacts/:contactId", async (c) => {
    // const session = await auth.api.getSession({
    //    headers: c.req.raw.headers,

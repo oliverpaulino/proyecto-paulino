@@ -40,6 +40,8 @@ import type { Contact } from "@/dtos/client.dto";
 import { useDebounce } from "@/hooks/use-debounce";
 import { TableSearch } from "@/components/table-search";
 
+import { GeneralSchemasDTO } from "@/dtos/schema.dto";
+
 interface ClientContactsViewProps {
    clientId: string;
 }
@@ -66,6 +68,8 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
    const [loading, setLoading] = useState(false);
    const [loadingContact, setLoadingContact] = useState(false);
 
+   const [errors, setErrors] = useState<Record<string, string>>({});
+
    const [formData, setFormData] = useState<{
       name: string;
       email: string;
@@ -84,10 +88,8 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
 
    const client = Clients.find((c) => c.id === clientId);
 
-   // FIX: Limpiar pointer-events cuando cambie el estado de los diálogos
    useEffect(() => {
       if (!createOpen && !editOpen && !deleteOpen) {
-         // Limpiar pointer-events del body cuando todos los diálogos estén cerrados
          document.body.style.pointerEvents = '';
       }
    }, [createOpen, editOpen, deleteOpen]);
@@ -132,10 +134,37 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
 
    const resetForm = () => {
       setFormData({ name: "", email: "", phone: "", job_title: "" });
+      setErrors({});
+   };
+
+   const validateForm = (): boolean => {
+      const newErrors: Record<string, string> = {};
+
+      if (!formData.name.trim()) {
+         newErrors.name = "El nombre es obligatorio";
+      }
+
+      if (formData.email) {
+         const emailValidation = GeneralSchemasDTO.EmailSchema.safeParse(formData.email);
+         if (!emailValidation.success) {
+            newErrors.email = emailValidation.error.issues[0].message;
+         }
+      }
+
+      if (formData.phone) {
+         const phoneValidation = GeneralSchemasDTO.TelefonoSchema.safeParse(formData.phone);
+         if (!phoneValidation.success) {
+            newErrors.phone = phoneValidation.error.issues[0].message;
+         }
+      }
+
+      setErrors(newErrors);
+      return Object.keys(newErrors).length === 0;
    };
 
    const handleCreate = async () => {
-      if (!formData.name.trim()) return;
+      if (!validateForm()) return;
+      
       setLoading(true);
       try {
          await CreateContact({
@@ -156,7 +185,8 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
    };
 
    const handleEdit = async () => {
-      if (!selectedContact || !formData.name.trim()) return;
+      if (!selectedContact || !validateForm()) return;
+      
       setLoading(true);
       try {
          await UpdateContact({
@@ -201,6 +231,7 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
          phone: contact.phone || "",
          job_title: contact.job_title || "",
       });
+      setErrors({});
       setEditOpen(true);
    };
 
@@ -218,6 +249,12 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
          return name.includes(q) || job.includes(q);
       });
    }, [Contacts, debouncedSearch]);
+
+   const formatPhone = (phone: string | null | undefined) => {
+      if (!phone) return "—";
+      if (phone.length === 10) return phone.replace(/(\d{3})(\d{3})(\d{4})/, "$1-$2-$3");
+      return phone;
+   };
 
    return (
       <div className="space-y-4 sm:space-y-6">
@@ -289,7 +326,7 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
                                  <TableHead>Email</TableHead>
                                  <TableHead>Teléfono</TableHead>
                                  <TableHead>Cargo</TableHead>
-                                 <TableHead>Fecha de creación</TableHead>
+                                 <TableHead>Fecha</TableHead>
                                  <TableHead className="w-[50px]"></TableHead>
                               </TableRow>
                            </TableHeader>
@@ -298,7 +335,7 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
                                  <TableRow key={contact.id}>
                                     <TableCell className="font-medium">{contact.name}</TableCell>
                                     <TableCell>{contact.email || "—"}</TableCell>
-                                    <TableCell>{contact.phone || "—"}</TableCell>
+                                    <TableCell>{formatPhone(contact.phone)}</TableCell>
                                     <TableCell>{contact.job_title || "—"}</TableCell>
                                     <TableCell>
                                        {contact.created_at
@@ -347,12 +384,7 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
                                        <p className="text-sm text-muted-foreground truncate">{contact.email}</p>
                                     )}
                                     {contact.phone && (
-                                       <p className="text-sm text-muted-foreground">{contact.phone}</p>
-                                    )}
-                                    {contact.created_at && (
-                                       <p className="text-xs text-muted-foreground">
-                                          {new Date(contact.created_at).toLocaleDateString()}
-                                       </p>
+                                       <p className="text-sm text-muted-foreground">{formatPhone(contact.phone)}</p>
                                     )}
                                  </div>
                                  <DropdownMenu>
@@ -392,64 +424,24 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
                if (!open) {
                   resetForm();
                   setLoading(false);
-                  // Forzar limpieza del pointer-events
-                  setTimeout(() => {
-                     document.body.style.pointerEvents = '';
-                  }, 0);
+                  setTimeout(() => { document.body.style.pointerEvents = ''; }, 0);
                }
             }}
          >
             <DialogContent className="w-[95vw] max-w-lg sm:max-w-[50vw]">
                <DialogHeader>
                   <DialogTitle>Nuevo Contacto</DialogTitle>
-                  <DialogDescription>
-                     Agrega un nuevo contacto para este cliente.
-                  </DialogDescription>
+                  <DialogDescription>Agrega un nuevo contacto para este cliente.</DialogDescription>
                </DialogHeader>
-               <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                     <Label htmlFor="create-name">Nombre *</Label>
-                     <Input
-                        id="create-name"
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        placeholder="Nombre del contacto"
-                     />
-                  </div>
-                  <div className="grid gap-2">
-                     <Label htmlFor="create-email">Email</Label>
-                     <Input
-                        id="create-email"
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        placeholder="correo@ejemplo.com"
-                     />
-                  </div>
-                  <div className="grid gap-2">
-                     <Label htmlFor="create-phone">Teléfono</Label>
-                     <Input
-                        id="create-phone"
-                        value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        placeholder="+1 (809) 000-0000"
-                     />
-                  </div>
-                  <div className="grid gap-2">
-                     <Label htmlFor="create-job">Cargo</Label>
-                     <Input
-                        id="create-job"
-                        value={formData.job_title}
-                        onChange={(e) => setFormData({ ...formData, job_title: e.target.value })}
-                        placeholder="Gerente, Director, etc."
-                     />
-                  </div>
-               </div>
+               
+               {/* 4. Usamos el componente extraído para evitar repetir código */}
+               <ContactFormFields formData={formData} setFormData={setFormData} errors={errors} />
+               
                <DialogFooter className="flex-col gap-2 sm:flex-row">
                   <Button variant="outline" className="w-full sm:w-auto" onClick={() => setCreateOpen(false)}>
                      Cancelar
                   </Button>
-                  <Button className="w-full sm:w-auto" onClick={handleCreate} disabled={loading || !formData.name.trim()}>
+                  <Button className="w-full sm:w-auto" onClick={handleCreate} disabled={loading}>
                      {loading ? "Creando..." : "Crear Contacto"}
                   </Button>
                </DialogFooter>
@@ -466,64 +458,24 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
                   setSelectedContact(null);
                   resetForm();
                   setLoading(false);
-                  // Forzar limpieza del pointer-events
-                  setTimeout(() => {
-                     document.body.style.pointerEvents = '';
-                  }, 0);
+                  setTimeout(() => { document.body.style.pointerEvents = ''; }, 0);
                }
             }}
          >
             <DialogContent className="w-[95vw] max-w-lg sm:max-w-[50vw]">
                <DialogHeader>
                   <DialogTitle>Editar Contacto</DialogTitle>
-                  <DialogDescription>
-                     Modifica la información del contacto.
-                  </DialogDescription>
+                  <DialogDescription>Modifica la información del contacto.</DialogDescription>
                </DialogHeader>
-               <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                     <Label htmlFor="edit-name">Nombre *</Label>
-                     <Input
-                        id="edit-name"
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        placeholder="Nombre del contacto"
-                     />
-                  </div>
-                  <div className="grid gap-2">
-                     <Label htmlFor="edit-email">Email</Label>
-                     <Input
-                        id="edit-email"
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        placeholder="correo@ejemplo.com"
-                     />
-                  </div>
-                  <div className="grid gap-2">
-                     <Label htmlFor="edit-phone">Teléfono</Label>
-                     <Input
-                        id="edit-phone"
-                        value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        placeholder="+1 (809) 000-0000"
-                     />
-                  </div>
-                  <div className="grid gap-2">
-                     <Label htmlFor="edit-job">Cargo</Label>
-                     <Input
-                        id="edit-job"
-                        value={formData.job_title}
-                        onChange={(e) => setFormData({ ...formData, job_title: e.target.value })}
-                        placeholder="Gerente, Director, etc."
-                     />
-                  </div>
-               </div>
+               
+               {/* 4. Usamos el componente extraído para evitar repetir código */}
+               <ContactFormFields formData={formData} setFormData={setFormData} errors={errors} />
+
                <DialogFooter className="flex-col gap-2 sm:flex-row">
                   <Button variant="outline" className="w-full sm:w-auto" onClick={() => setEditOpen(false)}>
                      Cancelar
                   </Button>
-                  <Button className="w-full sm:w-auto" onClick={handleEdit} disabled={loading || !formData.name.trim()}>
+                  <Button className="w-full sm:w-auto" onClick={handleEdit} disabled={loading}>
                      {loading ? "Guardando..." : "Guardar Cambios"}
                   </Button>
                </DialogFooter>
@@ -539,10 +491,7 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
                if (!open) {
                   setSelectedContact(null);
                   setLoading(false);
-                  // Forzar limpieza del pointer-events
-                  setTimeout(() => {
-                     document.body.style.pointerEvents = '';
-                  }, 0);
+                  setTimeout(() => { document.body.style.pointerEvents = ''; }, 0);
                }
             }}
          >
@@ -551,8 +500,7 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
                   <DialogTitle>Eliminar Contacto</DialogTitle>
                   <DialogDescription>
                      ¿Estás seguro de que deseas eliminar a{" "}
-                     <strong>{selectedContact?.name}</strong>? Esta acción no se puede
-                     deshacer.
+                     <strong>{selectedContact?.name}</strong>? Esta acción no se puede deshacer.
                   </DialogDescription>
                </DialogHeader>
                <DialogFooter className="flex-col gap-2 sm:flex-row">
@@ -565,6 +513,77 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
                </DialogFooter>
             </DialogContent>
          </Dialog>
+      </div>
+   );
+}
+
+
+function ContactFormFields({
+   formData,
+   setFormData,
+   errors,
+}: {
+   formData: { name: string; email: string; phone: string; job_title: string };
+   setFormData: React.Dispatch<React.SetStateAction<any>>;
+   errors: Record<string, string>;
+}) {
+   
+   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const cleanValue = e.target.value.replace(/\D/g, ""); // Solo dígitos
+      setFormData({ ...formData, phone: cleanValue });
+   };
+
+   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const cleanValue = e.target.value.toLowerCase().trim(); // Minúsculas, sin espacios
+      setFormData({ ...formData, email: cleanValue });
+   };
+
+   return (
+      <div className="grid gap-4 py-4">
+         <div className="grid gap-2">
+            <Label htmlFor="contact-name">Nombre *</Label>
+            <Input
+               id="contact-name"
+               value={formData.name}
+               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+               placeholder="Nombre del contacto"
+               className={errors.name ? "border-destructive focus-visible:ring-destructive/50" : ""}
+            />
+            {errors.name && <p className="text-xs font-medium text-destructive">{errors.name}</p>}
+         </div>
+         <div className="grid gap-2">
+            <Label htmlFor="contact-email">Email</Label>
+            <Input
+               id="contact-email"
+               type="email"
+               value={formData.email}
+               onChange={handleEmailChange}
+               placeholder="correo@ejemplo.com"
+               className={errors.email ? "border-destructive focus-visible:ring-destructive/50" : ""}
+            />
+            {errors.email && <p className="text-xs font-medium text-destructive">{errors.email}</p>}
+         </div>
+         <div className="grid gap-2">
+            <Label htmlFor="contact-phone">Teléfono</Label>
+            <Input
+               id="contact-phone"
+               type="tel"
+               value={formData.phone}
+               onChange={handlePhoneChange}
+               placeholder="Ej: 8091234567"
+               className={errors.phone ? "border-destructive focus-visible:ring-destructive/50" : ""}
+            />
+            {errors.phone && <p className="text-xs font-medium text-destructive">{errors.phone}</p>}
+         </div>
+         <div className="grid gap-2">
+            <Label htmlFor="contact-job">Cargo</Label>
+            <Input
+               id="contact-job"
+               value={formData.job_title}
+               onChange={(e) => setFormData({ ...formData, job_title: e.target.value })}
+               placeholder="Gerente, Director, etc."
+            />
+         </div>
       </div>
    );
 }
