@@ -6,7 +6,7 @@ const TipoContactoEmpleadoSchema = z.enum(["TELEFONO", "EMAIL"]);
 
 // Empleado
 const EmployeeDTO = z.object({
-   id: z.string().uuid(),
+   id: z.uuid(),
    nombre: z.string(),
    identificacion: z.string(),
    tipo_identificacion: TipoIdentificacionSchema,
@@ -30,8 +30,8 @@ const UpdateEmployeeDTO = CreateEmployeeDTO.partial();
 
 // Contacto empleado
 const ContactEmployeeDTO = z.object({
-   id: z.string().uuid(),
-   empleado_id: z.string().uuid(),
+   id: z.uuid(),
+   empleado_id: z.uuid(),
    tipo_contacto: TipoContactoEmpleadoSchema,
    contacto: z.string(),
    created_at: z.coerce.date(),
@@ -39,7 +39,7 @@ const ContactEmployeeDTO = z.object({
 });
 
 const CreateContactEmployeeDTO = z.object({
-   empleado_id: z.string().uuid(),
+   empleado_id: z.uuid(),
    tipo_contacto: TipoContactoEmpleadoSchema,
    contacto: z.string().min(1),
 });
@@ -48,16 +48,18 @@ const UpdateContactEmployeeDTO = CreateContactEmployeeDTO.omit({ empleado_id: tr
 
 // Operador
 const OperatorDTO = z.object({
-   id: z.string().uuid(),
-   empleado_id: z.string().uuid(),
+   id: z.uuid(),
+   empleado_id: z.uuid(),
    licencia: z.string().nullable(),
+   fecha_vencimiento: z.coerce.date().nullable(),
    created_at: z.coerce.date(),
    updated_at: z.coerce.date(),
 });
 
 const CreateOperatorDTO = z.object({
-   empleado_id: z.string().uuid(),
+   empleado_id: z.uuid(),
    licencia: z.string().nullable().optional(),
+   fecha_vencimiento: z.coerce.date().nullable().optional(),
 });
 
 const UpdateOperatorDTO = CreateOperatorDTO.omit({ empleado_id: true }).partial();

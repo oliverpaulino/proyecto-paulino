@@ -51,6 +51,7 @@ export interface DB {
       id: Generated<string>;
       empleado_id: string | null;
       licencia: string;
+      fecha_vencimiento: Date | null;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };

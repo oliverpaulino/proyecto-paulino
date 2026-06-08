@@ -79,6 +79,7 @@ export interface OperadorProps {
    id: string;
    empleado_id: string;
    licencia: string | null;
+   fecha_vencimiento?: Date | null;
    created_at: Date;
    updated_at: Date;
 }
@@ -86,10 +87,12 @@ export interface OperadorProps {
 export interface CreateOperadorDTO {
    empleado_id: string;
    licencia?: string | null;
+   licencia_vencimiento?: Date | null;
 }
 
 export interface UpdateOperadorDTO {
    licencia?: string | null;
+   licencia_vencimiento?: Date | null;
 }
 
 export interface IEmployeeRepository {
