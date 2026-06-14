@@ -57,10 +57,27 @@ export interface UpdateClientDTO {
    direccion?: string | null;
 }
 
+export interface ContactClientProps {
+   id: string;
+   client_id: string;
+   name: string;
+   email?: string | null;
+   phone?: string | null;
+   job_title?: string | null;
+   created_at: Date;
+   updated_at: Date;
+}
+
 export interface IClientRepository {
    findAll(): Promise<Client[]>;
    findById(id: string): Promise<Client | null>;
    create(data: CreateClientDTO): Promise<Client>;
    update(id: string, data: UpdateClientDTO): Promise<Client | null>;
    delete(id: string): Promise<boolean>;
+   
+   // Relaciones
+   getContactsByClientId(clientId: string): Promise<ContactClientProps[]>;
+   createContact(data: ContactClientProps): Promise<ContactClientProps>;
+   updateContact(id: string, clientId: string, data: Partial<ContactClientProps>): Promise<ContactClientProps>;
+   deleteContact(id: string, clientId: string): Promise<boolean>;
 }
