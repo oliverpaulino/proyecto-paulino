@@ -76,26 +76,13 @@ export default function EmployeeDetailPage() {
    async function handleEdit(data: Parameters<typeof UpdateEmployee>[1], operadorData?: OperadorFormData) {
       setActionLoading(true);
       try {
-         const result = await UpdateEmployee(empleadoId, data);
+         const payload = { ...data, operador: operadorData };
+         
+         const result = await UpdateEmployee(empleadoId, payload as any);
          if (result instanceof Error) throw result;
 
-         if (data.rol === "OPERADOR" && operadorData) {
-            const existingOp = selectedEmployee?.operador;
-            if (existingOp) {
-               await UpdateOperator(existingOp.id, {
-                  licencia: operadorData.licencia || null,
-                  fecha_vencimiento: operadorData.fecha_vencimiento ? new Date(operadorData.fecha_vencimiento) : null,
-               });
-            } else {
-               await CreateOperator({
-                  empleado_id: empleadoId,
-                  licencia: operadorData.licencia || null,
-                  fecha_vencimiento: operadorData.fecha_vencimiento ? new Date(operadorData.fecha_vencimiento) : null,
-               });
-            }
-         }
-
          setEditOpen(false);
+         GetEmployeeDetails(empleadoId); 
       } finally {
          setActionLoading(false);
       }

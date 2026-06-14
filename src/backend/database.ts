@@ -49,7 +49,7 @@ export interface DB {
 
    operador: {
       id: Generated<string>;
-      empleado_id: string | null;
+      empleado_id: string;
       licencia: string;
       fecha_vencimiento: Date | null;
       created_at: Generated<Date>;
