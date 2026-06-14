@@ -2,11 +2,8 @@ import { Hono } from "hono";
 import db from "@/backend/database";
 import { KyselyClientRepository } from "../infraestructure/clients.infraestructure";
 import { ClientService } from "../service/clients.service";
-import crypto from "crypto";
 import { catchError } from "@/lib/utils";
 import { Contact } from "@/dtos/client.dto";
-import { auth } from "@/lib/auth";
-import { DeleteResult } from "kysely";
 
 const clientsRoute = new Hono();
 const repo = new KyselyClientRepository(db);
@@ -14,35 +11,13 @@ const service = new ClientService(repo);
 
 clientsRoute.post("/contacts", async (c) => {
    const contactForm = await c.req.json();
-   // const session = await auth.api.getSession({
-   //    headers: c.req.raw.headers,
-   // });
 
-   // if (!session) {
-   //    return c.json({ message: "missing session" }, 403);
-   // }
-
-   const id = crypto.randomUUID();
-   const [error, insertedContact] = await catchError(
-      db
-         .insertInto("contact")
-         .values({
-            id: id,
-            client_id: contactForm.client_id,
-            name: contactForm.name,
-            email: contactForm.email,
-            phone: contactForm.phone,
-            job_title: contactForm.job_title,
-            created_at: new Date(),
-            updated_at: new Date(),
-         })
-         .returningAll()
-         .executeTakeFirstOrThrow()
-   );
+   const [error, insertedContact] = await catchError(service.createContact(contactForm));
 
    if (error) {
-      return c.json({ error }, 400);
+      return c.json({ error: String(error) }, 400);
    }
+   
    const contact: Contact = {
       id: insertedContact.id,
       client_id: insertedContact.client_id,
@@ -57,17 +32,9 @@ clientsRoute.post("/contacts", async (c) => {
    return c.json({ data: contact });
 });
 
-
 clientsRoute.get("/:id/contacts", async (c) => {
    const { id } = c.req.param();
-   // const session = await auth.api.getSession({ headers: c.req.raw.headers });
-   // if (!session) return c.json({ message: "missing session" }, 403);
-   // const orgId = session.session.activeOrganizationId ?? "";
-   const contacts = await db
-      .selectFrom("contact")
-      .selectAll()
-      .where("client_id", "=", id)
-      .execute();
+   const contacts = await service.getContacts(id);
 
    return c.json({ contacts });
 });
@@ -115,85 +82,34 @@ clientsRoute.delete("/:id", async (c) => {
    return c.json({ success: true });
 });
 
-
-// // Update client
+// Update client contact
 clientsRoute.patch("/:id/contacts/:contactId", async (c) => {
-   // const session = await auth.api.getSession({
-   //    headers: c.req.raw.headers,
-   // });
-
-   // if (!session) {
-   //    return c.json({ message: "missing session" }, 403);
-   // }
-
-   // const orgId = session.session.activeOrganizationId ?? "";
    const body = await c.req.json();
-   const updateData = {
-      ...body,
-      created_at: body.created_at ? new Date(body.created_at) : undefined,
-      updated_at: body.updated_at ? new Date(body.updated_at) : undefined,
-   };
    const id = c.req.param("id");
    const contactId = c.req.param("contactId");
 
-   const [error, contact] = await catchError(
-      db
-         .updateTable("contact")
-         .set(updateData)
-         .where("id", "=", contactId)
-         // .where("organization_id", "=", orgId)
-         .where("client_id", "=", id)
-         .returningAll()
-         .executeTakeFirstOrThrow()
-   );
+   const [error, contact] = await catchError(service.updateContact(contactId, id, body));
 
    if (error) {
       console.log(error);
-      return c.json({ error }, 400);
+      return c.json({ error: String(error) }, 400);
    }
    return c.json({ contact });
 });
 
 clientsRoute.delete("/:id/contacts/:contactId", async (c) => {
-   // const session = await auth.api.getSession({
-   //    headers: c.req.raw.headers,
-   // });
-
-   // if (!session) {
-   //    return c.json({ message: "missing session" }, 403);
-   // }
-
-   // const orgId = session.session.activeOrganizationId ?? "";
    const { contactId, id } = c.req.param();
 
-   const [error, result] = await catchError<DeleteResult>(
-      db
-         .deleteFrom("contact")
-         .where("id", "=", contactId)
-         // .where("organization_id", "=", orgId)
-         .where("client_id", "=", id)
-         .executeTakeFirst()
-   );
+   const [error, result] = await catchError(service.deleteContact(contactId, id));
 
    if (error) {
       console.log(error);
-      return c.json({ error }, 400);
+      return c.json({ error: String(error) }, 400);
    }
-   const convertBigInt = (v: any): any => {
-      if (typeof v === "bigint") return v.toString();
-      if (Array.isArray(v)) return v.map(convertBigInt);
-      if (v && typeof v === "object") {
-         const out: any = {};
-         for (const k of Object.keys(v)) out[k] = convertBigInt(v[k]);
-         return out;
-      }
-      return v;
-   };
+   
+   const successPayload = { numDeletedRows: result ? "1" : "0" };
 
-   return c.json({ result: convertBigInt(result) });
+   return c.json({ result: successPayload });
 });
-
-
-
 
 export default clientsRoute;
