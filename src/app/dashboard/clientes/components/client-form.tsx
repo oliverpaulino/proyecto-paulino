@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useDebounce } from "@/hooks/use-debounce"; 
 
 import { 
    GeneralSchemasDTO, 
@@ -40,7 +42,9 @@ interface ClientFormProps {
 }
 
 const SELECT_CLASS =
-   "h-9 w-full rounded-4xl border border-input bg-input/30 px-3 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 text-foreground";
+   "h-9 w-full rounded-4xl border border-input bg-input/30 px-3 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 text-foreground disabled:opacity-60 disabled:bg-muted disabled:cursor-not-allowed transition-colors";
+
+const INPUT_DISABLED_CLASS = "disabled:bg-muted disabled:opacity-60 transition-colors";
 
 export function ClientForm({
    initialData,
@@ -60,14 +64,91 @@ export function ClientForm({
    });
    
    const [error, setError] = useState<string | null>(null);
+   const [isSearching, setIsSearching] = useState(false);
+   
+   const [isManualEntryAllowed, setIsManualEntryAllowed] = useState(false);
+   const [apiDataFound, setApiDataFound] = useState<{ nombre: boolean; perfil: boolean }>({
+      nombre: false,
+      perfil: false,
+   });
+
+   const debouncedIdentificacion = useDebounce(values.identificacion, 800);
+   const isIdLengthValid = debouncedIdentificacion.length === 9 || debouncedIdentificacion.length === 11;
 
    function set<K extends keyof FormValues>(field: K, value: FormValues[K]) {
       setValues((prev) => ({ ...prev, [field]: value }));
    }
 
+   useEffect(() => {
+      async function fetchClienteDGII() {
+         if (values.tipo_identificacion === "PASAPORTE") {
+             set("tipo_cliente", "FISICA");
+             setIsManualEntryAllowed(true); 
+             return;
+         }
+         
+         if (!isIdLengthValid) {
+             setIsManualEntryAllowed(false);
+             setApiDataFound({ nombre: false, perfil: false });
+             return;
+         }
+
+         setIsSearching(true);
+         setIsManualEntryAllowed(false); 
+         
+         try {
+            const url = `/api/dgii/${debouncedIdentificacion.toString()}`;
+            const response = await fetch(url);
+            
+            if (response.ok) {
+               const data = await response.json();
+               
+               if (data.error === false && data.nombre_razon_social) {
+                  let tipoC: keyof typeof TipoCliente = "FISICA";
+                  let tipoI: keyof typeof TipoIdentificacion = "CEDULA";
+
+                  if (debouncedIdentificacion.length === 9) {
+                     tipoC = debouncedIdentificacion.startsWith("4") ? "GUBERNAMENTAL" : "JURIDICA";
+                     tipoI = "RNC";
+                  }
+
+                  set("nombre", data.nombre_razon_social);
+                  set("tipo_cliente", tipoC);
+                  set("tipo_identificacion", tipoI);
+                  
+                  setApiDataFound({ 
+                      nombre: true, 
+                      perfil: true 
+                  });
+                  
+                  setIsManualEntryAllowed(true); 
+                  setError(null); 
+               } else {
+                   setIsManualEntryAllowed(true);
+                   setApiDataFound({ nombre: false, perfil: false });
+               }
+            } else {
+               setIsManualEntryAllowed(true);
+               setApiDataFound({ nombre: false, perfil: false });
+            }
+         } catch (err) {
+            console.error("Error consultando la DGII:", err);
+            setIsManualEntryAllowed(true);
+            setApiDataFound({ nombre: false, perfil: false });
+         } finally {
+            setIsSearching(false);
+         }
+      }
+
+      fetchClienteDGII();
+   }, [debouncedIdentificacion, values.tipo_identificacion, isIdLengthValid]);
+
    function handleIdentificacionChange(e: React.ChangeEvent<HTMLInputElement>) {
       const cleanValue = e.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
       set("identificacion", cleanValue);
+      setIsManualEntryAllowed(false);
+      setApiDataFound({ nombre: false, perfil: false });
+      set("nombre", "");
    }
 
    function handleTelefonoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -134,23 +215,38 @@ export function ClientForm({
       }
    }
 
+   const isTipoIdDisabled = isSearching || apiDataFound.perfil;
+   const isPerfilDisabled = values.tipo_identificacion === "PASAPORTE" || !isManualEntryAllowed || apiDataFound.perfil;
+   const isNombreDisabled = !isManualEntryAllowed || apiDataFound.nombre;
+   const areOtherFieldsDisabled = !isManualEntryAllowed; 
+
    return (
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
          
-         {/* Nombre */}
-         <div className="flex flex-col gap-1.5">
-            <Label htmlFor="cf-nombre">Nombre *</Label>
-            <Input
-               id="cf-nombre"
-               value={values.nombre}
-               onChange={(e) => set("nombre", e.target.value)}
-               placeholder="Nombre completo o Razón Social"
-               required
-            />
-         </div>
-
-         {/* Agrupamos Perfil y Tipo ID para mejor diseño */}
          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+               <Label htmlFor="cf-tipo-id">Tipo de Identificación</Label>
+               <select
+                  id="cf-tipo-id"
+                  value={values.tipo_identificacion}
+                  onChange={(e) => {
+                     const val = e.target.value as keyof typeof TipoIdentificacion;
+                     set("tipo_identificacion", val);
+                     if (val === "PASAPORTE") set("tipo_cliente", "FISICA");
+                     
+                     setIsManualEntryAllowed(false);
+                     setApiDataFound({ nombre: false, perfil: false });
+                  }}
+                  className={SELECT_CLASS}
+                  required
+                  disabled={isTipoIdDisabled}
+               >
+                  {tipoIdentificacionOptions.map((t) => (
+                     <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+               </select>
+            </div>
+
             <div className="flex flex-col gap-1.5">
                <Label htmlFor="cf-tipo-cliente">Perfil de cliente</Label>
                <select
@@ -159,85 +255,88 @@ export function ClientForm({
                   onChange={(e) => set("tipo_cliente", e.target.value as keyof typeof TipoCliente)}
                   className={SELECT_CLASS}
                   required
+                  disabled={isPerfilDisabled}
                >
                   {tipoClienteOptions.map((t) => (
                      <option key={t.value} value={t.value}>{t.label}</option>
                   ))}
                </select>
             </div>
+         </div>
 
-            <div className="flex flex-col gap-1.5">
-               <Label htmlFor="cf-tipo-id">Tipo de Identificación</Label>
-               <select
-                  id="cf-tipo-id"
-                  value={values.tipo_identificacion}
-                  onChange={(e) => {
-                     set("tipo_identificacion", e.target.value as keyof typeof TipoIdentificacion);
-                     set("identificacion", ""); 
-                  }}
-                  className={SELECT_CLASS}
+         <div className="flex flex-col gap-1.5">
+            <Label htmlFor="cf-identificacion">Identificación *</Label>
+            <div className="relative">
+               <Input
+                  id="cf-identificacion"
+                  value={values.identificacion}
+                  onChange={handleIdentificacionChange}
+                  placeholder={
+                     values.tipo_identificacion === "CEDULA" ? "Ej: 40212345678" :
+                     values.tipo_identificacion === "RNC" ? "Ej: 130123456" : "Ej: RD1234567"
+                  }
                   required
-               >
-                  {tipoIdentificacionOptions.map((t) => (
-                     <option key={t.value} value={t.value}>{t.label}</option>
-                  ))}
-               </select>
+                  className={isSearching ? `pr-10 ${INPUT_DISABLED_CLASS}` : INPUT_DISABLED_CLASS}
+               />
+               {isSearching && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  </div>
+               )}
             </div>
          </div>
 
-         {/* Identificación (con placeholder dinámico) */}
          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="cf-identificacion">Identificación *</Label>
+            <Label htmlFor="cf-nombre">Nombre *</Label>
             <Input
-               id="cf-identificacion"
-               value={values.identificacion}
-               onChange={handleIdentificacionChange}
-               placeholder={
-                  values.tipo_identificacion === "CEDULA" ? "Ej: 40212345678" :
-                  values.tipo_identificacion === "RNC" ? "Ej: 130123456" : "Ej: RD1234567"
-               }
+               id="cf-nombre"
+               value={values.nombre}
+               onChange={(e) => set("nombre", e.target.value)}
+               placeholder="Nombre completo o Razón Social"
                required
+               disabled={isNombreDisabled}
+               className={INPUT_DISABLED_CLASS}
             />
          </div>
 
-         <div className="grid grid-cols-2 gap-3">
-            {/* Teléfono */}
-            <div className="flex flex-col gap-1.5">
-               <Label htmlFor="cf-telefono">Teléfono</Label>
-               <Input
-                  id="cf-telefono"
-                  type="tel"
-                  value={values.telefono}
-                  onChange={handleTelefonoChange}
-                  placeholder="Ej: 8091234567"
-               />
-            </div>
-
-            {/* Email */}
-            <div className="flex flex-col gap-1.5">
-               <Label htmlFor="cf-email">Email</Label>
-               <Input
-                  id="cf-email"
-                  type="email"
-                  value={values.email}
-                  onChange={handleEmailChange}
-                  placeholder="cliente@ejemplo.com"
-               />
-            </div>
+         <div className="flex flex-col gap-1.5">
+            <Label htmlFor="cf-telefono">Teléfono</Label>
+            <Input
+               id="cf-telefono"
+               type="tel"
+               value={values.telefono}
+               onChange={handleTelefonoChange}
+               placeholder="Ej: 8091234567"
+               disabled={areOtherFieldsDisabled}
+               className={INPUT_DISABLED_CLASS}
+            />
          </div>
 
-         {/* Dirección */}
+         <div className="flex flex-col gap-1.5">
+            <Label htmlFor="cf-email">Email</Label>
+            <Input
+               id="cf-email"
+               type="email"
+               value={values.email}
+               onChange={handleEmailChange}
+               placeholder="Ej: cliente@ejemplo.com"
+               disabled={areOtherFieldsDisabled}
+               className={INPUT_DISABLED_CLASS}
+            />
+         </div>
+
          <div className="flex flex-col gap-1.5">
             <Label htmlFor="cf-direccion">Dirección</Label>
             <Input
                id="cf-direccion"
                value={values.direccion}
                onChange={(e) => set("direccion", e.target.value)}
-               placeholder="Dirección física del cliente"
+               placeholder="Ingresar dirección del cliente"
+               disabled={areOtherFieldsDisabled}
+               className={INPUT_DISABLED_CLASS}
             />
          </div>
 
-         {/* Contenedor de Error */}
          {error && (
             <div className="rounded-md border border-destructive bg-destructive/10 p-2.5 mt-1 text-sm font-medium text-destructive">
                {error}
@@ -246,11 +345,11 @@ export function ClientForm({
 
          <div className="flex gap-2 justify-end pt-2">
             {onCancel && (
-               <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
+               <Button type="button" variant="outline" onClick={onCancel} disabled={loading || isSearching}>
                   Cancelar
                </Button>
             )}
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || isSearching || !isManualEntryAllowed}>
                {loading ? "Guardando…" : submitLabel}
             </Button>
          </div>
