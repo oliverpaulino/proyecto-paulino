@@ -1,0 +1,86 @@
+export const TIPOS_EQUIPO = [
+   "EXCAVADORA",
+   "RETROEXCAVADORA",
+   "BULLDOZER",
+   "GRUA",
+   "CAMION",
+   "CARGADOR",
+   "COMPACTADORA",
+   "MONTACARGAS",
+   "GENERADOR",
+   "OTRO",
+] as const;
+
+export const ESTADOS_EQUIPO = [
+   "ACTIVO",
+   "MANTENIMIENTO",
+   "INACTIVO",
+   "BAJA",
+] as const;
+
+export type TipoEquipo = (typeof TIPOS_EQUIPO)[number];
+export type EstadoEquipo = (typeof ESTADOS_EQUIPO)[number];
+
+export interface EquipoProps {
+   id: string;
+   nombre: string;
+   tipo: TipoEquipo;
+   estado: EstadoEquipo;
+   costo_por_hora: number;
+   placa: string | null;
+   modelo: string | null;
+   ano: number | null;
+   created_at: Date;
+   updated_at: Date;
+}
+
+export class Equipo {
+   private constructor(private readonly props: EquipoProps) { }
+
+   static create(props: EquipoProps): Equipo {
+      return new Equipo(props);
+   }
+
+   get id(): string { return this.props.id; }
+   get nombre(): string { return this.props.nombre; }
+   get tipo(): TipoEquipo { return this.props.tipo; }
+   get estado(): EstadoEquipo { return this.props.estado; }
+   get costo_por_hora(): number { return this.props.costo_por_hora; }
+   get placa(): string | null { return this.props.placa; }
+   get modelo(): string | null { return this.props.modelo; }
+   get ano(): number | null { return this.props.ano; }
+   get created_at(): Date { return this.props.created_at; }
+   get updated_at(): Date { return this.props.updated_at; }
+
+   toJSON(): EquipoProps {
+      return { ...this.props };
+   }
+}
+
+export interface CreateEquipoDTO {
+   nombre: string;
+   tipo: TipoEquipo;
+   estado?: EstadoEquipo;
+   costo_por_hora?: number;
+   placa?: string | null;
+   modelo?: string | null;
+   ano?: number | null;
+}
+
+export interface UpdateEquipoDTO {
+   nombre?: string;
+   tipo?: TipoEquipo;
+   estado?: EstadoEquipo;
+   costo_por_hora?: number;
+   placa?: string | null;
+   modelo?: string | null;
+   ano?: number | null;
+}
+
+export interface IEquipoRepository {
+   findAll(): Promise<Equipo[]>;
+   findById(id: string): Promise<Equipo | null>;
+   create(data: CreateEquipoDTO): Promise<Equipo>;
+   update(id: string, data: UpdateEquipoDTO): Promise<Equipo | null>;
+   delete(id: string): Promise<boolean>;
+}
