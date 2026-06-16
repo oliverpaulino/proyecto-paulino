@@ -1,5 +1,5 @@
 import { Kysely } from "kysely";
-import { IClientRepository, CreateClientDTO, UpdateClientDTO, Client, TipoIdentificacion, TipoCliente } from "../domain/clients.domain";
+import { IClientRepository, CreateClientDTO, UpdateClientDTO, Client, TipoIdentificacion, TipoCliente, ContactClientProps } from "../domain/clients.domain";
 import { DB } from "@/backend/database";
 
 export class KyselyClientRepository implements IClientRepository {
@@ -90,6 +90,60 @@ export class KyselyClientRepository implements IClientRepository {
          .where("id", "=", id)
          .executeTakeFirst();
 
+      return Number(result.numDeletedRows) > 0;
+   }
+
+   async getContactsByClientId(clientId: string): Promise<ContactClientProps[]> {
+      const rows = await this.db
+         .selectFrom("contact")
+         .selectAll()
+         .where("client_id", "=", clientId)
+         .execute();
+
+      return rows.map(r => ({
+         ...r,
+         created_at: new Date(r.created_at),
+         updated_at: new Date(r.updated_at),
+      })) as ContactClientProps[];
+   }
+
+   async createContact(data: ContactClientProps): Promise<ContactClientProps> {
+      const row = await this.db
+         .insertInto("contact")
+         .values(data as any)
+         .returningAll()
+         .executeTakeFirstOrThrow();
+
+      return {
+         ...row,
+         created_at: new Date(row.created_at),
+         updated_at: new Date(row.updated_at),
+      } as ContactClientProps;
+   }
+
+   async updateContact(id: string, clientId: string, data: Partial<ContactClientProps>): Promise<ContactClientProps> {
+      const row = await this.db
+         .updateTable("contact")
+         .set(data as any)
+         .where("id", "=", id)
+         .where("client_id", "=", clientId)
+         .returningAll()
+         .executeTakeFirstOrThrow();
+
+      return {
+         ...row,
+         created_at: new Date(row.created_at),
+         updated_at: new Date(row.updated_at),
+      } as ContactClientProps;
+   }
+
+   async deleteContact(id: string, clientId: string): Promise<boolean> {
+      const result = await this.db
+         .deleteFrom("contact")
+         .where("id", "=", id)
+         .where("client_id", "=", clientId)
+         .executeTakeFirst();
+         
       return Number(result.numDeletedRows) > 0;
    }
 }

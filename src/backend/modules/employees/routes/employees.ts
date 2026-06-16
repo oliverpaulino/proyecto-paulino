@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import db from "@/backend/database";
 import { KyselyEmployeeRepository } from "../infraestructure/employees.infraestructure";
 import { EmployeeService } from "../service/employees.service";
-import crypto from "crypto";
 import { catchError } from "@/lib/utils";
 
 const employeesRoute = new Hono();
@@ -15,42 +14,13 @@ employeesRoute.get("/", async (c) => {
    return c.json(employees);
 });
 
-// GET /api/employees/:id/details — detalles con contactos, amonestaciones y operador
+// GET /api/employees/:id/details
 employeesRoute.get("/:id/details", async (c) => {
    const { id } = c.req.param();
-
-   const empleado = await service.getById(id);
-   if (!empleado) return c.json({ error: "Empleado no encontrado" }, 404);
-
-   const [contactos, operadorRow] = await Promise.all([
-      db
-         .selectFrom("contact_empleado")
-         .selectAll()
-         .where("empleado_id", "=", id)
-         .orderBy("created_at", "desc")
-         .execute(),
-      db
-         .selectFrom("operador")
-         .selectAll()
-         .where("empleado_id", "=", id)
-         .executeTakeFirst(),
-   ]);
-
-   return c.json({
-      empleado,
-      contactos: contactos.map((c) => ({
-         ...c,
-         created_at: new Date(c.created_at),
-         updated_at: new Date(c.updated_at),
-      })),
-      operador: operadorRow
-         ? {
-              ...operadorRow,
-              created_at: new Date(operadorRow.created_at),
-              updated_at: new Date(operadorRow.updated_at),
-           }
-         : null,
-   });
+   const details = await service.getDetails(id);
+   
+   if (!details) return c.json({ error: "Empleado no encontrado" }, 404);
+   return c.json(details);
 });
 
 // GET /api/employees/:id
@@ -60,11 +30,30 @@ employeesRoute.get("/:id", async (c) => {
    return c.json(employee);
 });
 
+// GET /api/employees/:id/operator
+employeesRoute.get("/:id/operator", async (c) => {
+   const { id } = c.req.param();
+   const operator = await service.getOperator(id);
+   return c.json(operator ?? null);
+});
+
 // POST /api/employees
 employeesRoute.post("/", async (c) => {
-   const body = await c.req.json();
+   // 1. Extraemos "operador" y dejamos el resto en "employeeData"
+   const { operador, ...employeeData } = await c.req.json();
    try {
-      const employee = await service.create(body);
+      // 2. Pasamos solo los datos del empleado
+      const employee = await service.create(employeeData);
+
+      // 3. Procesamos el operador por separado
+      if (employeeData.rol === "OPERADOR" && operador) {
+         await service.createOperator({
+            empleado_id: employee.id,
+            licencia: operador.licencia,
+            fecha_vencimiento: operador.fecha_vencimiento
+         });
+      }
+
       return c.json(employee, 201);
    } catch (err: unknown) {
       return c.json({ error: err instanceof Error ? err.message : "Error desconocido" }, 400);
@@ -73,10 +62,33 @@ employeesRoute.post("/", async (c) => {
 
 // PATCH /api/employees/:id
 employeesRoute.patch("/:id", async (c) => {
-   const body = await c.req.json();
+   // 1. Extraemos "operador" y dejamos el resto en "employeeData"
+   const { operador, ...employeeData } = await c.req.json();
+   const id = c.req.param("id");
+   
    try {
-      const employee = await service.update(c.req.param("id"), body);
+      // 2. Pasamos solo los datos limpios del empleado al update
+      const employee = await service.update(id, employeeData);
       if (!employee) return c.json({ error: "Empleado no encontrado" }, 404);
+
+      // 3. Procesamos el operador usando los datos separados
+      if (operador) {
+         const existingOp = await service.getOperator(id);
+         
+         if (existingOp) {
+            await service.updateOperator(existingOp.id, {
+               licencia: operador.licencia,
+               fecha_vencimiento: operador.fecha_vencimiento
+            });
+         } else if (employee.rol === "OPERADOR" || employeeData.rol === "OPERADOR") {
+            await service.createOperator({
+               empleado_id: id,
+               licencia: operador.licencia,
+               fecha_vencimiento: operador.fecha_vencimiento
+            });
+         }
+      }
+
       return c.json(employee);
    } catch (err: unknown) {
       return c.json({ error: err instanceof Error ? err.message : "Error desconocido" }, 400);
@@ -107,20 +119,7 @@ employeesRoute.post("/contacts", async (c) => {
       return c.json({ error: "Formato de email inválido" }, 400);
    }
 
-   const [error, contact] = await catchError(
-      db
-         .insertInto("contact_empleado")
-         .values({
-            id: crypto.randomUUID(),
-            empleado_id: body.empleado_id,
-            tipo_contacto: body.tipo_contacto,
-            contacto: body.contacto,
-            created_at: new Date(),
-            updated_at: new Date(),
-         })
-         .returningAll()
-         .executeTakeFirstOrThrow()
-   );
+   const [error, contact] = await catchError(service.createContact(body));
 
    if (error) return c.json({ error: String(error) }, 400);
    return c.json({ data: contact }, 201);
@@ -139,18 +138,7 @@ employeesRoute.patch("/contacts/:contactId", async (c) => {
       return c.json({ error: "Formato de email inválido" }, 400);
    }
 
-   const updateData: Record<string, unknown> = { updated_at: new Date() };
-   if (body.tipo_contacto !== undefined) updateData.tipo_contacto = body.tipo_contacto;
-   if (body.contacto !== undefined) updateData.contacto = body.contacto;
-
-   const [error, contact] = await catchError(
-      db
-         .updateTable("contact_empleado")
-         .set(updateData)
-         .where("id", "=", contactId)
-         .returningAll()
-         .executeTakeFirstOrThrow()
-   );
+   const [error, contact] = await catchError(service.updateContact(contactId, body));
 
    if (error) return c.json({ error: String(error) }, 400);
    return c.json({ contact });
@@ -160,12 +148,7 @@ employeesRoute.patch("/contacts/:contactId", async (c) => {
 employeesRoute.delete("/contacts/:contactId", async (c) => {
    const { contactId } = c.req.param();
 
-   const [error] = await catchError(
-      db
-         .deleteFrom("contact_empleado")
-         .where("id", "=", contactId)
-         .executeTakeFirst()
-   );
+   const [error] = await catchError(service.deleteContact(contactId));
 
    if (error) return c.json({ error: String(error) }, 400);
    return c.json({ success: true });
@@ -177,29 +160,14 @@ employeesRoute.post("/operators", async (c) => {
 
    if (!body.empleado_id) return c.json({ error: "empleado_id es requerido" }, 400);
 
-   const existing = await db
-      .selectFrom("operador")
-      .select("id")
-      .where("empleado_id", "=", body.empleado_id)
-      .executeTakeFirst();
+   const [error, operator] = await catchError(service.createOperator(body));
 
-   if (existing) return c.json({ error: "Este empleado ya tiene un perfil de operador" }, 409);
-
-   const [error, operator] = await catchError(
-      db
-         .insertInto("operador")
-         .values({
-            id: crypto.randomUUID(),
-            empleado_id: body.empleado_id,
-            licencia: body.licencia ?? null,
-            created_at: new Date(),
-            updated_at: new Date(),
-         })
-         .returningAll()
-         .executeTakeFirstOrThrow()
-   );
-
-   if (error) return c.json({ error: String(error) }, 400);
+   if (error) {
+      if (error instanceof Error && error.message.includes("ya tiene un perfil")) {
+         return c.json({ error: error.message }, 409);
+      }
+      return c.json({ error: String(error) }, 400);
+   }
    return c.json({ data: operator }, 201);
 });
 
@@ -208,14 +176,7 @@ employeesRoute.patch("/operators/:operatorId", async (c) => {
    const { operatorId } = c.req.param();
    const body = await c.req.json();
 
-   const [error, operator] = await catchError(
-      db
-         .updateTable("operador")
-         .set({ licencia: body.licencia ?? null, updated_at: new Date() })
-         .where("id", "=", operatorId)
-         .returningAll()
-         .executeTakeFirstOrThrow()
-   );
+   const [error, operator] = await catchError(service.updateOperator(operatorId, body));
 
    if (error) return c.json({ error: String(error) }, 400);
    return c.json({ operator });

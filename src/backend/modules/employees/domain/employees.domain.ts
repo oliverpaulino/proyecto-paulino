@@ -54,6 +54,7 @@ export interface UpdateEmployeeDTO {
    activo?: boolean;
 }
 
+// Contacto Empleado
 export interface ContactEmpleadoProps {
    id: string;
    empleado_id: string;
@@ -79,6 +80,7 @@ export interface OperadorProps {
    id: string;
    empleado_id: string;
    licencia: string | null;
+   fecha_vencimiento?: Date | null;
    created_at: Date;
    updated_at: Date;
 }
@@ -86,10 +88,12 @@ export interface OperadorProps {
 export interface CreateOperadorDTO {
    empleado_id: string;
    licencia?: string | null;
+   licencia_vencimiento?: Date | null;
 }
 
 export interface UpdateOperadorDTO {
    licencia?: string | null;
+   licencia_vencimiento?: Date | null;
 }
 
 export interface IEmployeeRepository {
@@ -99,4 +103,13 @@ export interface IEmployeeRepository {
    update(id: string, data: UpdateEmployeeDTO): Promise<Employee | null>;
    delete(id: string): Promise<boolean>;
    existsByIdentificacion(identificacion: string, excludeId?: string): Promise<boolean>;
+   
+   // Relaciones
+   getContactsByEmployeeId(empleadoId: string): Promise<ContactEmpleadoProps[]>;
+   getOperatorByEmployeeId(empleadoId: string): Promise<OperadorProps | null>;
+   createContact(data: ContactEmpleadoProps): Promise<ContactEmpleadoProps>;
+   updateContact(id: string, data: Partial<ContactEmpleadoProps>): Promise<ContactEmpleadoProps>;
+   deleteContact(id: string): Promise<boolean>;
+   createOperator(data: OperadorProps): Promise<OperadorProps>;
+   updateOperator(id: string, data: Partial<OperadorProps>): Promise<OperadorProps>;
 }

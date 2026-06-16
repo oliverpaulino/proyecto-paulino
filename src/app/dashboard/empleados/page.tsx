@@ -12,7 +12,7 @@ import {
 import { Plus, Users } from "lucide-react";
 import { useEmployeeStore } from "@/stores/useEmployeeStore";
 import type { Employee } from "@/dtos/employee.dto";
-import { EmployeeForm } from "./components/employee-form";
+import { EmployeeForm, type OperadorFormData } from "./components/employee-form";
 import { EmployeeTable } from "./components/employee-table";
 import { DeleteEmployeeDialog } from "./components/delete-employee-dialog";
 import { TableSearch } from "@/components/table-search";
@@ -72,10 +72,12 @@ export default function EmpleadosPage() {
    const activos = Employees.filter((e) => e.activo).length;
    const inactivos = Employees.filter((e) => !e.activo).length;
 
-   async function handleCreate(data: Parameters<typeof CreateEmployee>[0]) {
+async function handleCreate(data: Parameters<typeof CreateEmployee>[0], operadorData?: OperadorFormData) {
       setFormLoading(true);
       try {
-         const result = await CreateEmployee(data);
+         const payload = { ...data, operador: operadorData };
+         
+         const result = await CreateEmployee(payload as any); 
          if (result instanceof Error) throw result;
          setCreateOpen(false);
       } finally {
@@ -83,11 +85,13 @@ export default function EmpleadosPage() {
       }
    }
 
-   async function handleEdit(data: Parameters<typeof CreateEmployee>[0]) {
+   async function handleEdit(data: Parameters<typeof CreateEmployee>[0], operadorData?: OperadorFormData) {
       if (!editTarget) return;
       setFormLoading(true);
       try {
-         const result = await UpdateEmployee(editTarget.id, data);
+         const payload = { ...data, operador: operadorData };
+         
+         const result = await UpdateEmployee(editTarget.id, payload as any);
          if (result instanceof Error) throw result;
          setEditTarget(null);
       } finally {

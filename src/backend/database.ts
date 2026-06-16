@@ -49,8 +49,9 @@ export interface DB {
 
    operador: {
       id: Generated<string>;
-      empleado_id: string | null;
+      empleado_id: string;
       licencia: string;
+      fecha_vencimiento: Date | null;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
@@ -87,6 +88,10 @@ export interface DB {
       is_taxable: boolean;
       is_active: boolean;
       accounting_rule_id: string | null;
+   tipo_item: {
+      id: Generated<string>;
+      nombre: string;
+      descripcion: string | null;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
@@ -104,6 +109,13 @@ export interface DB {
       priority: number;
       project_location_filter: string | null;
       is_active: boolean;
+   item: {
+      id: Generated<string>;
+      nombre: string;
+      tipo_id: string;
+      descripcion: string | null;
+      unidad: string | null;
+      stock: Generated<number>;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
@@ -121,6 +133,15 @@ export interface DB {
       amount: number;
       work_date: Date | null;
       work_date_end: Date | null;
+   equipo: {
+      id: Generated<string>;
+      nombre: string;
+      tipo: string;
+      estado: Generated<string>;
+      costo_por_hora: Generated<number>;
+      placa: string | null;
+      modelo: string | null;
+      ano: number | null;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
