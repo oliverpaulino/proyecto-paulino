@@ -76,6 +76,28 @@ export interface DB {
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
+
+   orden_compra: {
+      id: Generated<string>;
+      proveedor_id: string;
+      fecha: Date;
+      estado: Generated<string>;
+      notas: string | null;
+      total: Generated<number>;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+
+   orden_compra_item: {
+      id: Generated<string>;
+      orden_compra_id: string;
+      descripcion: string;
+      cantidad: number;
+      precio_unitario: number;
+      subtotal: number;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
 }
 
 const db = new Kysely<DB>({

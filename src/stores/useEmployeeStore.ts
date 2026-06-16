@@ -9,11 +9,13 @@ import type {
    Operator,
    CreateOperatorForm,
    UpdateOperatorForm,
-   EmployeeWarning,
-   CreateEmployeeWarningForm,
-   UpdateEmployeeWarningForm,
    EmployeeDetails,
 } from "@/dtos/employee.dto";
+
+// Placeholder types for warning functionality (not yet implemented in DTO)
+type EmployeeWarning = Record<string, unknown>;
+type CreateEmployeeWarningForm = { empleado_id: string; [key: string]: unknown };
+type UpdateEmployeeWarningForm = Record<string, unknown>;
 
 type EmployeeStore = {
    Employees: Employee[];
@@ -235,7 +237,8 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
             body: JSON.stringify(data),
          });
          if (!res.ok) throw new Error((await res.json()).error || "Error al actualizar contacto");
-         if (data.empleado_id) await get().GetEmployeeDetails(data.empleado_id, true);
+         const empId = get().selectedEmployee?.empleado.id;
+         if (empId) await get().GetEmployeeDetails(empId, true);
       } catch (error) {
          return error as Error;
       }
