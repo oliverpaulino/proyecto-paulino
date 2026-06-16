@@ -78,6 +78,16 @@ export interface DB {
       updated_at: Generated<Date>;
    };
 
+   payroll_concepts: {
+      id: Generated<string>;
+      organization_id: string | null;
+      code: string;
+      name: string;
+      category: string;
+      sign: number;
+      is_taxable: boolean;
+      is_active: boolean;
+      accounting_rule_id: string | null;
    tipo_item: {
       id: Generated<string>;
       nombre: string;
@@ -86,6 +96,19 @@ export interface DB {
       updated_at: Generated<Date>;
    };
 
+   payroll_concept_rules: {
+      id: Generated<string>;
+      concept_id: string;
+      applies_to: string;
+      target_id: string | null;
+      trigger: string;
+      amount_mode: string;
+      amount_value: number;
+      effective_from: Date;
+      effective_to: Date | null;
+      priority: number;
+      project_location_filter: string | null;
+      is_active: boolean;
    item: {
       id: Generated<string>;
       nombre: string;
@@ -97,6 +120,19 @@ export interface DB {
       updated_at: Generated<Date>;
    };
 
+   payroll_items: {
+      id: Generated<string>;
+      organization_id: string | null;
+      cycle_id: string | null;
+      employee_id: string;
+      concept_id: string;
+      source: string;
+      source_ref_id: string | null;
+      quantity: number;
+      unit_value: number;
+      amount: number;
+      work_date: Date | null;
+      work_date_end: Date | null;
    equipo: {
       id: Generated<string>;
       nombre: string;
