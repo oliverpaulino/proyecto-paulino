@@ -6,6 +6,8 @@ import {
    Employee,
    TipoIdentificacion,
    TipoRolEmpleado,
+   ContactEmpleadoProps,
+   OperadorProps,
 } from "../domain/employees.domain";
 import { DB } from "@/backend/database";
 
@@ -111,5 +113,101 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
          .executeTakeFirst();
 
       return Number(result.numDeletedRows) > 0;
+   }
+
+   async getContactsByEmployeeId(empleadoId: string): Promise<ContactEmpleadoProps[]> {
+      const rows = await this.db
+         .selectFrom("contact_empleado")
+         .selectAll()
+         .where("empleado_id", "=", empleadoId)
+         .orderBy("created_at", "desc")
+         .execute();
+
+      return rows.map(r => ({
+         ...r,
+         created_at: new Date(r.created_at),
+         updated_at: new Date(r.updated_at),
+      })) as ContactEmpleadoProps[];
+   }
+
+   async getOperatorByEmployeeId(empleadoId: string): Promise<OperadorProps | null> {
+      const row = await this.db
+         .selectFrom("operador")
+         .selectAll()
+         .where("empleado_id", "=", empleadoId)
+         .executeTakeFirst();
+
+      if (!row) return null;
+      return {
+         ...row,
+         created_at: new Date(row.created_at),
+         updated_at: new Date(row.updated_at),
+      } as OperadorProps;
+   }
+
+   async createContact(data: ContactEmpleadoProps): Promise<ContactEmpleadoProps> {
+      const row = await this.db
+         .insertInto("contact_empleado")
+         .values(data)
+         .returningAll()
+         .executeTakeFirstOrThrow();
+         
+      return {
+         ...row,
+         created_at: new Date(row.created_at),
+         updated_at: new Date(row.updated_at),
+      } as ContactEmpleadoProps;
+   }
+
+   async updateContact(id: string, data: Partial<ContactEmpleadoProps>): Promise<ContactEmpleadoProps> {
+      const row = await this.db
+         .updateTable("contact_empleado")
+         .set(data)
+         .where("id", "=", id)
+         .returningAll()
+         .executeTakeFirstOrThrow();
+         
+      return {
+         ...row,
+         created_at: new Date(row.created_at),
+         updated_at: new Date(row.updated_at),
+      } as ContactEmpleadoProps;
+   }
+
+   async deleteContact(id: string): Promise<boolean> {
+      const result = await this.db
+         .deleteFrom("contact_empleado")
+         .where("id", "=", id)
+         .executeTakeFirst();
+      return Number(result.numDeletedRows) > 0;
+   }
+
+   async createOperator(data: OperadorProps): Promise<OperadorProps> {
+      const row = await this.db
+         .insertInto("operador")
+         .values(data as any)
+         .returningAll()
+         .executeTakeFirstOrThrow();
+
+      return {
+         ...row,
+         created_at: new Date(row.created_at),
+         updated_at: new Date(row.updated_at),
+      } as OperadorProps;
+   }
+
+   async updateOperator(id: string, data: Partial<OperadorProps>): Promise<OperadorProps> {
+      const row = await this.db
+         .updateTable("operador")
+         .set(data as any)
+         .where("id", "=", id)
+         .returningAll()
+         .executeTakeFirstOrThrow();
+
+      return {
+         ...row,
+         created_at: new Date(row.created_at),
+         updated_at: new Date(row.updated_at),
+      } as OperadorProps;
    }
 }

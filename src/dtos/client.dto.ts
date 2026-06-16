@@ -1,58 +1,98 @@
 import { z } from "zod";
+import { GeneralSchemasDTO, ClientSchemasDTO } from "./schema.dto";
 
-const TipoClienteSchema = z.enum(["fisica", "gubernamental", "juridica"]);
-const TipoIdentificacionSchema = z.enum(["CEDULA", "PASAPORTE", "RNC"]);
+const OptionalEmailSchema = z.union([GeneralSchemasDTO.EmailSchema, z.literal("")]).nullable().optional();
+const OptionalPhoneSchema = z.union([GeneralSchemasDTO.TelefonoSchema, z.literal("")]).nullable().optional();
 
 const ClientDTO = z.object({
    id: z.string(),
    nombre: z.string(),
    identificacion: z.string(),
-   tipo_identificacion: TipoIdentificacionSchema,
-   tipo_cliente: TipoClienteSchema,
-   email: z.string().nullable(),
-   telefono: z.string().nullable(),
+   tipo_identificacion: GeneralSchemasDTO.TipoIdentificacionSchema,
+   tipo_cliente: ClientSchemasDTO.TipoClienteSchema,
+   email: OptionalEmailSchema,
+   telefono: OptionalPhoneSchema,
    direccion: z.string().nullable(),
    created_at: z.coerce.date(),
    updated_at: z.coerce.date(),
 });
 
-const ContactDTO = z.object({
-   id: z.string(),
-   client_id: z.string(),
-   name: z.string(),
-   email: z.string().optional(),
-   phone: z.string().optional(),
-   job_title: z.string().optional(),
-   created_at: z.string().optional(),
-   updated_at: z.string().optional(),
-});
-
 const CreateClientDTO = z.object({
-   nombre: z.string().min(1),
-   identificacion: z.string().min(1),
-   tipo_identificacion: TipoIdentificacionSchema,
-   tipo_cliente: TipoClienteSchema,
-   email: z.string().nullable().optional(),
-   telefono: z.string().nullable().optional(),
+   nombre: z.string().min(1, "El nombre es obligatorio"),
+   identificacion: z.string().min(1, "La identificación es obligatoria"),
+   tipo_identificacion: GeneralSchemasDTO.TipoIdentificacionSchema,
+   tipo_cliente: ClientSchemasDTO.TipoClienteSchema,
+   email: OptionalEmailSchema,
+   telefono: OptionalPhoneSchema,
    direccion: z.string().nullable().optional(),
+}).superRefine((data, ctx) => {
+   
+   // Validación algorítmica para Cédula
+   if (data.tipo_identificacion === "CEDULA") {
+      const result = GeneralSchemasDTO.CedulaSchema.safeParse(data.identificacion);
+      if (!result.success) {
+         result.error.issues.forEach((issue) => {
+            ctx.addIssue({
+               ...issue,
+               path: ["identificacion"],
+               params: { internalCode: "ERR_INVALID_CEDULA" },
+            });
+         });
+      }
+   }
+
+   // Validación estructural para Pasaporte
+   if (data.tipo_identificacion === "PASAPORTE") {
+      const result = GeneralSchemasDTO.PasaporteSchema.safeParse(data.identificacion);
+      if (!result.success) {
+         result.error.issues.forEach((issue) => {
+            ctx.addIssue({
+               ...issue,
+               path: ["identificacion"],
+               params: { internalCode: "ERR_INVALID_PASSPORT" },
+            });
+         });
+      }
+   }
+
+   // Validación algorítmica para RNC (Físico o Jurídico)
+   if (data.tipo_identificacion === "RNC") {
+      const result = GeneralSchemasDTO.RncSchema.safeParse(data.identificacion);
+      if (!result.success) {
+         result.error.issues.forEach((issue) => {
+            ctx.addIssue({
+               ...issue,
+               path: ["identificacion"],
+               params: { internalCode: "ERR_INVALID_RNC" },
+            });
+         });
+      }
+   }
 });
 
 const UpdateClientDTO = CreateClientDTO.partial();
 
-const CreateContactDTO = z.object({
+const ContactDTO = z.object({
+   id: z.string(),
    client_id: z.string(),
    name: z.string(),
-   email: z.string().optional(),
-   phone: z.string().optional(),
+   email: OptionalEmailSchema,
+   phone: OptionalPhoneSchema,
+   job_title: z.string().optional(),
+   created_at: z.coerce.date(),
+   updated_at: z.coerce.date(),
+});
+
+const CreateContactDTO = z.object({
+   client_id: z.string(),
+   name: z.string().min(1, "El nombre es obligatorio"),
+   email: OptionalEmailSchema,
+   phone: OptionalPhoneSchema,
    job_title: z.string().optional(),
 });
 
-const UpdateContactDTO = z.object({
-   name: z.string().optional(),
-   email: z.string().optional(),
-   phone: z.string().optional(),
-   job_title: z.string().optional(),
-});
+const UpdateContactDTO = CreateContactDTO.omit({ client_id: true }).partial();
+
 
 const ClientSalesSummaryDTO = z.object({
    id: z.string(),

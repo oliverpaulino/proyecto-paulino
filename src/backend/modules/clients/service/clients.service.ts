@@ -1,4 +1,5 @@
-import { ClientProps, CreateClientDTO, IClientRepository, UpdateClientDTO } from "../domain/clients.domain";
+import crypto from "crypto";
+import { ClientProps, CreateClientDTO, IClientRepository, UpdateClientDTO, ContactClientProps } from "../domain/clients.domain";
 
 export class ClientService {
    constructor(private readonly repo: IClientRepository) { }
@@ -37,5 +38,37 @@ export class ClientService {
 
    async delete(id: string): Promise<boolean> {
       return this.repo.delete(id);
+   }
+
+   async getContacts(clientId: string): Promise<ContactClientProps[]> {
+      return this.repo.getContactsByClientId(clientId);
+   }
+
+   async createContact(data: { client_id: string; name: string; email?: string | null; phone?: string | null; job_title?: string | null }): Promise<ContactClientProps> {
+      const contactData: ContactClientProps = {
+         id: crypto.randomUUID(),
+         client_id: data.client_id,
+         name: data.name,
+         email: data.email ?? null,
+         phone: data.phone ?? null,
+         job_title: data.job_title ?? null,
+         created_at: new Date(),
+         updated_at: new Date(),
+      };
+      return this.repo.createContact(contactData);
+   }
+
+   async updateContact(id: string, clientId: string, data: any): Promise<ContactClientProps> {
+      const updateData: Partial<ContactClientProps> = {
+         ...data,
+         updated_at: new Date(),
+      };
+      if (data.created_at) updateData.created_at = new Date(data.created_at);
+      
+      return this.repo.updateContact(id, clientId, updateData);
+   }
+
+   async deleteContact(id: string, clientId: string): Promise<boolean> {
+      return this.repo.deleteContact(id, clientId);
    }
 }

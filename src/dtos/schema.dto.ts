@@ -35,8 +35,9 @@ const validarRncModulo11 = (rnc: string): boolean => {
   return checkDigit === parseInt(rnc[8]);
 };
 
-// SCHEMAS GENERALES
 
+
+// SCHEMAS GENERALES
 export const TipoIdentificacion = {
   CEDULA: "Cédula",
   RNC: "RNC",
@@ -62,13 +63,13 @@ const RncSchema = z
     if (val.length === 11) return validarLuhn(val); // RNC Persona Física = Cédula
     if (val.length === 9) return validarRncModulo11(val); // RNC Empresa
     return false;
-  }, { message: "El RNC ingresado no es matemáticamente válido" });
+  }, { message: "El RNC ingresado no es válido" });
 
 // Cédula: 11 dígitos obligatorios con algoritmo de Luhn
 const CedulaSchema = z
   .string()
   .regex(/^\d{11}$/, "La cédula debe tener exactamente 11 dígitos numéricos")
-  .refine(validarLuhn, { message: "La cédula ingresada no es matemáticamente válida" });
+  .refine(validarLuhn, { message: "La cédula ingresada no es válida" });
 
 // Pasaporte: Estándar global alfanumérico (letras y números sin guiones/espacios) de 5 a 15 caracteres
 const PasaporteSchema = z
@@ -98,6 +99,8 @@ export const GeneralSchemasDTO = {
   TipoIdentificacionSchema,
   TipoContactoSchema,
 };
+
+
 
 // SCHEMAS DE EMPLEADOS
 export const TipoIdentificacionEmpleado = {
@@ -130,4 +133,24 @@ const TipoRolEmpleadoSchema = z.enum(
 export const EmployeeSchemasDTO = {
   TipoIdentificacionEmpleadoSchema,
   TipoRolEmpleadoSchema,
+};
+
+
+
+//SCHEMAS DE CLIENTES
+export const TipoCliente = {
+  FISICA: "Persona Física",
+  JURIDICA: "Persona Jurídica",
+  GUBERNAMENTAL: "Entidad Gubernamental",
+} as const;
+
+const TipoClienteSchema = z.enum(
+  Object.keys(TipoCliente) as [
+    keyof typeof TipoCliente,
+    ...(keyof typeof TipoCliente)[]
+  ]
+);
+
+export const ClientSchemasDTO = {
+  TipoClienteSchema,
 };
