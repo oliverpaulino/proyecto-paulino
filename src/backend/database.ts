@@ -96,6 +96,19 @@ export interface DB {
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
+
+   equipo: {
+      id: Generated<string>;
+      nombre: string;
+      tipo: string;
+      estado: Generated<string>;
+      costo_por_hora: Generated<number>;
+      placa: string | null;
+      modelo: string | null;
+      ano: number | null;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
 }
 
 const db = new Kysely<DB>({
