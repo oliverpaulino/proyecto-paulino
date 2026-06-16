@@ -6,6 +6,7 @@ import { cors } from "hono/cors";
 import clientsRoute from "@/backend/modules/clients/routes/clients";
 import employeesRoute from "@/backend/modules/employees/routes/employees";
 import suppliersRoute from "@/backend/modules/suppliers/routes/suppliers";
+import payrollConceptsRoute from "@/backend/modules/payroll-concepts/routes/payroll-concepts";
 
 const app = new Hono().basePath("/api");
 
@@ -28,5 +29,6 @@ app.all("/auth/*", (c) => auth.handler(c.req.raw));
 app.route("/clients", clientsRoute);
 app.route("/employees", employeesRoute);
 app.route("/suppliers", suppliersRoute);
+app.route("/payroll", payrollConceptsRoute);
 
 export default app;
