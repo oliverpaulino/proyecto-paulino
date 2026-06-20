@@ -42,7 +42,6 @@ import {
 import { EmployeeForm, type OperadorFormData } from "../components/employee-form";
 import { DeleteEmployeeDialog } from "../components/delete-employee-dialog";
 import StatCard from "./components/StatCard";
-import { EmployeeConceptsWidget } from "../conceptos/components/concept-employee-widget";
 
 const ROL_LABEL: Record<string, string> = {
    OPERADOR: "Operador",
@@ -314,7 +313,10 @@ export default function EmployeeDetailPage() {
                         <MiniStat label="Descuentos" value="0" />
                         <MiniStat label="Amonestaciones" value="0" />
                      </div>
-                     <EmployeeConceptsWidget employeeId={empleadoId} />
+                     <EmptyState
+                        title="Módulo en desarrollo"
+                        description="Aquí podrás registrar y consultar todos los conceptos aplicados a este empleado: bonos, descuentos, amonestaciones y más."
+                     />
                   </CardContent>
                </Card>
             </TabsContent>
