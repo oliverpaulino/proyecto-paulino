@@ -9,9 +9,10 @@ import { useDebounce } from "@/hooks/use-debounce";
 
 import { 
    GeneralSchemasDTO, 
-   TipoIdentificacion, 
-   TipoCliente 
+   TipoIdentificacion,  
 } from "@/dtos/schema.dto"; 
+
+import { TipoCliente } from "@/dtos/client.dto";
 
 const tipoIdentificacionOptions = Object.entries(TipoIdentificacion).map(([key, value]) => ({
    value: key as keyof typeof TipoIdentificacion,

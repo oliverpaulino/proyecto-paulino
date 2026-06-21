@@ -11,7 +11,9 @@ import {
 import { Contact, Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-import { TipoCliente, TipoIdentificacion } from "@/dtos/schema.dto"; 
+import { TipoIdentificacion } from "@/dtos/schema.dto"; 
+import { TipoCliente } from "@/dtos/client.dto";
+
 
 interface ClientTableProps {
    clients: ClientProps[];

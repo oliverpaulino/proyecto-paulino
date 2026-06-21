@@ -55,7 +55,8 @@ import { ClientForm } from "../components/client-form";
 import StatCard from "./components/StatCard";
 
 // IMPORTAMOS NUESTROS SCHEMAS Y ENUMS
-import { TipoCliente, TipoIdentificacion } from "@/dtos/schema.dto";
+import { TipoIdentificacion } from "@/dtos/schema.dto";
+import { TipoCliente } from "@/dtos/client.dto";
 
 type ClientRecord = Omit<Client, "created_at" | "updated_at"> & {
    created_at: string | Date;

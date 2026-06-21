@@ -55,6 +55,9 @@ const TelefonoSchema = z
 
 const EmailSchema = z.email("El correo electrónico no es válido");
 
+const OptionalEmailSchema = z.union([EmailSchema, z.literal("")]).nullable().optional();
+const OptionalTelefonoSchema = z.union([TelefonoSchema, z.literal("")]).nullable().optional();
+
 // RNC: Admite 9 dígitos (Jurídica) o 11 dígitos (Física) y aplica el algoritmo correspondiente
 const RncSchema = z
   .string()
@@ -93,64 +96,11 @@ const TipoContactoSchema = z.enum(
 export const GeneralSchemasDTO = {
   TelefonoSchema,
   EmailSchema,
+  OptionalEmailSchema,
+  OptionalTelefonoSchema,
   RncSchema,
   CedulaSchema,
   PasaporteSchema,
   TipoIdentificacionSchema,
   TipoContactoSchema,
-};
-
-
-
-// SCHEMAS DE EMPLEADOS
-export const TipoIdentificacionEmpleado = {
-  CEDULA: "Cédula",
-  PASAPORTE: "Pasaporte",
-} as const;
-
-export const TipoRolEmpleado = {
-  OPERADOR: "Operador",
-  INGENIERO: "Ingeniero",
-  MECANICO: "Mecánico",
-  CONTABLE: "Contable",
-  MENSAJERO: "Mensajero",
-} as const;
-
-const TipoIdentificacionEmpleadoSchema = z.enum(
-  Object.keys(TipoIdentificacionEmpleado) as [
-    keyof typeof TipoIdentificacionEmpleado,
-    ...(keyof typeof TipoIdentificacionEmpleado)[]
-  ]
-);
-
-const TipoRolEmpleadoSchema = z.enum(
-  Object.keys(TipoRolEmpleado) as [
-    keyof typeof TipoRolEmpleado,
-    ...(keyof typeof TipoRolEmpleado)[]
-  ]
-);
-
-export const EmployeeSchemasDTO = {
-  TipoIdentificacionEmpleadoSchema,
-  TipoRolEmpleadoSchema,
-};
-
-
-
-//SCHEMAS DE CLIENTES
-export const TipoCliente = {
-  FISICA: "Persona Física",
-  JURIDICA: "Persona Jurídica",
-  GUBERNAMENTAL: "Entidad Gubernamental",
-} as const;
-
-const TipoClienteSchema = z.enum(
-  Object.keys(TipoCliente) as [
-    keyof typeof TipoCliente,
-    ...(keyof typeof TipoCliente)[]
-  ]
-);
-
-export const ClientSchemasDTO = {
-  TipoClienteSchema,
 };
