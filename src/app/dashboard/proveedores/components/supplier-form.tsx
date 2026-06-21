@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useDebounce } from "@/hooks/use-debounce";
 
 // Importamos los schemas, el enum y validaciones generales
-import { GeneralSchemasDTO } from "@/dtos/schema.dto"; 
+import { GeneralSchemasDTO } from "@/dtos/schema.dto";
 import { TipoProveedor } from "@/dtos/supplier.dto";
 
 const tipoProveedorOptions = Object.entries(TipoProveedor).map(([key, value]) => ({
@@ -32,7 +34,9 @@ interface SupplierFormProps {
 }
 
 const SELECT_CLASS =
-   "h-9 w-full rounded-4xl border border-input bg-input/30 px-3 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 text-foreground";
+   "h-9 w-full rounded-4xl border border-input bg-input/30 px-3 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 text-foreground disabled:opacity-60 disabled:bg-muted disabled:cursor-not-allowed transition-colors";
+
+const INPUT_DISABLED_CLASS = "disabled:bg-muted disabled:opacity-60 transition-colors";
 
 export function SupplierForm({
    initialData,
@@ -41,7 +45,7 @@ export function SupplierForm({
    loading,
    submitLabel = "Crear proveedor",
 }: SupplierFormProps) {
-   
+
    const [values, setValues] = useState<FormValues>({
       nombre: initialData?.nombre ?? "",
       rnc: initialData?.rnc ?? "",
@@ -50,16 +54,74 @@ export function SupplierForm({
       telefono: initialData?.telefono ?? "",
       direccion: initialData?.direccion ?? "",
    });
-   
+
    const [error, setError] = useState<string | null>(null);
+
+   const [isSearching, setIsSearching] = useState(false);
+   const [isManualEntryAllowed, setIsManualEntryAllowed] = useState(false);
+   const [apiDataFound, setApiDataFound] = useState<{ nombre: boolean }>({
+      nombre: false,
+   });
+
+   const debouncedRnc = useDebounce(values.rnc, 800);
+   const isRncLengthValid = debouncedRnc.length === 9 || debouncedRnc.length === 11;
 
    function set<K extends keyof FormValues>(field: K, value: FormValues[K]) {
       setValues((prev) => ({ ...prev, [field]: value }));
    }
 
+   useEffect(() => {
+      async function fetchProveedorDGII() {
+         if (!isRncLengthValid) {
+            setIsManualEntryAllowed(false);
+            setApiDataFound({ nombre: false });
+            return;
+         }
+
+         setIsSearching(true);
+         setIsManualEntryAllowed(false);
+
+         try {
+            const url = `/api/dgii/${debouncedRnc.toString()}`;
+            const response = await fetch(url);
+
+            if (response.ok) {
+               const data = await response.json();
+
+               if (data.error === false && data.nombre_razon_social) {
+                  set("nombre", data.nombre_razon_social);
+
+                  setApiDataFound({ nombre: true });
+                  setIsManualEntryAllowed(true);
+                  setError(null);
+               } else {
+                  setIsManualEntryAllowed(true);
+                  setApiDataFound({ nombre: false });
+               }
+            } else {
+               setIsManualEntryAllowed(true);
+               setApiDataFound({ nombre: false });
+            }
+         } catch (err) {
+            console.error("Error consultando la DGII:", err);
+            setIsManualEntryAllowed(true);
+            setApiDataFound({ nombre: false });
+         } finally {
+            setIsSearching(false);
+         }
+      }
+
+      fetchProveedorDGII();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, [debouncedRnc, isRncLengthValid]);
+
+
    function handleRncChange(e: React.ChangeEvent<HTMLInputElement>) {
       const cleanValue = e.target.value.replace(/\D/g, "");
       set("rnc", cleanValue);
+      setIsManualEntryAllowed(false);
+      setApiDataFound({ nombre: false });
+      set("nombre", "");
    }
 
    function handlePhoneChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -102,8 +164,8 @@ export function SupplierForm({
 
    async function handleSubmit(e: React.FormEvent) {
       e.preventDefault();
-      
-      if (!validateForm()) return; 
+
+      if (!validateForm()) return;
 
       try {
          await onSubmit(values);
@@ -112,30 +174,30 @@ export function SupplierForm({
       }
    }
 
+   const isNombreDisabled = !isManualEntryAllowed || apiDataFound.nombre;
+   const areOtherFieldsDisabled = !isManualEntryAllowed;
+
    return (
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
          
-         <div className="flex flex-col gap-1.5">
-            <Label htmlFor="sf-nombre">Nombre o Razón Social *</Label>
-            <Input
-               id="sf-nombre"
-               value={values.nombre}
-               onChange={(e) => set("nombre", e.target.value)}
-               placeholder="Nombre del proveedor"
-               required
-            />
-         </div>
-
          <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
                <Label htmlFor="sf-rnc">RNC *</Label>
-               <Input
-                  id="sf-rnc"
-                  value={values.rnc}
-                  onChange={handleRncChange}
-                  placeholder="Ej: 130123456"
-                  required
-               />
+               <div className="relative">
+                  <Input
+                     id="sf-rnc"
+                     value={values.rnc}
+                     onChange={handleRncChange}
+                     placeholder="Ej: 130123456"
+                     required
+                     className={isSearching ? `pr-10 ${INPUT_DISABLED_CLASS}` : INPUT_DISABLED_CLASS}
+                  />
+                  {isSearching && (
+                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                     </div>
+                  )}
+               </div>
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -146,12 +208,26 @@ export function SupplierForm({
                   onChange={(e) => set("tipo", e.target.value as keyof typeof TipoProveedor)}
                   className={SELECT_CLASS}
                   required
+                  disabled={areOtherFieldsDisabled}
                >
                   {tipoProveedorOptions.map((t) => (
                      <option key={t.value} value={t.value}>{t.label}</option>
                   ))}
                </select>
             </div>
+         </div>
+
+         <div className="flex flex-col gap-1.5">
+            <Label htmlFor="sf-nombre">Nombre o Razón Social *</Label>
+            <Input
+               id="sf-nombre"
+               value={values.nombre}
+               onChange={(e) => set("nombre", e.target.value)}
+               placeholder="Nombre del proveedor"
+               required
+               disabled={isNombreDisabled}
+               className={INPUT_DISABLED_CLASS}
+            />
          </div>
 
          <div className="grid grid-cols-2 gap-3">
@@ -163,6 +239,8 @@ export function SupplierForm({
                   value={values.telefono}
                   onChange={handlePhoneChange}
                   placeholder="Ej: 8091234567"
+                  disabled={areOtherFieldsDisabled}
+                  className={INPUT_DISABLED_CLASS}
                />
             </div>
 
@@ -174,6 +252,8 @@ export function SupplierForm({
                   value={values.email}
                   onChange={handleEmailChange}
                   placeholder="proveedor@ejemplo.com"
+                  disabled={areOtherFieldsDisabled}
+                  className={INPUT_DISABLED_CLASS}
                />
             </div>
          </div>
@@ -185,6 +265,8 @@ export function SupplierForm({
                value={values.direccion}
                onChange={(e) => set("direccion", e.target.value)}
                placeholder="Dirección física del proveedor"
+               disabled={areOtherFieldsDisabled}
+               className={INPUT_DISABLED_CLASS}
             />
          </div>
 
@@ -197,11 +279,11 @@ export function SupplierForm({
 
          <div className="flex gap-2 justify-end pt-2">
             {onCancel && (
-               <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
+               <Button type="button" variant="outline" onClick={onCancel} disabled={loading || isSearching}>
                   Cancelar
                </Button>
             )}
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || isSearching || !isManualEntryAllowed}>
                {loading ? "Guardando…" : submitLabel}
             </Button>
          </div>
