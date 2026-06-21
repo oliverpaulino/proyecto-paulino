@@ -1,11 +1,25 @@
 import { z } from "zod";
 
-const TipoProveedorSchema = z.enum(["SUPLIDOR", "SUB_CONTRATISTA"]);
+export const TipoProveedor = {
+  SUPLIDOR: "Suplidor",
+  SUB_CONTRATISTA: "Sub-contratista",
+} as const;
+
+const TipoProveedorSchema = z.enum(
+  Object.keys(TipoProveedor) as [
+    keyof typeof TipoProveedor,
+    ...(keyof typeof TipoProveedor)[]
+  ]
+);
+
+export const SupplierSchemasDTO = {
+  TipoProveedorSchema,
+};
 
 const SupplierDTO = z.object({
    id: z.string(),
    nombre: z.string(),
-   tipo: TipoProveedorSchema,
+   tipo: SupplierSchemasDTO.TipoProveedorSchema,
    rnc: z.string(),
    telefono: z.string().nullable(),
    email: z.string().nullable(),
@@ -16,7 +30,7 @@ const SupplierDTO = z.object({
 
 const CreateSupplierDTO = z.object({
    nombre: z.string().min(1),
-   tipo: TipoProveedorSchema,
+   tipo: SupplierSchemasDTO.TipoProveedorSchema,
    rnc: z.string().min(1),
    telefono: z.string().nullable().optional(),
    email: z.string().email().nullable().optional(),
