@@ -19,7 +19,8 @@ import { ClientTable } from "./components/client-table";
 import { DeleteClientDialog } from "./components/delete-client-dialog";
 import { TableSearch } from "@/components/table-search";
 
-import { TipoCliente, TipoIdentificacion } from "@/dtos/schema.dto";
+import { TipoIdentificacion } from "@/dtos/schema.dto";
+import { TipoCliente } from "@/dtos/client.dto";
 
 interface FormValues {
    nombre: string;

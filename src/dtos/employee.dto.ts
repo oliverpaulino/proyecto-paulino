@@ -1,5 +1,38 @@
 import { z } from "zod";
-import { GeneralSchemasDTO, EmployeeSchemasDTO } from "./schema.dto";
+import { GeneralSchemasDTO } from "./schema.dto";
+
+// SCHEMAS DE EMPLEADOS
+export const TipoIdentificacionEmpleado = {
+  CEDULA: "Cédula",
+  PASAPORTE: "Pasaporte",
+} as const;
+
+export const TipoRolEmpleado = {
+  OPERADOR: "Operador",
+  INGENIERO: "Ingeniero",
+  MECANICO: "Mecánico",
+  CONTABLE: "Contable",
+  MENSAJERO: "Mensajero",
+} as const;
+
+const TipoIdentificacionEmpleadoSchema = z.enum(
+  Object.keys(TipoIdentificacionEmpleado) as [
+    keyof typeof TipoIdentificacionEmpleado,
+    ...(keyof typeof TipoIdentificacionEmpleado)[]
+  ]
+);
+
+const TipoRolEmpleadoSchema = z.enum(
+  Object.keys(TipoRolEmpleado) as [
+    keyof typeof TipoRolEmpleado,
+    ...(keyof typeof TipoRolEmpleado)[]
+  ]
+);
+
+export const EmployeeSchemasDTO = {
+  TipoIdentificacionEmpleadoSchema,
+  TipoRolEmpleadoSchema,
+};
 
 // Empleado
 const EmployeeDTO = z.object({
@@ -14,47 +47,40 @@ const EmployeeDTO = z.object({
    updated_at: z.coerce.date(),
 });
 
-const CreateEmployeeDTO = z.object({
+const CreateEmployeeBaseDTO = z.object({
    nombre: z.string().min(1),
    identificacion: z.string().min(1),
    tipo_identificacion: EmployeeSchemasDTO.TipoIdentificacionEmpleadoSchema,
    rol: EmployeeSchemasDTO.TipoRolEmpleadoSchema,
    salario: z.number().min(0),
    activo: z.boolean().default(true),
-}).superRefine((data, ctx) => {
+});
+
+const validateEmployeeDoc = (data: any, ctx: z.RefinementCtx) => {
+   if (!data.tipo_identificacion || !data.identificacion) return;
 
    if (data.tipo_identificacion === "CEDULA") {
       const result = GeneralSchemasDTO.CedulaSchema.safeParse(data.identificacion);
-
       if (!result.success) {
          result.error.issues.forEach((issue) => {
-            ctx.addIssue({
-               ...issue,
-               path: ["identificacion"],
-               params: { internalCode: "ERR_INVALID_CEDULA" }
-            });
+            ctx.addIssue({ ...issue, path: ["identificacion"], params: { internalCode: "ERR_INVALID_CEDULA" } });
          });
       }
    }
 
    if (data.tipo_identificacion === "PASAPORTE") {
       const result = GeneralSchemasDTO.PasaporteSchema.safeParse(data.identificacion);
-
       if (!result.success) {
          result.error.issues.forEach((issue) => {
-            ctx.addIssue({
-               ...issue,
-               path: ["identificacion"],
-               params: { internalCode: "ERR_INVALID_PASSPORT" }
-            });
+            ctx.addIssue({ ...issue, path: ["identificacion"], params: { internalCode: "ERR_INVALID_PASSPORT" } });
          });
       }
    }
-});
+};
 
-const UpdateEmployeeDTO = CreateEmployeeDTO.partial();
+const CreateEmployeeDTO = CreateEmployeeBaseDTO.superRefine(validateEmployeeDoc);
+const UpdateEmployeeDTO = CreateEmployeeBaseDTO.partial().superRefine(validateEmployeeDoc);
 
-// Contacto empleado
 const ContactEmployeeDTO = z.object({
    id: z.string().uuid(),
    empleado_id: z.string().uuid(),
@@ -64,42 +90,41 @@ const ContactEmployeeDTO = z.object({
    updated_at: z.coerce.date(),
 });
 
-const CreateContactEmployeeDTO = z.object({
+const CreateContactEmployeeBaseDTO = z.object({
    empleado_id: z.string().uuid(),
    tipo_contacto: GeneralSchemasDTO.TipoContactoSchema,
    contacto: z.string().min(1, "El contacto no puede estar vacío"),
-}).superRefine((data, ctx) => {
-   
+});
+
+const validateContactEmployee = (data: any, ctx: z.RefinementCtx) => {
+   if (!data.tipo_contacto || !data.contacto) return;
+
    if (data.tipo_contacto === "TELEFONO") {
       const result = GeneralSchemasDTO.TelefonoSchema.safeParse(data.contacto);
-
       if (!result.success) {
          result.error.issues.forEach((issue) => {
-            ctx.addIssue({
-               ...issue,
-               path: ["contacto"],
-               params: { internalCode: "ERR_INVALID_PHONE" }
-            });
+            ctx.addIssue({ ...issue, path: ["contacto"], params: { internalCode: "ERR_INVALID_PHONE" } });
          });
       }
    }
 
    if (data.tipo_contacto === "EMAIL") {
       const result = GeneralSchemasDTO.EmailSchema.safeParse(data.contacto);
-
       if (!result.success) {
          result.error.issues.forEach((issue) => {
-            ctx.addIssue({
-               ...issue,
-               path: ["contacto"],
-               params: { internalCode: "ERR_INVALID_EMAIL" }
-            });
+            ctx.addIssue({ ...issue, path: ["contacto"], params: { internalCode: "ERR_INVALID_EMAIL" } });
          });
       }
    }
-});
+};
 
-const UpdateContactEmployeeDTO = CreateContactEmployeeDTO.omit({ empleado_id: true }).partial();
+const CreateContactEmployeeDTO = CreateContactEmployeeBaseDTO.superRefine(validateContactEmployee);
+
+const UpdateContactEmployeeDTO = CreateContactEmployeeBaseDTO
+   .omit({ empleado_id: true })
+   .partial()
+   .superRefine(validateContactEmployee);
+
 
 // Operador
 const OperatorDTO = z.object({

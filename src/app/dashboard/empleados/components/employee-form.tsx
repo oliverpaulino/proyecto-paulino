@@ -8,10 +8,14 @@ import { Truck, Loader2 } from "lucide-react";
 import type { Employee, CreateEmployeeForm, Operator } from "@/dtos/employee.dto";
 
 import { 
-   GeneralSchemasDTO, 
-   TipoIdentificacionEmpleado, 
-   TipoRolEmpleado 
+   GeneralSchemasDTO
 } from "@/dtos/schema.dto";
+
+import { 
+   TipoIdentificacionEmpleado, 
+   TipoRolEmpleado,
+} from "@/dtos/employee.dto";
+
 
 const SELECT_CLASS =
    "h-9 w-full rounded-4xl border border-input bg-input/30 px-3 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 text-foreground";
