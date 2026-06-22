@@ -78,6 +78,38 @@ export interface DB {
       updated_at: Generated<Date>;
    };
 
+   item: {
+      id: Generated<string>;
+      nombre: string;
+      tipo_id: string;
+      descripcion: string | null;
+      unidad: string | null;
+      stock: Generated<number>;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+
+   tipo_item: {
+      id: Generated<string>;
+      nombre: string;
+      descripcion: string | null;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+
+   equipo: {
+      id: Generated<string>;
+      nombre: string;
+      tipo: string;
+      estado: Generated<string>;
+      costo_por_hora: Generated<number>;
+      placa: string | null;
+      modelo: string | null;
+      ano: number | null;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+
    orden_compra: {
       id: Generated<string>;
       proveedor_id: string;
@@ -88,102 +120,77 @@ export interface DB {
       approved_by: string | null;
       approved_by_name: string | null;
       approved_at: Date | null;
-      item: {
-         id: Generated<string>;
-         nombre: string;
-         tipo_id: string;
-         descripcion: string | null;
-         unidad: string | null;
-         stock: Generated<number>;
-         created_at: Generated<Date>;
-         updated_at: Generated<Date>;
-      };
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
 
-      tipo_item: {
-         id: Generated<string>;
-         nombre: string;
-         descripcion: string | null;
-         created_at: Generated<Date>;
-         updated_at: Generated<Date>;
-      };
+   purchase_order_approvers: {
+      user_id: string;
+      user_name: string;
+      granted_by: string;
+      granted_at: Generated<Date>;
+   };
 
-      equipo: {
-         id: Generated<string>;
-         nombre: string;
-         tipo: string;
-         estado: Generated<string>;
-         costo_por_hora: Generated<number>;
-         placa: string | null;
-         modelo: string | null;
-         ano: number | null;
-         created_at: Generated<Date>;
-         updated_at: Generated<Date>;
-      };
+   orden_compra_item: {
+      id: Generated<string>;
+      orden_compra_id: string;
+      descripcion: string;
+      cantidad: number;
+      precio_unitario: number;
+      subtotal: number;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
 
-      purchase_order_approvers: {
-         user_id: string;
-         user_name: string;
-         granted_by: string;
-         granted_at: Generated<Date>;
-      };
+   payroll_concepts: {
+      id: Generated<string>;
+      organization_id: string | null;
+      code: string;
+      name: string;
+      category: string;
+      sign: number;
+      is_taxable: boolean;
+      is_active: boolean;
+      accounting_rule_id: string | null;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
 
-      orden_compra_item: {
-         id: Generated<string>;
-         orden_compra_id: string;
-         descripcion: string;
-         cantidad: number;
-         precio_unitario: number;
-         subtotal: number;
-         payroll_concepts: {
-            id: Generated<string>;
-            organization_id: string | null;
-            code: string;
-            name: string;
-            category: string;
-            sign: number;
-            is_taxable: boolean;
-            is_active: boolean;
-            accounting_rule_id: string | null;
-            created_at: Generated<Date>;
-            updated_at: Generated<Date>;
-         };
+   payroll_concept_rules: {
+      id: Generated<string>;
+      concept_id: string;
+      applies_to: string;
+      target_id: string | null;
+      trigger: string;
+      amount_mode: string;
+      amount_value: number;
+      effective_from: Date;
+      effective_to: Date | null;
+      priority: number;
+      project_location_filter: string | null;
+      is_active: boolean;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
 
-         payroll_concept_rules: {
-            id: Generated<string>;
-            concept_id: string;
-            applies_to: string;
-            target_id: string | null;
-            trigger: string;
-            amount_mode: string;
-            amount_value: number;
-            effective_from: Date;
-            effective_to: Date | null;
-            priority: number;
-            project_location_filter: string | null;
-            is_active: boolean;
-            created_at: Generated<Date>;
-            updated_at: Generated<Date>;
-         };
-
-         payroll_items: {
-            id: Generated<string>;
-            organization_id: string | null;
-            cycle_id: string | null;
-            employee_id: string;
-            concept_id: string;
-            source: string;
-            source_ref_id: string | null;
-            quantity: number;
-            unit_value: number;
-            amount: number;
-            work_date: Date | null;
-            work_date_end: Date | null;
-            created_at: Generated<Date>;
-            updated_at: Generated<Date>;
-         };
-      }
-   }
+   payroll_items: {
+      id: Generated<string>;
+      organization_id: string | null;
+      cycle_id: string | null;
+      employee_id: string;
+      concept_id: string;
+      source: string;
+      source_ref_id: string | null;
+      quantity: number;
+      unit_value: number;
+      amount: number;
+      work_date: Date | null;
+      work_date_end: Date | null;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
 }
+
 const db = new Kysely<DB>({
    dialect: new PostgresDialect({
       pool: new Pool({

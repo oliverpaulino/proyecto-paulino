@@ -60,10 +60,10 @@ export function PurchaseOrderForm({
       items:
          initialData?.items && initialData.items.length > 0
             ? initialData.items.map((i) => ({
-                 descripcion: i.descripcion,
-                 cantidad: i.cantidad,
-                 precio_unitario: i.precio_unitario,
-              }))
+               descripcion: i.descripcion,
+               cantidad: i.cantidad,
+               precio_unitario: i.precio_unitario,
+            }))
             : [emptyItem()],
    });
    const [error, setError] = useState<string | null>(null);
@@ -118,6 +118,7 @@ export function PurchaseOrderForm({
       try {
          await onSubmit(values);
       } catch (err: unknown) {
+         console.log(err)
          setError(err instanceof Error ? err.message : "Ocurrió un error");
       }
    }

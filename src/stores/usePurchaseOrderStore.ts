@@ -66,11 +66,15 @@ export const usePurchaseOrderStore = create<PurchaseOrderStore>((set, get) => ({
             body: JSON.stringify(form),
          });
 
+         // 1. PRIMERO validamos si falló
+         if (!res.ok) {
+            // Leemos como texto plano para evitar el SyntaxError si es un 404 o error del servidor
+            const errorText = await res.text();
+            throw new Error(`Error ${res.status}: ${errorText}`);
+         }
+
+         // 2. LUEGO parseamos el JSON (porque sabemos que res.ok es true)
          const data = await res.json();
-         if (!res.ok)
-            throw new Error(
-               data.error || data.message || "Error al crear orden de compra"
-            );
 
          get().invalidateCache();
          await get().GetPurchaseOrders();
@@ -92,8 +96,8 @@ export const usePurchaseOrderStore = create<PurchaseOrderStore>((set, get) => ({
          if (!res.ok)
             throw new Error(
                responseData.error ||
-                  responseData.message ||
-                  "Error al actualizar orden de compra"
+               responseData.message ||
+               "Error al actualizar orden de compra"
             );
 
          get().invalidateCache();
@@ -115,8 +119,8 @@ export const usePurchaseOrderStore = create<PurchaseOrderStore>((set, get) => ({
          if (!res.ok)
             throw new Error(
                responseData.error ||
-                  responseData.message ||
-                  "Error al cambiar estado"
+               responseData.message ||
+               "Error al cambiar estado"
             );
 
          get().invalidateCache();
@@ -147,8 +151,8 @@ export const usePurchaseOrderStore = create<PurchaseOrderStore>((set, get) => ({
          if (!res.ok)
             throw new Error(
                responseData.error ||
-                  responseData.message ||
-                  "Error al eliminar orden de compra"
+               responseData.message ||
+               "Error al eliminar orden de compra"
             );
 
          get().invalidateCache();

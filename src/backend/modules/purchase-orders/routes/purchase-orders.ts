@@ -11,10 +11,33 @@ const service = new PurchaseOrderService(repo);
 
 // GET /api/purchase-orders
 purchaseOrdersRoute.get("/", async (c) => {
-   const orders = await service.getAll();
-   return c.json(orders);
+   try {
+      const orders = await service.getAll();
+      return c.json(orders);
+   } catch (err: unknown) {
+      return c.json(
+         { error: err instanceof Error ? err.message : "Error al obtener órdenes" },
+         500
+      );
+   }
 });
 
+// POST /api/purchase-orders
+purchaseOrdersRoute.post("/", async (c) => {
+   try {
+      const body = await c.req.json();
+      const order = await service.create({
+         ...body,
+         fecha: body.fecha ? new Date(body.fecha) : new Date(),
+      });
+      return c.json(order, 201);
+   } catch (err: unknown) {
+      return c.json(
+         { error: err instanceof Error ? err.message : "Error desconocido" },
+         400
+      );
+   }
+});
 // GET /api/purchase-orders/approvers — list approvers (admin only)
 purchaseOrdersRoute.get("/approvers", async (c) => {
    const session = await auth.api.getSession({ headers: c.req.raw.headers });
@@ -64,31 +87,28 @@ purchaseOrdersRoute.get("/approvers/me", async (c) => {
 
 // GET /api/purchase-orders/:id
 purchaseOrdersRoute.get("/:id", async (c) => {
-   const order = await service.getById(c.req.param("id"));
-   if (!order) return c.json({ error: "Orden no encontrada" }, 404);
-   return c.json(order);
-});
-
-// POST /api/purchase-orders
-purchaseOrdersRoute.post("/", async (c) => {
-   const body = await c.req.json();
    try {
-      const order = await service.create({
-         ...body,
-         fecha: body.fecha ? new Date(body.fecha) : new Date(),
-      });
-      return c.json(order, 201);
+      const order = await service.getById(c.req.param("id"));
+      if (!order) return c.json({ error: "Orden no encontrada" }, 404);
+      return c.json(order);
    } catch (err: unknown) {
       return c.json(
-         { error: err instanceof Error ? err.message : "Error desconocido" },
-         400
+         { error: err instanceof Error ? err.message : "Error al obtener la orden" },
+         500
       );
    }
 });
 
+
+
 // PATCH /api/purchase-orders/:id/status
 purchaseOrdersRoute.patch("/:id/status", async (c) => {
-   const body = await c.req.json();
+   let body: { estado?: string };
+   try {
+      body = await c.req.json();
+   } catch {
+      return c.json({ error: "Cuerpo de solicitud inválido" }, 400);
+   }
    const nuevoEstado = body.estado as EstadoOrdenCompra;
 
    try {
@@ -128,8 +148,8 @@ purchaseOrdersRoute.patch("/:id/status", async (c) => {
 
 // PATCH /api/purchase-orders/:id
 purchaseOrdersRoute.patch("/:id", async (c) => {
-   const body = await c.req.json();
    try {
+      const body = await c.req.json();
       const order = await service.update(c.req.param("id"), {
          ...body,
          fecha: body.fecha ? new Date(body.fecha) : undefined,
@@ -146,9 +166,16 @@ purchaseOrdersRoute.patch("/:id", async (c) => {
 
 // DELETE /api/purchase-orders/:id
 purchaseOrdersRoute.delete("/:id", async (c) => {
-   const deleted = await service.delete(c.req.param("id"));
-   if (!deleted) return c.json({ error: "Orden no encontrada" }, 404);
-   return c.json({ success: true });
+   try {
+      const deleted = await service.delete(c.req.param("id"));
+      if (!deleted) return c.json({ error: "Orden no encontrada" }, 404);
+      return c.json({ success: true });
+   } catch (err: unknown) {
+      return c.json(
+         { error: err instanceof Error ? err.message : "Error al eliminar" },
+         500
+      );
+   }
 });
 
 export default purchaseOrdersRoute;
