@@ -24,6 +24,9 @@ export interface PurchaseOrderProps {
    estado: EstadoOrdenCompra;
    notas: string | null;
    total: number;
+   approved_by: string | null;
+   approved_by_name: string | null;
+   approved_at: Date | null;
    items: PurchaseOrderItemProps[];
    created_at: Date;
    updated_at: Date;
@@ -62,6 +65,9 @@ export class PurchaseOrder {
    get estado(): EstadoOrdenCompra { return this.props.estado; }
    get notas(): string | null { return this.props.notas; }
    get total(): number { return this.props.total; }
+   get approved_by(): string | null { return this.props.approved_by; }
+   get approved_by_name(): string | null { return this.props.approved_by_name; }
+   get approved_at(): Date | null { return this.props.approved_at; }
    get items(): PurchaseOrderItemProps[] { return this.props.items; }
    get created_at(): Date { return this.props.created_at; }
    get updated_at(): Date { return this.props.updated_at; }
@@ -93,6 +99,13 @@ export interface UpdatePurchaseOrderDTO {
    }>;
 }
 
+export interface ApproverRecord {
+   user_id: string;
+   user_name: string;
+   granted_by: string;
+   granted_at: Date;
+}
+
 export interface IPurchaseOrderRepository {
    findAll(): Promise<PurchaseOrder[]>;
    findById(id: string): Promise<PurchaseOrder | null>;
@@ -111,7 +124,14 @@ export interface IPurchaseOrderRepository {
    ): Promise<PurchaseOrder | null>;
    updateStatus(
       id: string,
-      estado: EstadoOrdenCompra
+      estado: EstadoOrdenCompra,
+      approvedBy?: string,
+      approvedByName?: string
    ): Promise<PurchaseOrder | null>;
    delete(id: string): Promise<boolean>;
+   // Approver management
+   isApprover(userId: string): Promise<boolean>;
+   listApprovers(): Promise<ApproverRecord[]>;
+   addApprover(userId: string, userName: string, grantedBy: string): Promise<void>;
+   removeApprover(userId: string): Promise<void>;
 }

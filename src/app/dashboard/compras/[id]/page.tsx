@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import {
    ArrowLeft,
+   Download,
    Loader2,
    Pencil,
    ShoppingCart,
@@ -28,6 +29,7 @@ import type { PurchaseOrder, EstadoOrdenCompra } from "@/dtos/purchase-order.dto
 import { usePurchaseOrderStore } from "@/stores/usePurchaseOrderStore";
 import { DeletePurchaseOrderDialog } from "../components/delete-purchase-order-dialog";
 import { PurchaseOrderForm } from "../components/purchase-order-form";
+import { generatePurchaseOrderPDF } from "./generate-pdf";
 
 const ESTADO_BADGE: Record<string, string> = {
    BORRADOR:
@@ -94,7 +96,7 @@ export default function PurchaseOrderDetailPage() {
    const router = useRouter();
    const orderId = params.id as string;
 
-   const { UpdatePurchaseOrder, ChangeStatus, DeletePurchaseOrder } =
+   const { UpdatePurchaseOrder, ChangeStatus, DeletePurchaseOrder, CheckIsApprover } =
       usePurchaseOrderStore();
 
    const [order, setOrder] = useState<PurchaseOrder | null>(null);
@@ -102,6 +104,8 @@ export default function PurchaseOrderDetailPage() {
    const [actionLoading, setActionLoading] = useState(false);
    const [editOpen, setEditOpen] = useState(false);
    const [deleteOpen, setDeleteOpen] = useState(false);
+   const [isApprover, setIsApprover] = useState(false);
+   const [approveError, setApproveError] = useState<string | null>(null);
 
    useEffect(() => {
       let active = true;
@@ -109,9 +113,12 @@ export default function PurchaseOrderDetailPage() {
       async function load() {
          setLoading(true);
          try {
-            const res = await fetch(`/api/purchase-orders/${orderId}`);
-            if (!res.ok) throw new Error("Not found");
-            const data: PurchaseOrder = await res.json();
+            const [orderRes] = await Promise.all([
+               fetch(`/api/purchase-orders/${orderId}`),
+               CheckIsApprover().then((v) => { if (active) setIsApprover(v); }),
+            ]);
+            if (!orderRes.ok) throw new Error("Not found");
+            const data: PurchaseOrder = await orderRes.json();
             if (active) setOrder(data);
          } catch {
             if (active) setOrder(null);
@@ -122,7 +129,7 @@ export default function PurchaseOrderDetailPage() {
 
       load();
       return () => { active = false; };
-   }, [orderId]);
+   }, [orderId, CheckIsApprover]);
 
    async function refreshOrder() {
       const res = await fetch(`/api/purchase-orders/${orderId}`);
@@ -150,9 +157,15 @@ export default function PurchaseOrderDetailPage() {
 
    async function handleStatusChange(nuevoEstado: EstadoOrdenCompra) {
       setActionLoading(true);
+      setApproveError(null);
       try {
          const result = await ChangeStatus(orderId, nuevoEstado);
-         if (result instanceof Error) throw result;
+         if (result instanceof Error) {
+            if (nuevoEstado === "APROBADA") {
+               setApproveError(result.message);
+            }
+            throw result;
+         }
          await refreshOrder();
       } finally {
          setActionLoading(false);
@@ -195,6 +208,10 @@ export default function PurchaseOrderDetailPage() {
    }
 
    const nextStates = TRANSITIONS[order.estado] ?? [];
+   // Only show the APROBADA transition if current user is an approved signer
+   const visibleNextStates = nextStates.filter(
+      (s) => s !== "APROBADA" || isApprover
+   );
 
    return (
       <div className="flex flex-col gap-6 p-6">
@@ -231,8 +248,18 @@ export default function PurchaseOrderDetailPage() {
             </div>
 
             <div className="flex flex-wrap gap-2 lg:justify-end">
+               {/* PDF download */}
+               <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => generatePurchaseOrderPDF(order)}
+               >
+                  <Download className="mr-2 size-4" />
+                  Descargar PDF
+               </Button>
+
                {/* Status transition buttons */}
-               {nextStates.map((estado) => (
+               {visibleNextStates.map((estado) => (
                   <Button
                      key={estado}
                      variant={estado === "CANCELADA" ? "destructive" : "outline"}
@@ -243,6 +270,14 @@ export default function PurchaseOrderDetailPage() {
                      {TRANSITION_BUTTON_LABEL[estado]}
                   </Button>
                ))}
+
+               {/* Hint when APROBADA is hidden */}
+               {nextStates.includes("APROBADA") && !isApprover && (
+                  <p className="self-center text-xs text-muted-foreground italic">
+                     Solo firmantes autorizados pueden aprobar
+                  </p>
+               )}
+
                <Button
                   variant="outline"
                   onClick={() => setEditOpen(true)}
@@ -262,6 +297,12 @@ export default function PurchaseOrderDetailPage() {
                </Button>
             </div>
          </div>
+
+         {approveError && (
+            <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">
+               {approveError}
+            </div>
+         )}
 
          {/* Summary cards */}
          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -288,11 +329,22 @@ export default function PurchaseOrderDetailPage() {
                      label="Estado"
                      value={ESTADO_LABEL[order.estado] ?? order.estado}
                   />
-                  <InfoField
-                     label="Notas"
-                     value={order.notas ?? "—"}
-                  />
+                  {order.notas && (
+                     <InfoField label="Notas" value={order.notas} />
+                  )}
                   <InfoField label="Registrado" value={formatDate(order.created_at)} />
+                  {order.approved_by_name && (
+                     <InfoField
+                        label="Aprobado por"
+                        value={order.approved_by_name}
+                     />
+                  )}
+                  {order.approved_at && (
+                     <InfoField
+                        label="Fecha aprobación"
+                        value={formatDate(order.approved_at)}
+                     />
+                  )}
                </div>
             </CardContent>
          </Card>

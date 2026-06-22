@@ -1,6 +1,7 @@
 import { Kysely } from "kysely";
 import { DB } from "@/backend/database";
 import {
+   ApproverRecord,
    CreatePurchaseOrderDTO,
    EstadoOrdenCompra,
    IPurchaseOrderRepository,
@@ -24,6 +25,9 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             "orden_compra.estado",
             "orden_compra.notas",
             "orden_compra.total",
+            "orden_compra.approved_by",
+            "orden_compra.approved_by_name",
+            "orden_compra.approved_at",
             "orden_compra.created_at",
             "orden_compra.updated_at",
          ])
@@ -39,6 +43,9 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             estado: row.estado as EstadoOrdenCompra,
             notas: row.notas ?? null,
             total: Number(row.total),
+            approved_by: row.approved_by ?? null,
+            approved_by_name: row.approved_by_name ?? null,
+            approved_at: row.approved_at ? new Date(row.approved_at) : null,
             items: [],
             created_at: new Date(row.created_at),
             updated_at: new Date(row.updated_at),
@@ -58,6 +65,9 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             "orden_compra.estado",
             "orden_compra.notas",
             "orden_compra.total",
+            "orden_compra.approved_by",
+            "orden_compra.approved_by_name",
+            "orden_compra.approved_at",
             "orden_compra.created_at",
             "orden_compra.updated_at",
          ])
@@ -91,6 +101,9 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
          estado: row.estado as EstadoOrdenCompra,
          notas: row.notas ?? null,
          total: Number(row.total),
+         approved_by: row.approved_by ?? null,
+         approved_by_name: row.approved_by_name ?? null,
+         approved_at: row.approved_at ? new Date(row.approved_at) : null,
          items,
          created_at: new Date(row.created_at),
          updated_at: new Date(row.updated_at),
@@ -157,6 +170,9 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
          estado: result.header.estado as EstadoOrdenCompra,
          notas: result.header.notas ?? null,
          total: Number(result.header.total),
+         approved_by: null,
+         approved_by_name: null,
+         approved_at: null,
          items,
          created_at: new Date(result.header.created_at),
          updated_at: new Date(result.header.updated_at),
@@ -228,17 +244,64 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
 
    async updateStatus(
       id: string,
-      estado: EstadoOrdenCompra
+      estado: EstadoOrdenCompra,
+      approvedBy?: string,
+      approvedByName?: string
    ): Promise<PurchaseOrder | null> {
+      const updateData: Record<string, unknown> = { estado, updated_at: new Date() };
+      if (estado === "APROBADA" && approvedBy) {
+         updateData.approved_by = approvedBy;
+         updateData.approved_by_name = approvedByName ?? null;
+         updateData.approved_at = new Date();
+      }
+
       const row = await this.db
          .updateTable("orden_compra")
-         .set({ estado, updated_at: new Date() })
+         .set(updateData)
          .where("id", "=", id)
          .returningAll()
          .executeTakeFirst();
 
       if (!row) return null;
       return this.findById(id);
+   }
+
+   async isApprover(userId: string): Promise<boolean> {
+      const row = await this.db
+         .selectFrom("purchase_order_approvers")
+         .select("user_id")
+         .where("user_id", "=", userId)
+         .executeTakeFirst();
+      return !!row;
+   }
+
+   async listApprovers(): Promise<ApproverRecord[]> {
+      const rows = await this.db
+         .selectFrom("purchase_order_approvers")
+         .selectAll()
+         .orderBy("granted_at", "desc")
+         .execute();
+      return rows.map((r) => ({
+         user_id: r.user_id,
+         user_name: r.user_name,
+         granted_by: r.granted_by,
+         granted_at: new Date(r.granted_at),
+      }));
+   }
+
+   async addApprover(userId: string, userName: string, grantedBy: string): Promise<void> {
+      await this.db
+         .insertInto("purchase_order_approvers")
+         .values({ user_id: userId, user_name: userName, granted_by: grantedBy })
+         .onConflict((oc) => oc.column("user_id").doUpdateSet({ user_name: userName }))
+         .execute();
+   }
+
+   async removeApprover(userId: string): Promise<void> {
+      await this.db
+         .deleteFrom("purchase_order_approvers")
+         .where("user_id", "=", userId)
+         .execute();
    }
 
    async delete(id: string): Promise<boolean> {

@@ -1,4 +1,5 @@
 import {
+   ApproverRecord,
    canTransition,
    CreatePurchaseOrderDTO,
    EstadoOrdenCompra,
@@ -69,7 +70,9 @@ export class PurchaseOrderService {
 
    async changeStatus(
       id: string,
-      nuevoEstado: EstadoOrdenCompra
+      nuevoEstado: EstadoOrdenCompra,
+      userId?: string,
+      userName?: string
    ): Promise<PurchaseOrderProps | null> {
       const existing = await this.repo.findById(id);
       if (!existing) return null;
@@ -80,8 +83,24 @@ export class PurchaseOrderService {
          );
       }
 
-      const order = await this.repo.updateStatus(id, nuevoEstado);
+      const order = await this.repo.updateStatus(id, nuevoEstado, userId, userName);
       return order ? order.toJSON() : null;
+   }
+
+   async isApprover(userId: string): Promise<boolean> {
+      return this.repo.isApprover(userId);
+   }
+
+   async listApprovers(): Promise<ApproverRecord[]> {
+      return this.repo.listApprovers();
+   }
+
+   async addApprover(userId: string, userName: string, grantedBy: string): Promise<void> {
+      return this.repo.addApprover(userId, userName, grantedBy);
+   }
+
+   async removeApprover(userId: string): Promise<void> {
+      return this.repo.removeApprover(userId);
    }
 
    async delete(id: string): Promise<boolean> {

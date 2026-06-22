@@ -22,6 +22,7 @@ type PurchaseOrderStore = {
       estado: EstadoOrdenCompra
    ) => Promise<void | Error>;
    DeletePurchaseOrder: (id: string) => Promise<void | Error>;
+   CheckIsApprover: () => Promise<boolean>;
    invalidateCache: () => void;
 };
 
@@ -122,6 +123,17 @@ export const usePurchaseOrderStore = create<PurchaseOrderStore>((set, get) => ({
          await get().GetPurchaseOrders();
       } catch (error) {
          return error as Error;
+      }
+   },
+
+   CheckIsApprover: async () => {
+      try {
+         const res = await fetch("/api/purchase-orders/approvers/me");
+         if (!res.ok) return false;
+         const data = await res.json() as { isApprover: boolean };
+         return data.isApprover;
+      } catch {
+         return false;
       }
    },
 

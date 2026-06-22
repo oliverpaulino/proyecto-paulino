@@ -84,8 +84,18 @@ export interface DB {
       estado: Generated<string>;
       notas: string | null;
       total: Generated<number>;
+      approved_by: string | null;
+      approved_by_name: string | null;
+      approved_at: Date | null;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
+   };
+
+   purchase_order_approvers: {
+      user_id: string;
+      user_name: string;
+      granted_by: string;
+      granted_at: Generated<Date>;
    };
 
    orden_compra_item: {
