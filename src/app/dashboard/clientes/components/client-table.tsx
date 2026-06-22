@@ -2,11 +2,18 @@
 
 import { ClientProps } from "@/backend/modules/clients/domain/clients.domain";
 import { Button } from "@/components/ui/button";
-import { ClientForm } from "@/dtos/client.dto";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
+import { 
+   DropdownMenu, 
+   DropdownMenuContent, 
+   DropdownMenuItem, 
+   DropdownMenuTrigger 
+} from "@radix-ui/react-dropdown-menu";
 import { Contact, Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+
+import { TipoIdentificacion } from "@/dtos/schema.dto"; 
+import { TipoCliente } from "@/dtos/client.dto";
+
 
 interface ClientTableProps {
    clients: ClientProps[];
@@ -14,19 +21,13 @@ interface ClientTableProps {
    onDelete: (client: ClientProps) => void;
 }
 
-const TIPO_BADGE: Record<string, string> = {
-   fisica:
+const TIPO_BADGE: Record<keyof typeof TipoCliente, string> = {
+   FISICA:
       "bg-yellow-100 text-yellow-800 border border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-700",
-   juridica:
+   JURIDICA:
       "bg-blue-100 text-blue-900 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700",
-   gubernamental:
+   GUBERNAMENTAL:
       "bg-gray-100 text-gray-700 border border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600",
-};
-
-const TIPO_LABEL: Record<string, string> = {
-   fisica: "Física",
-   juridica: "Jurídica",
-   gubernamental: "Gubernamental",
 };
 
 export function ClientTable({ clients, onEdit, onDelete }: ClientTableProps) {
@@ -40,6 +41,12 @@ export function ClientTable({ clients, onEdit, onDelete }: ClientTableProps) {
          </div>
       );
    }
+
+   const formatPhone = (phone: string | null) => {
+      if (!phone) return null;
+      if (phone.length === 10) return phone.replace(/(\d{3})(\d{3})(\d{4})/, "$1-$2-$3");
+      return phone;
+   };
 
    return (
       <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
@@ -55,93 +62,106 @@ export function ClientTable({ clients, onEdit, onDelete }: ClientTableProps) {
                </tr>
             </thead>
             <tbody>
-               {clients.map((client) => (
-                  <tr
-                     key={client.id}
-                     className="border-t border-border hover:bg-brand-blue/5 transition-colors"
-                  >
-                     <td className="px-4 py-3">
-                        <div className="text-xs text-muted-foreground">{client.tipo_identificacion}</div>
-                        <span className="inline-block rounded bg-brand-yellow/25 px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-black dark:text-brand-yellow">
-                           <div className="font-medium">{client.identificacion}</div>
-                        </span>
-                     </td>
-                     <td className="px-4 py-3">
-                        <div className="font-semibold text-brand-blue dark:text-white">{client.nombre}</div>
-                        <div className="text-xs text-muted-foreground">
-                           {new Date(client.created_at).toLocaleDateString("es-DO")}
-                        </div>
-                     </td>
+               {clients.map((client) => {
+                  const tipoCliente = (client.tipo_cliente?.toUpperCase() || "FISICA") as keyof typeof TipoCliente;
+                  const tipoIdentificacion = (client.tipo_identificacion?.toUpperCase() || "CEDULA") as keyof typeof TipoIdentificacion;
 
-                     <td className="px-4 py-3">
-                        <span
-                           className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${TIPO_BADGE[client.tipo_cliente] ?? ""}`}
-                        >
-                           {TIPO_LABEL[client.tipo_cliente] ?? client.tipo_cliente}
-                        </span>
-                     </td>
-                     <td className="px-4 py-3 text-muted-foreground">
-                        {client.email && (
-                           <div className="flex items-center gap-1 text-xs">
-                              <span className="text-brand-blue/50">✉</span>
-                              {client.email}
+                  return (
+                     <tr
+                        key={client.id}
+                        className="border-t border-border hover:bg-brand-blue/5 transition-colors"
+                     >
+                        <td className="px-4 py-3">
+                           {/* Usamos el DTO para el Label de la Identificación */}
+                           <div className="text-xs text-muted-foreground">
+                              {TipoIdentificacion[tipoIdentificacion] ?? tipoIdentificacion}
                            </div>
-                        )}
-                        {client.telefono && (
-                           <div className="flex items-center gap-1 text-xs">
-                              <span className="text-brand-blue/50">✆</span>
-                              {client.telefono}
+                           <span className="inline-block rounded bg-brand-yellow/25 px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-black dark:text-brand-yellow">
+                              <div className="font-medium">{client.identificacion}</div>
+                           </span>
+                        </td>
+                        <td className="px-4 py-3">
+                           <div className="font-semibold text-brand-blue dark:text-white">{client.nombre}</div>
+                           <div className="text-xs text-muted-foreground">
+                              {new Date(client.created_at).toLocaleDateString("es-DO")}
                            </div>
-                        )}
-                        {!client.email && !client.telefono && "—"}
-                     </td>
-                     <td className="px-4 py-3 text-xs text-muted-foreground">
-                        {client.direccion ?? "—"}
-                     </td>
-                     <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                           <button
-                              onClick={() => onEdit(client)}
-                              className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10 transition-colors"
-                              title="Editar"
-                           >
-                              <Pencil className="size-4" />
-                           </button>
-                           <button
-                              onClick={() => onDelete(client)}
-                              className="rounded-md p-1.5 text-brand-red hover:bg-brand-red/10 transition-colors"
-                              title="Eliminar"
-                           >
-                              <Trash2 className="size-4" />
-                           </button>
+                        </td>
 
-                           <DropdownMenu modal={false}>
-                              <DropdownMenuTrigger asChild>
-                                 <Button variant="ghost" className="h-8 w-8 p-0">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                 </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md">
-                                 <DropdownMenuItem
-                                    className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground"
-                                    onClick={() => router.push(`/dashboard/clientes/${client.id}`)}
-                                 >
-                                    <Eye className="w-4 h-4 mr-2" />
-                                    Ver en detalle
-                                 </DropdownMenuItem>
-                                 <DropdownMenuItem
-                                    className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground"
-                                    onClick={() => router.push(`/dashboard/clientes/${client.id}/contacts`)}
-                                 >
-                                    <Contact className="w-4 h-4 mr-2" />
-                                    Ver Contactos
-                                 </DropdownMenuItem>
-                              </DropdownMenuContent>
-                           </DropdownMenu>
-                        </div>
-                     </td>
-                  </tr>
-               ))}
+                        <td className="px-4 py-3">
+                           {/* Usamos el DTO para el Label del Cliente y las nuevas clases */}
+                           <span
+                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${TIPO_BADGE[tipoCliente] ?? ""}`}
+                           >
+                              {TipoCliente[tipoCliente] ?? tipoCliente}
+                           </span>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                           {client.email && (
+                              <div className="flex items-center gap-1 text-xs">
+                                 <span className="text-brand-blue/50">✉</span>
+                                 {client.email}
+                              </div>
+                           )}
+                           {client.telefono && (
+                              <div className="flex items-center gap-1 text-xs">
+                                 <span className="text-brand-blue/50">✆</span>
+                                 {formatPhone(client.telefono)}
+                              </div>
+                           )}
+                           {!client.email && !client.telefono && "—"}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">
+                           {client.direccion ?? "—"}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                           <div className="flex items-center justify-end gap-1">
+                              <button
+                                 onClick={() => onEdit({
+                                    ...client,
+                                    tipo_cliente: tipoCliente,
+                                    tipo_identificacion: tipoIdentificacion
+                                 })}
+                                 className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10 transition-colors"
+                                 title="Editar"
+                              >
+                                 <Pencil className="size-4" />
+                              </button>
+                              <button
+                                 onClick={() => onDelete(client)}
+                                 className="rounded-md p-1.5 text-brand-red hover:bg-brand-red/10 transition-colors"
+                                 title="Eliminar"
+                              >
+                                 <Trash2 className="size-4" />
+                              </button>
+
+                              <DropdownMenu modal={false}>
+                                 <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" className="h-8 w-8 p-0">
+                                       <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                 </DropdownMenuTrigger>
+                                 <DropdownMenuContent align="end" className="z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md">
+                                    <DropdownMenuItem
+                                       className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground"
+                                       onClick={() => router.push(`/dashboard/clientes/${client.id}`)}
+                                    >
+                                       <Eye className="w-4 h-4 mr-2" />
+                                       Ver en detalle
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                       className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground"
+                                       onClick={() => router.push(`/dashboard/clientes/${client.id}/contacts`)}
+                                    >
+                                       <Contact className="w-4 h-4 mr-2" />
+                                       Ver Contactos
+                                    </DropdownMenuItem>
+                                 </DropdownMenuContent>
+                              </DropdownMenu>
+                           </div>
+                        </td>
+                     </tr>
+                  );
+               })}
             </tbody>
          </table>
       </div>

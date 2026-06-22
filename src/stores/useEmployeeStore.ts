@@ -14,7 +14,7 @@ import type {
 
 // Placeholder types for warning functionality (not yet implemented in DTO)
 type EmployeeWarning = Record<string, unknown>;
-type CreateEmployeeWarningForm = { empleado_id: string; [key: string]: unknown };
+type CreateEmployeeWarningForm = { empleado_id: string;[key: string]: unknown };
 type UpdateEmployeeWarningForm = Record<string, unknown>;
 
 type EmployeeStore = {
@@ -29,7 +29,7 @@ type EmployeeStore = {
       hasNext: boolean;
       hasPrev: boolean;
    };
-   
+
    _fetchedEmployeeLists: Set<string>;
    _fetchedDetails: Set<string>;
 
@@ -45,15 +45,11 @@ type EmployeeStore = {
    SearchEmployees: (search: string) => Promise<void>;
 
    CreateContact: (data: CreateContactEmployeeForm) => Promise<void | Error>;
-   UpdateContact: (contactoId: string, data: UpdateContactEmployeeForm) => Promise<void | Error>;
+   UpdateContact: (contactoId: string, data: UpdateContactEmployeeForm, empleadoId?: string) => Promise<void | Error>;
    DeleteContact: (empleadoId: string, contactoId: string) => Promise<void | Error>;
 
    CreateOperator: (data: CreateOperatorForm) => Promise<void | Error>;
    UpdateOperator: (operadorId: string, data: UpdateOperatorForm) => Promise<void | Error>;
-
-   CreateWarning: (data: CreateEmployeeWarningForm) => Promise<void | Error>;
-   UpdateWarning: (warningId: string, data: UpdateEmployeeWarningForm) => Promise<void | Error>;
-   DeleteWarning: (empleadoId: string, warningId: string) => Promise<void | Error>;
 
    setSelectedEmployee: (employee: EmployeeDetails | null) => void;
    setLoading: (loading: boolean) => void;
@@ -97,9 +93,9 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
 
          const filtered = search
             ? allEmployees.filter((e) =>
-                 e.nombre.toLowerCase().includes(search.toLowerCase()) ||
-                 e.identificacion.includes(search)
-              )
+               e.nombre.toLowerCase().includes(search.toLowerCase()) ||
+               e.identificacion.includes(search)
+            )
             : allEmployees;
 
          const total = filtered.length;
@@ -214,7 +210,7 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
       const { pagination } = get();
       await get().GetEmployees({ page: 1, limit: pagination.limit, search, force: true });
    },
-   
+
    CreateContact: async (data) => {
       try {
          const res = await fetch(`/api/employees/contacts`, {
@@ -222,10 +218,16 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(data),
          });
-         if (!res.ok) throw new Error((await res.json()).error || "Error al crear contacto");
+
+         if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || "Error al crear contacto");
+         }
+
          await get().GetEmployeeDetails(data.empleado_id, true);
+
       } catch (error) {
-         return error as Error;
+         throw error;
       }
    },
 
@@ -236,21 +238,37 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(data),
          });
-         if (!res.ok) throw new Error((await res.json()).error || "Error al actualizar contacto");
+
+         if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || "Error al actualizar contacto");
+         }
+
          const empId = get().selectedEmployee?.empleado.id;
-         if (empId) await get().GetEmployeeDetails(empId, true);
+         if (empId) {
+            await get().GetEmployeeDetails(empId, true);
+         }
+
       } catch (error) {
-         return error as Error;
+         throw error;
       }
    },
 
    DeleteContact: async (empleadoId, contactoId) => {
       try {
-         const res = await fetch(`/api/employees/contacts/${contactoId}`, { method: "DELETE" });
-         if (!res.ok) throw new Error((await res.json()).error || "Error al eliminar contacto");
+         const res = await fetch(`/api/employees/contacts/${contactoId}`, {
+            method: "DELETE"
+         });
+
+         if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || "Error al eliminar contacto");
+         }
+
          await get().GetEmployeeDetails(empleadoId, true);
+
       } catch (error) {
-         return error as Error;
+         throw error;
       }
    },
 
@@ -278,45 +296,6 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
          if (!res.ok) throw new Error((await res.json()).error || "Error al actualizar operador");
          const empId = get().selectedEmployee?.empleado.id;
          if (empId) await get().GetEmployeeDetails(empId, true);
-      } catch (error) {
-         return error as Error;
-      }
-   },
-
-   CreateWarning: async (data) => {
-      try {
-         const res = await fetch(`/api/employees/warnings`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(data),
-         });
-         if (!res.ok) throw new Error((await res.json()).error || "Error al crear amonestación");
-         await get().GetEmployeeDetails(data.empleado_id, true);
-      } catch (error) {
-         return error as Error;
-      }
-   },
-
-   UpdateWarning: async (warningId, data) => {
-      try {
-         const res = await fetch(`/api/employees/warnings/${warningId}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(data),
-         });
-         if (!res.ok) throw new Error((await res.json()).error || "Error al actualizar amonestación");
-         const empId = get().selectedEmployee?.empleado.id;
-         if (empId) await get().GetEmployeeDetails(empId, true);
-      } catch (error) {
-         return error as Error;
-      }
-   },
-
-   DeleteWarning: async (empleadoId, warningId) => {
-      try {
-         const res = await fetch(`/api/employees/warnings/${warningId}`, { method: "DELETE" });
-         if (!res.ok) throw new Error((await res.json()).error || "Error al eliminar amonestación");
-         await get().GetEmployeeDetails(empleadoId, true);
       } catch (error) {
          return error as Error;
       }

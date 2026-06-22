@@ -54,6 +54,10 @@ import {
 import { ClientForm } from "../components/client-form";
 import StatCard from "./components/StatCard";
 
+// IMPORTAMOS NUESTROS SCHEMAS Y ENUMS
+import { TipoIdentificacion } from "@/dtos/schema.dto";
+import { TipoCliente } from "@/dtos/client.dto";
+
 type ClientRecord = Omit<Client, "created_at" | "updated_at"> & {
    created_at: string | Date;
    updated_at: string | Date;
@@ -66,16 +70,10 @@ type ContactFormState = {
    job_title: string;
 };
 
-const CLIENT_TYPE_LABEL: Record<string, string> = {
-   fisica: "Persona física",
-   juridica: "Persona jurídica",
-   gubernamental: "Gubernamental",
-};
-
-const TIPO_IDENTIFICACION_LABEL: Record<string, string> = {
-   CEDULA: "Cédula",
-   PASAPORTE: "Pasaporte",
-   RNC: "RNC",
+const formatPhone = (phone: string | null | undefined) => {
+   if (!phone) return "—";
+   if (phone.length === 10) return phone.replace(/(\d{3})(\d{3})(\d{4})/, "$1-$2-$3");
+   return phone;
 };
 
 export default function ClientDetailPage() {
@@ -304,6 +302,9 @@ export default function ClientDetailPage() {
       );
    }
 
+   const safeTipoCliente = (client.tipo_cliente?.toUpperCase() || "FISICA") as keyof typeof TipoCliente;
+   const safeTipoId = (client.tipo_identificacion?.toUpperCase() || "CEDULA") as keyof typeof TipoIdentificacion;
+
    return (
       <div className="flex flex-col gap-6 p-6">
          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -317,14 +318,14 @@ export default function ClientDetailPage() {
                         {client.nombre}
                      </h1>
                      <span className="rounded-full bg-brand-yellow/20 px-2.5 py-1 text-xs font-semibold text-brand-black dark:text-brand-yellow">
-                        {CLIENT_TYPE_LABEL[client.tipo_cliente] ?? client.tipo_cliente}
+                        {TipoCliente[safeTipoCliente] ?? safeTipoCliente}
                      </span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                     {TIPO_IDENTIFICACION_LABEL[client.tipo_identificacion] ?? client.tipo_identificacion}: {client.identificacion}
+                     {TipoIdentificacion[safeTipoId] ?? safeTipoId}: {client.identificacion}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                     {client.email ?? "Sin correo"} · {client.telefono ?? "Sin teléfono"}
+                     {client.email ?? "Sin correo"} · {formatPhone(client.telefono) ?? "Sin teléfono"}
                   </p>
                </div>
             </div>
@@ -396,10 +397,10 @@ export default function ClientDetailPage() {
                         <div className="grid gap-4 sm:grid-cols-2">
                            <InfoField label="Nombre" value={client.nombre} />
                            <InfoField label="Identificación" value={client.identificacion} />
-                           <InfoField label="Tipo de identificación" value={TIPO_IDENTIFICACION_LABEL[client.tipo_identificacion] ?? client.tipo_identificacion} />
-                           <InfoField label="Tipo de cliente" value={CLIENT_TYPE_LABEL[client.tipo_cliente] ?? client.tipo_cliente} />
+                           <InfoField label="Tipo de identificación" value={TipoIdentificacion[safeTipoId] ?? safeTipoId} />
+                           <InfoField label="Tipo de cliente" value={TipoCliente[safeTipoCliente] ?? safeTipoCliente} />
                            <InfoField label="Correo" value={client.email ?? "—"} />
-                           <InfoField label="Teléfono" value={client.telefono ?? "—"} />
+                           <InfoField label="Teléfono" value={formatPhone(client.telefono) ?? "—"} />
                            <div className="sm:col-span-2">
                               <InfoField label="Dirección" value={client.direccion ?? "—"} />
                            </div>
@@ -450,7 +451,6 @@ export default function ClientDetailPage() {
                                  <TableHead>Email</TableHead>
                                  <TableHead>Teléfono</TableHead>
                                  <TableHead>Cargo</TableHead>
-                                 {/* <TableHead className="w-[50px]" /> */}
                               </TableRow>
                            </TableHeader>
                            <TableBody>
@@ -458,7 +458,7 @@ export default function ClientDetailPage() {
                                  <TableRow key={contact.id}>
                                     <TableCell className="font-medium">{contact.name}</TableCell>
                                     <TableCell>{contact.email || "—"}</TableCell>
-                                    <TableCell>{contact.phone || "—"}</TableCell>
+                                    <TableCell>{formatPhone(contact.phone)}</TableCell>
                                     <TableCell>{contact.job_title || "—"}</TableCell>
                                  </TableRow>
                               ))}
@@ -542,7 +542,11 @@ export default function ClientDetailPage() {
                   <DialogDescription>Actualiza los datos de {client.nombre}.</DialogDescription>
                </DialogHeader>
                <ClientForm
-                  initialData={client as unknown as Partial<ClientProps>}
+                  initialData={{
+                     ...client,
+                     tipo_cliente: safeTipoCliente,
+                     tipo_identificacion: safeTipoId
+                  } as unknown as Partial<ClientProps>}
                   onSubmit={handleUpdateClient}
                   onCancel={() => setEditClientOpen(false)}
                   loading={clientActionLoading}
@@ -569,7 +573,6 @@ export default function ClientDetailPage() {
                </DialogFooter>
             </DialogContent>
          </Dialog>
-
 
          <Dialog
             open={editContactOpen}
@@ -644,8 +647,6 @@ function EmptyState({ title, description }: { title: string; description: string
    );
 }
 
-
-
 function InfoField({ label, value }: { label: string; value: string }) {
    return (
       <div className="rounded-lg border border-border bg-muted/20 p-3">
@@ -654,7 +655,6 @@ function InfoField({ label, value }: { label: string; value: string }) {
       </div>
    );
 }
-
 
 function formatDate(value: string | Date) {
    return new Date(value).toLocaleDateString("es-DO");

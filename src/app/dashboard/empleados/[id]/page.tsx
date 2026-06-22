@@ -39,9 +39,10 @@ import {
    Mail,
    ReceiptText,
 } from "lucide-react";
-import { EmployeeForm } from "../components/employee-form";
+import { EmployeeForm, type OperadorFormData } from "../components/employee-form";
 import { DeleteEmployeeDialog } from "../components/delete-employee-dialog";
 import StatCard from "./components/StatCard";
+import { EmployeeConceptsWidget } from "../conceptos/components/concept-employee-widget";
 
 const ROL_LABEL: Record<string, string> = {
    OPERADOR: "Operador",
@@ -62,7 +63,7 @@ export default function EmployeeDetailPage() {
    const router = useRouter();
    const empleadoId = params.id as string;
 
-   const { selectedEmployee, loading, GetEmployeeDetails, UpdateEmployee, DeleteEmployee } =
+   const { selectedEmployee, loading, GetEmployeeDetails, UpdateEmployee, DeleteEmployee, UpdateOperator, CreateOperator } =
       useEmployeeStore();
 
    const [editOpen, setEditOpen] = useState(false);
@@ -73,12 +74,16 @@ export default function EmployeeDetailPage() {
       GetEmployeeDetails(empleadoId);
    }, [empleadoId, GetEmployeeDetails]);
 
-   async function handleEdit(data: Parameters<typeof UpdateEmployee>[1]) {
+   async function handleEdit(data: Parameters<typeof UpdateEmployee>[1], operadorData?: OperadorFormData) {
       setActionLoading(true);
       try {
-         const result = await UpdateEmployee(empleadoId, data);
+         const payload = { ...data, operador: operadorData };
+         
+         const result = await UpdateEmployee(empleadoId, payload as any);
          if (result instanceof Error) throw result;
+
          setEditOpen(false);
+         GetEmployeeDetails(empleadoId); 
       } finally {
          setActionLoading(false);
       }
@@ -307,12 +312,9 @@ export default function EmployeeDetailPage() {
                      <div className="grid gap-4 md:grid-cols-3">
                         <MiniStat label="Bonos" value="0" />
                         <MiniStat label="Descuentos" value="0" />
-                        <MiniStat label="Conceptos" value="0" />
+                        <MiniStat label="Amonestaciones" value="0" />
                      </div>
-                     <EmptyState
-                        title="Módulo en desarrollo"
-                        description="Aquí podrás registrar y consultar todos los conceptos aplicados a este empleado: bonos, descuentos, amonestaciones y más."
-                     />
+                     <EmployeeConceptsWidget employeeId={empleadoId} />
                   </CardContent>
                </Card>
             </TabsContent>
@@ -327,6 +329,7 @@ export default function EmployeeDetailPage() {
                </DialogHeader>
                <EmployeeForm
                   initialData={empleado}
+                  existingOperador={selectedEmployee?.operador ?? null}
                   onSubmit={handleEdit}
                   onCancel={() => setEditOpen(false)}
                   loading={actionLoading}

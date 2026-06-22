@@ -25,7 +25,7 @@ import {
 
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
-import { TeamSwitcher } from "@/components/team-switcher"
+import { NameIcon } from "@/components/name-icon"
 import {
   Sidebar,
   SidebarContent,
@@ -66,13 +66,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     },
   ]
 
-  const teams = [
-    {
-      name: "Constructora Kissimmee",
-      logo: AudioWaveform,
-      plan: "Startup",
-    },
-  ]
   const settingsItems = [
     { id: "settings-general", title: "General", url: "/dashboard/settings" },
     { id: "settings-equipo", title: "Equipo", url: "/dashboard/equipo" },
@@ -160,7 +153,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={teams} />
+        <NameIcon/>
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navMain} />

@@ -11,7 +11,7 @@ import {
    DialogTrigger,
 } from "@/components/ui/dialog";
 import { Plus, Users } from "lucide-react";
-import { TipoCliente, TipoIdentificacion } from "@/backend/modules/clients/domain/clients.domain";
+
 import { useClientStore } from "@/stores/useClientStore";
 import type { Client } from "@/dtos/client.dto";
 import { ClientForm } from "./components/client-form";
@@ -19,11 +19,14 @@ import { ClientTable } from "./components/client-table";
 import { DeleteClientDialog } from "./components/delete-client-dialog";
 import { TableSearch } from "@/components/table-search";
 
+import { TipoIdentificacion } from "@/dtos/schema.dto";
+import { TipoCliente } from "@/dtos/client.dto";
+
 interface FormValues {
    nombre: string;
    identificacion: string;
-   tipo_identificacion: TipoIdentificacion;
-   tipo_cliente: TipoCliente;
+   tipo_identificacion: keyof typeof TipoIdentificacion;
+   tipo_cliente: keyof typeof TipoCliente;
    email: string;
    telefono: string;
    direccion: string;
@@ -81,9 +84,10 @@ export default function ClientsPage() {
    });
 
    const total = Clients.length;
-   const fisica = Clients.filter((c) => c.tipo_cliente === "fisica").length;
-   const juridica = Clients.filter((c) => c.tipo_cliente === "juridica").length;
-   const gubernamental = Clients.filter((c) => c.tipo_cliente === "gubernamental").length;
+   
+   const fisica = Clients.filter((c) => c.tipo_cliente?.toUpperCase() === "FISICA").length;
+   const juridica = Clients.filter((c) => c.tipo_cliente?.toUpperCase() === "JURIDICA").length;
+   const gubernamental = Clients.filter((c) => c.tipo_cliente?.toUpperCase() === "GUBERNAMENTAL").length;
 
    async function handleCreate(data: FormValues) {
       setFormLoading(true);
@@ -200,7 +204,11 @@ export default function ClientsPage() {
             </div>
          ) : (
             <ClientTable
-               clients={filtered}
+               clients={filtered.map(c => ({
+                  ...c,
+                  email: c.email ?? null,
+                  telefono: c.telefono ?? null,
+               }))}
                onEdit={setEditTarget}
                onDelete={setDeleteTarget}
             />
@@ -220,7 +228,12 @@ export default function ClientsPage() {
                </DialogHeader>
                {editTarget && (
                   <ClientForm
-                     initialData={editTarget}
+                     initialData={{
+                        ...editTarget,
+                        // Normalizamos al editar para que el ClientForm lo reciba limpio
+                        tipo_cliente: editTarget.tipo_cliente?.toUpperCase() as keyof typeof TipoCliente,
+                        tipo_identificacion: editTarget.tipo_identificacion?.toUpperCase() as keyof typeof TipoIdentificacion,
+                     }}
                      onSubmit={handleEdit}
                      onCancel={() => setEditTarget(null)}
                      loading={formLoading}
@@ -231,7 +244,15 @@ export default function ClientsPage() {
          </Dialog>
 
          <DeleteClientDialog
-            client={deleteTarget}
+            client={
+               deleteTarget
+                  ? {
+                       ...deleteTarget,
+                       email: deleteTarget.email ?? null,
+                       telefono: deleteTarget.telefono ?? null,
+                    }
+                  : null
+            }
             onConfirm={handleDelete}
             onClose={() => setDeleteTarget(null)}
             loading={formLoading}

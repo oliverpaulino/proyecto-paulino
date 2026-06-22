@@ -1,31 +1,44 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { Employee, CreateEmployeeForm } from "@/dtos/employee.dto";
+import { Truck, Loader2 } from "lucide-react";
+import type { Employee, CreateEmployeeForm, Operator } from "@/dtos/employee.dto";
+
+import { 
+   GeneralSchemasDTO
+} from "@/dtos/schema.dto";
+
+import { 
+   TipoIdentificacionEmpleado, 
+   TipoRolEmpleado,
+} from "@/dtos/employee.dto";
+
 
 const SELECT_CLASS =
    "h-9 w-full rounded-4xl border border-input bg-input/30 px-3 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 text-foreground";
 
-const TIPO_IDENTIFICACION = [
-   { value: "CEDULA", label: "Cédula" },
-   { value: "RNC", label: "RNC" },
-   { value: "PASAPORTE", label: "Pasaporte" },
-] as const;
+const tipoIdentificacionOptions = Object.entries(TipoIdentificacionEmpleado).map(([key, value]) => ({
+   value: key as keyof typeof TipoIdentificacionEmpleado,
+   label: value,
+}));
 
-const ROLES = [
-   { value: "OPERADOR", label: "Operador" },
-   { value: "INGENIERO", label: "Ingeniero" },
-   { value: "MECANICO", label: "Mecánico" },
-   { value: "CONTABLE", label: "Contable" },
-   { value: "MENSAJERO", label: "Mensajero" },
-] as const;
+const rolesOptions = Object.entries(TipoRolEmpleado).map(([key, value]) => ({
+   value: key as keyof typeof TipoRolEmpleado,
+   label: value,
+}));
+
+export type OperadorFormData = {
+   licencia: string;
+   fecha_vencimiento: string;
+};
 
 interface EmployeeFormProps {
    initialData?: Partial<Employee>;
-   onSubmit: (data: CreateEmployeeForm) => Promise<void>;
+   existingOperador?: Operator | null;
+   onSubmit: (data: CreateEmployeeForm, operadorData?: OperadorFormData) => Promise<void>;
    onCancel?: () => void;
    loading?: boolean;
    submitLabel?: string;
@@ -33,6 +46,7 @@ interface EmployeeFormProps {
 
 export function EmployeeForm({
    initialData,
+   existingOperador,
    onSubmit,
    onCancel,
    loading,
@@ -46,17 +60,91 @@ export function EmployeeForm({
       salario: initialData?.salario ?? 0,
       activo: initialData?.activo ?? true,
    });
+
+   const [operadorData, setOperadorData] = useState<OperadorFormData>({
+      licencia: existingOperador?.licencia ?? "",
+      fecha_vencimiento: existingOperador?.fecha_vencimiento
+         ? new Date(existingOperador.fecha_vencimiento).toISOString().split("T")[0]
+         : "",
+   });
+
    const [error, setError] = useState<string | null>(null);
+   const [loadingOp, setLoadingOp] = useState(false);
+
+   const hasFetchedOp = useRef(existingOperador !== undefined);
+
+   const isOperador = values.rol === "OPERADOR";
+
+   useEffect(() => {
+      if (existingOperador) {
+         setOperadorData({
+            licencia: existingOperador.licencia ?? "",
+            fecha_vencimiento: existingOperador.fecha_vencimiento
+               ? new Date(existingOperador.fecha_vencimiento).toISOString().split("T")[0]
+               : "",
+         });
+         hasFetchedOp.current = true;
+      }
+   }, [existingOperador]);
+
+   useEffect(() => {
+      if (isOperador && initialData?.id && !hasFetchedOp.current) {
+         hasFetchedOp.current = true;
+         setLoadingOp(true);
+         
+         fetch(`/api/employees/${initialData.id}/operator`)
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
+               if (data) {
+                  setOperadorData({
+                     licencia: data.licencia ?? "",
+                     fecha_vencimiento: data.fecha_vencimiento
+                        ? new Date(data.fecha_vencimiento).toISOString().split("T")[0]
+                        : "",
+                  });
+               }
+            })
+            .catch((err) => {
+               console.error(err);
+               hasFetchedOp.current = false;
+            })
+            .finally(() => setLoadingOp(false));
+      }
+   }, [isOperador, initialData?.id]);
 
    function set<K extends keyof CreateEmployeeForm>(field: K, value: CreateEmployeeForm[K]) {
       setValues((prev) => ({ ...prev, [field]: value }));
    }
 
+   function setOp(field: keyof OperadorFormData, value: string) {
+      setOperadorData((prev) => ({ ...prev, [field]: value }));
+   }
+
+   function handleIdentificacionChange(e: React.ChangeEvent<HTMLInputElement>) {
+      const cleanValue = e.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+      set("identificacion", cleanValue);
+   }
+
    async function handleSubmit(e: React.FormEvent) {
       e.preventDefault();
       setError(null);
+
+      if (values.tipo_identificacion === "CEDULA") {
+         const validation = GeneralSchemasDTO.CedulaSchema.safeParse(values.identificacion);
+         if (!validation.success) {
+            setError(validation.error.issues[0].message);
+            return;
+         }
+      } else if (values.tipo_identificacion === "PASAPORTE") {
+         const validation = GeneralSchemasDTO.PasaporteSchema.safeParse(values.identificacion);
+         if (!validation.success) {
+            setError(validation.error.issues[0].message);
+            return;
+         }
+      }
+
       try {
-         await onSubmit(values);
+         await onSubmit(values, isOperador ? operadorData : undefined);
       } catch (err: unknown) {
          setError(err instanceof Error ? err.message : "Ocurrió un error");
       }
@@ -85,7 +173,8 @@ export function EmployeeForm({
                   className={SELECT_CLASS}
                   required
                >
-                  {TIPO_IDENTIFICACION.map((t) => (
+                  {/* Options generadas desde el schema */}
+                  {tipoIdentificacionOptions.map((t) => (
                      <option key={t.value} value={t.value}>{t.label}</option>
                   ))}
                </select>
@@ -96,8 +185,8 @@ export function EmployeeForm({
                <Input
                   id="ef-identificacion"
                   value={values.identificacion}
-                  onChange={(e) => set("identificacion", e.target.value)}
-                  placeholder="001-0000000-0"
+                  onChange={handleIdentificacionChange}
+                  placeholder={values.tipo_identificacion === "CEDULA" ? "Ej: 40212345678" : "Ej: RD1234567"}
                   required
                />
             </div>
@@ -112,11 +201,44 @@ export function EmployeeForm({
                className={SELECT_CLASS}
                required
             >
-               {ROLES.map((r) => (
+               {/* Options generadas desde el schema */}
+               {rolesOptions.map((r) => (
                   <option key={r.value} value={r.value}>{r.label}</option>
                ))}
             </select>
          </div>
+
+         {isOperador && (
+            <div className="flex flex-col gap-3 rounded-lg border border-brand-blue/20 bg-brand-blue/5 p-3 relative">
+               <div className="flex items-center gap-2 text-sm font-medium text-brand-blue dark:text-blue-400">
+                  <Truck className="size-4" />
+                  Datos de operador
+                  
+                  {loadingOp && <Loader2 className="size-3 animate-spin ml-2 text-muted-foreground" />}
+               </div>
+               
+               <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="ef-licencia">Número de licencia</Label>
+                  <Input
+                     id="ef-licencia"
+                     value={operadorData.licencia}
+                     onChange={(e) => setOp("licencia", e.target.value)}
+                     placeholder="Ej: A-0000000"
+                     disabled={loadingOp}
+                  />
+               </div>
+               <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="ef-vencimiento">Fecha de vencimiento</Label>
+                  <Input
+                     id="ef-vencimiento"
+                     type="date"
+                     value={operadorData.fecha_vencimiento}
+                     onChange={(e) => setOp("fecha_vencimiento", e.target.value)}
+                     disabled={loadingOp}
+                  />
+               </div>
+            </div>
+         )}
 
          <div className="flex flex-col gap-1.5">
             <Label htmlFor="ef-salario">Salario (RD$) *</Label>
@@ -143,7 +265,7 @@ export function EmployeeForm({
             <Label htmlFor="ef-activo">Empleado activo</Label>
          </div>
 
-         {error && <p className="text-sm text-destructive">{error}</p>}
+         {error && <p className="text-sm font-medium text-destructive">{error}</p>}
 
          <div className="flex gap-2 justify-end pt-2">
             {onCancel && (

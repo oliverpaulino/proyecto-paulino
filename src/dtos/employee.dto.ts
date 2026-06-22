@@ -1,56 +1,137 @@
 import { z } from "zod";
+import { GeneralSchemasDTO } from "./schema.dto";
 
-const TipoIdentificacionSchema = z.enum(["CEDULA", "RNC", "PASAPORTE"]);
-const TipoRolEmpleadoSchema = z.enum(["OPERADOR", "INGENIERO", "MECANICO", "CONTABLE", "MENSAJERO"]);
-const TipoContactoEmpleadoSchema = z.enum(["TELEFONO", "EMAIL"]);
+// SCHEMAS DE EMPLEADOS
+export const TipoIdentificacionEmpleado = {
+  CEDULA: "Cédula",
+  PASAPORTE: "Pasaporte",
+} as const;
+
+export const TipoRolEmpleado = {
+  OPERADOR: "Operador",
+  INGENIERO: "Ingeniero",
+  MECANICO: "Mecánico",
+  CONTABLE: "Contable",
+  MENSAJERO: "Mensajero",
+} as const;
+
+const TipoIdentificacionEmpleadoSchema = z.enum(
+  Object.keys(TipoIdentificacionEmpleado) as [
+    keyof typeof TipoIdentificacionEmpleado,
+    ...(keyof typeof TipoIdentificacionEmpleado)[]
+  ]
+);
+
+const TipoRolEmpleadoSchema = z.enum(
+  Object.keys(TipoRolEmpleado) as [
+    keyof typeof TipoRolEmpleado,
+    ...(keyof typeof TipoRolEmpleado)[]
+  ]
+);
+
+export const EmployeeSchemasDTO = {
+  TipoIdentificacionEmpleadoSchema,
+  TipoRolEmpleadoSchema,
+};
 
 // Empleado
 const EmployeeDTO = z.object({
-   id: z.string().uuid(),
+   id: z.uuid(),
    nombre: z.string(),
    identificacion: z.string(),
-   tipo_identificacion: TipoIdentificacionSchema,
-   rol: TipoRolEmpleadoSchema,
+   tipo_identificacion: EmployeeSchemasDTO.TipoIdentificacionEmpleadoSchema,
+   rol: EmployeeSchemasDTO.TipoRolEmpleadoSchema,
    salario: z.number(),
    activo: z.boolean(),
    created_at: z.coerce.date(),
    updated_at: z.coerce.date(),
 });
 
-const CreateEmployeeDTO = z.object({
+const CreateEmployeeBaseDTO = z.object({
    nombre: z.string().min(1),
    identificacion: z.string().min(1),
-   tipo_identificacion: TipoIdentificacionSchema,
-   rol: TipoRolEmpleadoSchema,
+   tipo_identificacion: EmployeeSchemasDTO.TipoIdentificacionEmpleadoSchema,
+   rol: EmployeeSchemasDTO.TipoRolEmpleadoSchema,
    salario: z.number().min(0),
    activo: z.boolean().default(true),
 });
 
-const UpdateEmployeeDTO = CreateEmployeeDTO.partial();
+const validateEmployeeDoc = (data: any, ctx: z.RefinementCtx) => {
+   if (!data.tipo_identificacion || !data.identificacion) return;
 
-// Contacto empleado
+   if (data.tipo_identificacion === "CEDULA") {
+      const result = GeneralSchemasDTO.CedulaSchema.safeParse(data.identificacion);
+      if (!result.success) {
+         result.error.issues.forEach((issue) => {
+            ctx.addIssue({ ...issue, path: ["identificacion"], params: { internalCode: "ERR_INVALID_CEDULA" } });
+         });
+      }
+   }
+
+   if (data.tipo_identificacion === "PASAPORTE") {
+      const result = GeneralSchemasDTO.PasaporteSchema.safeParse(data.identificacion);
+      if (!result.success) {
+         result.error.issues.forEach((issue) => {
+            ctx.addIssue({ ...issue, path: ["identificacion"], params: { internalCode: "ERR_INVALID_PASSPORT" } });
+         });
+      }
+   }
+};
+
+const CreateEmployeeDTO = CreateEmployeeBaseDTO.superRefine(validateEmployeeDoc);
+const UpdateEmployeeDTO = CreateEmployeeBaseDTO.partial().superRefine(validateEmployeeDoc);
+
 const ContactEmployeeDTO = z.object({
    id: z.string().uuid(),
    empleado_id: z.string().uuid(),
-   tipo_contacto: TipoContactoEmpleadoSchema,
+   tipo_contacto: GeneralSchemasDTO.TipoContactoSchema,
    contacto: z.string(),
    created_at: z.coerce.date(),
    updated_at: z.coerce.date(),
 });
 
-const CreateContactEmployeeDTO = z.object({
+const CreateContactEmployeeBaseDTO = z.object({
    empleado_id: z.string().uuid(),
-   tipo_contacto: TipoContactoEmpleadoSchema,
-   contacto: z.string().min(1),
+   tipo_contacto: GeneralSchemasDTO.TipoContactoSchema,
+   contacto: z.string().min(1, "El contacto no puede estar vacío"),
 });
 
-const UpdateContactEmployeeDTO = CreateContactEmployeeDTO.omit({ empleado_id: true }).partial();
+const validateContactEmployee = (data: any, ctx: z.RefinementCtx) => {
+   if (!data.tipo_contacto || !data.contacto) return;
+
+   if (data.tipo_contacto === "TELEFONO") {
+      const result = GeneralSchemasDTO.TelefonoSchema.safeParse(data.contacto);
+      if (!result.success) {
+         result.error.issues.forEach((issue) => {
+            ctx.addIssue({ ...issue, path: ["contacto"], params: { internalCode: "ERR_INVALID_PHONE" } });
+         });
+      }
+   }
+
+   if (data.tipo_contacto === "EMAIL") {
+      const result = GeneralSchemasDTO.EmailSchema.safeParse(data.contacto);
+      if (!result.success) {
+         result.error.issues.forEach((issue) => {
+            ctx.addIssue({ ...issue, path: ["contacto"], params: { internalCode: "ERR_INVALID_EMAIL" } });
+         });
+      }
+   }
+};
+
+const CreateContactEmployeeDTO = CreateContactEmployeeBaseDTO.superRefine(validateContactEmployee);
+
+const UpdateContactEmployeeDTO = CreateContactEmployeeBaseDTO
+   .omit({ empleado_id: true })
+   .partial()
+   .superRefine(validateContactEmployee);
+
 
 // Operador
 const OperatorDTO = z.object({
    id: z.string().uuid(),
    empleado_id: z.string().uuid(),
    licencia: z.string().nullable(),
+   fecha_vencimiento: z.coerce.date().nullable(),
    created_at: z.coerce.date(),
    updated_at: z.coerce.date(),
 });
@@ -58,6 +139,7 @@ const OperatorDTO = z.object({
 const CreateOperatorDTO = z.object({
    empleado_id: z.string().uuid(),
    licencia: z.string().nullable().optional(),
+   fecha_vencimiento: z.coerce.date().nullable().optional(),
 });
 
 const UpdateOperatorDTO = CreateOperatorDTO.omit({ empleado_id: true }).partial();
