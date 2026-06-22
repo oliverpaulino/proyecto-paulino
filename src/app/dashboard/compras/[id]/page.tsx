@@ -29,7 +29,7 @@ import type { PurchaseOrder, EstadoOrdenCompra } from "@/dtos/purchase-order.dto
 import { usePurchaseOrderStore } from "@/stores/usePurchaseOrderStore";
 import { DeletePurchaseOrderDialog } from "../components/delete-purchase-order-dialog";
 import { PurchaseOrderForm } from "../components/purchase-order-form";
-import { generatePurchaseOrderPDF } from "./generate-pdf";
+import { generatePurchaseOrderPDF } from "./components/purchase-order-pdf";
 
 const ESTADO_BADGE: Record<string, string> = {
    BORRADOR:
@@ -282,7 +282,7 @@ export default function PurchaseOrderDetailPage() {
                   variant="outline"
                   onClick={() => setEditOpen(true)}
                   disabled={
-                     order.estado !== "BORRADOR" && order.estado !== "PENDIENTE"
+                     order.estado !== "BORRADOR"
                   }
                >
                   <Pencil className="mr-2 size-4" />
@@ -306,9 +306,9 @@ export default function PurchaseOrderDetailPage() {
 
          {/* Summary cards */}
          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <InfoCard label="Total" value={formatMoney(order.total)} />
-            <InfoCard label="Ítems" value={String(order.items.length)} />
-            <InfoCard label="Actualizado" value={formatDate(order.updated_at)} />
+            <InfoCard className="bg-brand-black" color="text-white" label="Total" value={formatMoney(order.total)} />
+            <InfoCard className="bg-brand-red " color="text-white" label="Ítems" value={String(order.items.length)} />
+            <InfoCard className="bg-brand-yellow " color="text-brand-black" label="Actualizado" value={formatDate(order.updated_at)} />
          </div>
 
          {/* Order header info */}
@@ -450,12 +450,12 @@ export default function PurchaseOrderDetailPage() {
    );
 }
 
-function InfoCard({ label, value }: { label: string; value: string }) {
+function InfoCard({ color, className, label, value }: { color?: string; className?: string; label: string; value: string }) {
    return (
-      <div className="flex items-start gap-3 rounded-xl border border-border p-4 shadow-sm bg-muted/10">
+      <div className={`flex items-start gap-3 rounded-xl border border-border p-4 shadow-sm ${className}`}>
          <div className="min-w-0">
-            <p className="text-xs font-medium text-muted-foreground">{label}</p>
-            <p className="mt-0.5 text-2xl font-bold text-foreground">{value}</p>
+            <p className={`text-xs font-medium ${color ? color : 'text-muted-foreground'}`}>{label}</p>
+            <p className={`mt-0.5 text-2xl font-bold ${color ? color : 'text-muted-foreground'}`}>{value}</p>
          </div>
       </div>
    );

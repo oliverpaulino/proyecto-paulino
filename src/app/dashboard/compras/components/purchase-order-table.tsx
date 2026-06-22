@@ -10,6 +10,7 @@ import {
 import { Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { PurchaseOrder } from "@/dtos/purchase-order.dto";
+import Link from "next/link";
 
 interface PurchaseOrderTableProps {
    orders: PurchaseOrder[];
@@ -91,9 +92,11 @@ export function PurchaseOrderTable({
                      className="border-t border-border hover:bg-brand-blue/5 transition-colors"
                   >
                      <td className="px-4 py-3">
-                        <span className="inline-block rounded bg-brand-yellow/25 px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-black dark:text-brand-yellow">
-                           {order.id.slice(0, 8)}…
-                        </span>
+                        <Link href={`/dashboard/compras/${order.id}`} className="hover:underline">
+                           <span className="inline-block rounded bg-brand-yellow/25 px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-black dark:text-brand-yellow">
+                              {order.id.slice(0, 8)}…
+                           </span>
+                        </Link>
                         <div className="text-xs text-muted-foreground mt-0.5">
                            {new Date(order.fecha).toLocaleDateString("es-DO")}
                         </div>

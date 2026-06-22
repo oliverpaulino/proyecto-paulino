@@ -122,6 +122,8 @@ export interface DB {
       approved_at: Date | null;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
+      deleted_by: string | null;
+      deleted_at: Date | null;
    };
 
    purchase_order_approvers: {

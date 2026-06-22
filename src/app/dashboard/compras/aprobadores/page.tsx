@@ -18,8 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { ArrowLeft, Loader2, Shield, Trash2, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { authClient } from "@/lib/auth-client";
-import { useSession } from "@/lib/auth-client";
+import { authClient, useSession } from "@/lib/auth-client";
 
 interface Approver {
    user_id: string;
@@ -38,10 +37,12 @@ interface UserRecord {
 export default function AprobadoresPage() {
    const router = useRouter();
    const { data: session } = useSession();
-   const role = (session?.user as { role?: string } | undefined)?.role;
+   const currentUser = session?.user as ({ id: string; name: string; email: string; role?: string }) | undefined;
+   const role = currentUser?.role;
 
    const [approvers, setApprovers] = useState<Approver[]>([]);
    const [users, setUsers] = useState<UserRecord[]>([]);
+   const [usersError, setUsersError] = useState<string | null>(null);
    const [loading, setLoading] = useState(true);
    const [addOpen, setAddOpen] = useState(false);
    const [saving, setSaving] = useState(false);
@@ -61,20 +62,23 @@ export default function AprobadoresPage() {
    }, []);
 
    const loadUsers = useCallback(async () => {
+      setUsersError(null);
       try {
-         const res = await authClient.admin.listUsers({ query: { limit: 100 } });
-         if (res.data) {
+         const res = await authClient.admin.listUsers({ query: { limit: 200 } });
+         if (res.data?.users) {
             setUsers(
-               (res.data.users as UserRecord[]).map((u) => ({
+               res.data.users.map((u) => ({
                   id: u.id,
                   name: u.name ?? u.email,
                   email: u.email,
                   role: (u as { role?: string }).role,
                }))
             );
+         } else {
+            setUsersError("No se pudo cargar la lista de usuarios.");
          }
       } catch {
-         // silently ignore — non-admins won't have access
+         setUsersError("Error al cargar usuarios. Intenta de nuevo.");
       }
    }, []);
 
@@ -110,9 +114,21 @@ export default function AprobadoresPage() {
    const approverIds = new Set(approvers.map((a) => a.user_id));
    const eligibleUsers = users.filter((u) => !approverIds.has(u.id));
 
+   // Always include the current admin if they're not already an approver
+   const currentAdminEligible =
+      currentUser && !approverIds.has(currentUser.id)
+         ? { id: currentUser.id, name: currentUser.name ?? currentUser.email, email: currentUser.email }
+         : null;
+
+   const dropdownUsers = eligibleUsers.length > 0
+      ? eligibleUsers
+      : currentAdminEligible
+        ? [currentAdminEligible as UserRecord]
+        : [];
+
    async function handleAdd() {
       if (!selectedUserId) return;
-      const user = users.find((u) => u.id === selectedUserId);
+      const user = dropdownUsers.find((u) => u.id === selectedUserId);
       if (!user) return;
       setSaving(true);
       setError(null);
@@ -134,6 +150,29 @@ export default function AprobadoresPage() {
       }
    }
 
+   async function handleAddSelf() {
+      if (!currentUser || approverIds.has(currentUser.id)) return;
+      setSaving(true);
+      setError(null);
+      try {
+         const res = await fetch("/api/purchase-orders/approvers", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+               user_id: currentUser.id,
+               user_name: currentUser.name ?? currentUser.email,
+            }),
+         });
+         const data = await res.json() as { error?: string };
+         if (!res.ok) throw new Error(data.error ?? "Error");
+         await loadApprovers();
+      } catch (err) {
+         setError(err instanceof Error ? err.message : "Error desconocido");
+      } finally {
+         setSaving(false);
+      }
+   }
+
    async function handleRemove(userId: string) {
       try {
          await fetch(`/api/purchase-orders/approvers/${userId}`, { method: "DELETE" });
@@ -142,6 +181,8 @@ export default function AprobadoresPage() {
          // ignore
       }
    }
+
+   const isSelfApprover = currentUser && approverIds.has(currentUser.id);
 
    return (
       <div className="flex flex-col gap-6 p-6">
@@ -165,6 +206,33 @@ export default function AprobadoresPage() {
             </p>
             <div className="mt-4 h-px bg-gradient-to-r from-brand-blue via-brand-yellow/50 to-transparent" />
          </div>
+
+         {/* Quick-add self card */}
+         {!isSelfApprover && (
+            <div className="flex items-center justify-between rounded-xl border border-brand-yellow/40 bg-brand-yellow/10 px-5 py-4">
+               <div>
+                  <p className="text-sm font-semibold text-brand-black dark:text-yellow-200">
+                     ¿Quieres ser firmante tú mismo?
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                     Agrégarte como primer firmante con un solo clic.
+                  </p>
+               </div>
+               <Button
+                  className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold"
+                  onClick={handleAddSelf}
+                  disabled={saving}
+               >
+                  {saving ? <Loader2 className="size-4 animate-spin" /> : "Agregarme como firmante"}
+               </Button>
+            </div>
+         )}
+
+         {error && (
+            <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+               {error}
+            </p>
+         )}
 
          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -206,7 +274,12 @@ export default function AprobadoresPage() {
                      <tbody>
                         {approvers.map((a) => (
                            <tr key={a.user_id} className="border-t border-border hover:bg-muted/20">
-                              <td className="px-4 py-3 font-medium">{a.user_name}</td>
+                              <td className="px-4 py-3 font-medium">
+                                 {a.user_name}
+                                 {currentUser?.id === a.user_id && (
+                                    <span className="ml-2 text-xs text-muted-foreground">(tú)</span>
+                                 )}
+                              </td>
                               <td className="px-4 py-3 text-muted-foreground">
                                  {new Date(a.granted_at).toLocaleDateString("es-DO")}
                               </td>
@@ -238,18 +311,34 @@ export default function AprobadoresPage() {
                   </DialogDescription>
                </DialogHeader>
                <div className="flex flex-col gap-4 pt-2">
-                  <select
-                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
-                     value={selectedUserId}
-                     onChange={(e) => setSelectedUserId(e.target.value)}
-                  >
-                     <option value="">-- Selecciona un usuario --</option>
-                     {eligibleUsers.map((u) => (
-                        <option key={u.id} value={u.id}>
-                           {u.name} ({u.email})
-                        </option>
-                     ))}
-                  </select>
+                  {usersError ? (
+                     <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300">
+                        {usersError}
+                        <button
+                           className="ml-2 underline"
+                           onClick={loadUsers}
+                        >
+                           Reintentar
+                        </button>
+                     </div>
+                  ) : dropdownUsers.length === 0 ? (
+                     <p className="text-sm text-muted-foreground">
+                        Todos los usuarios ya son firmantes, o no hay usuarios disponibles.
+                     </p>
+                  ) : (
+                     <select
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+                        value={selectedUserId}
+                        onChange={(e) => setSelectedUserId(e.target.value)}
+                     >
+                        <option value="">-- Selecciona un usuario --</option>
+                        {dropdownUsers.map((u) => (
+                           <option key={u.id} value={u.id}>
+                              {u.name} ({u.email})
+                           </option>
+                        ))}
+                     </select>
+                  )}
                   {error && (
                      <p className="text-sm text-destructive">{error}</p>
                   )}
@@ -260,7 +349,7 @@ export default function AprobadoresPage() {
                      <Button
                         className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold"
                         onClick={handleAdd}
-                        disabled={!selectedUserId || saving}
+                        disabled={!selectedUserId || saving || dropdownUsers.length === 0}
                      >
                         {saving ? (
                            <><Loader2 className="mr-2 size-4 animate-spin" /> Guardando…</>
