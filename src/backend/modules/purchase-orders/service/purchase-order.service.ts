@@ -10,7 +10,7 @@ import {
 } from "../domain/purchase-order.domain";
 
 export class PurchaseOrderService {
-   constructor(private readonly repo: IPurchaseOrderRepository) {}
+   constructor(private readonly repo: IPurchaseOrderRepository) { }
 
    async getAll(): Promise<PurchaseOrderProps[]> {
       const orders = await this.repo.findAll();
@@ -103,8 +103,8 @@ export class PurchaseOrderService {
       return this.repo.removeApprover(userId);
    }
 
-   async delete(id: string): Promise<boolean> {
-      return this.repo.delete(id);
+   async delete(userId: string, id: string): Promise<boolean> {
+      return this.repo.delete(userId, id);
    }
 
    private validateItems(

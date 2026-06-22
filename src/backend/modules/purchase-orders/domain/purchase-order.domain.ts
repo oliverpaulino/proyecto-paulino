@@ -52,7 +52,7 @@ export function isEditable(estado: EstadoOrdenCompra): boolean {
 }
 
 export class PurchaseOrder {
-   private constructor(private readonly props: PurchaseOrderProps) {}
+   private constructor(private readonly props: PurchaseOrderProps) { }
 
    static create(props: PurchaseOrderProps): PurchaseOrder {
       return new PurchaseOrder(props);
@@ -128,7 +128,7 @@ export interface IPurchaseOrderRepository {
       approvedBy?: string,
       approvedByName?: string
    ): Promise<PurchaseOrder | null>;
-   delete(id: string): Promise<boolean>;
+   delete(userId: string, id: string): Promise<boolean>;
    // Approver management
    isApprover(userId: string): Promise<boolean>;
    listApprovers(): Promise<ApproverRecord[]>;

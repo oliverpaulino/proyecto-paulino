@@ -167,7 +167,9 @@ purchaseOrdersRoute.patch("/:id", async (c) => {
 // DELETE /api/purchase-orders/:id
 purchaseOrdersRoute.delete("/:id", async (c) => {
    try {
-      const deleted = await service.delete(c.req.param("id"));
+      const session = await auth.api.getSession({ headers: c.req.raw.headers });
+      if (!session?.user) return c.json({ error: "No autenticado" }, 401);
+      const deleted = await service.delete(session.user.id, c.req.param("id"));
       if (!deleted) return c.json({ error: "Orden no encontrada" }, 404);
       return c.json({ success: true });
    } catch (err: unknown) {

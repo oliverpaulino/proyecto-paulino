@@ -11,7 +11,7 @@ import {
 } from "../domain/purchase-order.domain";
 
 export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
-   constructor(private readonly db: Kysely<DB>) {}
+   constructor(private readonly db: Kysely<DB>) { }
 
    async findAll(): Promise<PurchaseOrder[]> {
       const rows = await this.db
@@ -31,6 +31,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             "orden_compra.created_at",
             "orden_compra.updated_at",
          ])
+         .where("orden_compra.deleted_at", "is", null)
          .orderBy("orden_compra.created_at", "desc")
          .execute();
 
@@ -72,6 +73,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             "orden_compra.updated_at",
          ])
          .where("orden_compra.id", "=", id)
+         .where("orden_compra.deleted_at", "is", null)
          .executeTakeFirst();
 
       if (!row) return null;
@@ -304,12 +306,13 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
          .execute();
    }
 
-   async delete(id: string): Promise<boolean> {
+   async delete(userId: string, id: string): Promise<boolean> {
       const result = await this.db
-         .deleteFrom("orden_compra")
+         .updateTable("orden_compra")
+         .set({ deleted_by: userId, deleted_at: new Date() })
          .where("id", "=", id)
+         .where("deleted_at", "is", null)
          .executeTakeFirst();
-
-      return Number(result.numDeletedRows) > 0;
+      return Number(result.numUpdatedRows) > 0;
    }
 }
