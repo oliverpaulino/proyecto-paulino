@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const TipoItemDTO = z.object({
-   id: z.string(),
+   id: z.uuid(),
    nombre: z.string(),
    descripcion: z.string().nullable(),
    created_at: z.coerce.date(),

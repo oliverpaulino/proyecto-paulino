@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 const ItemDTO = z.object({
-   id: z.string(),
+   id: z.uuid(),
    nombre: z.string(),
-   tipo_id: z.string(),
+   tipo_id: z.uuid(),
    descripcion: z.string().nullable(),
    unidad: z.string().nullable(),
    stock: z.number(),
@@ -15,7 +15,7 @@ const ItemDTO = z.object({
 
 const CreateItemDTO = z.object({
    nombre: z.string().min(1),
-   tipo_id: z.string().uuid(),
+   tipo_id: z.uuid(),
    descripcion: z.string().nullable().optional(),
    unidad: z.string().nullable().optional(),
    stock: z.coerce.number().min(0).optional(),
