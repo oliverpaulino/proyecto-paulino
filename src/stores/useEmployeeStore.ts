@@ -19,6 +19,7 @@ type UpdateEmployeeWarningForm = Record<string, unknown>;
 
 type EmployeeStore = {
    Employees: Employee[];
+   Contacts: ContactEmployee[];
    selectedEmployee: EmployeeDetails | null;
    loading: boolean;
    pagination: {
@@ -45,11 +46,12 @@ type EmployeeStore = {
    SearchEmployees: (search: string) => Promise<void>;
 
    CreateContact: (data: CreateContactEmployeeForm) => Promise<void | Error>;
-   UpdateContact: (contactoId: string, data: UpdateContactEmployeeForm, empleadoId?: string) => Promise<void | Error>;
+   UpdateContact: (contactoId: string, data: UpdateContactEmployeeForm) => Promise<void | Error>;
    DeleteContact: (empleadoId: string, contactoId: string) => Promise<void | Error>;
 
    CreateOperator: (data: CreateOperatorForm) => Promise<void | Error>;
    UpdateOperator: (operadorId: string, data: UpdateOperatorForm) => Promise<void | Error>;
+   GetContacts: () => Promise<void | Error>;
 
    setSelectedEmployee: (employee: EmployeeDetails | null) => void;
    setLoading: (loading: boolean) => void;
@@ -59,6 +61,7 @@ type EmployeeStore = {
 
 export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
    Employees: [],
+   Contacts: [],
    selectedEmployee: null,
    loading: false,
    pagination: {
@@ -298,6 +301,17 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
          if (empId) await get().GetEmployeeDetails(empId, true);
       } catch (error) {
          return error as Error;
+      }
+   },
+   GetContacts: async () => {
+      try {
+         const res = await fetch(`/api/employees/contacts`);
+         if (!res.ok) throw new Error("Error al obtener contactos");
+         const contacts: ContactEmployee[] = await res.json();
+         set({ Contacts: contacts });
+      } catch (error) {
+         console.error("Error fetching contact by ID:", error);
+         throw error;
       }
    },
 

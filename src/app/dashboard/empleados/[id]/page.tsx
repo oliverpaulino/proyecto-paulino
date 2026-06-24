@@ -35,8 +35,6 @@ import {
    Pencil,
    Trash2,
    Contact,
-   Phone,
-   Mail,
    ReceiptText,
 } from "lucide-react";
 import { EmployeeForm, type OperadorFormData } from "../components/employee-form";
@@ -122,8 +120,6 @@ export default function EmployeeDetailPage() {
 
    const { empleado, contactos } = selectedEmployee;
 
-   const telefonos = contactos.filter((c) => c.tipo_contacto === "TELEFONO");
-   const emails = contactos.filter((c) => c.tipo_contacto === "EMAIL");
 
    return (
       <div className="flex flex-col gap-6 p-6">
@@ -276,22 +272,19 @@ export default function EmployeeDetailPage() {
                         <Table>
                            <TableHeader>
                               <TableRow>
-                                 <TableHead>Tipo</TableHead>
-                                 <TableHead>Contacto</TableHead>
+                                 <TableHead>Nombre</TableHead>
+                                 <TableHead>Email</TableHead>
+                                 <TableHead>Teléfono</TableHead>
+                                 <TableHead>Cargo</TableHead>
                               </TableRow>
                            </TableHeader>
                            <TableBody>
                               {contactos.map((c) => (
                                  <TableRow key={c.id}>
-                                    <TableCell>
-                                       <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                          {c.tipo_contacto === "EMAIL"
-                                             ? <Mail className="size-3.5" />
-                                             : <Phone className="size-3.5" />}
-                                          {c.tipo_contacto === "EMAIL" ? "Email" : "Teléfono"}
-                                       </span>
-                                    </TableCell>
-                                    <TableCell className="font-medium">{c.contacto}</TableCell>
+                                    <TableCell className="font-medium">{c.name}</TableCell>
+                                    <TableCell>{c.email || "—"}</TableCell>
+                                    <TableCell>{c.phone || "—"}</TableCell>
+                                    <TableCell>{c.job_title || "—"}</TableCell>
                                  </TableRow>
                               ))}
                            </TableBody>

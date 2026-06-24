@@ -102,20 +102,14 @@ employeesRoute.delete("/:id", async (c) => {
    return c.json({ success: true });
 });
 
-const TIPOS_CONTACTO_VALIDOS = ["TELEFONO", "EMAIL"];
-
 // POST /api/employees/contacts
 employeesRoute.post("/contacts", async (c) => {
    const body = await c.req.json();
 
    if (!body.empleado_id) return c.json({ error: "empleado_id es requerido" }, 400);
-   if (!body.tipo_contacto) return c.json({ error: "tipo_contacto es requerido" }, 400);
-   if (!TIPOS_CONTACTO_VALIDOS.includes(body.tipo_contacto)) {
-      return c.json({ error: "tipo_contacto debe ser TELEFONO o EMAIL" }, 400);
-   }
-   if (!body.contacto?.trim()) return c.json({ error: "contacto es requerido" }, 400);
-
-   if (body.tipo_contacto === "EMAIL" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.contacto)) {
+   if (!body.name?.trim()) return c.json({ error: "El nombre es requerido" }, 400);
+   if (!body.phone && !body.email) return c.json({ error: "Se requiere al menos un teléfono o un email" }, 400);
+   if (body.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) {
       return c.json({ error: "Formato de email inválido" }, 400);
    }
 
@@ -130,11 +124,7 @@ employeesRoute.patch("/contacts/:contactId", async (c) => {
    const { contactId } = c.req.param();
    const body = await c.req.json();
 
-   if (body.tipo_contacto && !TIPOS_CONTACTO_VALIDOS.includes(body.tipo_contacto)) {
-      return c.json({ error: "tipo_contacto debe ser TELEFONO o EMAIL" }, 400);
-   }
-
-   if (body.tipo_contacto === "EMAIL" && body.contacto && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.contacto)) {
+   if (body.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) {
       return c.json({ error: "Formato de email inválido" }, 400);
    }
 

@@ -41,8 +41,10 @@ export interface DB {
    contact_empleado: {
       id: Generated<string>;
       empleado_id: string;
-      tipo_contacto: string;
-      contacto: string;
+      name: string;
+      email: string | null;
+      phone: string | null;
+      job_title: string | null;
       created_at: Date;
       updated_at: Date;
    };

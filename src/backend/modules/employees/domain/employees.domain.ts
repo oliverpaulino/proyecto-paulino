@@ -1,7 +1,5 @@
 export type TipoIdentificacion = "CEDULA" | "RNC" | "PASAPORTE";
 export type TipoRolEmpleado = "OPERADOR" | "INGENIERO" | "MECANICO" | "CONTABLE" | "MENSAJERO";
-export type TipoContactoEmpleado = "TELEFONO" | "EMAIL";
-
 export interface EmployeeProps {
    id: string;
    nombre: string;
@@ -58,21 +56,27 @@ export interface UpdateEmployeeDTO {
 export interface ContactEmpleadoProps {
    id: string;
    empleado_id: string;
-   tipo_contacto: TipoContactoEmpleado;
-   contacto: string;
+   name: string;
+   email: string | null;
+   phone: string | null;
+   job_title: string | null;
    created_at: Date;
    updated_at: Date;
 }
 
 export interface CreateContactEmpleadoDTO {
    empleado_id: string;
-   tipo_contacto: TipoContactoEmpleado;
-   contacto: string;
+   name: string;
+   email?: string | null;
+   phone?: string | null;
+   job_title?: string | null;
 }
 
 export interface UpdateContactEmpleadoDTO {
-   tipo_contacto?: TipoContactoEmpleado;
-   contacto?: string;
+   name?: string;
+   email?: string | null;
+   phone?: string | null;
+   job_title?: string | null;
 }
 
 // Operador
