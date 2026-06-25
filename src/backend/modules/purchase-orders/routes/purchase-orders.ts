@@ -136,6 +136,14 @@ purchaseOrdersRoute.patch("/:id/status", async (c) => {
             session.user.name ?? undefined
          );
          if (!order) return c.json({ error: "Orden no encontrada" }, 404);
+
+         // Dismiss pending review notifications for all approvers since it's now approved
+         try {
+            await notifService.markReadByReference(order.id, "purchase_order");
+         } catch {
+            // Non-critical — don't block the response
+         }
+
          return c.json(order);
       }
 
@@ -197,6 +205,25 @@ purchaseOrdersRoute.delete("/:id", async (c) => {
       if (!session?.user) return c.json({ error: "No autenticado" }, 401);
       const deleted = await service.delete(session.user.id, c.req.param("id"));
       if (!deleted) return c.json({ error: "Orden no encontrada" }, 404);
+
+      const order = await service.getById(c.req.param("id"));
+      try {
+         const approvers = await service.listApprovers();
+         if (approvers.length > 0) {
+            await notifService.notifyMany(
+               approvers.map((a) => ({
+                  user_id: a.user_id,
+                  title: "Orden de compra pendiente de aprobación",
+                  message: `La orden #${order.id.slice(0, 8)} ha sido enviada a revisión y requiere tu aprobación.`,
+                  type: "PURCHASE_ORDER_REVIEW",
+                  reference_id: order.id,
+                  reference_type: "purchase_order",
+               }))
+            );
+         }
+      } catch {
+         // Don't fail the status change if notifications fail
+      }
       return c.json({ success: true });
    } catch (err: unknown) {
       return c.json(

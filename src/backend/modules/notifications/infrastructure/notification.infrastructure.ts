@@ -51,6 +51,23 @@ export class KyselyNotificationRepository implements INotificationRepository {
          .execute();
    }
 
+   async markReadByReference(referenceId: string, referenceType: string): Promise<void> {
+      const rows = await this.db
+         .updateTable("notifications")
+         .set({ is_read: true, read_at: new Date() })
+         .where("reference_id", "=", referenceId)
+         .where("reference_type", "=", referenceType)
+         .where("is_read", "=", false)
+         .returning("user_id")
+         .execute();
+
+      // Notify affected users so their SSE badge updates in real-time
+      const uniqueUserIds = [...new Set(rows.map((r) => r.user_id))];
+      for (const userId of uniqueUserIds) {
+         notificationEmitter.emit("new_notification", { userId });
+      }
+   }
+
    async create(data: CreateNotificationDTO): Promise<NotificationProps> {
       const row = await this.db
          .insertInto("notifications")

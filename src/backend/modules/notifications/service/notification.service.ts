@@ -23,6 +23,10 @@ export class NotificationService {
       return this.repo.markAllAsRead(userId);
    }
 
+   async markReadByReference(referenceId: string, referenceType: string): Promise<void> {
+      return this.repo.markReadByReference(referenceId, referenceType);
+   }
+
    async notify(data: CreateNotificationDTO): Promise<NotificationProps> {
       return this.repo.create(data);
    }

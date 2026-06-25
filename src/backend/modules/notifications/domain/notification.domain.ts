@@ -25,6 +25,7 @@ export interface INotificationRepository {
    countUnread(userId: string): Promise<number>;
    markAsRead(id: string, userId: string): Promise<void>;
    markAllAsRead(userId: string): Promise<void>;
+   markReadByReference(referenceId: string, referenceType: string): Promise<void>;
    create(data: CreateNotificationDTO): Promise<NotificationProps>;
    createMany(data: CreateNotificationDTO[]): Promise<void>;
 }
