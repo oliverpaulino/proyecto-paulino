@@ -202,6 +202,26 @@ export interface DB {
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
+
+   notifications: {
+      id: Generated<string>;
+      user_id: string;
+      title: string;
+      message: string;
+      type: string;
+      reference_id: string | null;
+      reference_type: string | null;
+      is_read: Generated<boolean>;
+      created_at: Generated<Date>;
+      read_at: Date | null;
+   };
+
+   user_employee_link: {
+      id: Generated<string>;
+      user_id: string;
+      empleado_id: string;
+      created_at: Generated<Date>;
+   };
 }
 
 const db = new Kysely<DB>({
