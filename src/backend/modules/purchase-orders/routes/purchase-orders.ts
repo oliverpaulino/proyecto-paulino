@@ -213,10 +213,10 @@ purchaseOrdersRoute.delete("/:id", async (c) => {
             await notifService.notifyMany(
                approvers.map((a) => ({
                   user_id: a.user_id,
-                  title: "Orden de compra pendiente de aprobación",
-                  message: `La orden #${order.id.slice(0, 8)} ha sido enviada a revisión y requiere tu aprobación.`,
-                  type: "PURCHASE_ORDER_REVIEW",
-                  reference_id: order.id,
+                  title: "Orden de compra Ha sido Eliminada",
+                  message: `La orden #${order?.id.slice(0, 8)} ha sido eliminada.`,
+                  type: "PURCHASE_ORDER_DELETED",
+                  reference_id: order?.id,
                   reference_type: "purchase_order",
                }))
             );

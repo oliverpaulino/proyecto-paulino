@@ -10,12 +10,14 @@ import { cn } from "@/lib/utils";
 
 const TYPE_LABELS: Record<string, string> = {
    PURCHASE_ORDER_REVIEW: "Orden de Compra",
+   PURCHASE_ORDER_DELETED: "Orden de Compra Eliminada",
    TASK_ASSIGNED: "Tarea",
    GENERAL: "General",
 };
 
 const TYPE_COLORS: Record<string, string> = {
    PURCHASE_ORDER_REVIEW: "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-700",
+   PURCHASE_ORDER_DELETED: "bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700",
    TASK_ASSIGNED: "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700",
    GENERAL: "bg-gray-100 text-gray-700 border-gray-300 dark:bg-gray-800/40 dark:text-gray-300 dark:border-gray-600",
 };
