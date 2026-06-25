@@ -158,13 +158,18 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
          }
       }
 
+      if (!formData.phone && !formData.email) {
+         newErrors.phone = "Se requiere al menos un teléfono o un email";
+         newErrors.email = "Se requiere al menos un teléfono o un email";
+      }
+
       setErrors(newErrors);
       return Object.keys(newErrors).length === 0;
    };
 
    const handleCreate = async () => {
       if (!validateForm()) return;
-      
+
       setLoading(true);
       try {
          await CreateContact({
@@ -186,7 +191,7 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
 
    const handleEdit = async () => {
       if (!selectedContact || !validateForm()) return;
-      
+
       setLoading(true);
       try {
          await UpdateContact({
@@ -433,10 +438,10 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
                   <DialogTitle>Nuevo Contacto</DialogTitle>
                   <DialogDescription>Agrega un nuevo contacto para este cliente.</DialogDescription>
                </DialogHeader>
-               
+
                {/* 4. Usamos el componente extraído para evitar repetir código */}
                <ContactFormFields formData={formData} setFormData={setFormData} errors={errors} />
-               
+
                <DialogFooter className="flex-col gap-2 sm:flex-row">
                   <Button variant="outline" className="w-full sm:w-auto" onClick={() => setCreateOpen(false)}>
                      Cancelar
@@ -467,7 +472,7 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
                   <DialogTitle>Editar Contacto</DialogTitle>
                   <DialogDescription>Modifica la información del contacto.</DialogDescription>
                </DialogHeader>
-               
+
                {/* 4. Usamos el componente extraído para evitar repetir código */}
                <ContactFormFields formData={formData} setFormData={setFormData} errors={errors} />
 
@@ -527,7 +532,7 @@ function ContactFormFields({
    setFormData: React.Dispatch<React.SetStateAction<any>>;
    errors: Record<string, string>;
 }) {
-   
+
    const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const cleanValue = e.target.value.replace(/\D/g, ""); // Solo dígitos
       setFormData({ ...formData, phone: cleanValue });

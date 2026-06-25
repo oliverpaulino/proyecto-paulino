@@ -41,8 +41,10 @@ export interface DB {
    contact_empleado: {
       id: Generated<string>;
       empleado_id: string;
-      tipo_contacto: string;
-      contacto: string;
+      name: string;
+      email: string | null;
+      phone: string | null;
+      job_title: string | null;
       created_at: Date;
       updated_at: Date;
    };
@@ -96,7 +98,7 @@ export interface DB {
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
-      
+
    equipo: {
       id: Generated<string>;
       nombre: string;
@@ -106,6 +108,40 @@ export interface DB {
       placa: string | null;
       modelo: string | null;
       ano: number | null;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+
+   orden_compra: {
+      id: Generated<string>;
+      proveedor_id: string;
+      fecha: Date;
+      estado: Generated<string>;
+      notas: string | null;
+      total: Generated<number>;
+      approved_by: string | null;
+      approved_by_name: string | null;
+      approved_at: Date | null;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+      deleted_by: string | null;
+      deleted_at: Date | null;
+   };
+
+   purchase_order_approvers: {
+      user_id: string;
+      user_name: string;
+      granted_by: string;
+      granted_at: Generated<Date>;
+   };
+
+   orden_compra_item: {
+      id: Generated<string>;
+      orden_compra_id: string;
+      descripcion: string;
+      cantidad: number;
+      precio_unitario: number;
+      subtotal: number;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };

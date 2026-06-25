@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 
 export default async function Layout({
@@ -13,8 +13,12 @@ export default async function Layout({
 
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
+
       <AppSidebar />
-      <SidebarInset>{children}</SidebarInset>
+      <SidebarInset>
+        <SidebarTrigger className="-ml-1" />
+        {children}
+      </SidebarInset>
     </SidebarProvider>
   );
 }

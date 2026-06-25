@@ -114,6 +114,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         { id: "fin-cotizaciones", title: "Cotizaciones", url: "/dashboard/cotizaciones" },
         { id: "fin-ventas", title: "Ventas", url: "/dashboard/ventas" },
         { id: "fin-compras", title: "Compras", url: "/dashboard/compras" },
+        ...(isAdmin ? [{ id: "fin-aprobadores", title: "Firmantes de Compras", url: "/dashboard/compras/aprobadores" }] : []),
         { id: "fin-gastos", title: "Gastos", url: "/dashboard/gastos" },
         { id: "fin-pagos", title: "Pagos", url: "/dashboard/pagos" },
         { id: "fin-contabilidad", title: "Contabilidad", url: "/dashboard/contabilidad" },

@@ -84,46 +84,28 @@ const UpdateEmployeeDTO = CreateEmployeeBaseDTO.partial().superRefine(validateEm
 const ContactEmployeeDTO = z.object({
    id: z.string().uuid(),
    empleado_id: z.string().uuid(),
-   tipo_contacto: GeneralSchemasDTO.TipoContactoSchema,
-   contacto: z.string(),
+   name: z.string(),
+   email: GeneralSchemasDTO.OptionalEmailSchema,
+   phone: GeneralSchemasDTO.OptionalTelefonoSchema,
+   job_title: z.string().nullable().optional(),
    created_at: z.coerce.date(),
    updated_at: z.coerce.date(),
 });
 
-const CreateContactEmployeeBaseDTO = z.object({
+const CreateContactEmployeeDTO = z.object({
    empleado_id: z.string().uuid(),
-   tipo_contacto: GeneralSchemasDTO.TipoContactoSchema,
-   contacto: z.string().min(1, "El contacto no puede estar vacío"),
+   name: z.string().min(1, "El nombre es obligatorio"),
+   email: GeneralSchemasDTO.OptionalEmailSchema,
+   phone: GeneralSchemasDTO.OptionalTelefonoSchema,
+   job_title: z.string().optional(),
 });
 
-const validateContactEmployee = (data: any, ctx: z.RefinementCtx) => {
-   if (!data.tipo_contacto || !data.contacto) return;
-
-   if (data.tipo_contacto === "TELEFONO") {
-      const result = GeneralSchemasDTO.TelefonoSchema.safeParse(data.contacto);
-      if (!result.success) {
-         result.error.issues.forEach((issue) => {
-            ctx.addIssue({ ...issue, path: ["contacto"], params: { internalCode: "ERR_INVALID_PHONE" } });
-         });
-      }
-   }
-
-   if (data.tipo_contacto === "EMAIL") {
-      const result = GeneralSchemasDTO.EmailSchema.safeParse(data.contacto);
-      if (!result.success) {
-         result.error.issues.forEach((issue) => {
-            ctx.addIssue({ ...issue, path: ["contacto"], params: { internalCode: "ERR_INVALID_EMAIL" } });
-         });
-      }
-   }
-};
-
-const CreateContactEmployeeDTO = CreateContactEmployeeBaseDTO.superRefine(validateContactEmployee);
-
-const UpdateContactEmployeeDTO = CreateContactEmployeeBaseDTO
-   .omit({ empleado_id: true })
-   .partial()
-   .superRefine(validateContactEmployee);
+const UpdateContactEmployeeDTO = z.object({
+   name: z.string().min(1).optional(),
+   email: GeneralSchemasDTO.OptionalEmailSchema,
+   phone: GeneralSchemasDTO.OptionalTelefonoSchema,
+   job_title: z.string().optional(),
+});
 
 
 // Operador

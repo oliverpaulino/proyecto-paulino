@@ -73,12 +73,14 @@ export class EmployeeService {
       return this.repo.delete(id);
    }
 
-   async createContact(data: { empleado_id: string; tipo_contacto: any; contacto: string }): Promise<ContactEmpleadoProps> {
+   async createContact(data: { empleado_id: string; name: string; email?: string | null; phone?: string | null; job_title?: string | null }): Promise<ContactEmpleadoProps> {
       const contactData: ContactEmpleadoProps = {
          id: crypto.randomUUID(),
          empleado_id: data.empleado_id,
-         tipo_contacto: data.tipo_contacto,
-         contacto: data.contacto,
+         name: data.name,
+         email: data.email ?? null,
+         phone: data.phone ?? null,
+         job_title: data.job_title ?? null,
          created_at: new Date(),
          updated_at: new Date(),
       };
@@ -87,8 +89,10 @@ export class EmployeeService {
 
    async updateContact(id: string, data: any): Promise<ContactEmpleadoProps> {
       const updateData: Partial<ContactEmpleadoProps> = { updated_at: new Date() };
-      if (data.tipo_contacto !== undefined) updateData.tipo_contacto = data.tipo_contacto;
-      if (data.contacto !== undefined) updateData.contacto = data.contacto;
+      if (data.name !== undefined) updateData.name = data.name;
+      if (data.email !== undefined) updateData.email = data.email ?? null;
+      if (data.phone !== undefined) updateData.phone = data.phone ?? null;
+      if (data.job_title !== undefined) updateData.job_title = data.job_title ?? null;
 
       return this.repo.updateContact(id, updateData);
    }
