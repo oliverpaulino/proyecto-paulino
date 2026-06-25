@@ -7,6 +7,10 @@ import clientsRoute from "@/backend/modules/clients/routes/clients";
 import employeesRoute from "@/backend/modules/employees/routes/employees";
 import suppliersRoute from "@/backend/modules/suppliers/routes/suppliers";
 import purchaseOrdersRoute from "./modules/purchase-orders/routes/purchase-orders";
+import equiposRoute from "./modules/equipos/routes/equipos";
+import categoriaEquiposRoute from "./modules/categoria-equipos/routes/categoria-equipos";
+import tipoItemsRoute from "./modules/tipo-items/routes/tipo-items";
+import itemsRoute from "./modules/items/routes/items";
 
 const app = new Hono().basePath("/api");
 
@@ -30,5 +34,9 @@ app.route("/clients", clientsRoute);
 app.route("/employees", employeesRoute);
 app.route("/suppliers", suppliersRoute);
 app.route("/purchase-orders", purchaseOrdersRoute);
+app.route("/equipos", equiposRoute);
+app.route("/categoria-equipos", categoriaEquiposRoute);
+app.route("/tipo-items", tipoItemsRoute);
+app.route("/items", itemsRoute);
 
 export default app;

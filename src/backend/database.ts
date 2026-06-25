@@ -99,10 +99,19 @@ export interface DB {
       updated_at: Generated<Date>;
    };
 
+   categoria_equipo: {
+      id: Generated<string>;
+      nombre: string;
+      cobra_en: string;
+      cobra_minimo: number | null;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+
    equipo: {
       id: Generated<string>;
       nombre: string;
-      tipo: string;
+      categoria_id: string;
       estado: Generated<string>;
       costo_por_hora: Generated<number>;
       placa: string | null;
