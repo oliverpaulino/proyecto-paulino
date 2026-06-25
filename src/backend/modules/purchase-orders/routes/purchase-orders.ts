@@ -3,11 +3,15 @@ import db from "@/backend/database";
 import { auth } from "@/lib/auth";
 import { KyselyPurchaseOrderRepository } from "../infraestructure/purchase-order.infraestructure";
 import { PurchaseOrderService } from "../service/purchase-order.service";
+import { KyselyNotificationRepository } from "../../notifications/infrastructure/notification.infrastructure";
+import { NotificationService } from "../../notifications/service/notification.service";
 import type { EstadoOrdenCompra } from "../domain/purchase-order.domain";
 
 const purchaseOrdersRoute = new Hono();
 const repo = new KyselyPurchaseOrderRepository(db);
 const service = new PurchaseOrderService(repo);
+const notifRepo = new KyselyNotificationRepository(db);
+const notifService = new NotificationService(notifRepo);
 
 // GET /api/purchase-orders
 purchaseOrdersRoute.get("/", async (c) => {
@@ -137,6 +141,28 @@ purchaseOrdersRoute.patch("/:id/status", async (c) => {
 
       const order = await service.changeStatus(c.req.param("id"), nuevoEstado);
       if (!order) return c.json({ error: "Orden no encontrada" }, 404);
+
+      // Notify approvers when order is sent to review
+      if (nuevoEstado === "PENDIENTE") {
+         try {
+            const approvers = await service.listApprovers();
+            if (approvers.length > 0) {
+               await notifService.notifyMany(
+                  approvers.map((a) => ({
+                     user_id: a.user_id,
+                     title: "Orden de compra pendiente de aprobación",
+                     message: `La orden #${order.id.slice(0, 8)} ha sido enviada a revisión y requiere tu aprobación.`,
+                     type: "PURCHASE_ORDER_REVIEW",
+                     reference_id: order.id,
+                     reference_type: "purchase_order",
+                  }))
+               );
+            }
+         } catch {
+            // Don't fail the status change if notifications fail
+         }
+      }
+
       return c.json(order);
    } catch (err: unknown) {
       return c.json(
