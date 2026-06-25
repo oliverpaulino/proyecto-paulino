@@ -14,10 +14,33 @@ export function DashboardHeader() {
 
    useEffect(() => {
       if (!session?.user) return;
+
+      // Fetch initial count
       fetchUnreadCount();
-      const interval = setInterval(fetchUnreadCount, 30_000);
-      return () => clearInterval(interval);
-   }, [session?.user, fetchUnreadCount]);
+
+      // SSE for real-time updates
+      const es = new EventSource("/api/notifications/stream");
+
+      es.onmessage = (e) => {
+         if (!e.data?.trim()) return; // keep-alive empty frame
+         try {
+            const payload = JSON.parse(e.data) as { count?: number };
+            if (typeof payload.count === "number") {
+               useNotificationStore.setState({ unreadCount: payload.count });
+            }
+         } catch {
+            // malformed frame, ignore
+         }
+      };
+
+      es.onerror = () => {
+         // Browser will auto-reconnect; close on persistent failure
+         if (es.readyState === EventSource.CLOSED) es.close();
+      };
+
+      return () => es.close();
+   // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, [session?.user]);
 
    return (
       <header className="flex h-12 shrink-0 items-center justify-between border-b px-2 bg-background">

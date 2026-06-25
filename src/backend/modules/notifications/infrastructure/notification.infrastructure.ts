@@ -1,5 +1,6 @@
 import type { Kysely } from "kysely";
 import type { DB } from "@/backend/database";
+import { notificationEmitter } from "@/backend/shared/notification-emitter";
 import type {
    CreateNotificationDTO,
    INotificationRepository,
@@ -64,6 +65,7 @@ export class KyselyNotificationRepository implements INotificationRepository {
          .returningAll()
          .executeTakeFirstOrThrow();
 
+      notificationEmitter.emit("new_notification", { userId: data.user_id });
       return { ...row, is_read: Boolean(row.is_read) };
    }
 
@@ -83,5 +85,11 @@ export class KyselyNotificationRepository implements INotificationRepository {
             }))
          )
          .execute();
+
+      // Emit once per unique recipient
+      const uniqueUserIds = [...new Set(data.map((d) => d.user_id))];
+      for (const userId of uniqueUserIds) {
+         notificationEmitter.emit("new_notification", { userId });
+      }
    }
 }
