@@ -222,6 +222,17 @@ export interface DB {
       empleado_id: string;
       created_at: Generated<Date>;
    };
+   cita: {
+      id: Generated<string>;
+      cliente_id: string;
+      user_id: string | null;
+      fecha: Date;
+      motivo: string | null;
+      estado: string;
+      notas: string | null;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   }
 }
 
 const db = new Kysely<DB>({
