@@ -3,11 +3,9 @@ import {
    ESTADOS_EQUIPO,
    EquipoProps,
    IEquipoRepository,
-   TIPOS_EQUIPO,
    UpdateEquipoDTO,
 } from "../domain/equipo.domain";
 
-const TIPOS = new Set<string>(TIPOS_EQUIPO);
 const ESTADOS = new Set<string>(ESTADOS_EQUIPO);
 const MIN_ANO = 1950;
 const MAX_ANO = new Date().getFullYear() + 1;
@@ -27,7 +25,7 @@ export class EquipoService {
 
    async create(data: CreateEquipoDTO): Promise<EquipoProps> {
       if (!data.nombre?.trim()) throw new Error("Nombre es requerido");
-      if (!data.tipo || !TIPOS.has(data.tipo)) throw new Error("Tipo de equipo inválido");
+      if (!data.categoria_id) throw new Error("Categoría es requerida");
       if (data.estado !== undefined && !ESTADOS.has(data.estado)) {
          throw new Error("Estado de equipo inválido");
       }
@@ -45,9 +43,6 @@ export class EquipoService {
    async update(id: string, data: UpdateEquipoDTO): Promise<EquipoProps | null> {
       if (data.nombre !== undefined && !data.nombre.trim()) {
          throw new Error("Nombre es requerido");
-      }
-      if (data.tipo !== undefined && !TIPOS.has(data.tipo)) {
-         throw new Error("Tipo de equipo inválido");
       }
       if (data.estado !== undefined && !ESTADOS.has(data.estado)) {
          throw new Error("Estado de equipo inválido");

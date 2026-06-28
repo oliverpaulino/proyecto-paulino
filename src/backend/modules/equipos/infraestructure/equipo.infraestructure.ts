@@ -5,15 +5,16 @@ import {
    Equipo,
    EstadoEquipo,
    IEquipoRepository,
-   TipoEquipo,
    UpdateEquipoDTO,
 } from "../domain/equipo.domain";
 
-// PG numeric(10,2) comes back as a string; smallint as number. Normalize both.
 type EquipoRow = {
    id: string;
    nombre: string;
-   tipo: string;
+   categoria_id: string;
+   categoria_nombre: string;
+   cobra_en: string;
+   cobra_minimo: number | string | null;
    estado: string;
    costo_por_hora: number | string;
    placa: string | null;
@@ -27,7 +28,10 @@ function toDomain(row: EquipoRow): Equipo {
    return Equipo.create({
       id: row.id,
       nombre: row.nombre,
-      tipo: row.tipo as TipoEquipo,
+      categoria_id: row.categoria_id,
+      categoria_nombre: row.categoria_nombre,
+      cobra_en: row.cobra_en,
+      cobra_minimo: row.cobra_minimo == null ? null : Number(row.cobra_minimo),
       estado: row.estado as EstadoEquipo,
       costo_por_hora: Number(row.costo_por_hora),
       placa: row.placa,
@@ -44,8 +48,23 @@ export class KyselyEquipoRepository implements IEquipoRepository {
    async findAll(): Promise<Equipo[]> {
       const rows = await this.db
          .selectFrom("equipo")
-         .selectAll()
-         .orderBy("created_at", "desc")
+         .innerJoin("categoria_equipo", "categoria_equipo.id", "equipo.categoria_id")
+         .select([
+            "equipo.id",
+            "equipo.nombre",
+            "equipo.categoria_id",
+            "categoria_equipo.nombre as categoria_nombre",
+            "categoria_equipo.cobra_en",
+            "categoria_equipo.cobra_minimo",
+            "equipo.estado",
+            "equipo.costo_por_hora",
+            "equipo.placa",
+            "equipo.modelo",
+            "equipo.ano",
+            "equipo.created_at",
+            "equipo.updated_at",
+         ])
+         .orderBy("equipo.created_at", "desc")
          .execute();
 
       return rows.map(toDomain);
@@ -54,8 +73,23 @@ export class KyselyEquipoRepository implements IEquipoRepository {
    async findById(id: string): Promise<Equipo | null> {
       const row = await this.db
          .selectFrom("equipo")
-         .selectAll()
-         .where("id", "=", id)
+         .innerJoin("categoria_equipo", "categoria_equipo.id", "equipo.categoria_id")
+         .select([
+            "equipo.id",
+            "equipo.nombre",
+            "equipo.categoria_id",
+            "categoria_equipo.nombre as categoria_nombre",
+            "categoria_equipo.cobra_en",
+            "categoria_equipo.cobra_minimo",
+            "equipo.estado",
+            "equipo.costo_por_hora",
+            "equipo.placa",
+            "equipo.modelo",
+            "equipo.ano",
+            "equipo.created_at",
+            "equipo.updated_at",
+         ])
+         .where("equipo.id", "=", id)
          .executeTakeFirst();
 
       if (!row) return null;
@@ -67,29 +101,30 @@ export class KyselyEquipoRepository implements IEquipoRepository {
          .insertInto("equipo")
          .values({
             nombre: data.nombre,
-            tipo: data.tipo,
+            categoria_id: data.categoria_id,
             estado: data.estado ?? "ACTIVO",
             costo_por_hora: data.costo_por_hora ?? 0,
             placa: data.placa ?? null,
             modelo: data.modelo ?? null,
             ano: data.ano ?? null,
          })
-         .returningAll()
+         .returning("id")
          .executeTakeFirstOrThrow();
 
-      return toDomain(row);
+      const created = await this.findById(row.id);
+      if (!created) throw new Error("Error al crear equipo");
+      return created;
    }
 
    async update(id: string, data: UpdateEquipoDTO): Promise<Equipo | null> {
-      const row = await this.db
+      const updateData: Record<string, unknown> = { ...data, updated_at: new Date() };
+      await this.db
          .updateTable("equipo")
-         .set({ ...data, updated_at: new Date() })
+         .set(updateData)
          .where("id", "=", id)
-         .returningAll()
-         .executeTakeFirst();
+         .execute();
 
-      if (!row) return null;
-      return toDomain(row);
+      return this.findById(id);
    }
 
    async delete(id: string): Promise<boolean> {

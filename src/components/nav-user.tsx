@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/sidebar";
 import { authClient, useSession } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export function NavUser() {
   const { isMobile } = useSidebar();
@@ -26,6 +27,11 @@ export function NavUser() {
 
   const name = session?.user?.name ?? "";
   const email = session?.user?.email ?? "";
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handleSignOut = () => {
     authClient.signOut({
@@ -44,6 +50,22 @@ export function NavUser() {
       redirectTo: "/auth/reset-password",
     });
   };
+
+  if (!isMounted) {
+    return (
+      <SidebarMenuButton
+        size="lg"
+        className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+      >
+        <User2 className="h-8 w-8" />
+        <div className="grid flex-1 text-left text-sm leading-tight">
+          <span className="truncate font-medium">Cargando...</span>
+          <span className="truncate text-xs"></span>
+        </div>
+        <ChevronsUpDown className="ml-auto size-4" />
+      </SidebarMenuButton>
+    );
+  }
 
   return (
     <SidebarMenu>
