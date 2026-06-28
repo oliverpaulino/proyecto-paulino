@@ -193,6 +193,25 @@ export interface DB {
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
+
+   // Read-only minimal view of proyecto (the full module lives elsewhere/TBD).
+   // Only the columns the tareas feature needs are typed here.
+   proyecto: {
+      id: Generated<string>;
+      nombre: string;
+   };
+
+   tarea: {
+      id: Generated<string>;
+      proyecto_id: string;
+      nombre: string;
+      descripcion: string | null;
+      estado: Generated<string>; // estado_tarea enum, cast at runtime
+      fecha_inicio: Date | null;
+      fecha_fin: Date | null;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
 }
 
 const db = new Kysely<DB>({

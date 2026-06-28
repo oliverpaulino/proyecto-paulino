@@ -7,6 +7,7 @@ import clientsRoute from "@/backend/modules/clients/routes/clients";
 import employeesRoute from "@/backend/modules/employees/routes/employees";
 import suppliersRoute from "@/backend/modules/suppliers/routes/suppliers";
 import purchaseOrdersRoute from "./modules/purchase-orders/routes/purchase-orders";
+import tareasRoute from "@/backend/modules/tareas/routes/tareas";
 
 const app = new Hono().basePath("/api");
 
@@ -30,5 +31,6 @@ app.route("/clients", clientsRoute);
 app.route("/employees", employeesRoute);
 app.route("/suppliers", suppliersRoute);
 app.route("/purchase-orders", purchaseOrdersRoute);
+app.route("/tareas", tareasRoute);
 
 export default app;
