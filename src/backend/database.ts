@@ -99,6 +99,14 @@ export interface DB {
       updated_at: Generated<Date>;
    };
 
+   servicio: {
+      id: Generated<string>;
+      nombre: string;
+      tipo: string;
+      descripcion: string | null;
+      // numeric(12,2): the pg driver returns this as a string at runtime; the
+      // repository normalizes it to a number. DB has a default of 0 (not generated).
+      precio_base: number;
    categoria_equipo: {
       id: Generated<string>;
       nombre: string;
