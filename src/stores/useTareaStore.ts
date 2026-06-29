@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { SIN_PROYECTO } from "@/dtos/tarea.dto";
 import type {
    Tarea,
    TareaForm,
@@ -71,9 +72,17 @@ export const useTareaStore = create<TareaStore>((set, get) => ({
          if (!res.ok) throw new Error(data.error || "Error al crear tarea");
 
          const created = data as Tarea;
-         // Only insert into the current view if it belongs to the active proyecto filter.
+         // Insertar en la vista actual solo si la tarea coincide con el filtro activo:
+         //  - sin filtro (null)                  → siempre
+         //  - filtro "Sin proyecto" (SIN_PROYECTO) → solo si la tarea no tiene proyecto
+         //  - filtro por id                       → solo si coincide el proyecto
          const { currentProyectoId } = get();
-         if (!currentProyectoId || currentProyectoId === created.proyecto_id) {
+         const matchesFilter =
+            !currentProyectoId ||
+            (currentProyectoId === SIN_PROYECTO
+               ? created.proyecto_id === null
+               : currentProyectoId === created.proyecto_id);
+         if (matchesFilter) {
             set((state) => ({ tareas: [created, ...state.tareas] }));
          }
          return created;

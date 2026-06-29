@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, LayoutGrid, List, CheckSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTareaStore } from "@/stores/useTareaStore";
+import { SIN_PROYECTO } from "@/dtos/tarea.dto";
 import { TareaKanban } from "./components/tarea-kanban";
 import { TareaTable } from "./components/tarea-table";
 import { TareaForm } from "./components/tarea-form";
@@ -37,10 +38,15 @@ export default function TareasPage() {
    }, [GetProyectos]);
 
    useEffect(() => {
+      // El filtro pasa tal cual: TODOS → sin filtro; SIN_PROYECTO → solo tareas sueltas;
+      // un id → ese proyecto.
       GetTareas(proyectoFiltro === TODOS ? undefined : proyectoFiltro);
    }, [proyectoFiltro, GetTareas]);
 
-   const proyectoIdActivo = proyectoFiltro === TODOS ? undefined : proyectoFiltro;
+   // Id de proyecto real para preseleccionar en el formulario de creación.
+   // "Todos" y "Sin proyecto" no preseleccionan ningún proyecto.
+   const proyectoIdActivo =
+      proyectoFiltro === TODOS || proyectoFiltro === SIN_PROYECTO ? undefined : proyectoFiltro;
 
    return (
       <div className="flex flex-col gap-6 p-6">
@@ -71,6 +77,7 @@ export default function TareasPage() {
                </SelectTrigger>
                <SelectContent>
                   <SelectItem value={TODOS}>Todos los proyectos</SelectItem>
+                  <SelectItem value={SIN_PROYECTO}>Sin proyecto</SelectItem>
                   {proyectos.map((p) => (
                      <SelectItem key={p.id} value={p.id}>
                         {p.nombre}

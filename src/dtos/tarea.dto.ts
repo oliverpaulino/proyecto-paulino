@@ -7,6 +7,9 @@ export const ESTADOS_TAREA = ["PENDIENTE", "EN_PROGRESO", "COMPLETADA"] as const
 
 export type EstadoTarea = (typeof ESTADOS_TAREA)[number];
 
+/** Valor del <Select> que representa "Sin proyecto" (proyecto_id = null). */
+export const SIN_PROYECTO = "__none__";
+
 /** Display labels for each estado (Spanish, used in Kanban columns / table). */
 export const ESTADO_TAREA_LABEL: Record<EstadoTarea, string> = {
    PENDIENTE: "Pendiente",
@@ -16,7 +19,7 @@ export const ESTADO_TAREA_LABEL: Record<EstadoTarea, string> = {
 
 const TareaDTO = z.object({
    id: z.string(),
-   proyecto_id: z.string(),
+   proyecto_id: z.string().nullable(),
    nombre: z.string(),
    descripcion: z.string().nullable(),
    estado: z.enum(ESTADOS_TAREA),
@@ -27,7 +30,7 @@ const TareaDTO = z.object({
 });
 
 const CreateTareaDTO = z.object({
-   proyecto_id: z.string().min(1),
+   proyecto_id: z.string().nullable().optional(),
    nombre: z.string().min(1),
    descripcion: z.string().nullable().optional(),
    estado: z.enum(ESTADOS_TAREA).optional(),

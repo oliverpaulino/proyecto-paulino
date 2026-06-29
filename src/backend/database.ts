@@ -203,7 +203,7 @@ export interface DB {
 
    tarea: {
       id: Generated<string>;
-      proyecto_id: string;
+      proyecto_id: string | null;
       nombre: string;
       descripcion: string | null;
       estado: Generated<string>; // estado_tarea enum, cast at runtime

@@ -1,8 +1,11 @@
 export type EstadoTarea = "PENDIENTE" | "EN_PROGRESO" | "COMPLETADA";
 
+/** Sentinel para filtrar tareas SIN proyecto en findAll/getAll. */
+export const SIN_PROYECTO = "__none__";
+
 export interface TareaProps {
    id: string;
-   proyecto_id: string;
+   proyecto_id: string | null;
    nombre: string;
    descripcion: string | null;
    estado: EstadoTarea;
@@ -35,7 +38,8 @@ export class Tarea {
 }
 
 export interface CreateTareaDTO {
-   proyecto_id: string;
+   /** Opcional: una tarea puede crearse "suelta", sin proyecto. */
+   proyecto_id?: string | null;
    nombre: string;
    descripcion?: string | null;
    estado?: EstadoTarea;
@@ -44,6 +48,8 @@ export interface CreateTareaDTO {
 }
 
 export interface UpdateTareaDTO {
+   /** Permite reasignar la tarea a otro proyecto, o dejarla sin proyecto (null). */
+   proyecto_id?: string | null;
    nombre?: string;
    descripcion?: string | null;
    estado?: EstadoTarea;

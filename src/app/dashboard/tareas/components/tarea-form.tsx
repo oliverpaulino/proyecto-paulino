@@ -12,7 +12,7 @@ import {
    SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ESTADOS_TAREA, ESTADO_TAREA_LABEL } from "@/dtos/tarea.dto";
+import { ESTADOS_TAREA, ESTADO_TAREA_LABEL, SIN_PROYECTO } from "@/dtos/tarea.dto";
 import type { Tarea, EstadoTarea, TareaForm as TareaFormData } from "@/dtos/tarea.dto";
 import { useTareaStore } from "@/stores/useTareaStore";
 import { cn } from "@/lib/utils";
@@ -28,7 +28,7 @@ function toDateInput(value: Date | string | null | undefined): string {
 interface TareaFormProps {
    /** When editing, the existing tarea. When creating, omit. */
    tarea?: Tarea;
-   /** Preselected proyecto (locks the project picker on create). */
+   /** Preselected proyecto (used as the default on create). */
    proyectoId?: string;
    /** Default estado for new tareas (e.g. the column the user clicked "+"). */
    defaultEstado?: EstadoTarea;
@@ -44,14 +44,16 @@ export function TareaForm({ tarea, proyectoId, defaultEstado, onClose }: TareaFo
    const [estado, setEstado] = useState<EstadoTarea>(
       tarea?.estado ?? defaultEstado ?? "PENDIENTE",
    );
+   // El <Select> usa SIN_PROYECTO como sentinel de "sin proyecto" (radix no permite value="").
    const [selectedProyecto, setSelectedProyecto] = useState(
-      tarea?.proyecto_id ?? proyectoId ?? "",
+      tarea?.proyecto_id ?? proyectoId ?? SIN_PROYECTO,
    );
    const [fechaInicio, setFechaInicio] = useState(toDateInput(tarea?.fecha_inicio));
    const [fechaFin, setFechaFin] = useState(toDateInput(tarea?.fecha_fin));
    const [saving, setSaving] = useState(false);
 
-   const showProyectoPicker = !isEdit && !proyectoId;
+   /** Convierte el valor del <Select> a proyecto_id (string | null) para la API. */
+   const proyectoIdValue = selectedProyecto === SIN_PROYECTO ? null : selectedProyecto;
 
    async function handleSubmit(e: React.FormEvent) {
       e.preventDefault();
@@ -59,10 +61,7 @@ export function TareaForm({ tarea, proyectoId, defaultEstado, onClose }: TareaFo
          toast.error("El nombre de la tarea es requerido");
          return;
       }
-      if (!isEdit && !selectedProyecto) {
-         toast.error("Selecciona un proyecto");
-         return;
-      }
+      // proyecto_id es opcional: se permite crear tareas sin proyecto.
       if (fechaInicio && fechaFin && fechaInicio > fechaFin) {
          toast.error("La fecha de inicio no puede ser posterior a la fecha de fin");
          return;
@@ -72,6 +71,7 @@ export function TareaForm({ tarea, proyectoId, defaultEstado, onClose }: TareaFo
       try {
          if (isEdit && tarea) {
             const result = await UpdateTarea(tarea.id, {
+               proyecto_id: proyectoIdValue,
                nombre: nombre.trim(),
                descripcion: descripcion.trim() || null,
                estado,
@@ -85,7 +85,7 @@ export function TareaForm({ tarea, proyectoId, defaultEstado, onClose }: TareaFo
             toast.success("Tarea actualizada");
          } else {
             const payload: TareaFormData = {
-               proyecto_id: selectedProyecto,
+               proyecto_id: proyectoIdValue,
                nombre: nombre.trim(),
                descripcion: descripcion.trim() || null,
                estado,
@@ -118,23 +118,22 @@ export function TareaForm({ tarea, proyectoId, defaultEstado, onClose }: TareaFo
             />
          </div>
 
-         {showProyectoPicker && (
-            <div className="flex flex-col gap-2">
-               <Label>Proyecto *</Label>
-               <Select value={selectedProyecto} onValueChange={setSelectedProyecto}>
-                  <SelectTrigger>
-                     <SelectValue placeholder="Selecciona un proyecto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                     {proyectos.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                           {p.nombre}
-                        </SelectItem>
-                     ))}
-                  </SelectContent>
-               </Select>
-            </div>
-         )}
+         <div className="flex flex-col gap-2">
+            <Label>Proyecto</Label>
+            <Select value={selectedProyecto} onValueChange={setSelectedProyecto}>
+               <SelectTrigger>
+                  <SelectValue placeholder="Sin proyecto" />
+               </SelectTrigger>
+               <SelectContent>
+                  <SelectItem value={SIN_PROYECTO}>Sin proyecto</SelectItem>
+                  {proyectos.map((p) => (
+                     <SelectItem key={p.id} value={p.id}>
+                        {p.nombre}
+                     </SelectItem>
+                  ))}
+               </SelectContent>
+            </Select>
+         </div>
 
          <div className="flex flex-col gap-2">
             <Label htmlFor="tarea-descripcion">Descripción</Label>

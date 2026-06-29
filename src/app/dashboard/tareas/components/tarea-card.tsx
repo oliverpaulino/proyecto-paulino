@@ -91,9 +91,13 @@ export function TareaCard({ tarea }: { tarea: Tarea }) {
                            </p>
                         )}
                         <div className="mt-2 flex flex-wrap items-center gap-2">
-                           {proyectoNombre && (
+                           {proyectoNombre ? (
                               <span className="inline-flex items-center rounded bg-brand-yellow/25 px-1.5 py-0.5 text-[10px] font-medium text-brand-black dark:text-brand-yellow">
                                  {proyectoNombre}
+                              </span>
+                           ) : (
+                              <span className="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium italic text-muted-foreground">
+                                 Sin proyecto
                               </span>
                            )}
                            {tarea.fecha_fin && (

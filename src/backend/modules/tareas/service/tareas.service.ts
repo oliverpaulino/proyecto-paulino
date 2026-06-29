@@ -32,7 +32,7 @@ export class TareaService {
    }
 
    async create(data: CreateTareaDTO): Promise<TareaProps> {
-      if (!data.proyecto_id?.trim()) throw new Error("El proyecto es requerido");
+      // proyecto_id es opcional: una tarea puede crearse sin proyecto.
       if (!data.nombre?.trim()) throw new Error("El nombre de la tarea es requerido");
       if (data.estado && !ESTADOS_VALIDOS.includes(data.estado)) {
          throw new Error("Estado de tarea inválido");

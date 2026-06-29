@@ -39,8 +39,8 @@ export function TareaTable({ tareas }: { tareas: Tarea[] }) {
       );
    }
 
-   const proyectoNombre = (id: string) =>
-      proyectos.find((p) => p.id === id)?.nombre ?? "—";
+   const proyectoNombre = (id: string | null) =>
+      id ? proyectos.find((p) => p.id === id)?.nombre ?? "—" : "Sin proyecto";
 
    async function handleDelete(tarea: Tarea) {
       const result = await DeleteTarea(tarea.id);
@@ -121,7 +121,12 @@ export function TareaTable({ tareas }: { tareas: Tarea[] }) {
                                        )}
                                     </button>
                                  </td>
-                                 <td className="px-4 py-3 text-xs text-muted-foreground">
+                                 <td
+                                    className={cn(
+                                       "px-4 py-3 text-xs text-muted-foreground",
+                                       !tarea.proyecto_id && "italic",
+                                    )}
+                                 >
                                     {proyectoNombre(tarea.proyecto_id)}
                                  </td>
                                  <td className="px-4 py-3">

@@ -6,6 +6,7 @@ import {
    Tarea,
    EstadoTarea,
    ProyectoOption,
+   SIN_PROYECTO,
 } from "../domain/tareas.domain";
 import { DB } from "@/backend/database";
 
@@ -20,7 +21,7 @@ export class KyselyTareaRepository implements ITareaRepository {
 
    private toEntity(row: {
       id: string;
-      proyecto_id: string;
+      proyecto_id: string | null;
       nombre: string;
       descripcion: string | null;
       estado: string;
@@ -42,7 +43,10 @@ export class KyselyTareaRepository implements ITareaRepository {
    async findAll(proyectoId?: string): Promise<Tarea[]> {
       let query = this.db.selectFrom("tarea").selectAll();
 
-      if (proyectoId) {
+      if (proyectoId === SIN_PROYECTO) {
+         // Solo tareas sueltas (sin proyecto asignado).
+         query = query.where("proyecto_id", "is", null);
+      } else if (proyectoId) {
          query = query.where("proyecto_id", "=", proyectoId);
       }
 
@@ -65,7 +69,7 @@ export class KyselyTareaRepository implements ITareaRepository {
       const row = await this.db
          .insertInto("tarea")
          .values({
-            proyecto_id: data.proyecto_id,
+            proyecto_id: data.proyecto_id ?? null,
             nombre: data.nombre,
             descripcion: data.descripcion ?? null,
             estado: data.estado ?? "PENDIENTE",
@@ -80,6 +84,7 @@ export class KyselyTareaRepository implements ITareaRepository {
 
    async update(id: string, data: UpdateTareaDTO): Promise<Tarea | null> {
       const patch: Record<string, unknown> = { updated_at: new Date() };
+      if (data.proyecto_id !== undefined) patch.proyecto_id = data.proyecto_id;
       if (data.nombre !== undefined) patch.nombre = data.nombre;
       if (data.descripcion !== undefined) patch.descripcion = data.descripcion;
       if (data.estado !== undefined) patch.estado = data.estado;
