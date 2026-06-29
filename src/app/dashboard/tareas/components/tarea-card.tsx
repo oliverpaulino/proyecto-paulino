@@ -44,7 +44,10 @@ export function TareaCard({ tarea }: { tarea: Tarea }) {
    const config = ESTADO_CONFIG[tarea.estado];
    const proyectoNombre = proyectos.find((p) => p.id === tarea.proyecto_id)?.nombre;
    const isOverdue =
-      tarea.fecha_fin && isPast(new Date(tarea.fecha_fin)) && tarea.estado !== "COMPLETADA";
+      tarea.fecha_fin &&
+      isPast(new Date(tarea.fecha_fin)) &&
+      tarea.estado !== "COMPLETADA" &&
+      tarea.estado !== "CANCELADA";
 
    async function handleDelete() {
       const result = await DeleteTarea(tarea.id);
