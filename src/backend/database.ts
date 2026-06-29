@@ -99,10 +99,19 @@ export interface DB {
       updated_at: Generated<Date>;
    };
 
+   categoria_equipo: {
+      id: Generated<string>;
+      nombre: string;
+      cobra_en: string;
+      cobra_minimo: number | null;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+
    equipo: {
       id: Generated<string>;
       nombre: string;
-      tipo: string;
+      categoria_id: string;
       estado: Generated<string>;
       costo_por_hora: Generated<number>;
       placa: string | null;
@@ -212,6 +221,36 @@ export interface DB {
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
+   notifications: {
+      id: Generated<string>;
+      user_id: string;
+      title: string;
+      message: string;
+      type: string;
+      reference_id: string | null;
+      reference_type: string | null;
+      is_read: Generated<boolean>;
+      created_at: Generated<Date>;
+      read_at: Date | null;
+   };
+
+   user_employee_link: {
+      id: Generated<string>;
+      user_id: string;
+      empleado_id: string;
+      created_at: Generated<Date>;
+   };
+   cita: {
+      id: Generated<string>;
+      cliente_id: string;
+      user_id: string | null;
+      fecha: Date;
+      motivo: string | null;
+      estado: string;
+      notas: string | null;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   }
 }
 
 const db = new Kysely<DB>({

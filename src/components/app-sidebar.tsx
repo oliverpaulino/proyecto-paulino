@@ -21,6 +21,7 @@ import {
   CreditCard,
   Banknote,
   User2,
+  Bell,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -34,6 +35,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { useSession } from "@/lib/auth-client"
+import { useNotificationStore } from "@/stores/useNotificationStore"
 
 const ROLE_HIERARCHY: Record<string, number> = {
   usuario: 1,
@@ -48,6 +50,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const role = (session?.user as { role?: string } | undefined)?.role
   const roleLevel = ROLE_HIERARCHY[role ?? ""] ?? 0
   const isAdmin = roleLevel >= ROLE_HIERARCHY["administrador"]
+  const unreadCount = useNotificationStore((s) => s.unreadCount)
 
   const contactos = [
     {
@@ -80,6 +83,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       url: "/dashboard",
       icon: SquareTerminal,
       isActive: true,
+      items: [],
+    },
+    {
+      id: "notificaciones",
+      title: "Notificaciones",
+      url: "/dashboard/notificaciones",
+      icon: Bell,
+      badge: unreadCount > 0 ? (unreadCount > 9 ? "+9" : String(unreadCount)) : undefined,
       items: [],
     },
     {

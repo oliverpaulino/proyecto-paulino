@@ -2,7 +2,7 @@
 
 import { Pencil, Trash2 } from "lucide-react";
 import type { Equipo } from "@/dtos/equipo.dto";
-import { ESTADO_BADGE, ESTADO_LABEL, TIPO_LABEL } from "./equipo-labels";
+import { ESTADO_BADGE, ESTADO_LABEL } from "./equipo-labels";
 
 interface EquipoTableProps {
    equipos: Equipo[];
@@ -26,9 +26,10 @@ export function EquipoTable({ equipos, onEdit, onDelete }: EquipoTableProps) {
             <thead>
                <tr className="bg-brand-blue">
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Equipo</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Tipo</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Categoría</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Cobra en</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Estado</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-blue-200">Costo/hora</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-blue-200">Costo/unidad</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Placa</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Modelo</th>
                   <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-blue-200">Año</th>
@@ -49,8 +50,14 @@ export function EquipoTable({ equipos, onEdit, onDelete }: EquipoTableProps) {
                      </td>
                      <td className="px-4 py-3">
                         <span className="inline-flex items-center rounded-full border border-brand-blue/30 bg-brand-blue/10 px-2.5 py-0.5 text-xs font-semibold text-brand-blue dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                           {TIPO_LABEL[equipo.tipo]}
+                           {equipo.categoria_nombre}
                         </span>
+                     </td>
+                     <td className="px-4 py-3 text-xs text-muted-foreground">
+                        <span>{equipo.cobra_en}</span>
+                        {equipo.cobra_minimo != null && (
+                           <span className="ml-1 text-muted-foreground/60">(mín. {equipo.cobra_minimo})</span>
+                        )}
                      </td>
                      <td className="px-4 py-3">
                         <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${ESTADO_BADGE[equipo.estado]}`}>

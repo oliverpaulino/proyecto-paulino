@@ -36,6 +36,7 @@ export type NavItem = {
   disabled?: boolean;
   disabledMessage?: string;
   shortcut?: string[];
+  badge?: string;
 };
 
 const STORAGE_KEY = "sidebar:open-folders";
@@ -274,6 +275,12 @@ export function NavMain({ items }: { items: NavItem[] }) {
           >
             {item.icon && <item.icon />}
             <span>{item.title}</span>
+
+            {item.badge && (
+              <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white leading-none">
+                {item.badge}
+              </span>
+            )}
 
             {item.shortcut && (
               <KbdGroup className=" group-hover/item:flex hidden right-2 absolute">
