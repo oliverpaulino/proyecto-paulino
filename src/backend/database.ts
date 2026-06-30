@@ -99,10 +99,27 @@ export interface DB {
       updated_at: Generated<Date>;
    };
 
-   equipo: {
+   servicio: {
       id: Generated<string>;
       nombre: string;
       tipo: string;
+      descripcion: string | null;
+      // numeric(12,2): the pg driver returns this as a string at runtime; the
+      // repository normalizes it to a number. DB has a default of 0 (not generated).
+      precio_base: number;
+   categoria_equipo: {
+      id: Generated<string>;
+      nombre: string;
+      cobra_en: string;
+      cobra_minimo: number | null;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+
+   equipo: {
+      id: Generated<string>;
+      nombre: string;
+      categoria_id: string;
       estado: Generated<string>;
       costo_por_hora: Generated<number>;
       placa: string | null;
@@ -194,10 +211,47 @@ export interface DB {
       updated_at: Generated<Date>;
    };
 
+   // Read-only minimal view of proyecto (the full module lives elsewhere/TBD).
+   // Only the columns the tareas feature needs are typed here.
+   proyecto: {
+      id: Generated<string>;
+      nombre: string;
+   };
+
+   tarea: {
+      id: Generated<string>;
+      proyecto_id: string | null;
+      nombre: string;
+      descripcion: string | null;
+      estado: Generated<string>; // estado_tarea enum, cast at runtime
+      fecha_inicio: Date | null;
+      fecha_fin: Date | null;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+   notifications: {
+      id: Generated<string>;
+      user_id: string;
+      title: string;
+      message: string;
+      type: string;
+      reference_id: string | null;
+      reference_type: string | null;
+      is_read: Generated<boolean>;
+      created_at: Generated<Date>;
+      read_at: Date | null;
+   };
+
+   user_employee_link: {
+      id: Generated<string>;
+      user_id: string;
+      empleado_id: string;
+      created_at: Generated<Date>;
+   };
    cita: {
       id: Generated<string>;
       cliente_id: string;
-      user_id: string | null;
+      employee_id: string | null;
       fecha: Date;
       motivo: string | null;
       estado: string;

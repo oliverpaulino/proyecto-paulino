@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import db from "@/backend/database";
 import { KyselyAppointmentRepository } from "../infraestructure/appointments.infraestructure";
 import { AppointmentService } from "../service/appointments.service";
-import { CreateAppointmentSchema, UpdateAppointmentSchema, ESTADOS_CITA } from "@/dtos/appointments.dto";
+import { CreateAppointmentSchema, UpdateAppointmentSchema, EstadoCita as ESTADOS_CITA } from "@/dtos/appointment.dto";
 import { EstadoCita } from "../domain/appointments.domain";
 
 const appointmentsRoute = new Hono();
@@ -13,20 +13,25 @@ const service = new AppointmentService(repo);
 appointmentsRoute.get("/", async (c) => {
    const start = c.req.query("start");
    const end = c.req.query("end");
-   const state = c.req.query("state");
+   const endWithTime = end? `${end}T23:59:59.999` : undefined;
 
    try {
-      if (start && end) {
-         const appointments = await service.getByRange(new Date(start), new Date(end));
+      if (start && endWithTime) {
+         const appointments = await service.getByRangeUI(new Date(start), new Date(endWithTime));
          return c.json(appointments);
       }
 
-      if (state && ESTADOS_CITA.includes(state as EstadoCita)) {
-         const appointments = await service.getByState(state as EstadoCita);
+      if (start) {
+         const appointments = await service.getByRangeUI(new Date(start), null);
          return c.json(appointments);
       }
 
-      const appointments = await service.getAll();
+      if (endWithTime) {
+         const appointments = await service.getByRangeUI(null, new Date(endWithTime));
+         return c.json(appointments);
+      }
+
+      const appointments = await service.getAllUI();
       return c.json(appointments);
    } catch (err: unknown) {
       return c.json({ error: err instanceof Error ? err.message : "Error al obtener citas" }, 400);
@@ -35,20 +40,20 @@ appointmentsRoute.get("/", async (c) => {
 
 // GET /api/appointments/:id
 appointmentsRoute.get("/:id", async (c) => {
-   const appointment = await service.getById(c.req.param("id"));
+   const appointment = await service.getByIdUI(c.req.param("id"));
    if (!appointment) return c.json({ error: "Cita no encontrada" }, 404);
    return c.json(appointment);
 });
 
 // GET /api/appointments/client/:clientId
 appointmentsRoute.get("/client/:clientId", async (c) => {
-   const appointments = await service.getByClientId(c.req.param("clientId"));
+   const appointments = await service.getByClientIdUI(c.req.param("clientId"));
    return c.json(appointments);
 });
 
-// GET /api/appointments/user/:userId
-appointmentsRoute.get("/user/:userId", async (c) => {
-   const appointments = await service.getByUserId(c.req.param("userId"));
+// GET /api/appointments/employee/:employeeId
+appointmentsRoute.get("/employee/:employeeId", async (c) => {
+   const appointments = await service.getByEmployeeIdUI(c.req.param("employeeId"));
    return c.json(appointments);
 });
 
