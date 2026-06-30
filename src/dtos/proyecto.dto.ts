@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-export const TipoProyectoSchema   = z.enum(["EXPRESS", "NORMAL", "GRANDE"]);
-export const EstadoProyectoSchema = z.enum(["BORRADOR", "COMPLETADO", "CANCELADO"]);
+export const TipoProyectoSchema = z.enum(["EXPRESS", "NORMAL", "GRANDE"]);
+export const EstadoProyectoSchema = z.enum(["BORRADOR", "COMPLETADO", "CANCELADO", "EN PROGRESO"]);
 
 const ProyectoDetalleSchema = z.object({
    id: z.string(),
@@ -114,11 +114,13 @@ export const LiquidacionExpressFacadeSchema = z.object({
    fecha: z.coerce.date(),
 });
 
-export type Proyecto                    = z.infer<typeof ProyectoDTO>;
-export type ProyectoExpressDTO          = Extract<Proyecto, { tipo_proyecto: "EXPRESS" }>;
-export type ProyectoDetalle             = z.infer<typeof ProyectoDetalleSchema>;
-export type CreateProyectoExpressForm   = z.infer<typeof CreateProyectoExpressFormSchema>;
-export type LineItemForm                = z.infer<typeof LineItemFormSchema>;
-export type LiquidacionExpress          = z.infer<typeof LiquidacionExpressFacadeSchema>;
-export type TipoProyecto                = z.infer<typeof TipoProyectoSchema>;
-export type EstadoProyecto              = z.infer<typeof EstadoProyectoSchema>;
+
+
+export type Proyecto = z.infer<typeof ProyectoDTO>;
+export type ProyectoExpressDTO = Extract<Proyecto, { tipo_proyecto: "EXPRESS" }>;
+export type ProyectoDetalle = z.infer<typeof ProyectoDetalleSchema>;
+export type CreateProyectoExpressForm = z.infer<typeof CreateProyectoExpressFormSchema>;
+export type LineItemForm = z.infer<typeof LineItemFormSchema>;
+export type LiquidacionExpress = z.infer<typeof LiquidacionExpressFacadeSchema>;
+export type TipoProyecto = z.infer<typeof TipoProyectoSchema>;
+export type EstadoProyecto = z.infer<typeof EstadoProyectoSchema>;
