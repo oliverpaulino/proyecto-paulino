@@ -107,197 +107,192 @@ export interface DB {
       // numeric(12,2): the pg driver returns this as a string at runtime; the
       // repository normalizes it to a number. DB has a default of 0 (not generated).
       precio_base: number;
-   categoria_equipo: {
-      id: Generated<string>;
-      nombre: string;
-      cobra_en: string;
-      cobra_minimo: number | null;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
+      categoria_equipo: {
+         id: Generated<string>;
+         nombre: string;
+         cobra_en: string;
+         cobra_minimo: number | null;
+         created_at: Generated<Date>;
+         updated_at: Generated<Date>;
+      };
 
-   equipo: {
-      id: Generated<string>;
-      nombre: string;
-      categoria_id: string;
-      estado: Generated<string>;
-      costo_por_hora: Generated<number>;
-      placa: string | null;
-      modelo: string | null;
-      ano: number | null;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
+      equipo: {
+         id: Generated<string>;
+         nombre: string;
+         categoria_id: string;
+         estado: Generated<string>;
+         costo_por_hora: Generated<number>;
+         placa: string | null;
+         modelo: string | null;
+         ano: number | null;
+         created_at: Generated<Date>;
+         updated_at: Generated<Date>;
+      };
 
-   orden_compra: {
-      id: Generated<string>;
-      proveedor_id: string;
-      fecha: Date;
-      estado: Generated<string>;
-      notas: string | null;
-      total: Generated<number>;
-      approved_by: string | null;
-      approved_by_name: string | null;
-      approved_at: Date | null;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-      deleted_by: string | null;
-      deleted_at: Date | null;
-   };
+      orden_compra: {
+         id: Generated<string>;
+         proveedor_id: string;
+         fecha: Date;
+         estado: Generated<string>;
+         notas: string | null;
+         total: Generated<number>;
+         approved_by: string | null;
+         approved_by_name: string | null;
+         approved_at: Date | null;
+         created_at: Generated<Date>;
+         updated_at: Generated<Date>;
+         deleted_by: string | null;
+         deleted_at: Date | null;
+      };
 
-   purchase_order_approvers: {
-      user_id: string;
-      user_name: string;
-      granted_by: string;
-      granted_at: Generated<Date>;
-   };
+      purchase_order_approvers: {
+         user_id: string;
+         user_name: string;
+         granted_by: string;
+         granted_at: Generated<Date>;
+      };
 
-   orden_compra_item: {
-      id: Generated<string>;
-      orden_compra_id: string;
-      descripcion: string;
-      cantidad: number;
-      precio_unitario: number;
-      subtotal: number;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
+      orden_compra_item: {
+         id: Generated<string>;
+         orden_compra_id: string;
+         descripcion: string;
+         cantidad: number;
+         precio_unitario: number;
+         subtotal: number;
+         created_at: Generated<Date>;
+         updated_at: Generated<Date>;
+      };
 
-   payroll_concepts: {
-      id: Generated<string>;
-      organization_id: string | null;
-      code: string;
-      name: string;
-      category: string;
-      sign: number;
-      is_taxable: boolean;
-      is_active: boolean;
-      accounting_rule_id: string | null;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
+      payroll_concepts: {
+         id: Generated<string>;
+         organization_id: string | null;
+         code: string;
+         name: string;
+         category: string;
+         sign: number;
+         is_taxable: boolean;
+         is_active: boolean;
+         accounting_rule_id: string | null;
+         created_at: Generated<Date>;
+         updated_at: Generated<Date>;
+      };
 
-   payroll_concept_rules: {
-      id: Generated<string>;
-      concept_id: string;
-      applies_to: string;
-      target_id: string | null;
-      trigger: string;
-      amount_mode: string;
-      amount_value: number;
-      effective_from: Date;
-      effective_to: Date | null;
-      priority: number;
-      project_location_filter: string | null;
-      is_active: boolean;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
+      payroll_concept_rules: {
+         id: Generated<string>;
+         concept_id: string;
+         applies_to: string;
+         target_id: string | null;
+         trigger: string;
+         amount_mode: string;
+         amount_value: number;
+         effective_from: Date;
+         effective_to: Date | null;
+         priority: number;
+         project_location_filter: string | null;
+         is_active: boolean;
+         created_at: Generated<Date>;
+         updated_at: Generated<Date>;
+      };
 
-   payroll_items: {
-      id: Generated<string>;
-      organization_id: string | null;
-      cycle_id: string | null;
-      employee_id: string;
-      concept_id: string;
-      source: string;
-      source_ref_id: string | null;
-      quantity: number;
-      unit_value: number;
-      amount: number;
-      work_date: Date | null;
-      work_date_end: Date | null;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
+      payroll_items: {
+         id: Generated<string>;
+         organization_id: string | null;
+         cycle_id: string | null;
+         employee_id: string;
+         concept_id: string;
+         source: string;
+         source_ref_id: string | null;
+         quantity: number;
+         unit_value: number;
+         amount: number;
+         work_date: Date | null;
+         work_date_end: Date | null;
+         created_at: Generated<Date>;
+         updated_at: Generated<Date>;
+      };
 
-   // Read-only minimal view of proyecto (the full module lives elsewhere/TBD).
-   // Only the columns the tareas feature needs are typed here.
-   proyecto: {
-      id: Generated<string>;
-      nombre: string;
-   };
 
-   tarea: {
-      id: Generated<string>;
-      proyecto_id: string | null;
-      nombre: string;
-      descripcion: string | null;
-      estado: Generated<string>; // estado_tarea enum, cast at runtime
-      fecha_inicio: Date | null;
-      fecha_fin: Date | null;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
-   notifications: {
-      id: Generated<string>;
-      user_id: string;
-      title: string;
-      message: string;
-      type: string;
-      reference_id: string | null;
-      reference_type: string | null;
-      is_read: Generated<boolean>;
-      created_at: Generated<Date>;
-      read_at: Date | null;
-   };
+      tarea: {
+         id: Generated<string>;
+         proyecto_id: string | null;
+         nombre: string;
+         descripcion: string | null;
+         estado: Generated<string>; // estado_tarea enum, cast at runtime
+         fecha_inicio: Date | null;
+         fecha_fin: Date | null;
+         created_at: Generated<Date>;
+         updated_at: Generated<Date>;
+      };
+      notifications: {
+         id: Generated<string>;
+         user_id: string;
+         title: string;
+         message: string;
+         type: string;
+         reference_id: string | null;
+         reference_type: string | null;
+         is_read: Generated<boolean>;
+         created_at: Generated<Date>;
+         read_at: Date | null;
+      };
 
-   user_employee_link: {
-      id: Generated<string>;
-      user_id: string;
-      empleado_id: string;
-      created_at: Generated<Date>;
-   };
-   cita: {
-      id: Generated<string>;
-      cliente_id: string;
-      employee_id: string | null;
-      fecha: Date;
-      motivo: string | null;
-      estado: string;
-      notas: string | null;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
+      user_employee_link: {
+         id: Generated<string>;
+         user_id: string;
+         empleado_id: string;
+         created_at: Generated<Date>;
+      };
+      cita: {
+         id: Generated<string>;
+         cliente_id: string;
+         employee_id: string | null;
+         fecha: Date;
+         motivo: string | null;
+         estado: string;
+         notas: string | null;
+         created_at: Generated<Date>;
+         updated_at: Generated<Date>;
+      };
 
-   proyecto: {
-      id: Generated<string>;
-      tipo_proyecto: string;           // 'EXPRESS' | 'NORMAL' | 'GRANDE'
-      estado: Generated<string>;       // 'BORRADOR' | 'COMPLETADO' | 'CANCELADO'
-      cliente_id: string;
-      tipo_servicio_id: string | null; // FK se añade cuando exista tipo_servicio
-      tarifa_servicio: number | null;
-      total_cobrable: Generated<number>;
-      total_gasto_interno: Generated<number>;
-      rentabilidad: Generated<number>;
-      notas: string | null;
-      fecha_inicio: Date;
-      fecha_fin: Date | null;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
+      proyecto: {
+         id: Generated<string>;
+         tipo_proyecto: string;           // 'EXPRESS' | 'NORMAL' | 'GRANDE'
+         estado: Generated<string>;       // 'BORRADOR' | 'COMPLETADO' | 'CANCELADO'
+         cliente_id: string;
+         tipo_servicio_id: string | null; // FK se añade cuando exista tipo_servicio
+         tarifa_servicio: number | null;
+         total_cobrable: Generated<number>;
+         total_gasto_interno: Generated<number>;
+         rentabilidad: Generated<number>;
+         notas: string | null;
+         fecha_inicio: Date;
+         fecha_fin: Date | null;
+         created_at: Generated<Date>;
+         updated_at: Generated<Date>;
+      };
 
-   proyecto_detalle: {
-      id: Generated<string>;
-      proyecto_id: string;
-      descripcion: string;
-      cantidad: number;
-      precio_unitario: number;
-      subtotal: number;
-      es_cobrable: boolean;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
+      proyecto_detalle: {
+         id: Generated<string>;
+         proyecto_id: string;
+         descripcion: string;
+         cantidad: number;
+         precio_unitario: number;
+         subtotal: number;
+         es_cobrable: boolean;
+         created_at: Generated<Date>;
+         updated_at: Generated<Date>;
+      };
 
-   proyecto_asignacion: {
-      id: Generated<string>;
-      proyecto_id: string;
-      empleado_id: string;
-      equipo_id: string;
-      horas_trabajadas: number;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
+      proyecto_asignacion: {
+         id: Generated<string>;
+         proyecto_id: string;
+         empleado_id: string;
+         equipo_id: string;
+         horas_trabajadas: number;
+         created_at: Generated<Date>;
+         updated_at: Generated<Date>;
+      };
+   }
 }
 
 const db = new Kysely<DB>({
