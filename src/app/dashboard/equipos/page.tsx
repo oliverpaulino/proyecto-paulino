@@ -10,13 +10,14 @@ import {
    DialogTitle,
    DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Truck } from "lucide-react";
+import { Plus, Tag, Truck } from "lucide-react";
 import { useEquipoStore } from "@/stores/useEquipoStore";
+import { useCategoriaEquipoStore } from "@/stores/useCategoriaEquipoStore";
 import type { Equipo } from "@/dtos/equipo.dto";
 import { EquipoForm, type EquipoFormValues } from "./components/equipo-form";
 import { EquipoTable } from "./components/equipo-table";
 import { DeleteEquipoDialog } from "./components/delete-equipo-dialog";
-import { TIPO_LABEL } from "./components/equipo-labels";
+import { CategoriaEquipoManager } from "./components/categoria-equipo-manager";
 import { TableSearch } from "@/components/table-search";
 
 const STAT_STYLES = {
@@ -48,6 +49,7 @@ const STAT_STYLES = {
 
 export default function EquiposPage() {
    const { Equipos, loading, GetEquipos, CreateEquipo, UpdateEquipo, DeleteEquipo } = useEquipoStore();
+   const { CategoriaEquipos, GetCategoriaEquipos } = useCategoriaEquipoStore();
 
    const [formLoading, setFormLoading] = useState(false);
    const [searchInput, setSearchInput] = useState("");
@@ -55,16 +57,19 @@ export default function EquiposPage() {
    const [createOpen, setCreateOpen] = useState(false);
    const [editTarget, setEditTarget] = useState<Equipo | null>(null);
    const [deleteTarget, setDeleteTarget] = useState<Equipo | null>(null);
+   const [manageOpen, setManageOpen] = useState(false);
 
    useEffect(() => {
       GetEquipos();
-   }, [GetEquipos]);
+      GetCategoriaEquipos();
+   }, [GetEquipos, GetCategoriaEquipos]);
 
    const filtered = Equipos.filter((e) => {
       const q = search.toLowerCase();
       return (
          e.nombre.toLowerCase().includes(q) ||
-         TIPO_LABEL[e.tipo].toLowerCase().includes(q) ||
+         e.categoria_nombre.toLowerCase().includes(q) ||
+         e.cobra_en.toLowerCase().includes(q) ||
          (e.placa ?? "").toLowerCase().includes(q) ||
          (e.modelo ?? "").toLowerCase().includes(q)
       );
@@ -78,7 +83,7 @@ export default function EquiposPage() {
    function toForm(data: EquipoFormValues) {
       return {
          nombre: data.nombre,
-         tipo: data.tipo,
+         categoria_id: data.categoria_id,
          estado: data.estado,
          costo_por_hora: data.costo_por_hora === "" ? 0 : Number(data.costo_por_hora),
          placa: data.placa || null,
@@ -160,6 +165,15 @@ export default function EquiposPage() {
             />
 
             <div className="ml-auto flex gap-2">
+               <Button
+                  variant="outline"
+                  onClick={() => setManageOpen(true)}
+                  className="font-semibold"
+               >
+                  <Tag className="size-4 mr-2" />
+                  Gestionar categorías
+               </Button>
+
                <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                   <DialogTrigger asChild>
                      <Button className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold shadow-md shadow-brand-yellow/30 border-0">
@@ -178,6 +192,7 @@ export default function EquiposPage() {
                         onSubmit={handleCreate}
                         onCancel={() => setCreateOpen(false)}
                         loading={formLoading}
+                        onManageCategorias={() => { setCreateOpen(false); setManageOpen(true); }}
                      />
                   </DialogContent>
                </Dialog>
@@ -217,6 +232,7 @@ export default function EquiposPage() {
                      onCancel={() => setEditTarget(null)}
                      loading={formLoading}
                      submitLabel="Guardar cambios"
+                     onManageCategorias={() => { setEditTarget(null); setManageOpen(true); }}
                   />
                )}
             </DialogContent>
@@ -228,6 +244,8 @@ export default function EquiposPage() {
             onClose={() => setDeleteTarget(null)}
             loading={formLoading}
          />
+
+         <CategoriaEquipoManager open={manageOpen} onOpenChange={setManageOpen} />
       </div>
    );
 }

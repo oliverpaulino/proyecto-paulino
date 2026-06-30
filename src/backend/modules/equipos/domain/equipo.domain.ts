@@ -1,16 +1,3 @@
-export const TIPOS_EQUIPO = [
-   "EXCAVADORA",
-   "RETROEXCAVADORA",
-   "BULLDOZER",
-   "GRUA",
-   "CAMION",
-   "CARGADOR",
-   "COMPACTADORA",
-   "MONTACARGAS",
-   "GENERADOR",
-   "OTRO",
-] as const;
-
 export const ESTADOS_EQUIPO = [
    "ACTIVO",
    "MANTENIMIENTO",
@@ -18,13 +5,15 @@ export const ESTADOS_EQUIPO = [
    "BAJA",
 ] as const;
 
-export type TipoEquipo = (typeof TIPOS_EQUIPO)[number];
 export type EstadoEquipo = (typeof ESTADOS_EQUIPO)[number];
 
 export interface EquipoProps {
    id: string;
    nombre: string;
-   tipo: TipoEquipo;
+   categoria_id: string;
+   categoria_nombre: string;
+   cobra_en: string;
+   cobra_minimo: number | null;
    estado: EstadoEquipo;
    costo_por_hora: number;
    placa: string | null;
@@ -43,7 +32,10 @@ export class Equipo {
 
    get id(): string { return this.props.id; }
    get nombre(): string { return this.props.nombre; }
-   get tipo(): TipoEquipo { return this.props.tipo; }
+   get categoria_id(): string { return this.props.categoria_id; }
+   get categoria_nombre(): string { return this.props.categoria_nombre; }
+   get cobra_en(): string { return this.props.cobra_en; }
+   get cobra_minimo(): number | null { return this.props.cobra_minimo; }
    get estado(): EstadoEquipo { return this.props.estado; }
    get costo_por_hora(): number { return this.props.costo_por_hora; }
    get placa(): string | null { return this.props.placa; }
@@ -59,7 +51,7 @@ export class Equipo {
 
 export interface CreateEquipoDTO {
    nombre: string;
-   tipo: TipoEquipo;
+   categoria_id: string;
    estado?: EstadoEquipo;
    costo_por_hora?: number;
    placa?: string | null;
@@ -69,7 +61,7 @@ export interface CreateEquipoDTO {
 
 export interface UpdateEquipoDTO {
    nombre?: string;
-   tipo?: TipoEquipo;
+   categoria_id?: string;
    estado?: EstadoEquipo;
    costo_por_hora?: number;
    placa?: string | null;
