@@ -204,7 +204,46 @@ export interface DB {
       notas: string | null;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
-   }
+   };
+
+   proyecto: {
+      id: Generated<string>;
+      tipo_proyecto: string;           // 'EXPRESS' | 'NORMAL' | 'GRANDE'
+      estado: Generated<string>;       // 'BORRADOR' | 'COMPLETADO' | 'CANCELADO'
+      cliente_id: string;
+      tipo_servicio_id: string | null; // FK se añade cuando exista tipo_servicio
+      tarifa_servicio: number | null;
+      total_cobrable: Generated<number>;
+      total_gasto_interno: Generated<number>;
+      rentabilidad: Generated<number>;
+      notas: string | null;
+      fecha_inicio: Date;
+      fecha_fin: Date | null;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+
+   proyecto_detalle: {
+      id: Generated<string>;
+      proyecto_id: string;
+      descripcion: string;
+      cantidad: number;
+      precio_unitario: number;
+      subtotal: number;
+      es_cobrable: boolean;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+
+   proyecto_asignacion: {
+      id: Generated<string>;
+      proyecto_id: string;
+      empleado_id: string;
+      equipo_id: string;
+      horas_trabajadas: number;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
 }
 
 const db = new Kysely<DB>({
