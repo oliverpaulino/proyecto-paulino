@@ -251,7 +251,7 @@ export interface DB {
    cita: {
       id: Generated<string>;
       cliente_id: string;
-      user_id: string | null;
+      employee_id: string | null;
       fecha: Date;
       motivo: string | null;
       estado: string;
