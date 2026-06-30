@@ -1,13 +1,23 @@
 import { z } from "zod";
 
-export const ESTADOS_CITA = ["EN_REVISION", "PENDIENTE", "REALIZADA", "CANCELADA"] as const;
+export const EstadoCita = {
+   EN_REVISION: "En revisión", 
+   PENDIENTE: "Pendiente", 
+   REALIZADA: "Realizada",
+   CANCELADA: "Cancelada",
+} as const;
 
-export const EstadoCitaSchema = z.enum(ESTADOS_CITA);
+const EstadoCitaSchema = z.enum(
+  Object.keys(EstadoCita) as [
+    keyof typeof EstadoCita,
+    ...(keyof typeof EstadoCita)[]
+  ]
+);
 
-const AppointmentDTO = z.object({
+export const AppointmentDTO = z.object({
    id: z.uuid(),
    cliente_id: z.uuid(),
-   user_id: z.uuid().nullable(),
+   employee_id: z.uuid().nullable(),
    fecha: z.coerce.date(),
    motivo: z.string().nullable(),
    estado: EstadoCitaSchema,
@@ -18,7 +28,7 @@ const AppointmentDTO = z.object({
 
 const CreateAppointmentBaseDTO = z.object({
    cliente_id: z.uuid("El cliente_id debe ser un UUID válido"),
-   user_id: z.uuid().nullable().optional(),
+   employee_id: z.uuid().nullable().optional(),
    fecha: z.coerce.date(),
    motivo: z.string().nullable().optional(),
    estado: EstadoCitaSchema.default("PENDIENTE"),
@@ -28,11 +38,12 @@ const CreateAppointmentBaseDTO = z.object({
 const validateAppointmentTime = (data: any, ctx: z.RefinementCtx) => {
    if (!data.fecha) return;
    
-   // Validación de ejemplo: no permitir agendar citas en el pasado
-   if (new Date(data.fecha) < new Date()) {
+   const margenDeGracia = new Date(Date.now() - 60 * 60 * 1000);
+
+   if (new Date(data.fecha) < margenDeGracia) {
       ctx.addIssue({
          code: z.ZodIssueCode.custom,
-         message: "No se puede agendar una cita en una fecha pasada",
+         message: "No puedes agendar una cita con más de 1 hora en el pasado",
          path: ["fecha"],
       });
    }
@@ -41,5 +52,13 @@ const validateAppointmentTime = (data: any, ctx: z.RefinementCtx) => {
 export const CreateAppointmentSchema = CreateAppointmentBaseDTO.superRefine(validateAppointmentTime);
 export const UpdateAppointmentSchema = CreateAppointmentBaseDTO.partial();
 
-export type AppointmentForm = z.infer<typeof CreateAppointmentSchema>;
+export type EstadoCita = z.infer<typeof EstadoCitaSchema>;
+export type Appointment = z.infer<typeof AppointmentDTO>;
+
+export interface AppointmentUI extends Appointment {
+   cliente_nombre: string;
+   employee_nombre: string | null;
+}
+
+export type CreateAppointmentForm = z.infer<typeof CreateAppointmentSchema>;
 export type UpdateAppointmentForm = z.infer<typeof UpdateAppointmentSchema>;
