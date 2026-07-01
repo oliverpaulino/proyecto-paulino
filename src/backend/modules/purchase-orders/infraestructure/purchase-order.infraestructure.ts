@@ -7,8 +7,17 @@ import {
    IPurchaseOrderRepository,
    PurchaseOrder,
    PurchaseOrderItemProps,
+   PurchaseOrderProps,
    UpdatePurchaseOrderDTO,
 } from "../domain/purchase-order.domain";
+
+function buildCodigoReferencia(referencia: string, fecha: Date): string {
+   const yy = String(fecha.getFullYear()).slice(-2);
+   const mm = String(fecha.getMonth() + 1).padStart(2, "0");
+   const dd = String(fecha.getDate()).padStart(2, "0");
+   const ref = String(referencia).padStart(3, "0");
+   return `OC-${yy}${mm}${dd}-${ref}`;
+}
 
 export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
    constructor(private readonly db: Kysely<DB>) { }
@@ -19,6 +28,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
          .leftJoin("proveedor", "proveedor.id", "orden_compra.proveedor_id")
          .select([
             "orden_compra.id",
+            "orden_compra.referencia",
             "orden_compra.proveedor_id",
             "proveedor.nombre as proveedor_nombre",
             "orden_compra.fecha",
@@ -38,6 +48,8 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
       return rows.map((row) =>
          PurchaseOrder.create({
             id: row.id,
+            referencia: row.referencia,
+         codigoReferencia: buildCodigoReferencia(row.referencia, new Date(row.fecha)),
             proveedor_id: row.proveedor_id,
             proveedor_nombre: row.proveedor_nombre ?? undefined,
             fecha: new Date(row.fecha),
@@ -60,6 +72,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
          .leftJoin("proveedor", "proveedor.id", "orden_compra.proveedor_id")
          .select([
             "orden_compra.id",
+            "orden_compra.referencia",
             "orden_compra.proveedor_id",
             "proveedor.nombre as proveedor_nombre",
             "orden_compra.fecha",
@@ -97,6 +110,8 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
 
       return PurchaseOrder.create({
          id: row.id,
+         referencia: row.referencia,
+         codigoReferencia: buildCodigoReferencia(row.referencia, new Date(row.fecha)),
          proveedor_id: row.proveedor_id,
          proveedor_nombre: row.proveedor_nombre ?? undefined,
          fecha: new Date(row.fecha),
@@ -167,6 +182,11 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
 
       return PurchaseOrder.create({
          id: result.header.id,
+         referencia: result.header.referencia,
+         codigoReferencia: buildCodigoReferencia(
+            result.header.referencia,
+            new Date(result.header.fecha)
+         ),
          proveedor_id: result.header.proveedor_id,
          fecha: new Date(result.header.fecha),
          estado: result.header.estado as EstadoOrdenCompra,

@@ -19,6 +19,8 @@ export interface PurchaseOrderItemProps {
 export interface PurchaseOrderProps {
    id: string;
    proveedor_id: string;
+   referencia: string;
+   codigoReferencia: string;
    proveedor_nombre?: string;
    fecha: Date;
    estado: EstadoOrdenCompra;
@@ -59,6 +61,7 @@ export class PurchaseOrder {
    }
 
    get id(): string { return this.props.id; }
+   get referencia(): string { return this.props.referencia }
    get proveedor_id(): string { return this.props.proveedor_id; }
    get proveedor_nombre(): string | undefined { return this.props.proveedor_nombre; }
    get fecha(): Date { return this.props.fecha; }
@@ -71,9 +74,22 @@ export class PurchaseOrder {
    get items(): PurchaseOrderItemProps[] { return this.props.items; }
    get created_at(): Date { return this.props.created_at; }
    get updated_at(): Date { return this.props.updated_at; }
+   get codigoReferencia(): string {
+      const d = this.props.fecha;
+      const yy = String(d.getFullYear()).slice(-2);
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+
+      const ref = String(this.referencia).padStart(3, '0');
+
+      return `OC-${yy}${mm}${dd}-${ref}`;
+   }
 
    toJSON(): PurchaseOrderProps {
-      return { ...this.props };
+      return {
+         ...this.props,
+         codigoReferencia: this.codigoReferencia
+      };
    }
 }
 

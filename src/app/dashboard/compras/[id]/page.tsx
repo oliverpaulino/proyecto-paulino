@@ -229,7 +229,7 @@ export default function PurchaseOrderDetailPage() {
                <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                      <h1 className="text-2xl font-bold text-brand-blue dark:text-white">
-                        Orden {order.id.slice(0, 8)}…
+                        Orden {order.codigoReferencia}…
                      </h1>
                      <span
                         className={`rounded-full px-2.5 py-1 text-xs font-semibold ${ESTADO_BADGE[order.estado] ?? ""}`}
@@ -319,7 +319,7 @@ export default function PurchaseOrderDetailPage() {
             </CardHeader>
             <CardContent>
                <div className="grid gap-4 sm:grid-cols-2">
-                  <InfoField label="ID" value={order.id} />
+                  <InfoField label="ID" value={order.codigoReferencia} />
                   <InfoField
                      label="Proveedor"
                      value={order.proveedor_nombre ?? order.proveedor_id}
