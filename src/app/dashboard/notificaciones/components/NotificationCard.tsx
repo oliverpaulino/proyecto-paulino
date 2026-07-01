@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Check, Delete, ExternalLink, Loader } from "lucide-react";
+import { Check, Delete, ExternalLink, Loader, Trash } from "lucide-react";
 import { useNotificationStore, type Notification } from "@/stores/useNotificationStore";
 import Link from "next/link";
 import { useState } from "react";
@@ -134,9 +134,8 @@ export default function NotificationCard({
                title="Eliminar"
             >
                {
-                  deletingId === n.id ? <Loader className="size-4 animate-spin text-brand-black" /> : <Delete className="size-4 text-brand-red" />
+                  deletingId === n.id ? <Loader className="size-4 animate-spin text-brand-black" /> : <Trash className="size-4 text-brand-red" />
                }
-               {/* <Delete className="size-4 text-brand-red" /> */}
                <span className="sr-only">Eliminar</span>
             </Button>
          </div>

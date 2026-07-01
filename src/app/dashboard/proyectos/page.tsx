@@ -38,19 +38,26 @@ const STAT_STYLES = {
    },
 } as const;
 
+// export const metadata = {
+//    title: "Proyectos",
+//    description: "Gestión de proyectos de construcción",
+// }
+
+
 export default function ProyectosPage() {
+
    const { proyectos, loading, GetProyectos, CreateExpressProyecto } = useProyectoStore();
 
    const [formLoading, setFormLoading] = useState(false);
-   const [createOpen, setCreateOpen]   = useState(false);
+   const [createOpen, setCreateOpen] = useState(false);
 
    useEffect(() => {
       GetProyectos("EXPRESS");
    }, [GetProyectos]);
 
-   const expressList   = proyectos.filter((p) => p.tipo_proyecto === "EXPRESS");
-   const completados   = expressList.filter((p) => p.estado === "COMPLETADO").length;
-   const rentabilidad  = expressList.reduce((s, p) => s + p.rentabilidad, 0);
+   const expressList = proyectos.filter((p) => p.tipo_proyecto === "EXPRESS");
+   const completados = expressList.filter((p) => p.estado === "COMPLETADO").length;
+   const rentabilidad = expressList.reduce((s, p) => s + p.rentabilidad, 0);
 
    async function handleCreateExpress(data: CreateProyectoExpressForm) {
       setFormLoading(true);
@@ -110,8 +117,8 @@ export default function ProyectosPage() {
 
                {/* Stats */}
                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                  <StatCard label="Total Express"   value={expressList.length} accent="blue" />
-                  <StatCard label="Completados"      value={completados}         accent="yellow" />
+                  <StatCard label="Total Express" value={expressList.length} accent="blue" />
+                  <StatCard label="Completados" value={completados} accent="yellow" />
                   <StatCard
                      label="Rentabilidad Total"
                      value={`RD$ ${rentabilidad.toLocaleString("es-DO", { maximumFractionDigits: 0 })}`}

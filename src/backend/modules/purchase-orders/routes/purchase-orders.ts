@@ -203,10 +203,13 @@ purchaseOrdersRoute.delete("/:id", async (c) => {
    try {
       const session = await auth.api.getSession({ headers: c.req.raw.headers });
       if (!session?.user) return c.json({ error: "No autenticado" }, 401);
+
+      const order = await service.getById(c.req.param("id"));
+      if (!order) return c.json({ error: "Orden no encontrada" }, 404);
+
       const deleted = await service.delete(session.user.id, c.req.param("id"));
       if (!deleted) return c.json({ error: "Orden no encontrada" }, 404);
 
-      const order = await service.getById(c.req.param("id"));
       try {
          const approvers = await service.listApprovers();
          if (approvers.length > 0) {
@@ -214,7 +217,7 @@ purchaseOrdersRoute.delete("/:id", async (c) => {
                approvers.map((a) => ({
                   user_id: a.user_id,
                   title: "Orden de compra Ha sido Eliminada",
-                  message: `La orden #${order?.id.slice(0, 8)} ha sido eliminada.`,
+                  message: `La orden #${order?.codigoReferencia} ha sido eliminada.`,
                   type: "PURCHASE_ORDER_DELETED",
                   reference_id: order?.id,
                   reference_type: "purchase_order",

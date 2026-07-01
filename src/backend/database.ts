@@ -145,6 +145,7 @@ export interface DB {
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
       deleted_by: string | null;
+      deleted_reason: string | null;
       deleted_at: Date | null;
    };
 

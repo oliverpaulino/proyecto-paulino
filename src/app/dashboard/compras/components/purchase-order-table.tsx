@@ -128,13 +128,6 @@ export function PurchaseOrderTable({
                            >
                               <Pencil className="size-4" />
                            </button>
-                           <button
-                              onClick={() => onDelete(order)}
-                              className="rounded-md p-1.5 text-brand-red hover:bg-brand-red/10 transition-colors"
-                              title="Eliminar"
-                           >
-                              <Trash2 className="size-4" />
-                           </button>
 
                            <DropdownMenu modal={false}>
                               <DropdownMenuTrigger asChild>

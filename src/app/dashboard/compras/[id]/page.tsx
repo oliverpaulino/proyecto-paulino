@@ -288,13 +288,16 @@ export default function PurchaseOrderDetailPage() {
                   <Pencil className="mr-2 size-4" />
                   Editar
                </Button>
-               <Button
-                  variant="destructive"
-                  onClick={() => setDeleteOpen(true)}
-               >
-                  <Trash2 className="mr-2 size-4" />
-                  Eliminar
-               </Button>
+               {order.estado === "BORRADOR" &&
+                  <Button
+                     variant="destructive"
+                     onClick={() => setDeleteOpen(true)}
+                  >
+                     <Trash2 className="mr-2 size-4" />
+                     Eliminar
+                  </Button>
+               }
+
             </div>
          </div>
 

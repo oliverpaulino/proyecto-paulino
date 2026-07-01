@@ -40,6 +40,9 @@ const PurchaseOrderDTO = z.object({
    approved_at: z.coerce.date().nullable().optional(),
    items: z.array(PurchaseOrderItemSchema),
    created_at: z.coerce.date(),
+   deleted_by: z.string().nullable().optional(),
+   deleted_reason: z.string().nullable().optional(),
+   deleted_at: z.coerce.date().nullable().optional(),
    updated_at: z.coerce.date(),
 });
 

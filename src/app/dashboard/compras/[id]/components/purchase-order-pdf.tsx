@@ -235,7 +235,7 @@ function PurchaseOrderDocument({ order }: { order: PurchaseOrder }) {
                </View>
                <View style={s.headerRight}>
                   <Text style={s.docTitle}>ORDEN DE COMPRA</Text>
-                  <Text style={s.docId}>#{order.id.slice(0, 8).toUpperCase()}</Text>
+                  <Text style={s.docId}>#{order.codigoReferencia}</Text>
                </View>
             </View>
 
@@ -346,7 +346,7 @@ export async function generatePurchaseOrderPDF(order: PurchaseOrder): Promise<vo
    const url = URL.createObjectURL(blob);
    const a = document.createElement("a");
    a.href = url;
-   a.download = `orden-compra-${order.id.slice(0, 8)}.pdf`;
+   a.download = `orden-compra-${order.codigoReferencia}.pdf`;
    a.click();
    URL.revokeObjectURL(url);
 }
