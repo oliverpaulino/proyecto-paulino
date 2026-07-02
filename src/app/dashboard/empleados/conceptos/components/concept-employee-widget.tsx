@@ -29,8 +29,8 @@ export function EmployeeConceptsWidget({ employeeId }: { employeeId: string }) {
             setError(null);
             
             const res = await fetch(`/api/payroll/items/history/${employeeId}`);
-            if (!res.ok) {
-               throw new Error("Error al cargar el historial de conceptos");
+            if (res.status === 404) {
+               throw new Error("No hay conceptos aplicados");
             }
             
             const data = await res.json();

@@ -288,10 +288,10 @@ export function AppointmentForm({
          <div className="flex flex-col gap-1.5">
             <Label htmlFor="af-motivo">Motivo de la cita *</Label>
             <textarea
-               id="af-notas"
+               id="af-motivo"
                rows={3}
                value={values.motivo as any}
-               onChange={(e) => set("notas", e.target.value)}
+               onChange={(e) => set("motivo", e.target.value)}
                placeholder="Ej: Revisión técnica, consulta inicial..."
                required
                className="flex min-h-[80px] w-full rounded-md border border-input bg-input/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
