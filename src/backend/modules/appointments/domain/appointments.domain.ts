@@ -2,7 +2,7 @@ export type EstadoCita = "EN_REVISION" | "PENDIENTE" | "REALIZADA" | "CANCELADA"
 
 export interface AppointmentProps {
     id: string;
-    cliente_id: string;
+    cliente_id: string | null;
     employee_id: string | null;
     fecha: Date;
     motivo: string | null;
@@ -35,7 +35,7 @@ export class Appointment {
 }
 
 export interface CreateAppointmentDTO {
-    cliente_id: string;
+    cliente_id?: string | null;
     employee_id?: string | null;
     fecha: Date;
     motivo?: string | null;
@@ -46,7 +46,7 @@ export interface CreateAppointmentDTO {
 export type UpdateAppointmentDTO = Partial<CreateAppointmentDTO>;
 
 export interface AppointmentUIProps extends AppointmentProps {
-    cliente_nombre: string;
+    cliente_nombre: string | null;
     employee_nombre: string | null;
 }
 

@@ -171,6 +171,7 @@ export function AppointmentForm({
       try {
          const payloadPurificado = {
             ...values,
+            cliente_id: values.cliente_id?.trim() === "" ? null : values.cliente_id,
             employee_id: values.employee_id?.trim() === "" ? null : values.employee_id,
             motivo: values.motivo?.trim() === "" ? null : values.motivo,
             notas: values.notas?.trim() === "" ? null : values.notas,
@@ -188,14 +189,13 @@ export function AppointmentForm({
          {/* --- SECCIÓN CLIENTE --- */}
          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-               <Label htmlFor="af-cliente-id">ID del Cliente *</Label>
+               <Label htmlFor="af-cliente-id">ID del Cliente</Label>
                <div className="relative">
                   <Input
                      id="af-cliente-id"
-                     value={values.cliente_id}
+                     value={values.cliente_id as any}
                      onChange={handleClienteIdChange}
                      placeholder="Ej: CLI-001"
-                     required
                      className={loadingClient ? "pr-10" : ""}
                   />
                   {loadingClient && (

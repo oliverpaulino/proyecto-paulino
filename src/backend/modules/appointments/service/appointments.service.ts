@@ -79,7 +79,6 @@ export class AppointmentService {
    }
 
    async create(data: CreateAppointmentDTO): Promise<AppointmentProps> {
-      if (!data.cliente_id) throw new Error("El cliente es requerido");
       if (!data.fecha) throw new Error("La fecha es requerida");
 
       const appointment = await this.repo.create(data);
