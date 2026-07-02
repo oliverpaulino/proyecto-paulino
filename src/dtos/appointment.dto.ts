@@ -16,7 +16,7 @@ const EstadoCitaSchema = z.enum(
 
 export const AppointmentDTO = z.object({
    id: z.uuid(),
-   cliente_id: z.uuid(),
+   cliente_id: z.uuid().nullable(),
    employee_id: z.uuid().nullable(),
    fecha: z.coerce.date(),
    motivo: z.string().nullable(),
@@ -27,7 +27,7 @@ export const AppointmentDTO = z.object({
 });
 
 const CreateAppointmentBaseDTO = z.object({
-   cliente_id: z.uuid("El cliente_id debe ser un UUID válido"),
+   cliente_id: z.uuid().nullable().optional(),
    employee_id: z.uuid().nullable().optional(),
    fecha: z.coerce.date(),
    motivo: z.string().nullable().optional(),
@@ -56,7 +56,7 @@ export type EstadoCita = z.infer<typeof EstadoCitaSchema>;
 export type Appointment = z.infer<typeof AppointmentDTO>;
 
 export interface AppointmentUI extends Appointment {
-   cliente_nombre: string;
+   cliente_nombre: string | null;
    employee_nombre: string | null;
 }
 

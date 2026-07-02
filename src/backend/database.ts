@@ -250,9 +250,10 @@ export interface DB {
       empleado_id: string;
       created_at: Generated<Date>;
    };
+   
    cita: {
       id: Generated<string>;
-      cliente_id: string;
+      cliente_id: string | null;
       employee_id: string | null;
       fecha: Date;
       motivo: string | null;
