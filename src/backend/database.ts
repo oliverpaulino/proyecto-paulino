@@ -107,7 +107,9 @@ export interface DB {
       // numeric(12,2): the pg driver returns this as a string at runtime; the
       // repository normalizes it to a number. DB has a default of 0 (not generated).
       precio_base: number;
-   categoria_equipo: {
+   };
+   
+      categoria_equipo: {
       id: Generated<string>;
       nombre: string;
       cobra_en: string;
