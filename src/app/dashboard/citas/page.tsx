@@ -1,17 +1,17 @@
-// "use client";
+"use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "lucide-react";
 import { AppointmentsGeneralView } from "./components/appointment-general-view";
 import { AppointmentsKanbanView } from "./components/appointments-kanban-view";
 import { Metadata } from "next";
-
-export const metadata: Metadata = {
-   title: "Citas",
-   description: "Administra y organiza el flujo de citas de tus clientes",
-}
+import { useEffect } from "react";
 
 export default function CitasPageWrapper() {
+
+   useEffect(() => {
+      document.title = "Citas"
+   }, [])
    return (
       <div className="flex flex-col gap-6 p-6">
          <div>

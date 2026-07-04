@@ -1,3 +1,4 @@
+"use client"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -11,14 +12,15 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { Metadata } from "next"
+import { useEffect } from "react"
 
 
-export const metadata: Metadata = {
-  title: "Tablero Principal",
-  description: "Dashboard page",
-}
 
 export default function Page() {
+
+  useEffect(() => {
+    document.title = "Panel Principal"
+  }, [])
 
   return (
     <>

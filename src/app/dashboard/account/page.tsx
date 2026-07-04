@@ -1,4 +1,4 @@
-
+"use client"
 import { useSession } from "@/lib/auth-client";
 import {
   SidebarTrigger,
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import MyAccount from "./components/myAccount";
 import type { Metadata } from "next";
+import { useEffect } from "react";
 
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {
   administrador: { label: "Administrador", color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
@@ -23,13 +24,11 @@ const ROLE_LABELS: Record<string, { label: string; color: string }> = {
   usuario: { label: "Usuario", color: "bg-muted text-muted-foreground border-border" },
 };
 
-export const metadata: Metadata = {
-  title: "Mi cuenta",
-  description: "Gestiona tu cuenta y preferencias",
-}
-
 export default function AccountPage() {
 
+  useEffect(() => {
+    document.title = "Mi Cuenta"
+  }, [])
   return (
     <>
       <MyAccount />

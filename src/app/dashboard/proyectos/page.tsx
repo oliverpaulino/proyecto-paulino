@@ -38,11 +38,6 @@ const STAT_STYLES = {
    },
 } as const;
 
-// export const metadata = {
-//    title: "Proyectos",
-//    description: "Gestión de proyectos de construcción",
-// }
-
 
 export default function ProyectosPage() {
 
@@ -53,6 +48,7 @@ export default function ProyectosPage() {
 
    useEffect(() => {
       GetProyectos("EXPRESS");
+      document.title = "Proyectos"
    }, [GetProyectos]);
 
    const expressList = proyectos.filter((p) => p.tipo_proyecto === "EXPRESS");

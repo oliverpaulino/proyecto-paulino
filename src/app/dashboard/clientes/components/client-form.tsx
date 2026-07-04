@@ -5,12 +5,12 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useDebounce } from "@/hooks/use-debounce"; 
+import { useDebounce } from "@/hooks/use-debounce";
 
-import { 
-   GeneralSchemasDTO, 
-   TipoIdentificacion,  
-} from "@/dtos/schema.dto"; 
+import {
+   GeneralSchemasDTO,
+   TipoIdentificacion,
+} from "@/dtos/schema.dto";
 
 import { TipoCliente } from "@/dtos/client.dto";
 
@@ -35,7 +35,7 @@ interface FormValues {
 }
 
 interface ClientFormProps {
-   initialData?: Partial<any>; 
+   initialData?: Partial<any>;
    onSubmit: (data: FormValues) => Promise<void>;
    onCancel?: () => void;
    loading?: boolean;
@@ -63,10 +63,10 @@ export function ClientForm({
       telefono: initialData?.telefono ?? "",
       direccion: initialData?.direccion ?? "",
    });
-   
+
    const [error, setError] = useState<string | null>(null);
    const [isSearching, setIsSearching] = useState(false);
-   
+
    const [isManualEntryAllowed, setIsManualEntryAllowed] = useState(false);
    const [apiDataFound, setApiDataFound] = useState<{ nombre: boolean; perfil: boolean }>({
       nombre: false,
@@ -83,27 +83,30 @@ export function ClientForm({
    useEffect(() => {
       async function fetchClienteDGII() {
          if (values.tipo_identificacion === "PASAPORTE") {
-             set("tipo_cliente", "FISICA");
-             setIsManualEntryAllowed(true); 
-             return;
+            set("tipo_cliente", "FISICA");
+            setIsManualEntryAllowed(true);
+            return;
          }
-         
+
          if (!isIdLengthValid) {
-             setIsManualEntryAllowed(false);
-             setApiDataFound({ nombre: false, perfil: false });
-             return;
+            setIsManualEntryAllowed(false);
+            setApiDataFound({ nombre: false, perfil: false });
+            return;
          }
 
          setIsSearching(true);
-         setIsManualEntryAllowed(false); 
-         
+         setIsManualEntryAllowed(false);
+
          try {
+
             const url = `/api/dgii/${debouncedIdentificacion.toString()}`;
             const response = await fetch(url);
-            
+            console.log("DGII API response status:", response.status);
+            console.log(response)
+
             if (response.ok) {
                const data = await response.json();
-               
+
                if (data.error === false && data.nombre_razon_social) {
                   let tipoC: keyof typeof TipoCliente = "FISICA";
                   let tipoI: keyof typeof TipoIdentificacion = "CEDULA";
@@ -116,17 +119,17 @@ export function ClientForm({
                   set("nombre", data.nombre_razon_social);
                   set("tipo_cliente", tipoC);
                   set("tipo_identificacion", tipoI);
-                  
-                  setApiDataFound({ 
-                      nombre: true, 
-                      perfil: true 
+
+                  setApiDataFound({
+                     nombre: true,
+                     perfil: true
                   });
-                  
-                  setIsManualEntryAllowed(true); 
-                  setError(null); 
+
+                  setIsManualEntryAllowed(true);
+                  setError(null);
                } else {
-                   setIsManualEntryAllowed(true);
-                   setApiDataFound({ nombre: false, perfil: false });
+                  setIsManualEntryAllowed(true);
+                  setApiDataFound({ nombre: false, perfil: false });
                }
             } else {
                setIsManualEntryAllowed(true);
@@ -206,7 +209,7 @@ export function ClientForm({
 
    async function handleSubmit(e: React.FormEvent) {
       e.preventDefault();
-      
+
       if (!validateForm()) return;
 
       try {
@@ -219,11 +222,11 @@ export function ClientForm({
    const isTipoIdDisabled = isSearching || apiDataFound.perfil;
    const isPerfilDisabled = values.tipo_identificacion === "PASAPORTE" || !isManualEntryAllowed || apiDataFound.perfil;
    const isNombreDisabled = !isManualEntryAllowed || apiDataFound.nombre;
-   const areOtherFieldsDisabled = !isManualEntryAllowed; 
+   const areOtherFieldsDisabled = !isManualEntryAllowed;
 
    return (
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-         
+
          <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
                <Label htmlFor="cf-tipo-id">Tipo de Identificación</Label>
@@ -234,7 +237,7 @@ export function ClientForm({
                      const val = e.target.value as keyof typeof TipoIdentificacion;
                      set("tipo_identificacion", val);
                      if (val === "PASAPORTE") set("tipo_cliente", "FISICA");
-                     
+
                      setIsManualEntryAllowed(false);
                      setApiDataFound({ nombre: false, perfil: false });
                   }}
@@ -274,7 +277,7 @@ export function ClientForm({
                   onChange={handleIdentificacionChange}
                   placeholder={
                      values.tipo_identificacion === "CEDULA" ? "Ej: 40212345678" :
-                     values.tipo_identificacion === "RNC" ? "Ej: 130123456" : "Ej: RD1234567"
+                        values.tipo_identificacion === "RNC" ? "Ej: 130123456" : "Ej: RD1234567"
                   }
                   required
                   className={isSearching ? `pr-10 ${INPUT_DISABLED_CLASS}` : INPUT_DISABLED_CLASS}

@@ -16,6 +16,7 @@ import categoriaEquiposRoute from "./modules/categoria-equipos/routes/categoria-
 import tipoItemsRoute from "./modules/tipo-items/routes/tipo-items";
 import itemsRoute from "./modules/items/routes/items";
 import notificationsRoute from "./modules/notifications/routes/notifications";
+import { dgiiProvider } from "./providers/dgii.provider";
 
 const app = new Hono().basePath("/api");
 
@@ -48,5 +49,22 @@ app.route("/categoria-equipos", categoriaEquiposRoute);
 app.route("/tipo-items", tipoItemsRoute);
 app.route("/items", itemsRoute);
 app.route("/notifications", notificationsRoute);
+
+app.get("/dgii/:rnc", async (c) => {
+   const rnc = c.req.param("rnc");
+
+   try {
+      const { data, status } = await dgiiProvider.consultarRNC(rnc);
+
+      return c.json(data, status as any);
+   } catch (error) {
+      return c.json(
+         {
+            error: true,
+            mensaje: "Error interno al consultar la información en la DGII."
+         }, 500
+      );
+   }
+});
 
 export default app;

@@ -1,3 +1,4 @@
+"use client"
 import { AppSidebar } from "@/components/app-sidebar"
 import {
   Breadcrumb,
@@ -14,14 +15,13 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { Metadata } from "next"
+import { useEffect } from "react"
 
 
-export const metadadata: Metadata = {
-  title: "Contabilidad",
-  description: "Apartado con manejo de contabilidad general"
-}
 export default function Page() {
-
+  useEffect(() => {
+    document.title = "Contabilidad"
+  }, [])
   return (
     <SidebarProvider>
       <AppSidebar />

@@ -14,7 +14,7 @@ type ContactWithMeta = Contact & { id: string; client_id: string };
 type ClientStore = {
    Clients: Client[];
    Contacts: Contact[];
-   selectedClient: ClientDetails | null;
+   selectedClient: Client | null;
    loading: boolean;
    pagination: {
       page: number;
@@ -35,7 +35,7 @@ type ClientStore = {
       search?: string;
       force?: boolean;
    }) => Promise<void>;
-   GetClientDetails: (clientId: string, force?: boolean) => Promise<ClientDetails | null>;
+   getClient: (clientId: string, force?: boolean) => Promise<Client | null>;
    GetClientSales: (
       clientId: string,
       params?: Record<string, string>,
@@ -64,7 +64,7 @@ type ClientStore = {
    UpdateContact: (contactData: Partial<ContactWithMeta>) => Promise<void | Error>;
    DeleteContact: (clientId: string, contactId: string) => Promise<void | Error>;
 
-   setSelectedClient: (client: ClientDetails | null) => void;
+   setSelectedClient: (client: Client | null) => void;
    setLoading: (loading: boolean) => void;
    clearSelectedClient: () => void;
    invalidateCache: () => void;
@@ -172,17 +172,17 @@ export const useClientStore = create<ClientStore>((set, get) => ({
       }
    },
 
-   GetClientDetails: async (clientId, force) => {
+   getClient: async (clientId, force) => {
       if (!force && get()._fetchedDetails.has(clientId)) {
          return get().selectedClient;
       }
       set({ loading: true });
       try {
-         const res = await fetch(`/api/clients/${clientId}/details`);
+         const res = await fetch(`/api/clients/${clientId}`);
          if (!res.ok) throw new Error("Error al cargar detalles del cliente");
 
-         const data = await res.json();
-         const clientDetails = data.client_details;
+         const clientDetails = await res.json();
+         console.log("Fetched client details:", clientDetails);
 
          set((state) => ({
             selectedClient: clientDetails,

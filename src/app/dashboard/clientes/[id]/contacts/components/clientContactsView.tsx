@@ -111,6 +111,8 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
          }
          setLoading(false);
       })();
+
+      document.title = client ? `${client.nombre} - Contactos` : "Cargando Contactos...";
       // eslint-disable-next-line react-hooks/exhaustive-deps
    }, [clientId]);
 

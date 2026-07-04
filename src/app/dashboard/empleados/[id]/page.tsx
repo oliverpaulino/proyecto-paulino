@@ -6,14 +6,7 @@ import { useEmployeeStore } from "@/stores/useEmployeeStore";
 import EmployeeDetailView from "./components/EmployeeDetailView";
 
 export default function EmployeeDetailPage() {
-   const params = useParams();
-   const id = params?.id;
-
-   // Usamos un ref para guardar el título original solo la primera vez que carga
-   const originalTitle = useRef(typeof document !== 'undefined' ? document.title : "Constructora Kissimmee");
-
    const employee = useEmployeeStore((state) => state.selectedEmployee);
-   const clearEmployee = useEmployeeStore((state) => state.clearSelectedEmployee); // Opcional, pero recomendado
 
    useEffect(() => {
       // 1. Cambiamos el título
@@ -28,7 +21,7 @@ export default function EmployeeDetailPage() {
          document.title = "Empleados";
 
       };
-   }, [employee, clearEmployee]);
+   }, [employee]);
 
    return (
       <EmployeeDetailView />

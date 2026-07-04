@@ -1,13 +1,12 @@
-
+"use client"
 import { Metadata } from "next";
 import ClientView from "./components/client-view";
+import { useEffect } from "react";
 
-export const metadata: Metadata = {
-   title: "Clientes",
-   description: "Administra y organiza la información de tus clientes",
-}
 export default function ClientsPage() {
-
+   useEffect(() => {
+      document.title = "Clientes"
+   }, [])
    return (
       <>
          <ClientView />

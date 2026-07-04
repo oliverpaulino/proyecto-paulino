@@ -69,7 +69,7 @@ export default function EmployeeDetailView() {
    const [actionLoading, setActionLoading] = useState(false);
 
    useEffect(() => {
-      console.log(GetEmployeeDetails(empleadoId));
+      GetEmployeeDetails(empleadoId);
    }, [empleadoId, GetEmployeeDetails]);
 
    async function handleEdit(data: Parameters<typeof UpdateEmployee>[1], operadorData?: OperadorFormData) {
