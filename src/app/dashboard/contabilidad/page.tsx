@@ -13,8 +13,15 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
+import { Metadata } from "next"
 
+
+export const metadadata: Metadata = {
+  title: "Contabilidad",
+  description: "Apartado con manejo de contabilidad general"
+}
 export default function Page() {
+
   return (
     <SidebarProvider>
       <AppSidebar />

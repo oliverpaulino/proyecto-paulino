@@ -135,7 +135,6 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
          if (!res.ok) throw new Error("Error al cargar detalles del empleado");
 
          const details: EmployeeDetails = await res.json();
-
          set((state) => ({
             selectedEmployee: details,
             _fetchedDetails: new Set(state._fetchedDetails).add(empleadoId),

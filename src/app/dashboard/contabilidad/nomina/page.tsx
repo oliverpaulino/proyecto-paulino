@@ -13,6 +13,12 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
+import { Metadata } from "next"
+
+export const metadadata: Metadata = {
+  title: "Nomina",
+  description: "Apartado con manejo de nomina"
+}
 
 export default function Page() {
   return (
