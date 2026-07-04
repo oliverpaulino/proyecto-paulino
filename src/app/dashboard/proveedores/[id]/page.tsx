@@ -50,7 +50,7 @@ export default function SupplierDetailPage() {
    const router = useRouter();
    const supplierId = params.id as string;
 
-   const { UpdateSupplier, DeleteSupplier } = useSupplierStore();
+   const { UpdateSupplier, DeleteSupplier, GetSupplierById } = useSupplierStore();
 
    const [supplier, setSupplier] = useState<Supplier | null>(null);
    const [loading, setLoading] = useState(true);
@@ -64,10 +64,10 @@ export default function SupplierDetailPage() {
       async function load() {
          setLoading(true);
          try {
-            const res = await fetch(`/api/suppliers/${supplierId}`);
-            if (!res.ok) throw new Error("Not found");
-            const data: Supplier = await res.json();
-            if (active) setSupplier(data);
+            const data = await GetSupplierById(supplierId);
+            setSupplier(data);
+            if (data)
+               document.title = `${data.nombre}`;
          } catch {
             if (active) setSupplier(null);
          } finally {

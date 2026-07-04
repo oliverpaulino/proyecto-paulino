@@ -13,8 +13,13 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
+import { useEffect } from "react"
 
 export default function Page() {
+
+  useEffect(() => {
+    document.title = "Mantenimientos"
+  }, [])
   return (
     <SidebarProvider>
       <AppSidebar />

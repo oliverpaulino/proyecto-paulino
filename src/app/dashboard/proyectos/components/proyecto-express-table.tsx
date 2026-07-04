@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import type { Proyecto } from "@/dtos/proyecto.dto";
+import { useEffect } from "react";
 
 interface Props {
    proyectos: Proyecto[];
@@ -44,7 +45,7 @@ export function ProyectoExpressTable({ proyectos }: Props) {
                {proyectos.map((p) => {
                   const asig = p.asignaciones[0];
                   const tarifa = p.tipo_proyecto === "EXPRESS" ? p.tarifa_servicio : 0;
-                  const rent   = p.rentabilidad;
+                  const rent = p.rentabilidad;
 
                   return (
                      <TableRow key={p.id}>
@@ -61,9 +62,8 @@ export function ProyectoExpressTable({ proyectos }: Props) {
                            RD$ {p.total_gasto_interno.toLocaleString("es-DO")}
                         </TableCell>
                         <TableCell
-                           className={`text-right font-semibold ${
-                              rent >= 0 ? "text-green-700" : "text-red-600"
-                           }`}
+                           className={`text-right font-semibold ${rent >= 0 ? "text-green-700" : "text-red-600"
+                              }`}
                         >
                            RD$ {rent.toLocaleString("es-DO")}
                         </TableCell>
@@ -91,8 +91,8 @@ export function ProyectoExpressTable({ proyectos }: Props) {
 function EstadoBadge({ estado }: { estado: string }) {
    const map: Record<string, string> = {
       COMPLETADO: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-      BORRADOR:   "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-      CANCELADO:  "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+      BORRADOR: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+      CANCELADO: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
    };
    return (
       <Badge className={`border-0 text-xs font-medium ${map[estado] ?? ""}`}>

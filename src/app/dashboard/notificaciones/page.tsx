@@ -14,6 +14,7 @@ export default function NotificacionesPage() {
       useNotificationStore();
 
    useEffect(() => {
+      document.title = "Notificaciones";
       fetchNotifications();
    }, [fetchNotifications]);
 

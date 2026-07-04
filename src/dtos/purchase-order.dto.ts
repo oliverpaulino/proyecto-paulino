@@ -60,6 +60,8 @@ const UpdatePurchaseOrderDTO = z.object({
    items: z.array(PurchaseOrderItemFormSchema).min(1).optional(),
 });
 
+
+
 export type PurchaseOrder = z.infer<typeof PurchaseOrderDTO>;
 export type PurchaseOrderForm = z.infer<typeof CreatePurchaseOrderDTO>;
 export type UpdatePurchaseOrderForm = z.infer<typeof UpdatePurchaseOrderDTO>;

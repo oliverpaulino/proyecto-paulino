@@ -51,6 +51,7 @@ export default function ItemDetailPage() {
    const [manageOpen, setManageOpen] = useState(false);
 
    useEffect(() => {
+
       let active = true;
 
       async function load() {
@@ -68,6 +69,7 @@ export default function ItemDetailPage() {
       }
 
       load();
+      document.title = `Item ${itemId} - Inventario`;
       return () => { active = false; };
    }, [itemId]);
 

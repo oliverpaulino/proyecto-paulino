@@ -105,6 +105,7 @@ export default function ProyectosPage() {
             <TabsContent value="normales">
                <div className="flex items-center justify-center h-48 rounded-xl border-2 border-dashed text-muted-foreground text-sm">
                   Módulo de Proyectos Normales — próximamente
+
                </div>
             </TabsContent>
 
@@ -121,7 +122,6 @@ export default function ProyectosPage() {
                      accent="dark"
                   />
                </div>
-
                {/* Toolbar */}
                <div className="flex justify-end">
                   <Dialog open={createOpen} onOpenChange={setCreateOpen}>

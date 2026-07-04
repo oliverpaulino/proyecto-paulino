@@ -42,11 +42,11 @@ const ROLES = ["usuario", "asistente", "coordinador", "contable", "administrador
 type Role = (typeof ROLES)[number];
 
 const ROLE_META: Record<string, { color: string; desc: string }> = {
-  administrador: { color: "border-amber-500/40 bg-amber-500/10 text-amber-600",   desc: "Acceso total al sistema" },
-  coordinador:   { color: "border-blue-500/40 bg-blue-500/10 text-blue-600",       desc: "Gestión de proyectos y tareas" },
-  contable:      { color: "border-violet-500/40 bg-violet-500/10 text-violet-600", desc: "Contabilidad, nómina y pagos" },
-  asistente:     { color: "border-emerald-500/40 bg-emerald-500/10 text-emerald-600", desc: "Tareas, citas y recepción" },
-  usuario:       { color: "border-border bg-muted text-muted-foreground",           desc: "Solo lectura y consultas" },
+  administrador: { color: "border-amber-500/40 bg-amber-500/10 text-amber-600", desc: "Acceso total al sistema" },
+  coordinador: { color: "border-blue-500/40 bg-blue-500/10 text-blue-600", desc: "Gestión de proyectos y tareas" },
+  contable: { color: "border-violet-500/40 bg-violet-500/10 text-violet-600", desc: "Contabilidad, nómina y pagos" },
+  asistente: { color: "border-emerald-500/40 bg-emerald-500/10 text-emerald-600", desc: "Tareas, citas y recepción" },
+  usuario: { color: "border-border bg-muted text-muted-foreground", desc: "Solo lectura y consultas" },
 };
 
 interface UserRecord {
@@ -60,15 +60,15 @@ interface UserRecord {
 
 export default function EditUserPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const router  = useRouter();
+  const router = useRouter();
 
-  const [user,       setUser]       = useState<UserRecord | null>(null);
-  const [loading,    setLoading]    = useState(true);
-  const [name,       setName]       = useState("");
-  const [role,       setRole]       = useState<Role>("usuario");
-  const [saving,     setSaving]     = useState(false);
+  const [user, setUser] = useState<UserRecord | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [name, setName] = useState("");
+  const [role, setRole] = useState<Role>("usuario");
+  const [saving, setSaving] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleting,   setDeleting]   = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -81,6 +81,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
         setRole((found.role as Role) ?? "usuario");
       }
       setLoading(false);
+      document.title = found ? `Usuario: ${found.name}` : "Usuario no encontrado";
     })();
   }, [id]);
 
@@ -253,11 +254,10 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
                       key={r}
                       type="button"
                       onClick={() => setRole(r)}
-                      className={`group flex flex-col gap-1 rounded-lg border p-3 text-left transition-all ${
-                        role === r
-                          ? `${m.color} ring-2 ring-offset-1 ring-current`
-                          : "border-border bg-muted/20 hover:bg-muted/50"
-                      }`}
+                      className={`group flex flex-col gap-1 rounded-lg border p-3 text-left transition-all ${role === r
+                        ? `${m.color} ring-2 ring-offset-1 ring-current`
+                        : "border-border bg-muted/20 hover:bg-muted/50"
+                        }`}
                     >
                       <span className="flex items-center gap-1.5 text-sm font-medium capitalize">
                         {role === r && <CheckCircle2 className="h-3.5 w-3.5" />}

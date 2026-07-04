@@ -123,7 +123,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       icon: Calculator,
       items: [
         { id: "fin-cotizaciones", title: "Cotizaciones", url: "/dashboard/cotizaciones" },
-        { id: "fin-ventas", title: "Ventas", url: "/dashboard/ventas" },
         { id: "fin-compras", title: "Compras", url: "/dashboard/compras" },
         ...(isAdmin ? [{ id: "fin-aprobadores", title: "Firmantes de Compras", url: "/dashboard/compras/aprobadores" }] : []),
         { id: "fin-gastos", title: "Gastos", url: "/dashboard/gastos" },
@@ -164,7 +163,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <NameIcon/>
+        <NameIcon />
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navMain} />

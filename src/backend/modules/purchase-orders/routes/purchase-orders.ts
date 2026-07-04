@@ -74,6 +74,15 @@ purchaseOrdersRoute.delete("/approvers/:userId", async (c) => {
    const session = await auth.api.getSession({ headers: c.req.raw.headers });
    if (!session?.user) return c.json({ error: "No autenticado" }, 401);
    const role = (session.user as { role?: string }).role;
+
+   const userIdToDelete = c.req.param("userId");
+
+   if (session.user.id === userIdToDelete) {
+      return c.json(
+         { error: "No puedes eliminarte como firmante." },
+         400
+      );
+   }
    if (role !== "administrador") return c.json({ error: "Acceso denegado" }, 403);
 
    await service.removeApprover(c.req.param("userId"));

@@ -60,6 +60,7 @@ export default function EquiposPage() {
    const [manageOpen, setManageOpen] = useState(false);
 
    useEffect(() => {
+      document.title = "Equipos"
       GetEquipos();
       GetCategoriaEquipos();
    }, [GetEquipos, GetCategoriaEquipos]);

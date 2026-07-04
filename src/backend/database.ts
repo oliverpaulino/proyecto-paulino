@@ -152,6 +152,7 @@ export interface DB {
    purchase_order_approvers: {
       user_id: string;
       user_name: string;
+      is_protected: boolean;
       granted_by: string;
       granted_at: Generated<Date>;
    };

@@ -49,7 +49,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
          PurchaseOrder.create({
             id: row.id,
             referencia: row.referencia,
-         codigoReferencia: buildCodigoReferencia(row.referencia, new Date(row.fecha)),
+            codigoReferencia: buildCodigoReferencia(row.referencia, new Date(row.fecha)),
             proveedor_id: row.proveedor_id,
             proveedor_nombre: row.proveedor_nombre ?? undefined,
             fecha: new Date(row.fecha),
@@ -308,18 +308,34 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
          user_name: r.user_name,
          granted_by: r.granted_by,
          granted_at: new Date(r.granted_at),
+         is_protected: r.is_protected,
       }));
    }
 
    async addApprover(userId: string, userName: string, grantedBy: string): Promise<void> {
       await this.db
          .insertInto("purchase_order_approvers")
-         .values({ user_id: userId, user_name: userName, granted_by: grantedBy })
+         .values({ user_id: userId, user_name: userName, granted_by: grantedBy, granted_at: new Date(), is_protected: false })
          .onConflict((oc) => oc.column("user_id").doUpdateSet({ user_name: userName }))
          .execute();
    }
 
    async removeApprover(userId: string): Promise<void> {
+      const approver = await this.db
+         .selectFrom("purchase_order_approvers")
+         .select("is_protected")
+         .where("user_id", "=", userId)
+         .executeTakeFirst();
+
+      // 2. Si no existe, no hacemos nada (o puedes lanzar error)
+      if (!approver) return;
+
+      // 3. Si está protegido, bloqueamos la acción con un error claro
+      if (approver.is_protected) {
+         throw new Error("Este aprobador está protegido y no puede ser removido");
+      }
+
+      // 4. Si pasa las validaciones, lo eliminamos
       await this.db
          .deleteFrom("purchase_order_approvers")
          .where("user_id", "=", userId)
@@ -327,12 +343,15 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
    }
 
    async delete(userId: string, id: string): Promise<boolean> {
+
+
       const result = await this.db
          .updateTable("orden_compra")
          .set({ deleted_by: userId, deleted_at: new Date() })
          .where("id", "=", id)
          .where("deleted_at", "is", null)
          .executeTakeFirst();
+
       return Number(result.numUpdatedRows) > 0;
    }
 }

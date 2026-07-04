@@ -20,6 +20,7 @@ export const auth = betterAuth({
     organization(),
     jwt(),
     admin({
+      adminRoles: ["administrador"],
       ac,
       roles,
     }),
