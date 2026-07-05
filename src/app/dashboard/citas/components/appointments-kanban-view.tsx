@@ -26,7 +26,6 @@ export function AppointmentsKanbanView() {
 
    const [searchInput, setSearchInput] = useState("");
    const [searchQuery, setSearchQuery] = useState("");
-   const [createOpen, setCreateOpen] = useState(false);
    const [editTarget, setEditTarget] = useState<AppointmentUI | null>(null);
    const [draggedId, setDraggedId] = useState<string | null>(null);
    const [formLoading, setFormLoading] = useState(false);
@@ -57,9 +56,6 @@ export function AppointmentsKanbanView() {
          {/* Sub-barra del tablero */}
          <div className="flex items-center justify-between gap-4 flex-none">
             <TableSearch value={searchInput} onValueChange={setSearchInput} onSearch={setSearchQuery} placeholder="Filtrar tarjetas rápidas..." className="w-full max-w-sm" />
-            <Button className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold shrink-0" onClick={() => setCreateOpen(true)}>
-               <Plus className="size-4 mr-2" /> Agendar Cita
-            </Button>
          </div>
 
          {/* Contenedor Flex de Columnas */}
@@ -119,13 +115,6 @@ export function AppointmentsKanbanView() {
          </div>
 
          {/* Diálogos */}
-         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogContent className="sm:max-w-lg">
-               <DialogHeader><DialogTitle>Agendar Cita</DialogTitle></DialogHeader>
-               <AppointmentForm onSubmit={async (f) => { await CreateAppointment(f); setCreateOpen(false); }} onCancel={() => setCreateOpen(false)} loading={formLoading} />
-            </DialogContent>
-         </Dialog>
-
          <Dialog open={!!editTarget} onOpenChange={(op) => !op && setEditTarget(null)}>
             <DialogContent className="sm:max-w-lg">
                <DialogHeader><DialogTitle>Reprogramar</DialogTitle></DialogHeader>

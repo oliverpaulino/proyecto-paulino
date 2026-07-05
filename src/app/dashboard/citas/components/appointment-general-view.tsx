@@ -27,7 +27,6 @@ export function AppointmentsGeneralView() {
 
    // Estados de Modales y Carga (Igual que en tu ClientPage)
    const [formLoading, setFormLoading] = useState(false);
-   const [createOpen, setCreateOpen] = useState(false);
    const [editTarget, setEditTarget] = useState<AppointmentUI | null>(null);
    const [deleteTarget, setDeleteTarget] = useState<AppointmentUI | null>(null);
 
@@ -44,17 +43,6 @@ export function AppointmentsGeneralView() {
 
    function handleResetFilters() {
       setSearchInput(""); setSearchQuery(""); setEstadoFilter(""); setStartDate(""); setEndDate(""); GetAppointments();
-   }
-
-   async function handleCreate(data: CreateAppointmentForm) {
-      setFormLoading(true);
-      try {
-         const result = await CreateAppointment(data);
-         if (result instanceof Error) throw result;
-         setCreateOpen(false);
-      } finally {
-         setFormLoading(false);
-      }
    }
 
    async function handleEdit(data: CreateAppointmentForm) {
@@ -89,28 +77,22 @@ export function AppointmentsGeneralView() {
       <div className="flex flex-col gap-4">
          
          {/* Barra de Filtros */}
-         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 bg-card p-3.5 rounded-2xl border border-border shadow-sm">
-            <div className="flex flex-wrap items-center gap-2.5 flex-1">
-               <TableSearch value={searchInput} onValueChange={setSearchInput} onSearch={setSearchQuery} placeholder="Buscar cliente o motivo..." className="w-full sm:w-64" />
+         <div className="flex flex-wrap items-center gap-2.5 flex-1">
+            <TableSearch value={searchInput} onValueChange={setSearchInput} onSearch={setSearchQuery} placeholder="Buscar cliente o motivo..." className="w-full sm:w-64" />
 
-               <div className="flex items-center gap-1.5 bg-input/20 px-2.5 py-1 rounded-4xl border border-input">
-                  <span className="text-[11px] font-semibold text-muted-foreground uppercase">Desde:</span>
-                  <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} max={endDate} className="h-7 w-32 border-0 bg-transparent p-0 text-xs shadow-none" />
-                  <span className="text-muted-foreground text-xs font-bold">—</span>
-                  <span className="text-[11px] font-semibold text-muted-foreground uppercase">Hasta:</span>
-                  <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} min={startDate} className="h-7 w-32 border-0 bg-transparent p-0 text-xs shadow-none" />
-               </div>
-
-               {hasActiveFilters && (
-                  <Button variant="ghost" size="sm" onClick={handleResetFilters} className="h-9 px-2.5 text-xs text-muted-foreground">
-                     <RotateCcw className="size-3.5 mr-1" /> Limpiar
-                  </Button>
-               )}
+            <div className="flex items-center gap-1.5 bg-input/20 px-2.5 py-1 rounded-4xl border border-input">
+               <span className="text-[11px] font-semibold text-muted-foreground uppercase">Desde:</span>
+               <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} max={endDate} className="h-7 w-32 border-0 bg-transparent p-0 text-xs shadow-none" />
+               <span className="text-muted-foreground text-xs font-bold">—</span>
+               <span className="text-[11px] font-semibold text-muted-foreground uppercase">Hasta:</span>
+               <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} min={startDate} className="h-7 w-32 border-0 bg-transparent p-0 text-xs shadow-none" />
             </div>
 
-            <Button className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold shrink-0" onClick={() => setCreateOpen(true)}>
-               <Plus className="size-4 mr-2" /> Agendar Cita
-            </Button>
+            {hasActiveFilters && (
+               <Button variant="ghost" size="sm" onClick={handleResetFilters} className="h-9 px-2.5 text-xs text-muted-foreground">
+                  <RotateCcw className="size-3.5 mr-1" /> Limpiar
+               </Button>
+            )}
          </div>
 
          {/* Tabla */}
@@ -136,14 +118,6 @@ export function AppointmentsGeneralView() {
                </Button>
             </div>
          </div>
-
-         {/* Modales conectados a los handles limpios */}
-         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogContent className="sm:max-w-lg">
-               <DialogHeader><DialogTitle>Agendar Cita</DialogTitle></DialogHeader>
-               <AppointmentForm onSubmit={handleCreate} onCancel={() => setCreateOpen(false)} loading={formLoading} />
-            </DialogContent>
-         </Dialog>
 
          <Dialog open={!!editTarget} onOpenChange={(op) => !op && setEditTarget(null)}>
             <DialogContent className="sm:max-w-lg">
