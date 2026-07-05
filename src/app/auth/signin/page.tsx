@@ -1,7 +1,12 @@
 // app/login/page.tsx
+'use client'
 import { LoginForm } from "@/components/login-form";
+import { useEffect } from "react";
 
 export default function LoginPage() {
+  useEffect(() => {
+    document.title = "Inicio de Sesión";
+  }, []);
   return (
     <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden bg-[#FAF8F5] px-4 py-12">
       {/* Aurora suave de fondo, centrada alrededor del card */}

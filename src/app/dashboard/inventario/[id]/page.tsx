@@ -60,6 +60,7 @@ export default function ItemDetailPage() {
             const res = await fetch(`/api/items/${itemId}`);
             if (!res.ok) throw new Error("Not found");
             const data: Item = await res.json();
+            document.title = `Item ${data.nombre} - Inventario`;
             if (active) setItem(data);
          } catch {
             if (active) setItem(null);
@@ -69,7 +70,6 @@ export default function ItemDetailPage() {
       }
 
       load();
-      document.title = `Item ${itemId} - Inventario`;
       return () => { active = false; };
    }, [itemId]);
 

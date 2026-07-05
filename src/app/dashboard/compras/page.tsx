@@ -7,7 +7,7 @@ import { useEffect } from "react";
 
 export default function ComprasPage() {
    useEffect(() => {
-      document.title = "Compras"
+      document.title = "Ordenes de Compra"
    }, [])
    return (
       <>
