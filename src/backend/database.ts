@@ -109,6 +109,7 @@ export interface DB {
       precio_base: number;
    };
 
+
    categoria_equipo: {
       id: Generated<string>;
       nombre: string;
@@ -248,9 +249,10 @@ export interface DB {
       created_at: Generated<Date>;
    };
 
+
    cita: {
       id: Generated<string>;
-      cliente_id: string;
+      cliente_id: string | null;
       employee_id: string | null;
       fecha: Date;
       motivo: string | null;

@@ -56,8 +56,8 @@ export class KyselyAppointmentRepository implements IAppointmentRepository {
             notas: row.notas,
             created_at: new Date(row.created_at),
             updated_at: new Date(row.updated_at),
-            cliente_nombre: row.cliente_nombre || "No encontrado",
-            employee_nombre: row.employee_nombre || "Sin asignar"
+            cliente_nombre: row.cliente_nombre || "-",
+            employee_nombre: row.employee_nombre || "-"
          })
       );
    }
@@ -107,7 +107,7 @@ export class KyselyAppointmentRepository implements IAppointmentRepository {
       const row = await this.db
          .insertInto("cita")
          .values({
-            cliente_id: data.cliente_id,
+            cliente_id: data.cliente_id ?? null,
             employee_id: data.employee_id ?? null,
             fecha: data.fecha,
             motivo: data.motivo ?? null,
