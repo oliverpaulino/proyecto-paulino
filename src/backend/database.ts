@@ -109,7 +109,7 @@ export interface DB {
       precio_base: number;
    };
    
-      categoria_equipo: {
+   categoria_equipo: {
       id: Generated<string>;
       nombre: string;
       cobra_en: string;
@@ -231,6 +231,7 @@ export interface DB {
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
+
    notifications: {
       id: Generated<string>;
       user_id: string;

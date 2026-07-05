@@ -1,4 +1,4 @@
-import { Circle, Timer, CheckCircle2, type LucideIcon } from "lucide-react";
+import { Circle, Timer, CheckCircle2, XCircle, type LucideIcon } from "lucide-react";
 import type { EstadoTarea } from "@/dtos/tarea.dto";
 
 export type EstadoConfig = {
@@ -26,8 +26,8 @@ export const ESTADO_CONFIG: Record<EstadoTarea, EstadoConfig> = {
          "bg-blue-100 text-blue-900 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700",
       dotClass: "bg-brand-blue",
    },
-   EN_PROGRESO: {
-      estado: "EN_PROGRESO",
+   EN_PROCESO: {
+      estado: "EN_PROCESO",
       label: "En progreso",
       icon: Timer,
       borderClass: "border-l-brand-yellow",
@@ -46,11 +46,22 @@ export const ESTADO_CONFIG: Record<EstadoTarea, EstadoConfig> = {
          "bg-green-100 text-green-800 border border-green-300 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700",
       dotClass: "bg-green-500",
    },
+   CANCELADA: {
+      estado: "CANCELADA",
+      label: "Cancelada",
+      icon: XCircle,
+      borderClass: "border-l-brand-red",
+      iconClass: "text-brand-red",
+      badgeClass:
+         "bg-red-100 text-red-800 border border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700",
+      dotClass: "bg-brand-red",
+   },
 };
 
 /** Column order for the Kanban board (left → right). */
 export const KANBAN_COLUMNS: EstadoConfig[] = [
    ESTADO_CONFIG.PENDIENTE,
-   ESTADO_CONFIG.EN_PROGRESO,
+   ESTADO_CONFIG.EN_PROCESO,
    ESTADO_CONFIG.COMPLETADA,
+   ESTADO_CONFIG.CANCELADA,
 ];

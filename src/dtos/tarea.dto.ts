@@ -3,7 +3,7 @@ import { z } from "zod";
 // Mirror the Postgres `estado_tarea` enum. Kept here (and not imported from the
 // backend domain) so client components can pull it without dragging server-only
 // modules into the bundle.
-export const ESTADOS_TAREA = ["PENDIENTE", "EN_PROGRESO", "COMPLETADA"] as const;
+export const ESTADOS_TAREA = ["PENDIENTE", "EN_PROCESO", "COMPLETADA", "CANCELADA"] as const;
 
 export type EstadoTarea = (typeof ESTADOS_TAREA)[number];
 
@@ -13,8 +13,9 @@ export const SIN_PROYECTO = "__none__";
 /** Display labels for each estado (Spanish, used in Kanban columns / table). */
 export const ESTADO_TAREA_LABEL: Record<EstadoTarea, string> = {
    PENDIENTE: "Pendiente",
-   EN_PROGRESO: "En progreso",
+   EN_PROCESO: "En progreso",
    COMPLETADA: "Completada",
+   CANCELADA: "Cancelada",
 };
 
 const TareaDTO = z.object({
