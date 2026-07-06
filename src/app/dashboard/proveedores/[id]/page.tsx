@@ -179,7 +179,7 @@ export default function SupplierDetailPage() {
 
          {/* Tabs */}
          <Tabs defaultValue="resumen" className="space-y-4">
-            <TabsList className="w-full flex-wrap justify-start gap-1  p-0">
+            <TabsList className="w-full flex-wrap justify-start gap-1 bg-transparent p-0">
                {[
                   { value: "resumen", label: "Resumen" },
                   { value: "compras", label: "Órdenes de compra" },

@@ -1,0 +1,68 @@
+"use client";
+
+import { useEffect } from "react";
+import Link from "next/link";
+import { Bell } from "lucide-react";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
+import { useNotificationStore } from "@/stores/useNotificationStore";
+import { useSession } from "@/lib/auth-client";
+
+export function DashboardHeader() {
+   const { unreadCount, fetchUnreadCount } = useNotificationStore();
+   const { data: session } = useSession();
+
+   useEffect(() => {
+      if (!session?.user) return;
+
+      // Fetch initial count
+      fetchUnreadCount();
+
+      // SSE for real-time updates
+      const es = new EventSource("/api/notifications/stream");
+
+      es.onmessage = (e) => {
+         if (!e.data?.trim()) return; // keep-alive empty frame
+         try {
+            const payload = JSON.parse(e.data) as { count?: number };
+            if (typeof payload.count === "number") {
+               useNotificationStore.setState({ unreadCount: payload.count });
+            }
+         } catch {
+            // malformed frame, ignore
+         }
+      };
+
+      es.onerror = () => {
+         // Browser will auto-reconnect; close on persistent failure
+         if (es.readyState === EventSource.CLOSED) es.close();
+      };
+
+      return () => es.close();
+   // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, [session?.user]);
+
+   return (
+      <header className="flex h-12 shrink-0 items-center justify-between border-b px-2 bg-background">
+         <SidebarTrigger className="-ml-1" />
+         <div className="flex items-center pr-2">
+            <Button
+               variant="ghost"
+               size="icon"
+               asChild
+               className="relative h-8 w-8"
+            >
+               <Link href="/dashboard/notificaciones">
+                  <Bell className="size-4" />
+                  {unreadCount > 0 && (
+                     <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white leading-none pointer-events-none">
+                        {unreadCount > 9 ? "+9" : unreadCount}
+                     </span>
+                  )}
+                  <span className="sr-only">Notificaciones</span>
+               </Link>
+            </Button>
+         </div>
+      </header>
+   );
+}

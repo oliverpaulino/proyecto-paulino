@@ -1,21 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Settings2 } from "lucide-react";
 import {
    ESTADOS_EQUIPO,
-   TIPOS_EQUIPO,
    type Equipo,
    type EstadoEquipo,
-   type TipoEquipo,
 } from "@/dtos/equipo.dto";
-import { ESTADO_LABEL, TIPO_LABEL } from "./equipo-labels";
+import { ESTADO_LABEL } from "./equipo-labels";
+import { useCategoriaEquipoStore } from "@/stores/useCategoriaEquipoStore";
 
 export interface EquipoFormValues {
    nombre: string;
-   tipo: TipoEquipo;
+   categoria_id: string;
    estado: EstadoEquipo;
    costo_por_hora: string;
    placa: string;
@@ -27,6 +27,7 @@ interface EquipoFormProps {
    initialData?: Partial<Equipo>;
    onSubmit: (data: EquipoFormValues) => Promise<void>;
    onCancel?: () => void;
+   onManageCategorias?: () => void;
    loading?: boolean;
    submitLabel?: string;
 }
@@ -38,12 +39,15 @@ export function EquipoForm({
    initialData,
    onSubmit,
    onCancel,
+   onManageCategorias,
    loading,
    submitLabel = "Crear equipo",
 }: EquipoFormProps) {
+   const { CategoriaEquipos, GetCategoriaEquipos } = useCategoriaEquipoStore();
+
    const [values, setValues] = useState<EquipoFormValues>({
       nombre: initialData?.nombre ?? "",
-      tipo: initialData?.tipo ?? TIPOS_EQUIPO[0],
+      categoria_id: initialData?.categoria_id ?? "",
       estado: initialData?.estado ?? "ACTIVO",
       costo_por_hora: initialData?.costo_por_hora != null ? String(initialData.costo_por_hora) : "0",
       placa: initialData?.placa ?? "",
@@ -52,6 +56,17 @@ export function EquipoForm({
    });
    const [error, setError] = useState<string | null>(null);
 
+   useEffect(() => {
+      GetCategoriaEquipos();
+   }, [GetCategoriaEquipos]);
+
+   // Cuando cargan las categorías y no hay una seleccionada, pre-seleccionar la primera.
+   useEffect(() => {
+      if (!values.categoria_id && CategoriaEquipos.length > 0) {
+         setValues((prev) => ({ ...prev, categoria_id: CategoriaEquipos[0].id }));
+      }
+   }, [CategoriaEquipos, values.categoria_id]);
+
    function set<K extends keyof EquipoFormValues>(field: K, value: EquipoFormValues[K]) {
       setValues((prev) => ({ ...prev, [field]: value }));
    }
@@ -59,12 +74,18 @@ export function EquipoForm({
    async function handleSubmit(e: React.FormEvent) {
       e.preventDefault();
       setError(null);
+      if (!values.categoria_id) {
+         setError("Selecciona una categoría");
+         return;
+      }
       try {
          await onSubmit(values);
       } catch (err: unknown) {
          setError(err instanceof Error ? err.message : "Ocurrió un error");
       }
    }
+
+   const selectedCat = CategoriaEquipos.find((c) => c.id === values.categoria_id);
 
    return (
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
@@ -79,40 +100,62 @@ export function EquipoForm({
             />
          </div>
 
-         <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-               <Label htmlFor="ef-tipo">Tipo *</Label>
-               <select
-                  id="ef-tipo"
-                  value={values.tipo}
-                  onChange={(e) => set("tipo", e.target.value as TipoEquipo)}
-                  className={SELECT_CLASS}
-                  required
-               >
-                  {TIPOS_EQUIPO.map((t) => (
-                     <option key={t} value={t}>{TIPO_LABEL[t]}</option>
-                  ))}
-               </select>
+         <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+               <Label htmlFor="ef-categoria">Categoría *</Label>
+               {onManageCategorias && (
+                  <button
+                     type="button"
+                     onClick={onManageCategorias}
+                     className="flex items-center gap-1 text-xs text-brand-blue hover:underline"
+                  >
+                     <Settings2 className="size-3" />
+                     Gestionar categorías
+                  </button>
+               )}
             </div>
+            <select
+               id="ef-categoria"
+               value={values.categoria_id}
+               onChange={(e) => set("categoria_id", e.target.value)}
+               className={SELECT_CLASS}
+               required
+            >
+               {CategoriaEquipos.length === 0 ? (
+                  <option value="">Sin categorías — crea una primero</option>
+               ) : (
+                  CategoriaEquipos.map((c) => (
+                     <option key={c.id} value={c.id}>{c.nombre}</option>
+                  ))
+               )}
+            </select>
+            {selectedCat && (
+               <p className="text-xs text-muted-foreground">
+                  Se cobra en: <span className="font-medium">{selectedCat.cobra_en}</span>
+                  {selectedCat.cobra_minimo != null && (
+                     <span className="ml-1">(mín. {selectedCat.cobra_minimo})</span>
+                  )}
+               </p>
+            )}
+         </div>
 
-            <div className="flex flex-col gap-1.5">
-               <Label htmlFor="ef-estado">Estado</Label>
-               <select
-                  id="ef-estado"
-                  value={values.estado}
-                  onChange={(e) => set("estado", e.target.value as EstadoEquipo)}
-                  className={SELECT_CLASS}
-               >
-                  {ESTADOS_EQUIPO.map((s) => (
-                     <option key={s} value={s}>{ESTADO_LABEL[s]}</option>
-                  ))}
-               </select>
-            </div>
+         <div className="flex flex-col gap-1.5">
+            <Label htmlFor="ef-estado">Estado</Label>
+            <select
+               id="ef-estado"
+               value={values.estado}
+               onChange={(e) => set("estado", e.target.value as EstadoEquipo)}
+               className={SELECT_CLASS}
+            >
+               {ESTADOS_EQUIPO.map((s) => (
+                  <option key={s} value={s}>{ESTADO_LABEL[s]}</option>
+               ))}
+            </select>
          </div>
 
          <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-               <Label htmlFor="ef-costo">Costo por hora (RD$)</Label>
+               <Label htmlFor="ef-costo">Costo por unidad (RD$)</Label>
                <Input
                   id="ef-costo"
                   type="number"
@@ -168,7 +211,7 @@ export function EquipoForm({
                   Cancelar
                </Button>
             )}
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || CategoriaEquipos.length === 0}>
                {loading ? "Guardando…" : submitLabel}
             </Button>
          </div>

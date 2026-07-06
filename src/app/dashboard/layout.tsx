@@ -1,7 +1,8 @@
 import { cookies } from "next/headers";
 
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { DashboardHeader } from "@/components/dashboard-header";
 
 export default async function Layout({
   children,
@@ -13,11 +14,12 @@ export default async function Layout({
 
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
-
       <AppSidebar />
-      <SidebarInset>
-        <SidebarTrigger className="-ml-1" />
-        {children}
+      <SidebarInset className="flex flex-col min-w-0 overflow-hidden">
+          <DashboardHeader />
+          <main className="flex flex-1 flex-col min-w-0 overflow-hidden">
+            {children}
+          </main>
       </SidebarInset>
     </SidebarProvider>
   );
