@@ -15,8 +15,8 @@ import { AppointmentForm } from "./appointment-form";
 const ESTADOS_LISTA = Object.entries(EstadoCita).map(([key, label]) => ({ key: key as keyof typeof EstadoCita, label }));
 
 const COLUMN_THEMES: Record<string, { bg: string; border: string; badge: string; text: string }> = {
-   PENDIENTE: { bg: "bg-amber-500/5", border: "border-amber-500/20", badge: "bg-amber-500", text: "text-amber-700 dark:text-amber-400" },
-   EN_REVISION:  { bg: "bg-purple-500/5", border: "border-purple-500/20", badge: "bg-purple-500", text: "text-purple-700 dark:text-purple-400" },
+   ASIGNADA: { bg: "bg-amber-500/5", border: "border-amber-500/20", badge: "bg-amber-500", text: "text-amber-700 dark:text-amber-400" },
+   PENDIENTE:  { bg: "bg-purple-500/5", border: "border-purple-500/20", badge: "bg-purple-500", text: "text-purple-700 dark:text-purple-400" },
    REALIZADA:  { bg: "bg-emerald-500/5", border: "border-emerald-500/20", badge: "bg-emerald-500", text: "text-emerald-700 dark:text-emerald-400" },
    CANCELADA:   { bg: "bg-rose-500/5",  border: "border-rose-500/20",  badge: "bg-rose-500",  text: "text-rose-700 dark:text-rose-400" },
 };

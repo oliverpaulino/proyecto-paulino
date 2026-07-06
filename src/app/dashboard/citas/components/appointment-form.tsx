@@ -47,7 +47,7 @@ export function AppointmentForm({
       employee_id: initialData?.employee_id ?? "",
       fecha: initialData?.fecha ? new Date(initialData.fecha) : new Date(Date.now() + 30 * 60 * 1000),
       motivo: initialData?.motivo ?? "",
-      estado: initialData?.estado ?? "EN_REVISION",
+      estado: initialData?.estado ?? "PENDIENTE",
       notas: initialData?.notas ?? "",
    });
 
