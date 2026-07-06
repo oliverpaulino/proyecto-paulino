@@ -12,11 +12,6 @@ import type {
    EmployeeDetails,
 } from "@/dtos/employee.dto";
 
-// Placeholder types for warning functionality (not yet implemented in DTO)
-type EmployeeWarning = Record<string, unknown>;
-type CreateEmployeeWarningForm = { empleado_id: string;[key: string]: unknown };
-type UpdateEmployeeWarningForm = Record<string, unknown>;
-
 type EmployeeStore = {
    Employees: Employee[];
    Contacts: ContactEmployee[];
