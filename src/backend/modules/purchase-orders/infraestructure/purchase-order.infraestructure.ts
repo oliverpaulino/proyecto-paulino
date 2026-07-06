@@ -50,6 +50,56 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             items: [],
             created_at: new Date(row.created_at),
             updated_at: new Date(row.updated_at),
+            deleted_by: null,
+            deleted_at: null,
+            delete_reason: null,
+         })
+      );
+   }
+
+   async findAllDeleted(): Promise<PurchaseOrder[]> {
+      const rows = await this.db
+         .selectFrom("orden_compra")
+         .leftJoin("proveedor", "proveedor.id", "orden_compra.proveedor_id")
+         .select([
+            "orden_compra.id",
+            "orden_compra.proveedor_id",
+            "proveedor.nombre as proveedor_nombre",
+            "orden_compra.fecha",
+            "orden_compra.estado",
+            "orden_compra.notas",
+            "orden_compra.total",
+            "orden_compra.approved_by",
+            "orden_compra.approved_by_name",
+            "orden_compra.approved_at",
+            "orden_compra.created_at",
+            "orden_compra.updated_at",
+            "orden_compra.deleted_by",
+            "orden_compra.deleted_at",
+            "orden_compra.delete_reason",
+         ])
+         .where("orden_compra.deleted_at", "is not", null)
+         .orderBy("orden_compra.deleted_at", "desc")
+         .execute();
+
+      return rows.map((row) =>
+         PurchaseOrder.create({
+            id: row.id,
+            proveedor_id: row.proveedor_id,
+            proveedor_nombre: row.proveedor_nombre ?? undefined,
+            fecha: new Date(row.fecha),
+            estado: row.estado as EstadoOrdenCompra,
+            notas: row.notas ?? null,
+            total: Number(row.total),
+            approved_by: row.approved_by ?? null,
+            approved_by_name: row.approved_by_name ?? null,
+            approved_at: row.approved_at ? new Date(row.approved_at) : null,
+            items: [],
+            created_at: new Date(row.created_at),
+            updated_at: new Date(row.updated_at),
+            deleted_by: row.deleted_by ?? null,
+            deleted_at: row.deleted_at ? new Date(row.deleted_at) : null,
+            delete_reason: row.delete_reason ?? null,
          })
       );
    }
@@ -109,6 +159,9 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
          items,
          created_at: new Date(row.created_at),
          updated_at: new Date(row.updated_at),
+         deleted_by: null,
+         deleted_at: null,
+         delete_reason: null,
       });
    }
 
@@ -178,6 +231,9 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
          items,
          created_at: new Date(result.header.created_at),
          updated_at: new Date(result.header.updated_at),
+         deleted_by: null,
+         deleted_at: null,
+         delete_reason: null,
       });
    }
 

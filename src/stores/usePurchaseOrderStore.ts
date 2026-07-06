@@ -2,16 +2,21 @@ import { create } from "zustand";
 import type {
    PurchaseOrder,
    PurchaseOrderForm,
+   PurchaseOrderDeleted,
    UpdatePurchaseOrderForm,
    EstadoOrdenCompra,
 } from "@/dtos/purchase-order.dto";
 
 type PurchaseOrderStore = {
    PurchaseOrders: PurchaseOrder[];
+   PurchaseOrdersDeleted: PurchaseOrderDeleted[];
    loading: boolean;
    _fetchedLists: Set<string>;
+   _fetchedListsDeleted: Set<string>;
 
    GetPurchaseOrders: (params?: { force?: boolean }) => Promise<void>;
+   GetPurchaseOrdersDeleted: (params?: { force?: boolean }) => Promise<void>;
+
    CreatePurchaseOrder: (form: PurchaseOrderForm) => Promise<PurchaseOrder | Error>;
    UpdatePurchaseOrder: (
       id: string,
@@ -28,11 +33,14 @@ type PurchaseOrderStore = {
 
 export const usePurchaseOrderStore = create<PurchaseOrderStore>((set, get) => ({
    PurchaseOrders: [],
+   PurchaseOrdersDeleted: [],
    loading: false,
    _fetchedLists: new Set<string>(),
+   _fetchedListsDeleted: new Set<string>(),
 
    invalidateCache: () => {
       set({ _fetchedLists: new Set<string>() });
+      set({ _fetchedListsDeleted: new Set<string>() });
    },
 
    GetPurchaseOrders: async ({ force = false } = {}) => {
@@ -52,6 +60,29 @@ export const usePurchaseOrderStore = create<PurchaseOrderStore>((set, get) => ({
          }));
       } catch (error) {
          console.error("Error fetching purchase orders:", error);
+         throw error;
+      } finally {
+         set({ loading: false });
+      }
+   },
+
+   GetPurchaseOrdersDeleted: async ({ force = false } = {}) => {
+      const cacheKey = "all";
+      if (!force && get()._fetchedListsDeleted.has(cacheKey)) return;
+
+      set({ loading: true });
+      try {
+         const res = await fetch("/api/purchase-orders/deleted");
+         if (!res.ok) throw new Error("Error al cargar órdenes de compra eliminadas");
+
+         const data: PurchaseOrderDeleted[] = await res.json();
+
+         set((state) => ({
+            PurchaseOrdersDeleted: data,
+            _fetchedListsDeleted: new Set(state._fetchedListsDeleted).add(cacheKey),
+         }));
+      } catch (error) {
+         console.error("Error fetching deleted purchase orders:", error);
          throw error;
       } finally {
          set({ loading: false });
