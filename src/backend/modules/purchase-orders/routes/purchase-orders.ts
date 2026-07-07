@@ -26,6 +26,19 @@ purchaseOrdersRoute.get("/", async (c) => {
    }
 });
 
+// GET /api/purchase-orders/deleted
+purchaseOrdersRoute.get("/deleted", async (c) => {
+   try {
+      const orders = await service.getAllDeleted();
+      return c.json(orders);
+   } catch (err: unknown) {
+      return c.json(
+         { error: err instanceof Error ? err.message : "Error al obtener órdenes eliminadas" },
+         500
+      );
+   }
+});
+
 // POST /api/purchase-orders
 purchaseOrdersRoute.post("/", async (c) => {
    try {
