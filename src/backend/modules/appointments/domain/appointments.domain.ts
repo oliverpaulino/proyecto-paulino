@@ -84,7 +84,7 @@ export interface IAppointmentRepository {
    delete(id: string): Promise<boolean>;
    findAppointmentsByClientId(clientId: string): Promise<Appointment[]>;
    findAppointmentsByClientIdUI(clientId: string): Promise<AppointmentUI[]>;
-   findAppointmentsByEmployeeId(userId: string): Promise<Appointment[]>;
+   findAppointmentsByEmployeeId(employeeId: string): Promise<Appointment[]>;
    findAppointmentsByEmployeeIdUI(employeeId: string): Promise<AppointmentUI[]>;
    findAppointmentsByRangeOfTime(start?: Date | null, end?: Date | null): Promise<Appointment[]>;
    findAppointmentsByRangeOfTimeUI(start?: Date | null, end?: Date | null): Promise<AppointmentUI[]>;
