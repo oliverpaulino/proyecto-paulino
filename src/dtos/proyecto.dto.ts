@@ -18,8 +18,8 @@ const ProyectoDetalleSchema = z.object({
 const ProyectoAsignacionSchema = z.object({
    id: z.string(),
    proyecto_id: z.string(),
-   empleado_id: z.string(),
-   empleado_nombre: z.string().optional(),
+   operador_id: z.string(),
+   operador_nombre: z.string().optional(),
    equipo_id: z.string(),
    equipo_nombre: z.string().optional(),
    horas_trabajadas: z.number(),
@@ -91,12 +91,13 @@ export const CreateProyectoExpressFormSchema = z.object({
    cliente_id: z.string().min(1, "El cliente es requerido"),
    tipo_servicio_id: z.string().nullable().optional(),
    tarifa_servicio: z.number().min(0, "La tarifa debe ser >= 0"),
-   empleado_id: z.string().min(1, "El operador es requerido"),
+   operador_id: z.string().min(1, "El operador es requerido"),
    equipo_id: z.string().min(1, "El equipo es requerido"),
    horas_trabajadas: z.number().min(0),
    notas: z.string().optional(),
-   cargos_cobrables: z.array(LineItemFormSchema),
-   gastos_internos: z.array(LineItemFormSchema),
+
+   cargos_cobrables: z.array(LineItemFormSchema).optional(),
+   gastos_internos: z.array(LineItemFormSchema).optional(),
 });
 
 export const LiquidacionExpressFacadeSchema = z.object({
@@ -108,7 +109,7 @@ export const LiquidacionExpressFacadeSchema = z.object({
    total_cobrable: z.number(),
    total_gasto_interno: z.number(),
    rentabilidad: z.number(),
-   empleado_nombre: z.string(),
+   operador_nombre: z.string(),
    equipo_nombre: z.string(),
    horas_trabajadas: z.number(),
    fecha: z.coerce.date(),
@@ -132,8 +133,8 @@ export const EquipoAsignadoSchema = z.object({
 
 // El Payload completo para crear un Proyecto Express
 export const CreateProyectoExpressDTOSchema = z.object({
-   cliente_id: z.string(),
-   servicio_id: z.string(), // ID del servicio (Ej: Bote, o Personalizado)
+   cliente_id: z.string("Seleccione un cliente válido"),
+   servicio_id: z.string({ message: "ID de servicio inválido" }).nullable().optional(),
    nombre: z.string(),
    fecha_inicio: z.string().datetime().optional(),
 

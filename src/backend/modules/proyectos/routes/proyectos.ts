@@ -72,14 +72,21 @@ proyectosRoute.post("/express", async (c) => {
       const body = validation.data;
 
       // 6. Ejecutamos la lógica de negocio
-      const proyecto = ProyectoService.createExpress({
-         ...body,
-         fecha_inicio: body.fecha_inicio ? new Date(body.fecha_inicio) : new Date(),
-         cargos_cobrables: body.cargos_cobrables ?? [],
-         gastos_internos: body.gastos_internos ?? [],
-      }, session.user.id);
+      try {
+         const proyecto = service.createExpress({
+            ...body, // Aquí ya vienen 'tarifas' y 'equipos' validados por Zod
+            servicio_id: body.servicio_id ?? null, // Aseguramos que sea null si no viene
+            fecha_inicio: body.fecha_inicio ? new Date(body.fecha_inicio) : new Date(),
+            cargos_cobrables: body.cargos_cobrables ?? [],
+            gastos_internos: body.gastos_internos ?? [],
+         });
+         return c.json(proyecto, 201);
 
-      return c.json(proyecto, 201);
+      } catch (error: any) {
+         console.error("Error creando proyecto Express:", error);
+         return c.json({ error: error.message }, 400);
+      }
+
 
    } catch (err: unknown) {
       return c.json(

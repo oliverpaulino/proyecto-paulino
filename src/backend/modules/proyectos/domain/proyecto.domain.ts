@@ -33,8 +33,8 @@ export interface ProyectoDetalleProps {
 export interface ProyectoAsignacionProps {
    id: string;
    proyecto_id: string;
-   empleado_id: string;
-   empleado_nombre?: string;
+   operador_id: string;
+   operador_nombre?: string;
    equipo_id: string;
    equipo_nombre?: string;
    horas_trabajadas: number;
@@ -60,21 +60,20 @@ export type ProyectoProps = ProyectoTypeFields & {
 
 // ─── DTO de creación — Proyecto Express ──────────────────────────────────────
 export interface CreateProyectoExpressDTO {
-   nombre: any;
-   servicio_id: any;
+   nombre: string;         // <-- Corregido de 'any' a 'string'
+   servicio_id: string | null;    // <-- Corregido de 'any' a 'string'
    cliente_id: string;
-   tipo_servicio_id?: string | null;
-   tarifa_servicio: number;
-   empleado_id: string;
-   equipo_id: string;
-   horas_trabajadas: number;
    notas?: string | null;
    fecha_inicio?: Date;
+
+   // ❌ ELIMINAR: tarifa_servicio, empleado_id, equipo_id, horas_trabajadas, tipo_servicio_id
+
+   // ✅ Los nuevos arrays obligatorios/opcionales
    tarifas: Array<{
-      categoria_equipo_id: string,
-      precio_acordado: number,
-      cobra_en_snapshot: string,
-      cobra_minimo_snapshot: number
+      categoria_equipo_id: string;
+      precio_acordado: number;
+      cobra_en_snapshot: string;
+      cobra_minimo_snapshot: number;
    }>;
    equipos?: Array<{
       operador_id?: string;
@@ -104,7 +103,7 @@ export interface LiquidacionExpressFacade {
    total_cobrable: number;
    total_gasto_interno: number;
    rentabilidad: number;
-   empleado_nombre: string;
+   operador_nombre: string;
    equipo_nombre: string;
    horas_trabajadas: number;
    fecha: Date;

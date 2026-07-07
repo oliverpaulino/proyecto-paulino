@@ -11,9 +11,7 @@ import type {
 } from "../domain/proyecto.domain";
 
 export class KyselyProyectoRepository implements IProyectoRepository {
-   static createExpressTransaction(data: CreateProyectoExpressDTO): ProyectoProps | PromiseLike<ProyectoProps> {
-      throw new Error("Method not implemented.");
-   }
+
    constructor(private readonly db: Kysely<DB>) { }
 
    async findAll(tipo?: TipoProyecto): Promise<ProyectoProps[]> {
@@ -100,8 +98,21 @@ export class KyselyProyectoRepository implements IProyectoRepository {
    }
 
    async createExpress(data: CreateProyectoExpressDTO): Promise<ProyectoProps> {
-      const result = await this.db.transaction().execute(async (trx) => {
-         // 1 — Cabecera: estado COMPLETADO de inmediato para proyectos Express
+      return await this.db.transaction().execute(async (trx) => {
+         // 1 — Snapshot del nombre del servicio (si existe en tu BD)
+         let nombreServicio = "Desconocido";
+
+         if (data.servicio_id) {
+            const servicio = await trx
+               .selectFrom("servicios")
+               .select(["nombre"])
+               .where("id", "=", data.servicio_id)
+               .executeTakeFirst();
+            if (servicio) nombreServicio = servicio.nombre;
+         }
+         // const nombreServicio = servicio ? servicio.nombre : "Desconocido";
+
+         // 2 — Cabecera: estado COMPLETADO para Express
          const header = await trx
             .insertInto("proyecto")
             .values({
@@ -109,8 +120,10 @@ export class KyselyProyectoRepository implements IProyectoRepository {
                tipo_proyecto: "EXPRESS",
                estado: "COMPLETADO",
                cliente_id: data.cliente_id,
-               tipo_servicio_id: data.tipo_servicio_id ?? null,
-               tarifa_servicio: data.tarifa_servicio,
+               servicio_id: data.servicio_id ?? null,
+               tipo_servicio_id: data.servicio_id ?? null,
+               tarifa_servicio: data.tarifas[0]?.precio_acordado ?? 0,
+
                notas: data.notas ?? null,
                fecha_inicio: data.fecha_inicio ?? new Date(),
                fecha_fin: new Date(),
@@ -118,7 +131,38 @@ export class KyselyProyectoRepository implements IProyectoRepository {
             .returningAll()
             .executeTakeFirstOrThrow();
 
-         // 2 — Cargos cobrables: impactan la factura del cliente
+         // 3 — Insertar Tarifas (El nuevo esquema)
+         const tarifasToInsert = data.tarifas.map((t) => ({
+            proyecto_id: header.id,
+            categoria_equipo_id: t.categoria_equipo_id,
+            precio_acordado: t.precio_acordado,
+            cobra_en_snapshot: t.cobra_en_snapshot,
+            cobra_minimo_snapshot: t.cobra_minimo_snapshot,
+         }));
+
+         const insertedTarifas = await trx
+            .insertInto("proyecto_tarifas") // <-- Singular, según tu base de datos
+            .values(tarifasToInsert)
+            .returningAll()
+            .execute();
+
+         // 4 — Asignar Equipos Físicos (El nuevo esquema)
+         if (data.equipos && data.equipos.length > 0) {
+            const equiposToInsert = data.equipos.map((e) => {
+               const tarifa = insertedTarifas.find(t => t.categoria_equipo_id === e.categoria_equipo_id);
+               if (!tarifa) throw new Error(`Inconsistencia: No se encontró tarifa para categoría ${e.categoria_equipo_id}`);
+
+               return {
+                  proyecto_id: header.id,
+                  equipo_id: e.equipo_id,
+                  operador_id: e.operador_id || null,
+                  proyecto_tarifa_id: tarifa.id, // Enlace crucial
+               };
+            });
+            await trx.insertInto("proyecto_equipos").values(equiposToInsert).execute(); // <-- Singular
+         }
+
+         // 5 — Cargos y Gastos (Detalles)
          const itemsCobrables = data.cargos_cobrables.map((c) => ({
             proyecto_id: header.id,
             descripcion: c.descripcion,
@@ -127,8 +171,6 @@ export class KyselyProyectoRepository implements IProyectoRepository {
             subtotal: c.cantidad * c.precio_unitario,
             es_cobrable: true,
          }));
-
-         // 3 — Gastos internos: solo afectan rentabilidad, no factura
          const itemsInternos = data.gastos_internos.map((g) => ({
             proyecto_id: header.id,
             descripcion: g.descripcion,
@@ -139,59 +181,32 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          }));
 
          const allItems = [...itemsCobrables, ...itemsInternos];
-         const insertedDetalle =
-            allItems.length > 0
-               ? await trx
-                  .insertInto("proyecto_detalle")
-                  .values(allItems)
-                  .returningAll()
-                  .execute()
-               : [];
+         const insertedDetalle = allItems.length > 0
+            ? await trx.insertInto("proyecto_detalle").values(allItems).returningAll().execute()
+            : [];
 
-         // 4 — Asignación obligatoria operador + equipo
-         const asignacion = await trx
-            .insertInto("proyecto_asignacion")
-            .values({
-               proyecto_id: header.id,
-               empleado_id: data.empleado_id,
-               equipo_id: data.equipo_id,
-               horas_trabajadas: data.horas_trabajadas,
-            })
-            .returningAll()
-            .executeTakeFirstOrThrow();
+         // 6 — Calcular totales financieros
+         const total_cobrable_tarifas = insertedTarifas.reduce((sum, t) => sum + Number(t.precio_acordado), 0);
+         const total_cobrable_cargos = insertedDetalle.filter(i => i.es_cobrable).reduce((sum, i) => sum + Number(i.subtotal), 0);
 
-         // 5 — Calcular totales
-         const total_cobrable =
-            data.tarifa_servicio +
-            insertedDetalle
-               .filter((i) => i.es_cobrable)
-               .reduce((sum, i) => sum + Number(i.subtotal), 0);
-
-         const total_gasto_interno = insertedDetalle
-            .filter((i) => !i.es_cobrable)
-            .reduce((sum, i) => sum + Number(i.subtotal), 0);
-
+         const total_cobrable = total_cobrable_tarifas + total_cobrable_cargos;
+         const total_gasto_interno = insertedDetalle.filter(i => !i.es_cobrable).reduce((sum, i) => sum + Number(i.subtotal), 0);
          const rentabilidad = total_cobrable - total_gasto_interno;
 
-         // 6 — Actualizar totales en la cabecera
+         // 7 — Actualizar totales en la cabecera
          await trx
             .updateTable("proyecto")
             .set({ total_cobrable, total_gasto_interno, rentabilidad, updated_at: new Date() })
             .where("id", "=", header.id)
             .execute();
 
-         return {
-            header: { ...header, total_cobrable, total_gasto_interno, rentabilidad },
-            detalle: insertedDetalle,
-            asignacion,
-         };
+         // 8 — Retornar el DTO mapeado (asignaciones vacías porque la estructura vieja cambió)
+         return this.#mapRow(
+            { ...header, total_cobrable, total_gasto_interno, rentabilidad, cliente_nombre: null },
+            insertedDetalle,
+            []
+         );
       });
-
-      return this.#mapRow(
-         { ...result.header, cliente_nombre: null },
-         result.detalle,
-         [{ ...result.asignacion, empleado_nombre: null, equipo_nombre: null }]
-      );
    }
 
    async getLiquidacion(id: string): Promise<LiquidacionExpressFacade | null> {
@@ -209,7 +224,7 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          total_cobrable: Number(proyecto.total_cobrable),
          total_gasto_interno: Number(proyecto.total_gasto_interno),
          rentabilidad: Number(proyecto.rentabilidad),
-         empleado_nombre: asignacion?.empleado_nombre ?? "",
+         operador_nombre: asignacion?.operador_nombre ?? "",
          equipo_nombre: asignacion?.equipo_nombre ?? "",
          horas_trabajadas: asignacion?.horas_trabajadas ?? 0,
          fecha: proyecto.fecha_inicio,
@@ -233,6 +248,7 @@ export class KyselyProyectoRepository implements IProyectoRepository {
             .insertInto("proyecto")
             .values({
                tipo_proyecto: "EXPRESS", // <-- AQUÍ ESTÁ LA SOLUCIÓN
+               estado: "COMPLETADO",
                cliente_id: data.cliente_id,
                servicio_id: data.servicio_id,
                nombre: data.nombre,
@@ -311,11 +327,13 @@ export class KyselyProyectoRepository implements IProyectoRepository {
       const mappedAsignaciones: ProyectoAsignacionProps[] = asignaciones.map((a) => ({
          id: a.id as string,
          proyecto_id: a.proyecto_id as string,
-         empleado_id: a.empleado_id as string,
-         empleado_nombre: a.empleado_nombre as string | undefined,
+         operador_id: a.operador_id as string,
+         operador_nombre: a.operador_nombre as string | undefined,
          equipo_id: a.equipo_id as string,
          equipo_nombre: a.equipo_nombre as string | undefined,
          horas_trabajadas: Number(a.horas_trabajadas),
+
+
       }));
 
       const base = {

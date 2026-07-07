@@ -53,8 +53,8 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
    const [notas, setNotas] = useState("");
 
    // 2. Usamos el nuevo tipado para el array de equipos
-   const [equiposUsar, setEquiposUsar] = useState<EquipoUsarItem[]>([emptyEquipo()]);
-   const [cobrables, setCobrables] = useState<LineItemForm[]>([emptyItem()]);
+   const [equiposUsar, setEquiposUsar] = useState<EquipoUsarItem[]>([]);
+   const [cobrables, setCobrables] = useState<LineItemForm[]>([]);
    const [internos, setInternos] = useState<LineItemForm[]>([]);
    const [error, setError] = useState<string | null>(null);
 
@@ -97,11 +97,59 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
    // Dentro de ProyectoExpressForm, en el handleSubmit:
    async function handleSubmit(e: React.FormEvent) {
       e.preventDefault();
+      if (!clienteId) {
+         setError("El cliente es requerido");
+         return;
+      }
+      if (equiposUsar.length === 0 || !equiposUsar[0].equipo_id || !equiposUsar[0].operador_id) {
+         setError("Se requiere al menos un equipo con operador");
+         return;
+      }
+
+      if (tarifaServicio < 0) {
+         setError("La tarifa del servicio debe ser mayor o igual a 0");
+         return;
+      }
+
+      if (operadores.length === 0) {
+         setError("No hay operadores disponibles para asignar al proyecto");
+         return;
+      }
+
+
+
+      if (equiposUsar.some(eq => eq.horas < 0)) {
+         setError("Las horas trabajadas deben ser mayor o igual a 0");
+         return;
+      }
+
+      if (equiposUsar.some(eq => eq.precio_unitario < 0)) {
+         setError("El precio unitario de los equipos debe ser mayor o igual a 0");
+         return;
+      }
+
+      if (cobrables.some(c => c.cantidad <= 0 || c.precio_unitario < 0)) {
+         setError("Los cargos cobrables deben tener cantidad > 0 y precio unitario >= 0");
+         return;
+      }
+
+      if (internos.some(i => i.cantidad <= 0 || i.precio_unitario < 0)) {
+         setError("Los gastos internos deben tener cantidad > 0 y precio unitario >= 0");
+         return;
+      }
+
+      if (rentabilidad < 0) {
+         const confirm = window.confirm(
+            "La rentabilidad es negativa. ¿Desea continuar con la liquidación?"
+         );
+         if (!confirm) return;
+      }
+
 
       // Mapeamos lo que el formulario tiene hacia lo que el DTO requiere
       const payload = {
          cliente_id: clienteId,
-         servicio_id: "ID_DEL_SERVICIO_SELECCIONADO", // Necesitas este campo
+         servicio_id: null, // Necesitas este campo
          nombre: "Proyecto Express",
 
          // Transformamos tu array de equipos a las "tarifas" y "equipos" que pide el backend
@@ -174,6 +222,24 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
             </div>
             {equiposUsar.map((item, idx) => (
                <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_28px] gap-2 items-center">
+
+                  <div className="space-y-1.5">
+                     <SelectEquipos
+                        value={item.equipo_id}
+                        onChange={(id, equipo) => {
+                           updateEquipo(idx, "equipo_id", id);
+                           if (equipo) {
+                              updateEquipo(idx, "operador_id", equipo.operador_id || "");
+                              // Algunos tipos de equipo pueden no tener la propiedad `categoria`.
+                              // Intentamos leer la tarifa de forma segura y usar 0 como fallback.
+                              const tarifa = (equipo as any)?.categoria?.tarifa ?? (equipo as any)?.categoria_tarifa ?? 0;
+                              updateEquipo(idx, "precio_unitario", tarifa);
+                              updateEquipo(idx, "categoria_equipo_id", equipo.categoria_id);
+                           }
+                        }}
+                     />
+                  </div>
+
                   <div className="space-y-1.5">
                      <Select
                         value={item.operador_id}
@@ -193,22 +259,6 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
                      </Select>
                   </div>
 
-                  <div className="space-y-1.5">
-                     <SelectEquipos
-                        value={item.equipo_id}
-                        onChange={(id, equipo) => {
-                           updateEquipo(idx, "equipo_id", id);
-                           if (equipo) {
-                              updateEquipo(idx, "operador_id", equipo.operador_id || "");
-                              // Algunos tipos de equipo pueden no tener la propiedad `categoria`.
-                              // Intentamos leer la tarifa de forma segura y usar 0 como fallback.
-                              const tarifa = (equipo as any)?.categoria?.tarifa ?? (equipo as any)?.categoria_tarifa ?? 0;
-                              updateEquipo(idx, "precio_unitario", tarifa);
-                              updateEquipo(idx, "categoria_equipo_id", equipo.categoria_id);
-                           }
-                        }}
-                     />
-                  </div>
 
                   <div className="space-y-1.5">
                      <Input

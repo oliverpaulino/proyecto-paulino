@@ -305,17 +305,21 @@ export interface DB {
       id: Generated<string>;
       tipo_proyecto: string;
       nombre: string;       // 'EXPRESS' | 'NORMAL' | 'GRANDE'
-      tipo_servicio_snapshot: string | null; // FK se añade cuando exista tipo_servicio
-      estado: Generated<string>;       // 'BORRADOR' | 'COMPLETADO' | 'CANCELADO'
+      // tipo_servicio_snapshot: string | null; // FK se añade cuando exista tipo_servicio
+      estado: string;       // 'BORRADOR' | 'COMPLETADO' | 'CANCELADO' | 'EN PROGRESO'
       cliente_id: string;
-      tipo_servicio_id: string | null; // FK se añade cuando exista tipo_servicio
+      // Servicios (nullable como solicitaste)
+      servicio_id: string | null;
+      tipo_servicio_snapshot: string | null;
+      tipo_servicio_id: string | null;
       tarifa_servicio: number | null;
+
       total_cobrable: Generated<number>;
       total_gasto_interno: Generated<number>;
       rentabilidad: Generated<number>;
+
       notas: string | null;
       fecha_inicio: Date;
-      servicio_id: string | null; // FK a servicios, se añade cuando exista la tabla servicios
       fecha_fin: Date | null;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
