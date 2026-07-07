@@ -40,6 +40,9 @@ export interface PurchaseOrderProps {
    items: PurchaseOrderItemProps[];
    created_at: Date;
    updated_at: Date;
+   deleted_by: string | null;
+   deleted_at: Date | null;
+   deleted_reason: string | null;
 }
 
 const TRANSITIONS: Record<EstadoOrdenCompra, EstadoOrdenCompra[]> = {
@@ -81,6 +84,9 @@ export class PurchaseOrder {
    get items(): PurchaseOrderItemProps[] { return this.props.items; }
    get created_at(): Date { return this.props.created_at; }
    get updated_at(): Date { return this.props.updated_at; }
+   get deleted_by(): string | null { return this.props.deleted_by; }
+   get deleted_at(): Date | null { return this.props.deleted_at; }
+   get deleted_reason(): string | null { return this.props.deleted_reason; }
 
    toJSON(): PurchaseOrderProps {
       return { ...this.props };
@@ -110,6 +116,7 @@ export interface ApproverRecord {
 
 export interface IPurchaseOrderRepository {
    findAll(): Promise<PurchaseOrder[]>;
+   findAllDeleted(): Promise<PurchaseOrder[]>;
    findById(id: string): Promise<PurchaseOrder | null>;
    create(data: CreatePurchaseOrderDTO): Promise<PurchaseOrder>;
    updateHeader(

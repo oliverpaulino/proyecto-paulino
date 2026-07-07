@@ -18,6 +18,11 @@ export class PurchaseOrderService {
       return orders.map((o) => o.toJSON());
    }
 
+   async getAllDeleted(): Promise<PurchaseOrderProps[]> {
+      const orders = await this.repo.findAllDeleted();
+      return orders.map((o) => o.toJSON());
+   }
+
    async getById(id: string): Promise<PurchaseOrderProps | null> {
       const order = await this.repo.findById(id);
       return order ? order.toJSON() : null;
