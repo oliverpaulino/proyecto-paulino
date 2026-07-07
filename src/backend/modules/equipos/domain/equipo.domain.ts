@@ -49,6 +49,28 @@ export class Equipo {
    }
 }
 
+export interface EstadoHistorialProps {
+   id: string;
+   equipo_id: string;
+   estado_anterior: EstadoEquipo | null;
+   estado_nuevo: EstadoEquipo;
+   changed_by: string | null;
+   changed_by_name: string | null;
+   nota: string | null;
+   created_at: Date;
+}
+
+export interface EquipoCompraItemProps {
+   id: string;
+   orden_compra_id: string;
+   orden_fecha: Date;
+   orden_estado: string;
+   descripcion: string;
+   cantidad: number;
+   precio_unitario: number;
+   subtotal: number;
+}
+
 export interface CreateEquipoDTO {
    nombre: string;
    categoria_id: string;
@@ -75,4 +97,13 @@ export interface IEquipoRepository {
    create(data: CreateEquipoDTO): Promise<Equipo>;
    update(id: string, data: UpdateEquipoDTO): Promise<Equipo | null>;
    delete(id: string): Promise<boolean>;
+   changeEstado(
+      id: string,
+      nuevoEstado: EstadoEquipo,
+      changedBy?: string | null,
+      changedByName?: string | null,
+      nota?: string | null
+   ): Promise<Equipo | null>;
+   findHistorial(id: string): Promise<EstadoHistorialProps[]>;
+   findComprasItems(id: string): Promise<EquipoCompraItemProps[]>;
 }

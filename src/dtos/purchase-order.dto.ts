@@ -11,6 +11,8 @@ export const EstadoOrdenCompraSchema = z.enum([
 const PurchaseOrderItemSchema = z.object({
    id: z.string(),
    orden_compra_id: z.string(),
+   equipo_id: z.string().nullable(),
+   equipo_nombre: z.string().nullable(),
    descripcion: z.string(),
    cantidad: z.number(),
    precio_unitario: z.number(),
@@ -23,6 +25,7 @@ const PurchaseOrderItemFormSchema = z.object({
    descripcion: z.string().min(1),
    cantidad: z.number().positive(),
    precio_unitario: z.number().min(0),
+   equipo_id: z.string().nullable().optional(),
 });
 
 const PurchaseOrderDTO = z.object({

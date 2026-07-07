@@ -3,7 +3,9 @@ import { DB } from "@/backend/database";
 import {
    CreateEquipoDTO,
    Equipo,
+   EquipoCompraItemProps,
    EstadoEquipo,
+   EstadoHistorialProps,
    IEquipoRepository,
    UpdateEquipoDTO,
 } from "../domain/equipo.domain";
@@ -134,5 +136,100 @@ export class KyselyEquipoRepository implements IEquipoRepository {
          .executeTakeFirst();
 
       return Number(result.numDeletedRows) > 0;
+   }
+
+   async changeEstado(
+      id: string,
+      nuevoEstado: EstadoEquipo,
+      changedBy?: string | null,
+      changedByName?: string | null,
+      nota?: string | null
+   ): Promise<Equipo | null> {
+      const changed = await this.db.transaction().execute(async (trx) => {
+         const current = await trx
+            .selectFrom("equipo")
+            .select("estado")
+            .where("id", "=", id)
+            .executeTakeFirst();
+
+         if (!current) return false; // 404
+
+         // No-op: re-selecting the current estado records nothing.
+         if (current.estado === nuevoEstado) return true;
+
+         await trx
+            .updateTable("equipo")
+            .set({ estado: nuevoEstado, updated_at: new Date() })
+            .where("id", "=", id)
+            .execute();
+
+         await trx
+            .insertInto("equipo_estado_historial")
+            .values({
+               equipo_id: id,
+               estado_anterior: current.estado,
+               estado_nuevo: nuevoEstado,
+               changed_by: changedBy ?? null,
+               changed_by_name: changedByName ?? null,
+               nota: nota ?? null,
+            })
+            .execute();
+
+         return true;
+      });
+
+      if (!changed) return null;
+      return this.findById(id);
+   }
+
+   async findHistorial(id: string): Promise<EstadoHistorialProps[]> {
+      const rows = await this.db
+         .selectFrom("equipo_estado_historial")
+         .selectAll()
+         .where("equipo_id", "=", id)
+         .orderBy("created_at", "desc")
+         .execute();
+
+      return rows.map((r) => ({
+         id: r.id,
+         equipo_id: r.equipo_id,
+         estado_anterior: (r.estado_anterior as EstadoEquipo | null) ?? null,
+         estado_nuevo: r.estado_nuevo as EstadoEquipo,
+         changed_by: r.changed_by,
+         changed_by_name: r.changed_by_name,
+         nota: r.nota,
+         created_at: new Date(r.created_at),
+      }));
+   }
+
+   async findComprasItems(id: string): Promise<EquipoCompraItemProps[]> {
+      const rows = await this.db
+         .selectFrom("orden_compra_item")
+         .innerJoin("orden_compra", "orden_compra.id", "orden_compra_item.orden_compra_id")
+         .select([
+            "orden_compra_item.id",
+            "orden_compra_item.orden_compra_id",
+            "orden_compra.fecha as orden_fecha",
+            "orden_compra.estado as orden_estado",
+            "orden_compra_item.descripcion",
+            "orden_compra_item.cantidad",
+            "orden_compra_item.precio_unitario",
+            "orden_compra_item.subtotal",
+         ])
+         .where("orden_compra_item.equipo_id", "=", id)
+         .where("orden_compra.deleted_at", "is", null)
+         .orderBy("orden_compra.fecha", "desc")
+         .execute();
+
+      return rows.map((r) => ({
+         id: r.id,
+         orden_compra_id: r.orden_compra_id,
+         orden_fecha: new Date(r.orden_fecha),
+         orden_estado: r.orden_estado,
+         descripcion: r.descripcion,
+         cantidad: Number(r.cantidad),
+         precio_unitario: Number(r.precio_unitario),
+         subtotal: Number(r.subtotal),
+      }));
    }
 }

@@ -37,6 +37,36 @@ const CreateEquipoDTO = z.object({
 
 const UpdateEquipoDTO = CreateEquipoDTO.partial();
 
+const EquipoEstadoHistorialSchema = z.object({
+   id: z.string(),
+   equipo_id: z.string(),
+   estado_anterior: z.enum(ESTADOS_EQUIPO).nullable(),
+   estado_nuevo: z.enum(ESTADOS_EQUIPO),
+   changed_by: z.string().nullable(),
+   changed_by_name: z.string().nullable(),
+   nota: z.string().nullable(),
+   created_at: z.coerce.date(),
+});
+
+const EquipoCompraItemSchema = z.object({
+   id: z.string(),
+   orden_compra_id: z.string(),
+   orden_fecha: z.coerce.date(),
+   orden_estado: z.string(),
+   descripcion: z.string(),
+   cantidad: z.number(),
+   precio_unitario: z.number(),
+   subtotal: z.number(),
+});
+
+const ChangeEstadoFormSchema = z.object({
+   estado: z.enum(ESTADOS_EQUIPO),
+   nota: z.string().optional(),
+});
+
 export type Equipo = z.infer<typeof EquipoDTO>;
 export type EquipoForm = z.infer<typeof CreateEquipoDTO>;
 export type UpdateEquipoForm = z.infer<typeof UpdateEquipoDTO>;
+export type EquipoEstadoHistorial = z.infer<typeof EquipoEstadoHistorialSchema>;
+export type EquipoCompraItem = z.infer<typeof EquipoCompraItemSchema>;
+export type ChangeEstadoForm = z.infer<typeof ChangeEstadoFormSchema>;

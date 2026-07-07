@@ -88,6 +88,7 @@ interface FormPayload {
       descripcion: string;
       cantidad: number;
       precio_unitario: number;
+      equipo_id?: string | null;
    }>;
 }
 
@@ -368,6 +369,9 @@ export default function PurchaseOrderDetailPage() {
                               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                  Descripción
                               </th>
+                              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                 Equipo
+                              </th>
                               <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                  Cantidad
                               </th>
@@ -386,6 +390,9 @@ export default function PurchaseOrderDetailPage() {
                                  className="border-t border-border hover:bg-muted/20"
                               >
                                  <td className="px-4 py-3">{item.descripcion}</td>
+                                 <td className="px-4 py-3 text-muted-foreground">
+                                    {item.equipo_nombre ?? "—"}
+                                 </td>
                                  <td className="px-4 py-3 text-right">
                                     {item.cantidad}
                                  </td>
@@ -401,7 +408,7 @@ export default function PurchaseOrderDetailPage() {
                         <tfoot>
                            <tr className="border-t-2 border-brand-blue/20 bg-muted/20">
                               <td
-                                 colSpan={3}
+                                 colSpan={4}
                                  className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground"
                               >
                                  Total

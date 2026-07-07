@@ -6,6 +6,7 @@ import {
    EstadoOrdenCompra,
    IPurchaseOrderRepository,
    PurchaseOrder,
+   PurchaseOrderItemInput,
    PurchaseOrderItemProps,
    UpdatePurchaseOrderDTO,
 } from "../domain/purchase-order.domain";
@@ -80,13 +81,27 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
 
       const itemRows = await this.db
          .selectFrom("orden_compra_item")
-         .selectAll()
-         .where("orden_compra_id", "=", id)
+         .leftJoin("equipo", "equipo.id", "orden_compra_item.equipo_id")
+         .select([
+            "orden_compra_item.id",
+            "orden_compra_item.orden_compra_id",
+            "orden_compra_item.equipo_id",
+            "equipo.nombre as equipo_nombre",
+            "orden_compra_item.descripcion",
+            "orden_compra_item.cantidad",
+            "orden_compra_item.precio_unitario",
+            "orden_compra_item.subtotal",
+            "orden_compra_item.created_at",
+            "orden_compra_item.updated_at",
+         ])
+         .where("orden_compra_item.orden_compra_id", "=", id)
          .execute();
 
       const items: PurchaseOrderItemProps[] = itemRows.map((i) => ({
          id: i.id,
          orden_compra_id: i.orden_compra_id,
+         equipo_id: i.equipo_id ?? null,
+         equipo_nombre: i.equipo_nombre ?? null,
          descripcion: i.descripcion,
          cantidad: Number(i.cantidad),
          precio_unitario: Number(i.precio_unitario),
@@ -128,6 +143,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
 
          const itemsToInsert = data.items.map((item) => ({
             orden_compra_id: header.id,
+            equipo_id: item.equipo_id ?? null,
             descripcion: item.descripcion,
             cantidad: item.cantidad,
             precio_unitario: item.precio_unitario,
@@ -151,34 +167,13 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             .where("id", "=", header.id)
             .execute();
 
-         return { header: { ...header, total }, items: insertedItems };
+         return header.id;
       });
 
-      const items: PurchaseOrderItemProps[] = result.items.map((i) => ({
-         id: i.id,
-         orden_compra_id: i.orden_compra_id,
-         descripcion: i.descripcion,
-         cantidad: Number(i.cantidad),
-         precio_unitario: Number(i.precio_unitario),
-         subtotal: Number(i.subtotal),
-         created_at: new Date(i.created_at),
-         updated_at: new Date(i.updated_at),
-      }));
-
-      return PurchaseOrder.create({
-         id: result.header.id,
-         proveedor_id: result.header.proveedor_id,
-         fecha: new Date(result.header.fecha),
-         estado: result.header.estado as EstadoOrdenCompra,
-         notas: result.header.notas ?? null,
-         total: Number(result.header.total),
-         approved_by: null,
-         approved_by_name: null,
-         approved_at: null,
-         items,
-         created_at: new Date(result.header.created_at),
-         updated_at: new Date(result.header.updated_at),
-      });
+      // Re-fetch through findById so the response carries joined equipo names.
+      const order = await this.findById(result);
+      if (!order) throw new Error("Error al crear la orden de compra");
+      return order;
    }
 
    async updateHeader(
@@ -203,11 +198,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
 
    async replaceItems(
       id: string,
-      items: Array<{
-         descripcion: string;
-         cantidad: number;
-         precio_unitario: number;
-      }>
+      items: PurchaseOrderItemInput[]
    ): Promise<PurchaseOrder | null> {
       await this.db.transaction().execute(async (trx) => {
          await trx
@@ -217,6 +208,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
 
          const itemsToInsert = items.map((item) => ({
             orden_compra_id: id,
+            equipo_id: item.equipo_id ?? null,
             descripcion: item.descripcion,
             cantidad: item.cantidad,
             precio_unitario: item.precio_unitario,

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Pencil, Trash2 } from "lucide-react";
 import type { Equipo } from "@/dtos/equipo.dto";
 import { ESTADO_BADGE, ESTADO_LABEL } from "./equipo-labels";
@@ -43,7 +44,12 @@ export function EquipoTable({ equipos, onEdit, onDelete }: EquipoTableProps) {
                      className="border-t border-border hover:bg-brand-blue/5 transition-colors"
                   >
                      <td className="px-4 py-3">
-                        <div className="font-semibold text-brand-blue dark:text-white">{equipo.nombre}</div>
+                        <Link
+                           href={`/dashboard/equipos/${equipo.id}`}
+                           className="font-semibold text-brand-blue hover:underline dark:text-white"
+                        >
+                           {equipo.nombre}
+                        </Link>
                         <div className="text-xs text-muted-foreground">
                            {new Date(equipo.created_at).toLocaleDateString("es-DO")}
                         </div>

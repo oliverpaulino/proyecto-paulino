@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Equipo, EquipoForm, UpdateEquipoForm } from "@/dtos/equipo.dto";
+import type { Equipo, EquipoForm, EstadoEquipo, UpdateEquipoForm } from "@/dtos/equipo.dto";
 
 type EquipoStore = {
    Equipos: Equipo[];
@@ -10,6 +10,7 @@ type EquipoStore = {
    CreateEquipo: (form: EquipoForm) => Promise<Equipo | Error>;
    UpdateEquipo: (id: string, data: Partial<UpdateEquipoForm>) => Promise<void | Error>;
    DeleteEquipo: (id: string) => Promise<void | Error>;
+   ChangeEstado: (id: string, estado: EstadoEquipo, nota?: string) => Promise<Equipo | Error>;
    invalidateCache: () => void;
 };
 
@@ -93,6 +94,25 @@ export const useEquipoStore = create<EquipoStore>((set, get) => ({
 
          get().invalidateCache();
          await get().GetEquipos();
+      } catch (error) {
+         return error as Error;
+      }
+   },
+
+   ChangeEstado: async (id, estado, nota) => {
+      try {
+         const res = await fetch(`/api/equipos/${id}/estado`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ estado, nota }),
+         });
+
+         const data = await res.json();
+         if (!res.ok) throw new Error(data.error || data.message || "Error al cambiar el estado");
+
+         // Keep the cached list consistent (the list holds its own copy of estado).
+         get().invalidateCache();
+         return data as Equipo;
       } catch (error) {
          return error as Error;
       }
