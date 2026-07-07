@@ -3,9 +3,11 @@ import db from "@/backend/database";
 import { KyselyProyectoRepository } from "../infraestructure/proyecto.infraestructure";
 import { ProyectoService } from "../service/proyecto.service";
 import type { TipoProyecto, CreateProyectoExpressDTO } from "../domain/proyecto.domain";
+import { CreateProyectoExpressDTOSchema } from "@/dtos/proyecto.dto";
+import { auth } from "@/lib/auth";
 
 const proyectosRoute = new Hono();
-const repo    = new KyselyProyectoRepository(db);
+const repo = new KyselyProyectoRepository(db);
 const service = new ProyectoService(repo);
 
 // GET /api/proyectos?tipo=EXPRESS|NORMAL|GRANDE
@@ -44,20 +46,45 @@ proyectosRoute.get("/:id/liquidacion", async (c) => {
 // POST /api/proyectos/express — transacción atómica Express
 proyectosRoute.post("/express", async (c) => {
    try {
-      const body = await c.req.json() as CreateProyectoExpressDTO & { fecha_inicio?: string };
+      // 1. Verificamos sesión
+      const session = await auth.api.getSession({ headers: c.req.raw.headers });
+      if (!session?.user) return c.json({ error: "No autenticado" }, 401);
 
-      const proyecto = await service.createExpress({
+      // 2. Obtenemos el body crudo que mandó el Frontend
+      const rawBody = await c.req.json();
+
+      // 3. VALIDACIÓN NORMAL Y MANUAL CON ZOD
+      const validation = CreateProyectoExpressDTOSchema.safeParse(rawBody);
+
+      // 4. Si la validación falla, controlamos el error manualmente
+      if (!validation.success) {
+         return c.json(
+            {
+               error: "Datos incompletos o incorrectos",
+               // Esto te devuelve un objeto exacto de qué campo falló (útil para debugear)
+               detalles: validation.error.format()
+            },
+            400
+         );
+      }
+
+      // 5. Si todo está bien, extraemos los datos ya validados y tipados
+      const body = validation.data;
+
+      // 6. Ejecutamos la lógica de negocio
+      const proyecto = ProyectoService.createExpress({
          ...body,
          fecha_inicio: body.fecha_inicio ? new Date(body.fecha_inicio) : new Date(),
          cargos_cobrables: body.cargos_cobrables ?? [],
-         gastos_internos:  body.gastos_internos  ?? [],
-      });
+         gastos_internos: body.gastos_internos ?? [],
+      }, session.user.id);
 
       return c.json(proyecto, 201);
+
    } catch (err: unknown) {
       return c.json(
          { error: err instanceof Error ? err.message : "Error al registrar proyecto express" },
-         400
+         500
       );
    }
 });

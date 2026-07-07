@@ -50,15 +50,15 @@ const s = StyleSheet.create({
       height: 90,
    },
    headerLeft: {
-      flexDirection: "column",
+      flexDirection: "row",
    },
    headerRight: {
       flexDirection: "column",
       alignItems: "flex-end",
    },
    logo: {
-      width: 50,
-      height: 26,
+      width: 150,
+      height: 100,
       objectFit: "contain",
       marginBottom: 2,
    },
@@ -230,8 +230,10 @@ function PurchaseOrderDocument({ order }: { order: PurchaseOrder }) {
             <View style={s.header}>
                <View style={s.headerLeft}>
                   <Image style={s.logo} src="/logo-kissimmee.png" />
-                  <Text style={s.companyName}>{COMPANY_NAME}</Text>
-                  <Text style={s.tagline}>{COMPANY_TAGLINE}</Text>
+                  <View style={{ flexDirection: "column", marginLeft: 8, justifyContent: "center" }}>
+                     <Text style={s.companyName}>{COMPANY_NAME}</Text>
+                     <Text style={s.tagline}>{COMPANY_TAGLINE}</Text>
+                  </View>
                </View>
                <View style={s.headerRight}>
                   <Text style={s.docTitle}>ORDEN DE COMPRA</Text>

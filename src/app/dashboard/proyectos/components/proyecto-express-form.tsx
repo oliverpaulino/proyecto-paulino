@@ -17,6 +17,7 @@ import { useClientStore } from "@/stores/useClientStore";
 import { useEquipoStore } from "@/stores/useEquipoStore";
 import { useEmployeeStore } from "@/stores/useEmployeeStore";
 import type { CreateProyectoExpressForm, LineItemForm } from "@/dtos/proyecto.dto";
+import { SelectEquipos } from "@/components/select-equipos";
 
 interface Props {
    onSubmit: (data: CreateProyectoExpressForm) => Promise<void>;
@@ -24,11 +25,21 @@ interface Props {
    loading: boolean;
 }
 
+// 1. Creamos una interfaz específica para los equipos en campo
+interface EquipoUsarItem {
+   categoria_equipo_id: any;
+   equipo_id: string;
+   operador_id: string;
+   horas: number;
+   precio_unitario: number;
+}
+
 const emptyItem = (): LineItemForm => ({ descripcion: "", cantidad: 1, precio_unitario: 0 });
+const emptyEquipo = (): EquipoUsarItem => ({ equipo_id: "", operador_id: "", horas: 0, precio_unitario: 0, categoria_equipo_id: "" });
 
 export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
-   const { Clients, GetClients }     = useClientStore();
-   const { Equipos, GetEquipos }     = useEquipoStore();
+   const { Clients, GetClients } = useClientStore();
+   const { Equipos, GetEquipos } = useEquipoStore();
    const { Employees, GetEmployees } = useEmployeeStore();
 
    useEffect(() => {
@@ -37,21 +48,25 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
       GetEmployees();
    }, [GetClients, GetEquipos, GetEmployees]);
 
-   const [clienteId, setClienteId]         = useState("");
+   const [clienteId, setClienteId] = useState("");
    const [tarifaServicio, setTarifaServicio] = useState(0);
-   const [empleadoId, setEmpleadoId]       = useState("");
-   const [equipoId, setEquipoId]           = useState("");
-   const [horasTrabajadas, setHorasTrabajadas] = useState(0);
-   const [notas, setNotas]                 = useState("");
-   const [cobrables, setCobrables]         = useState<LineItemForm[]>([emptyItem()]);
-   const [internos, setInternos]           = useState<LineItemForm[]>([]);
-   const [error, setError]                 = useState<string | null>(null);
+   const [notas, setNotas] = useState("");
+
+   // 2. Usamos el nuevo tipado para el array de equipos
+   const [equiposUsar, setEquiposUsar] = useState<EquipoUsarItem[]>([emptyEquipo()]);
+   const [cobrables, setCobrables] = useState<LineItemForm[]>([emptyItem()]);
+   const [internos, setInternos] = useState<LineItemForm[]>([]);
+   const [error, setError] = useState<string | null>(null);
 
    const operadores = Employees.filter((e) => e.rol === "OPERADOR");
-   const equiposActivos = Equipos.filter((e) => e.estado === "ACTIVO");
 
+   // Funciones utilitarias para los arrays
    function addItem(setter: React.Dispatch<React.SetStateAction<LineItemForm[]>>) {
       setter((prev) => [...prev, emptyItem()]);
+   }
+
+   function addEquipo() {
+      setEquiposUsar((prev) => [...prev, emptyEquipo()]);
    }
 
    function updateItem(
@@ -60,50 +75,59 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
       field: keyof LineItemForm,
       value: string | number
    ) {
-      setter((prev) =>
-         prev.map((item, i) => (i === idx ? { ...item, [field]: value } : item))
-      );
+      setter((prev) => prev.map((item, i) => (i === idx ? { ...item, [field]: value } : item)));
    }
 
-   function removeItem(
-      setter: React.Dispatch<React.SetStateAction<LineItemForm[]>>,
+   // 3. Función dedicada para actualizar los equipos dinámicos (reemplaza a updateTruck)
+   function updateEquipo(idx: number, field: keyof EquipoUsarItem, value: string | number) {
+      setEquiposUsar((prev) => prev.map((item, i) => (i === idx ? { ...item, [field]: value } : item)));
+   }
+
+   function removeItem<T>(
+      setter: React.Dispatch<React.SetStateAction<T[]>>,
       idx: number
    ) {
       setter((prev) => prev.filter((_, i) => i !== idx));
    }
 
-   const subtotalCobrables = cobrables.reduce(
-      (s, i) => s + i.cantidad * i.precio_unitario, 0
-   );
-   const totalCobrable     = tarifaServicio + subtotalCobrables;
-   const totalInterno      = internos.reduce(
-      (s, i) => s + i.cantidad * i.precio_unitario, 0
-   );
-   const rentabilidad      = totalCobrable - totalInterno;
-
+   const subtotalCobrables = cobrables.reduce((s, i) => s + i.cantidad * i.precio_unitario, 0);
+   const totalCobrable = tarifaServicio + subtotalCobrables;
+   const totalInterno = internos.reduce((s, i) => s + i.cantidad * i.precio_unitario, 0);
+   const rentabilidad = totalCobrable - totalInterno;
+   // Dentro de ProyectoExpressForm, en el handleSubmit:
    async function handleSubmit(e: React.FormEvent) {
       e.preventDefault();
-      setError(null);
 
-      const validCobrables = cobrables.filter((i) => i.descripcion.trim());
-      const validInternos  = internos.filter((i) => i.descripcion.trim());
+      // Mapeamos lo que el formulario tiene hacia lo que el DTO requiere
+      const payload = {
+         cliente_id: clienteId,
+         servicio_id: "ID_DEL_SERVICIO_SELECCIONADO", // Necesitas este campo
+         nombre: "Proyecto Express",
 
-      try {
-         await onSubmit({
-            cliente_id:       clienteId,
-            tipo_servicio_id: null,
-            tarifa_servicio:  tarifaServicio,
-            empleado_id:      empleadoId,
-            equipo_id:        equipoId,
-            horas_trabajadas: horasTrabajadas,
-            notas:            notas || undefined,
-            cargos_cobrables: validCobrables,
-            gastos_internos:  validInternos,
-         });
-      } catch (err) {
-         setError(err instanceof Error ? err.message : "Error al registrar");
-      }
+         // Transformamos tu array de equipos a las "tarifas" y "equipos" que pide el backend
+         tarifas: equiposUsar.map((e) => ({
+            categoria_equipo_id: e.categoria_equipo_id,
+            // Si el precio es 0, forzamos un valor mínimo positivo para pasar la validación
+            precio_acordado: e.precio_unitario > 0 ? e.precio_unitario : 0.01,
+            cobra_en_snapshot: "HORA",
+            cobra_minimo_snapshot: e.precio_unitario > 0 ? e.precio_unitario : 0.01
+         })),
+
+         equipos: equiposUsar.map(eq => ({
+            equipo_id: eq.equipo_id,
+            categoria_equipo_id: eq.categoria_equipo_id,
+            operador_id: eq.operador_id
+         })),
+
+         cargos_cobrables: cobrables,
+         gastos_internos: internos
+      };
+
+      await onSubmit(payload as any); // Temporalmente 'as any' para forzar la compatibilidad
    }
+
+   // Validación para habilitar el botón
+   const isFormValid = clienteId && equiposUsar.length > 0 && equiposUsar[0].equipo_id && equiposUsar[0].operador_id;
 
    return (
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -127,10 +151,7 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
             </div>
 
             <div className="space-y-1.5">
-               <Label htmlFor="tarifa">
-                  Tarifa del Servicio *
-                  {/* Aquí irá el selector de tipo_servicio */}
-               </Label>
+               <Label htmlFor="tarifa">Tarifa del Servicio *</Label>
                <Input
                   id="tarifa"
                   type="number"
@@ -144,51 +165,81 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
             </div>
          </div>
 
-         {/* ── Operador + Equipo + Horas ── */}
-         <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-1.5">
-               <Label htmlFor="empleado">Operador * (nómina)</Label>
-               <Select value={empleadoId} onValueChange={setEmpleadoId} required>
-                  <SelectTrigger id="empleado">
-                     <SelectValue placeholder="Seleccionar…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                     {operadores.map((e) => (
-                        <SelectItem key={e.id} value={e.id}>
-                           {e.nombre}
-                        </SelectItem>
-                     ))}
-                  </SelectContent>
-               </Select>
-            </div>
+         <Separator />
 
-            <div className="space-y-1.5">
-               <Label htmlFor="equipo">Equipo * (rentabilidad)</Label>
-               <Select value={equipoId} onValueChange={setEquipoId} required>
-                  <SelectTrigger id="equipo">
-                     <SelectValue placeholder="Seleccionar…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                     {equiposActivos.map((e) => (
-                        <SelectItem key={e.id} value={e.id}>
-                           {e.nombre}
-                        </SelectItem>
-                     ))}
-                  </SelectContent>
-               </Select>
+         {/* ── Equipo trabajado (Refactorizado) ── */}
+         <div className="space-y-2">
+            <div>
+               <h3 className="text-sm font-semibold">Equipo en campo</h3>
             </div>
+            {equiposUsar.map((item, idx) => (
+               <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_28px] gap-2 items-center">
+                  <div className="space-y-1.5">
+                     <Select
+                        value={item.operador_id}
+                        onValueChange={(val) => updateEquipo(idx, "operador_id", val)}
+                        required
+                     >
+                        <SelectTrigger className="w-full">
+                           <SelectValue placeholder="Operador" />
+                        </SelectTrigger>
+                        <SelectContent>
+                           {operadores.map((e) => (
+                              <SelectItem key={e.id} value={e.id}>
+                                 {e.nombre}
+                              </SelectItem>
+                           ))}
+                        </SelectContent>
+                     </Select>
+                  </div>
 
-            <div className="space-y-1.5">
-               <Label htmlFor="horas">Horas trabajadas</Label>
-               <Input
-                  id="horas"
-                  type="number"
-                  min={0}
-                  step="0.5"
-                  value={horasTrabajadas}
-                  onChange={(e) => setHorasTrabajadas(Number(e.target.value))}
-               />
-            </div>
+                  <div className="space-y-1.5">
+                     <SelectEquipos
+                        value={item.equipo_id}
+                        onChange={(id, equipo) => {
+                           updateEquipo(idx, "equipo_id", id);
+                           if (equipo) {
+                              updateEquipo(idx, "operador_id", equipo.operador_id || "");
+                              // Algunos tipos de equipo pueden no tener la propiedad `categoria`.
+                              // Intentamos leer la tarifa de forma segura y usar 0 como fallback.
+                              const tarifa = (equipo as any)?.categoria?.tarifa ?? (equipo as any)?.categoria_tarifa ?? 0;
+                              updateEquipo(idx, "precio_unitario", tarifa);
+                              updateEquipo(idx, "categoria_equipo_id", equipo.categoria_id);
+                           }
+                        }}
+                     />
+                  </div>
+
+                  <div className="space-y-1.5">
+                     <Input
+                        type="number"
+                        placeholder="Horas"
+                        className="w-full"
+                        min={0}
+                        step="0.5"
+                        value={item.horas || 0}
+                        onChange={(e) => updateEquipo(idx, "horas", Number(e.target.value))}
+                     />
+                  </div>
+                  <Button
+                     type="button"
+                     variant="ghost"
+                     size="icon"
+                     className="size-7 text-muted-foreground hover:text-destructive"
+                     onClick={() => removeItem(setEquiposUsar, idx)}
+                  >
+                     ×
+                  </Button>
+               </div>
+            ))}
+            <Button
+               type="button"
+               variant="outline"
+               size="sm"
+               onClick={addEquipo}
+            >
+               + Agregar cargo Equipo
+            </Button>
          </div>
 
          <Separator />
@@ -213,7 +264,7 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
                      min={0}
                      step="1"
                      placeholder="Cant."
-                     value={item.cantidad}
+                     value={item.cantidad || 1}
                      onChange={(e) => updateItem(setCobrables, idx, "cantidad", Number(e.target.value))}
                   />
                   <Input
@@ -221,10 +272,8 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
                      min={0}
                      step="0.01"
                      placeholder="P. Unit."
-                     value={item.precio_unitario}
-                     onChange={(e) =>
-                        updateItem(setCobrables, idx, "precio_unitario", Number(e.target.value))
-                     }
+                     value={item.precio_unitario || 0}
+                     onChange={(e) => updateItem(setCobrables, idx, "precio_unitario", Number(e.target.value))}
                   />
                   <Button
                      type="button"
@@ -269,7 +318,7 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
                      min={0}
                      step="1"
                      placeholder="Cant."
-                     value={item.cantidad}
+                     value={item.cantidad || 1}
                      onChange={(e) => updateItem(setInternos, idx, "cantidad", Number(e.target.value))}
                   />
                   <Input
@@ -277,10 +326,8 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
                      min={0}
                      step="0.01"
                      placeholder="P. Unit."
-                     value={item.precio_unitario}
-                     onChange={(e) =>
-                        updateItem(setInternos, idx, "precio_unitario", Number(e.target.value))
-                     }
+                     value={item.precio_unitario || 0}
+                     onChange={(e) => updateItem(setInternos, idx, "precio_unitario", Number(e.target.value))}
                   />
                   <Button
                      type="button"
@@ -348,7 +395,7 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
             </Button>
             <Button
                type="submit"
-               disabled={loading || !clienteId || !empleadoId || !equipoId}
+               disabled={loading || !isFormValid}
                className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold border-0"
             >
                {loading ? "Registrando…" : "Liquidar Proyecto Express"}

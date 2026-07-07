@@ -1,3 +1,5 @@
+import { CategoriaEquipo } from "@/dtos/categoria-equipo.dto";
+
 export const ESTADOS_EQUIPO = [
    "ACTIVO",
    "MANTENIMIENTO",
@@ -11,6 +13,7 @@ export interface EquipoProps {
    id: string;
    nombre: string;
    categoria_id: string;
+   operador_id: string | null;
    categoria_nombre: string;
    cobra_en: string;
    cobra_minimo: number | null;
@@ -50,6 +53,7 @@ export class Equipo {
 }
 
 export interface CreateEquipoDTO {
+   operador_id: null;
    nombre: string;
    categoria_id: string;
    estado?: EstadoEquipo;
@@ -75,4 +79,5 @@ export interface IEquipoRepository {
    create(data: CreateEquipoDTO): Promise<Equipo>;
    update(id: string, data: UpdateEquipoDTO): Promise<Equipo | null>;
    delete(id: string): Promise<boolean>;
+   findCategoriaByEquipoId(equipoId: string): Promise<CategoriaEquipo | null>;
 }

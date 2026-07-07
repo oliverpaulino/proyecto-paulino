@@ -18,13 +18,6 @@ export default function LoginPage() {
 
       <div className="relative z-10 w-full max-w-md">
         <LoginForm
-          logo={
-            <img
-              src="/logo-kissimmee.png"
-              alt="Kissimmee"
-              className="h-10 mx-auto mb-2"
-            />
-          }
         />
       </div>
     </div>

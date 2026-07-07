@@ -1,3 +1,4 @@
+import { CategoriaEquipo } from "@/dtos/categoria-equipo.dto";
 import {
    CreateEquipoDTO,
    ESTADOS_EQUIPO,
@@ -60,6 +61,10 @@ export class EquipoService {
 
    async delete(id: string): Promise<boolean> {
       return this.repo.delete(id);
+   }
+
+   async getCategoriaByEquipoId(id: string): Promise<CategoriaEquipo | null> {
+      return this.repo.findCategoriaByEquipoId(id);
    }
 
    private validateCosto(costo: number | undefined): void {

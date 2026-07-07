@@ -11,7 +11,10 @@ import type {
 } from "../domain/proyecto.domain";
 
 export class KyselyProyectoRepository implements IProyectoRepository {
-   constructor(private readonly db: Kysely<DB>) {}
+   static createExpressTransaction(data: CreateProyectoExpressDTO): ProyectoProps | PromiseLike<ProyectoProps> {
+      throw new Error("Method not implemented.");
+   }
+   constructor(private readonly db: Kysely<DB>) { }
 
    async findAll(tipo?: TipoProyecto): Promise<ProyectoProps[]> {
       let query = this.db
@@ -102,6 +105,7 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          const header = await trx
             .insertInto("proyecto")
             .values({
+               nombre: data.nombre,
                tipo_proyecto: "EXPRESS",
                estado: "COMPLETADO",
                cliente_id: data.cliente_id,
@@ -138,10 +142,10 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          const insertedDetalle =
             allItems.length > 0
                ? await trx
-                    .insertInto("proyecto_detalle")
-                    .values(allItems)
-                    .returningAll()
-                    .execute()
+                  .insertInto("proyecto_detalle")
+                  .values(allItems)
+                  .returningAll()
+                  .execute()
                : [];
 
          // 4 — Asignación obligatoria operador + equipo
@@ -211,6 +215,78 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          fecha: proyecto.fecha_inicio,
       };
    }
+
+   async createExpressTransaction(data: CreateProyectoExpressDTO) {
+      // La infraestructura maneja el 'trx' (transacción de base de datos) de forma aislada
+      return await this.db.transaction().execute(async (trx) => {
+         // 1. Snapshot del nombre del servicio
+         const servicio = await trx
+            .selectFrom("servicios")
+            .select(["nombre"])
+            .where("id", "=", data.servicio_id)
+            .executeTakeFirst();
+
+         const nombreServicio = servicio ? servicio.nombre : "Desconocido";
+
+         // 2. Crear Proyecto
+         const newProject = await trx
+            .insertInto("proyecto")
+            .values({
+               tipo_proyecto: "EXPRESS", // <-- AQUÍ ESTÁ LA SOLUCIÓN
+               cliente_id: data.cliente_id,
+               servicio_id: data.servicio_id,
+               nombre: data.nombre,
+               fecha_inicio: data.fecha_inicio ? new Date(data.fecha_inicio) : new Date(),
+               tipo_servicio_snapshot: nombreServicio,
+               // created_by: userId,
+            })
+            .returningAll()
+            .executeTakeFirstOrThrow();
+
+         // 3. Insertar Tarifas (Snapshot)
+         const tarifasToInsert = data.tarifas.map((t) => ({
+            proyecto_id: newProject.id,
+            categoria_equipo_id: t.categoria_equipo_id,
+            precio_acordado: t.precio_acordado,
+            cobra_en_snapshot: t.cobra_en_snapshot,
+            cobra_minimo_snapshot: t.cobra_minimo_snapshot,
+         }));
+
+         const insertedTarifas = await trx
+            .insertInto("proyecto_tarifas")
+            .values(tarifasToInsert)
+            .returningAll()
+            .execute();
+
+         // 4. Asignar Equipos Físicos
+         if (data.equipos && data.equipos.length > 0) {
+            const equiposToInsert = data.equipos.map((e) => {
+               const tarifa = insertedTarifas.find(
+                  (t) => t.categoria_equipo_id === e.categoria_equipo_id
+               );
+
+               if (!tarifa) {
+                  throw new Error(`Inconsistencia: No se encontró tarifa para la categoría ${e.categoria_equipo_id}`);
+               }
+
+               return {
+                  proyecto_id: newProject.id,
+                  equipo_id: e.equipo_id,
+                  operador_id: e.operador_id || null,
+                  proyecto_tarifa_id: tarifa.id, // Enlace crucial
+               };
+            });
+
+            await trx
+               .insertInto("proyecto_equipos")
+               .values(equiposToInsert)
+               .execute();
+         }
+
+         return newProject;
+      });
+   }
+
 
    // ─── Mapper privado ────────────────────────────────────────────────────────
    #mapRow(

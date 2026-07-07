@@ -60,6 +60,8 @@ export type ProyectoProps = ProyectoTypeFields & {
 
 // ─── DTO de creación — Proyecto Express ──────────────────────────────────────
 export interface CreateProyectoExpressDTO {
+   nombre: any;
+   servicio_id: any;
    cliente_id: string;
    tipo_servicio_id?: string | null;
    tarifa_servicio: number;
@@ -68,6 +70,17 @@ export interface CreateProyectoExpressDTO {
    horas_trabajadas: number;
    notas?: string | null;
    fecha_inicio?: Date;
+   tarifas: Array<{
+      categoria_equipo_id: string,
+      precio_acordado: number,
+      cobra_en_snapshot: string,
+      cobra_minimo_snapshot: number
+   }>;
+   equipos?: Array<{
+      operador_id?: string;
+      categoria_equipo_id: string;
+      equipo_id: string;
+   }>;
    cargos_cobrables: Array<{
       descripcion: string;
       cantidad: number;
@@ -103,4 +116,5 @@ export interface IProyectoRepository {
    findById(id: string): Promise<ProyectoProps | null>;
    createExpress(data: CreateProyectoExpressDTO): Promise<ProyectoProps>;
    getLiquidacion(id: string): Promise<LiquidacionExpressFacade | null>;
+   // createExpressTransaction(data: CreateProyectoExpressDTO): Promise<ProyectoProps>;
 }

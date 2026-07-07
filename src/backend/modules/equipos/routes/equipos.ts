@@ -50,4 +50,10 @@ equiposRoute.delete("/:id", async (c) => {
    return c.json({ success: true });
 });
 
+equiposRoute.get(":id/categorias", async (c) => {
+   const categorias = await service.getCategoriaByEquipoId(c.req.param("id"));
+   if (!categorias) return c.json({ error: "Equipo no encontrado" }, 404);
+   return c.json(categorias);
+})
+
 export default equiposRoute;

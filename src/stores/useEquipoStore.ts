@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { Equipo, EquipoForm, UpdateEquipoForm } from "@/dtos/equipo.dto";
+import { CategoriaEquipo } from "@/dtos/categoria-equipo.dto";
 
 type EquipoStore = {
    Equipos: Equipo[];
@@ -10,6 +11,7 @@ type EquipoStore = {
    CreateEquipo: (form: EquipoForm) => Promise<Equipo | Error>;
    UpdateEquipo: (id: string, data: Partial<UpdateEquipoForm>) => Promise<void | Error>;
    DeleteEquipo: (id: string) => Promise<void | Error>;
+   GetCategoriasEquipoById: (id: string) => Promise<CategoriaEquipo | Error>;
    invalidateCache: () => void;
 };
 
@@ -95,6 +97,19 @@ export const useEquipoStore = create<EquipoStore>((set, get) => ({
          await get().GetEquipos();
       } catch (error) {
          return error as Error;
+      }
+   },
+
+   GetCategoriasEquipoById: async (id) => {
+      try {
+         const res = await fetch(`/api/equipos/${id}/categorias`);
+         if (!res.ok) throw new Error("Error al cargar categorías de equipo");
+         const data = await res.json();
+         return data;
+         // Aquí podrías hacer algo con los datos obtenidos, como almacenarlos en el estado si es necesario.
+      } catch (error) {
+         console.error("Error fetching categorias de equipo:", error);
+         throw error;
       }
    },
 }));

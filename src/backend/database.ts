@@ -1,6 +1,43 @@
 import { Kysely, PostgresDialect, Generated } from "kysely";
 import { Pool } from "pg";
 
+export interface ServicioTable {
+   id: Generated<string>;
+   nombre: string;
+   is_custom: Generated<boolean>;
+   activo: Generated<boolean>;
+   created_at: Generated<Date>;
+   updated_at: Generated<Date>;
+}
+
+export interface ServicioTarifaTable {
+   id: Generated<string>;
+   servicio_id: string;
+   categoria_equipo_id: string;
+   precio_sugerido: number;
+   created_at: Generated<Date>;
+}
+
+export interface ProyectoTarifaTable {
+   id: Generated<string>;
+   proyecto_id: string;
+   categoria_equipo_id: string;
+   precio_acordado: number;
+   cobra_en_snapshot: string | null;
+   cobra_minimo_snapshot: number | null;
+   created_at: Generated<Date>;
+}
+
+export interface ProyectoEquipoTable {
+   id: Generated<string>;
+   proyecto_id: string;
+   equipo_id: string;
+   operador_id: string | null;
+   proyecto_tarifa_id: string; // <-- El enlace crucial a la tarifa (Snapshot)
+   created_at: Generated<Date>;
+   updated_at: Generated<Date>;
+}
+
 export interface DB {
    cliente: {
       id: Generated<string>;
@@ -115,6 +152,7 @@ export interface DB {
       nombre: string;
       cobra_en: string;
       cobra_minimo: number | null;
+      precio_unitario: number;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
@@ -122,6 +160,7 @@ export interface DB {
    equipo: {
       id: Generated<string>;
       nombre: string;
+      operador_id: string | null;
       categoria_id: string;
       estado: Generated<string>;
       costo_por_hora: Generated<number>;
@@ -264,7 +303,9 @@ export interface DB {
 
    proyecto: {
       id: Generated<string>;
-      tipo_proyecto: string;           // 'EXPRESS' | 'NORMAL' | 'GRANDE'
+      tipo_proyecto: string;
+      nombre: string;       // 'EXPRESS' | 'NORMAL' | 'GRANDE'
+      tipo_servicio_snapshot: string | null; // FK se añade cuando exista tipo_servicio
       estado: Generated<string>;       // 'BORRADOR' | 'COMPLETADO' | 'CANCELADO'
       cliente_id: string;
       tipo_servicio_id: string | null; // FK se añade cuando exista tipo_servicio
@@ -274,6 +315,7 @@ export interface DB {
       rentabilidad: Generated<number>;
       notas: string | null;
       fecha_inicio: Date;
+      servicio_id: string | null; // FK a servicios, se añade cuando exista la tabla servicios
       fecha_fin: Date | null;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
@@ -299,7 +341,11 @@ export interface DB {
       horas_trabajadas: number;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
-   }
+   };
+   servicios: ServicioTable;
+   servicio_tarifas: ServicioTarifaTable;
+   proyecto_tarifas: ProyectoTarifaTable;
+   proyecto_equipos: ProyectoEquipoTable;
 }
 
 const db = new Kysely<DB>({

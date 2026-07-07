@@ -115,6 +115,39 @@ export const LiquidacionExpressFacadeSchema = z.object({
 });
 
 
+// Validamos cada línea de tarifa que el usuario configuró
+export const TarifaAcordadaSchema = z.object({
+   categoria_equipo_id: z.string(),
+   precio_acordado: z.number().positive("El precio debe ser mayor a 0"),
+   cobra_en_snapshot: z.string(),
+   cobra_minimo_snapshot: z.number()
+});
+
+// Validamos los equipos asignados inicialmente
+export const EquipoAsignadoSchema = z.object({
+   categoria_equipo_id: z.string(), // Necesario para enlazarlo con su tarifa
+   equipo_id: z.string(),
+   operador_id: z.string().optional(),
+});
+
+// El Payload completo para crear un Proyecto Express
+export const CreateProyectoExpressDTOSchema = z.object({
+   cliente_id: z.string(),
+   servicio_id: z.string(), // ID del servicio (Ej: Bote, o Personalizado)
+   nombre: z.string(),
+   fecha_inicio: z.string().datetime().optional(),
+
+   // Arrays con la configuración que el usuario armó en la UI
+   tarifas: z.array(TarifaAcordadaSchema).min(1, "Debe agregar al menos una tarifa al proyecto"),
+   equipos: z.array(EquipoAsignadoSchema).optional(),
+
+   cargos_cobrables: z.array(z.any()).optional(),
+   gastos_internos: z.array(z.any()).optional(),
+});
+
+export type CreateProyectoExpressDTO = z.infer<typeof CreateProyectoExpressDTOSchema>;
+
+
 
 export type Proyecto = z.infer<typeof ProyectoDTO>;
 export type ProyectoExpressDTO = Extract<Proyecto, { tipo_proyecto: "EXPRESS" }>;

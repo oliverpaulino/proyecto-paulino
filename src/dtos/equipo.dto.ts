@@ -12,12 +12,13 @@ export type EstadoEquipo = (typeof ESTADOS_EQUIPO)[number];
 const EquipoDTO = z.object({
    id: z.string(),
    nombre: z.string(),
-   categoria_id: z.string().uuid(),
+   operador_id: z.string().nullable(),
+   categoria_id: z.string(),
    categoria_nombre: z.string(),
-   cobra_en: z.string(),
-   cobra_minimo: z.number().nullable(),
+   // cobra_en: z.string(),
+   // cobra_minimo: z.number().nullable(),
    estado: z.enum(ESTADOS_EQUIPO),
-   costo_por_hora: z.number(),
+   // costo_por_hora: z.number(),
    placa: z.string().nullable(),
    modelo: z.string().nullable(),
    ano: z.number().nullable(),
@@ -27,7 +28,8 @@ const EquipoDTO = z.object({
 
 const CreateEquipoDTO = z.object({
    nombre: z.string().min(1),
-   categoria_id: z.string().uuid(),
+   operador_id: z.string().nullable().optional(),
+   categoria_id: z.string(),
    estado: z.enum(ESTADOS_EQUIPO).optional(),
    costo_por_hora: z.coerce.number().min(0).optional(),
    placa: z.string().nullable().optional(),

@@ -7,11 +7,13 @@ import {
    IEquipoRepository,
    UpdateEquipoDTO,
 } from "../domain/equipo.domain";
+import { CategoriaEquipo } from "@/dtos/categoria-equipo.dto";
 
 type EquipoRow = {
    id: string;
    nombre: string;
    categoria_id: string;
+   operador_id: string | null;
    categoria_nombre: string;
    cobra_en: string;
    cobra_minimo: number | string | null;
@@ -29,6 +31,7 @@ function toDomain(row: EquipoRow): Equipo {
       id: row.id,
       nombre: row.nombre,
       categoria_id: row.categoria_id,
+      operador_id: row.operador_id,
       categoria_nombre: row.categoria_nombre,
       cobra_en: row.cobra_en,
       cobra_minimo: row.cobra_minimo == null ? null : Number(row.cobra_minimo),
@@ -61,6 +64,7 @@ export class KyselyEquipoRepository implements IEquipoRepository {
             "equipo.placa",
             "equipo.modelo",
             "equipo.ano",
+            "equipo.operador_id",
             "equipo.created_at",
             "equipo.updated_at",
          ])
@@ -86,6 +90,7 @@ export class KyselyEquipoRepository implements IEquipoRepository {
             "equipo.placa",
             "equipo.modelo",
             "equipo.ano",
+            "equipo.operador_id",
             "equipo.created_at",
             "equipo.updated_at",
          ])
@@ -107,6 +112,7 @@ export class KyselyEquipoRepository implements IEquipoRepository {
             placa: data.placa ?? null,
             modelo: data.modelo ?? null,
             ano: data.ano ?? null,
+            operador_id: data.operador_id ?? null,
          })
          .returning("id")
          .executeTakeFirstOrThrow();
@@ -134,5 +140,32 @@ export class KyselyEquipoRepository implements IEquipoRepository {
          .executeTakeFirst();
 
       return Number(result.numDeletedRows) > 0;
+   }
+
+   async findCategoriaByEquipoId(
+      equipoId: string
+   ): Promise<CategoriaEquipo | null> {
+      const row = await this.db
+         .selectFrom("equipo")
+         .innerJoin(
+            "categoria_equipo",
+            "categoria_equipo.id",
+            "equipo.categoria_id"
+         )
+         .select([
+            "categoria_equipo.id",
+            "categoria_equipo.nombre",
+            "categoria_equipo.cobra_en",
+            "categoria_equipo.cobra_minimo",
+            "categoria_equipo.precio_unitario",
+            "categoria_equipo.created_at",
+            "categoria_equipo.updated_at",
+         ])
+         .where("equipo.id", "=", equipoId)
+         .executeTakeFirst();
+
+      if (!row) return null;
+
+      return row;
    }
 }

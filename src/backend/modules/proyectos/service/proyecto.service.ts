@@ -5,9 +5,13 @@ import type {
    TipoProyecto,
    LiquidacionExpressFacade,
 } from "../domain/proyecto.domain";
+import { KyselyProyectoRepository } from "../infraestructure/proyecto.infraestructure";
 
 export class ProyectoService {
-   constructor(private readonly repo: IProyectoRepository) {}
+   static createExpress(arg0: any, id: any) {
+      throw new Error("Method not implemented.");
+   }
+   constructor(private readonly repo: IProyectoRepository) { }
 
    async getAll(tipo?: TipoProyecto): Promise<ProyectoProps[]> {
       return this.repo.findAll(tipo);
@@ -18,16 +22,17 @@ export class ProyectoService {
    }
 
    async createExpress(data: CreateProyectoExpressDTO): Promise<ProyectoProps> {
-      if (!data.cliente_id?.trim())  throw new Error("El cliente es requerido");
+      if (!data.cliente_id?.trim()) throw new Error("El cliente es requerido");
       if (!data.empleado_id?.trim()) throw new Error("El operador es requerido para el cálculo de nómina");
-      if (!data.equipo_id?.trim())   throw new Error("El equipo es requerido para el cálculo de rentabilidad");
-      if (data.tarifa_servicio < 0)  throw new Error("La tarifa del servicio debe ser mayor o igual a 0");
+      if (!data.equipo_id?.trim()) throw new Error("El equipo es requerido para el cálculo de rentabilidad");
+      if (data.tarifa_servicio < 0) throw new Error("La tarifa del servicio debe ser mayor o igual a 0");
       if (data.horas_trabajadas < 0) throw new Error("Las horas trabajadas deben ser mayor o igual a 0");
 
       this.#validateItems(data.cargos_cobrables, "cargo cobrable");
       this.#validateItems(data.gastos_internos, "gasto interno");
 
-      return this.repo.createExpress(data);
+      // return this.repo.createExpress(data);
+      return await KyselyProyectoRepository.createExpressTransaction(data);
    }
 
    async getLiquidacion(id: string): Promise<LiquidacionExpressFacade | null> {

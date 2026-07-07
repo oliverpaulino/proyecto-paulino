@@ -10,12 +10,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
 import { Loader2 } from "lucide-react";
+import Image from "next/image";
 
 type Props = React.ComponentProps<"div"> & {
-  logo?: React.ReactNode;
 };
 
-export function LoginForm({ className, logo, ...props }: Props) {
+export function LoginForm({ className, ...props }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -53,11 +53,15 @@ export function LoginForm({ className, logo, ...props }: Props) {
       )}
       {...props}
     >
-      {logo && (
-        <div className="flex justify-center mb-6 opacity-0 animate-item-in [animation-delay:100ms]">
-          {logo}
-        </div>
-      )}
+      <div className="flex justify-center mb-6 opacity-0 animate-item-in [animation-delay:100ms]">
+        <Image
+          width={1000}
+          height={1000}
+          src="/logo-kissimmee.png"
+          alt="Kissimmee"
+          className="size-full mx-auto mb-2"
+        />
+      </div>
 
       <div className="text-center mb-6 opacity-0 animate-item-in [animation-delay:180ms]">
         <h1 className="text-2xl font-bold tracking-tight">Iniciar sesión</h1>
