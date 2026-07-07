@@ -158,12 +158,24 @@ export interface DB {
    orden_compra_item: {
       id: Generated<string>;
       orden_compra_id: string;
+      equipo_id: string | null;
       descripcion: string;
       cantidad: number;
       precio_unitario: number;
       subtotal: number;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
+   };
+
+   equipo_estado_historial: {
+      id: Generated<string>;
+      equipo_id: string;
+      estado_anterior: string | null;
+      estado_nuevo: string;
+      changed_by: string | null;
+      changed_by_name: string | null;
+      nota: string | null;
+      created_at: Generated<Date>;
    };
 
    payroll_concepts: {

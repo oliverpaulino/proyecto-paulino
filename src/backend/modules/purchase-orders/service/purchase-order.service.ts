@@ -5,6 +5,7 @@ import {
    EstadoOrdenCompra,
    IPurchaseOrderRepository,
    isEditable,
+   PurchaseOrderItemInput,
    PurchaseOrderProps,
    UpdatePurchaseOrderDTO,
 } from "../domain/purchase-order.domain";
@@ -112,13 +113,7 @@ export class PurchaseOrderService {
       return this.repo.delete(userId, id);
    }
 
-   private validateItems(
-      items: Array<{
-         descripcion: string;
-         cantidad: number;
-         precio_unitario: number;
-      }>
-   ): void {
+   private validateItems(items: PurchaseOrderItemInput[]): void {
       for (let i = 0; i < items.length; i++) {
          const item = items[i];
          if (!item.descripcion?.trim()) {

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSupplierStore } from "@/stores/useSupplierStore";
+import { useEquipoStore } from "@/stores/useEquipoStore";
 import type { PurchaseOrderItemForm } from "@/dtos/purchase-order.dto";
 import type { PurchaseOrderProps } from "@/backend/modules/purchase-orders/domain/purchase-order.domain";
 import { Plus, Trash2 } from "lucide-react";
@@ -28,7 +29,7 @@ const SELECT_CLASS =
    "h-9 w-full rounded-4xl border border-input bg-input/30 px-3 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 text-foreground";
 
 function emptyItem(): PurchaseOrderItemForm {
-   return { descripcion: "", cantidad: 1, precio_unitario: 0 };
+   return { descripcion: "", cantidad: 1, precio_unitario: 0, equipo_id: "" };
 }
 
 function formatMoney(value: number): string {
@@ -52,6 +53,7 @@ export function PurchaseOrderForm({
    submitLabel = "Crear orden",
 }: PurchaseOrderFormProps) {
    const { Suppliers, GetSuppliers } = useSupplierStore();
+   const { Equipos, GetEquipos } = useEquipoStore();
 
    const [values, setValues] = useState<PurchaseOrderFormValues>({
       proveedor_id: initialData?.proveedor_id ?? "",
@@ -63,6 +65,7 @@ export function PurchaseOrderForm({
                descripcion: i.descripcion,
                cantidad: i.cantidad,
                precio_unitario: i.precio_unitario,
+               equipo_id: i.equipo_id ?? "",
             }))
             : [emptyItem()],
    });
@@ -70,7 +73,8 @@ export function PurchaseOrderForm({
 
    useEffect(() => {
       GetSuppliers();
-   }, [GetSuppliers]);
+      GetEquipos();
+   }, [GetSuppliers, GetEquipos]);
 
    function setField(field: keyof Omit<PurchaseOrderFormValues, "items">, value: string) {
       setValues((prev) => ({ ...prev, [field]: value }));
@@ -86,7 +90,9 @@ export function PurchaseOrderForm({
          items[index] = {
             ...items[index],
             [field]:
-               field === "descripcion" ? value : Number(value),
+               field === "descripcion" || field === "equipo_id"
+                  ? value
+                  : Number(value),
          };
          return { ...prev, items };
       });
@@ -115,8 +121,17 @@ export function PurchaseOrderForm({
          setError("Agrega al menos un ítem");
          return;
       }
+      // Normalize the equipo select's empty value to null so it maps to a NULL
+      // uuid column rather than the invalid empty string "".
+      const payload: PurchaseOrderFormValues = {
+         ...values,
+         items: values.items.map((i) => ({
+            ...i,
+            equipo_id: i.equipo_id ? i.equipo_id : null,
+         })),
+      };
       try {
-         await onSubmit(values);
+         await onSubmit(payload);
       } catch (err: unknown) {
          console.log(err)
          setError(err instanceof Error ? err.message : "Ocurrió un error");
@@ -187,6 +202,9 @@ export function PurchaseOrderForm({
                         <th className="px-2 py-2 text-left font-medium text-muted-foreground">
                            Descripción
                         </th>
+                        <th className="px-2 py-2 text-left font-medium text-muted-foreground w-40">
+                           Equipo
+                        </th>
                         <th className="px-2 py-2 text-right font-medium text-muted-foreground w-20">
                            Cant.
                         </th>
@@ -212,6 +230,22 @@ export function PurchaseOrderForm({
                                  required
                                  className="h-7 text-xs"
                               />
+                           </td>
+                           <td className="px-2 py-1.5">
+                              <select
+                                 value={item.equipo_id ?? ""}
+                                 onChange={(e) =>
+                                    setItemField(idx, "equipo_id", e.target.value)
+                                 }
+                                 className={`${SELECT_CLASS} h-7 py-0 text-xs`}
+                              >
+                                 <option value="">Sin equipo</option>
+                                 {Equipos.map((eq) => (
+                                    <option key={eq.id} value={eq.id}>
+                                       {eq.nombre}
+                                    </option>
+                                 ))}
+                              </select>
                            </td>
                            <td className="px-2 py-1.5">
                               <Input
@@ -259,7 +293,7 @@ export function PurchaseOrderForm({
                   <tfoot>
                      <tr className="border-t-2 border-brand-blue/20 bg-muted/20">
                         <td
-                           colSpan={3}
+                           colSpan={4}
                            className="px-2 py-2 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground"
                         >
                            Total

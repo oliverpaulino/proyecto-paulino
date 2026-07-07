@@ -77,8 +77,8 @@ export default function EquiposPage() {
 
    const total = Equipos.length;
    const activos = Equipos.filter((e) => e.estado === "ACTIVO").length;
-   const enMantenimiento = Equipos.filter((e) => e.estado === "MANTENIMIENTO").length;
-   const fueraDeServicio = Equipos.filter((e) => e.estado === "INACTIVO" || e.estado === "BAJA").length;
+   const enMantenimiento = Equipos.filter((e) => e.estado === "EN_MANTENIMIENTO").length;
+   const fueraDeServicio = Equipos.filter((e) => e.estado === "INACTIVO").length;
 
    function toForm(data: EquipoFormValues) {
       return {

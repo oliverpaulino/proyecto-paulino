@@ -1,7 +1,10 @@
 import {
    CreateEquipoDTO,
    ESTADOS_EQUIPO,
+   EquipoCompraItemProps,
    EquipoProps,
+   EstadoEquipo,
+   EstadoHistorialProps,
    IEquipoRepository,
    UpdateEquipoDTO,
 } from "../domain/equipo.domain";
@@ -60,6 +63,34 @@ export class EquipoService {
 
    async delete(id: string): Promise<boolean> {
       return this.repo.delete(id);
+   }
+
+   async changeEstado(
+      id: string,
+      nuevoEstado: string,
+      userId?: string | null,
+      userName?: string | null,
+      nota?: string | null
+   ): Promise<EquipoProps | null> {
+      if (!ESTADOS.has(nuevoEstado)) {
+         throw new Error("Estado de equipo inválido");
+      }
+      const equipo = await this.repo.changeEstado(
+         id,
+         nuevoEstado as EstadoEquipo,
+         userId ?? null,
+         userName ?? null,
+         nota ?? null
+      );
+      return equipo ? equipo.toJSON() : null;
+   }
+
+   async getHistorial(id: string): Promise<EstadoHistorialProps[]> {
+      return this.repo.findHistorial(id);
+   }
+
+   async getComprasItems(id: string): Promise<EquipoCompraItemProps[]> {
+      return this.repo.findComprasItems(id);
    }
 
    private validateCosto(costo: number | undefined): void {
