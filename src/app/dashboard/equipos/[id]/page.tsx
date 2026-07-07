@@ -12,9 +12,17 @@ import {
    CardTitle,
 } from "@/components/ui/card";
 import {
+   Dialog,
+   DialogContent,
+   DialogDescription,
+   DialogHeader,
+   DialogTitle,
+} from "@/components/ui/dialog";
+import {
    ArrowLeft,
    History,
    Loader2,
+   Pencil,
    ShoppingCart,
    Truck,
 } from "lucide-react";
@@ -30,6 +38,7 @@ import {
    ESTADO_BADGE,
    ESTADO_LABEL,
 } from "../components/equipo-labels";
+import { EquipoForm, type EquipoFormValues } from "../components/equipo-form";
 
 const SELECT_CLASS =
    "h-9 w-full rounded-4xl border border-input bg-input/30 px-3 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 text-foreground";
@@ -60,7 +69,7 @@ export default function EquipoDetailPage() {
    const router = useRouter();
    const equipoId = params.id as string;
 
-   const { ChangeEstado } = useEquipoStore();
+   const { ChangeEstado, UpdateEquipo } = useEquipoStore();
 
    const [equipo, setEquipo] = useState<Equipo | null>(null);
    const [compras, setCompras] = useState<EquipoCompraItem[]>([]);
@@ -68,6 +77,8 @@ export default function EquipoDetailPage() {
    const [loading, setLoading] = useState(true);
    const [estadoLoading, setEstadoLoading] = useState(false);
    const [estadoError, setEstadoError] = useState<string | null>(null);
+   const [editOpen, setEditOpen] = useState(false);
+   const [editLoading, setEditLoading] = useState(false);
 
    async function loadAll(active = { value: true }) {
       try {
@@ -118,6 +129,26 @@ export default function EquipoDetailPage() {
          setEstadoError(err instanceof Error ? err.message : "Error al cambiar el estado");
       } finally {
          setEstadoLoading(false);
+      }
+   }
+
+   async function handleEdit(data: EquipoFormValues) {
+      setEditLoading(true);
+      try {
+         const result = await UpdateEquipo(equipoId, {
+            nombre: data.nombre,
+            categoria_id: data.categoria_id,
+            estado: data.estado,
+            costo_por_hora: data.costo_por_hora === "" ? 0 : Number(data.costo_por_hora),
+            placa: data.placa || null,
+            modelo: data.modelo || null,
+            ano: data.ano === "" ? null : Number(data.ano),
+         });
+         if (result instanceof Error) throw result;
+         await loadAll();
+         setEditOpen(false);
+      } finally {
+         setEditLoading(false);
       }
    }
 
@@ -174,31 +205,38 @@ export default function EquipoDetailPage() {
                </div>
             </div>
 
-            {/* Inline estado change */}
-            <div className="flex flex-col items-start gap-1.5 lg:items-end">
-               <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Cambiar estado
-               </label>
-               <div className="flex items-center gap-2">
-                  <select
-                     value={equipo.estado}
-                     onChange={(e) => handleEstadoChange(e.target.value as EstadoEquipo)}
-                     disabled={estadoLoading}
-                     className={`${SELECT_CLASS} w-56 disabled:opacity-60`}
-                  >
-                     {ESTADOS_EQUIPO.map((estado) => (
-                        <option key={estado} value={estado}>
-                           {ESTADO_LABEL[estado]}
-                        </option>
-                     ))}
-                  </select>
-                  {estadoLoading && (
-                     <Loader2 className="size-4 animate-spin text-brand-blue" />
+            {/* Actions: edit + inline estado change */}
+            <div className="flex flex-col items-start gap-3 lg:items-end">
+               <Button variant="outline" onClick={() => setEditOpen(true)}>
+                  <Pencil className="mr-2 size-4" />
+                  Editar
+               </Button>
+
+               <div className="flex flex-col items-start gap-1.5 lg:items-end">
+                  <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                     Cambiar estado
+                  </label>
+                  <div className="flex items-center gap-2">
+                     <select
+                        value={equipo.estado}
+                        onChange={(e) => handleEstadoChange(e.target.value as EstadoEquipo)}
+                        disabled={estadoLoading}
+                        className={`${SELECT_CLASS} w-56 disabled:opacity-60`}
+                     >
+                        {ESTADOS_EQUIPO.map((estado) => (
+                           <option key={estado} value={estado}>
+                              {ESTADO_LABEL[estado]}
+                           </option>
+                        ))}
+                     </select>
+                     {estadoLoading && (
+                        <Loader2 className="size-4 animate-spin text-brand-blue" />
+                     )}
+                  </div>
+                  {estadoError && (
+                     <p className="text-xs text-destructive">{estadoError}</p>
                   )}
                </div>
-               {estadoError && (
-                  <p className="text-xs text-destructive">{estadoError}</p>
-               )}
             </div>
          </div>
 
@@ -347,6 +385,23 @@ export default function EquipoDetailPage() {
                )}
             </CardContent>
          </Card>
+
+         {/* Edit dialog */}
+         <Dialog open={editOpen} onOpenChange={(open) => { if (!open) setEditOpen(false); }}>
+            <DialogContent className="sm:max-w-md">
+               <DialogHeader>
+                  <DialogTitle>Editar Equipo</DialogTitle>
+                  <DialogDescription>Modifica los datos del equipo.</DialogDescription>
+               </DialogHeader>
+               <EquipoForm
+                  initialData={equipo}
+                  onSubmit={handleEdit}
+                  onCancel={() => setEditOpen(false)}
+                  loading={editLoading}
+                  submitLabel="Guardar cambios"
+               />
+            </DialogContent>
+         </Dialog>
       </div>
    );
 }
