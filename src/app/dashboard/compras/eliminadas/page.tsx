@@ -34,7 +34,7 @@ export default function ComprasEliminadasPage() {
       return (
          o.id.toLowerCase().includes(q) ||
          (o.proveedor_nombre ?? "").toLowerCase().includes(q) ||
-         (o.delete_reason ?? "").toLowerCase().includes(q)
+         (o.deleted_reason ?? "").toLowerCase().includes(q)
       );
    });
 
@@ -116,7 +116,7 @@ export default function ComprasEliminadasPage() {
                               </div>
                            </td>
                            <td className="px-4 py-3 text-xs text-red-500 italic truncate max-w-[200px]">
-                              {order.delete_reason ?? "Sin motivo"}
+                              {order.deleted_reason ?? "Sin motivo"}
                            </td>
                            <td className="px-4 py-3 text-right font-medium text-gray-400 line-through">
                               {formatMoney(order.total)}

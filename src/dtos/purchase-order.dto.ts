@@ -44,7 +44,7 @@ const PurchaseOrderDTO = z.object({
 const PurchaseOrderDeletedDTO = PurchaseOrderDTO.extend({
    deleted_by: z.string().nullable().optional(),
    deleted_at: z.coerce.date().nullable().optional(),
-   delete_reason: z.string().nullable().optional(),
+   deleted_reason: z.string().nullable().optional(),
 });
 
 const CreatePurchaseOrderDTO = z.object({

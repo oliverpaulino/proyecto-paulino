@@ -52,7 +52,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             updated_at: new Date(row.updated_at),
             deleted_by: null,
             deleted_at: null,
-            delete_reason: null,
+            deleted_reason: null,
          })
       );
    }
@@ -76,7 +76,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             "orden_compra.updated_at",
             "orden_compra.deleted_by",
             "orden_compra.deleted_at",
-            "orden_compra.delete_reason",
+            "orden_compra.deleted_reason",
          ])
          .where("orden_compra.deleted_at", "is not", null)
          .orderBy("orden_compra.deleted_at", "desc")
@@ -99,7 +99,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             updated_at: new Date(row.updated_at),
             deleted_by: row.deleted_by ?? null,
             deleted_at: row.deleted_at ? new Date(row.deleted_at) : null,
-            delete_reason: row.delete_reason ?? null,
+            deleted_reason: row.deleted_reason ?? null,
          })
       );
    }
@@ -161,7 +161,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
          updated_at: new Date(row.updated_at),
          deleted_by: null,
          deleted_at: null,
-         delete_reason: null,
+         deleted_reason: null,
       });
    }
 
@@ -233,7 +233,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
          updated_at: new Date(result.header.updated_at),
          deleted_by: null,
          deleted_at: null,
-         delete_reason: null,
+         deleted_reason: null,
       });
    }
 

@@ -145,7 +145,7 @@ export interface DB {
       updated_at: Generated<Date>;
       deleted_by: string | null;
       deleted_at: Date | null;
-      delete_reason: string | null;
+      deleted_reason: string | null;
    };
 
    purchase_order_approvers: {

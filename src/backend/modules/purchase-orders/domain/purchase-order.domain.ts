@@ -32,7 +32,7 @@ export interface PurchaseOrderProps {
    updated_at: Date;
    deleted_by: string | null;
    deleted_at: Date | null;
-   delete_reason: string | null;
+   deleted_reason: string | null;
 }
 
 const TRANSITIONS: Record<EstadoOrdenCompra, EstadoOrdenCompra[]> = {
@@ -76,7 +76,7 @@ export class PurchaseOrder {
    get updated_at(): Date { return this.props.updated_at; }
    get deleted_by(): string | null { return this.props.deleted_by; }
    get deleted_at(): Date | null { return this.props.deleted_at; }
-   get delete_reason(): string | null { return this.props.delete_reason; }
+   get deleted_reason(): string | null { return this.props.deleted_reason; }
 
    toJSON(): PurchaseOrderProps {
       return { ...this.props };
