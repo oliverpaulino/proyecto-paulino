@@ -1,8 +1,7 @@
 export const ESTADOS_EQUIPO = [
    "ACTIVO",
-   "MANTENIMIENTO",
    "INACTIVO",
-   "BAJA",
+   "EN_MANTENIMIENTO",
 ] as const;
 
 export type EstadoEquipo = (typeof ESTADOS_EQUIPO)[number];
