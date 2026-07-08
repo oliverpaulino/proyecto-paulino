@@ -48,8 +48,9 @@ function toDomain(row: EquipoRow): Equipo {
 export class KyselyEquipoRepository implements IEquipoRepository {
    constructor(private readonly db: Kysely<DB>) { }
 
-   async findAll(): Promise<Equipo[]> {
-      const rows = await this.db
+   async findAll(params?: { page?: number; limit?: number; search?: string }): Promise<Equipo[]> {
+      const { page = 1, limit = 10, search = "" } = params || {};
+      let qb = this.db
          .selectFrom("equipo")
          .innerJoin("categoria_equipo", "categoria_equipo.id", "equipo.categoria_id")
          .select([
@@ -68,8 +69,19 @@ export class KyselyEquipoRepository implements IEquipoRepository {
             "equipo.created_at",
             "equipo.updated_at",
          ])
-         .orderBy("equipo.created_at", "desc")
-         .execute();
+         .orderBy("equipo.created_at", "desc");
+
+
+      if (search) {
+         qb = qb.where((eb) =>
+            eb.or([
+               eb("equipo.nombre", "like", `%${search}%`),
+               eb("categoria_equipo.nombre", "like", `%${search}%`),
+            ])
+         );
+      }
+
+      const rows = await qb.offset((page - 1) * limit).limit(limit).execute();
 
       return rows.map(toDomain);
    }

@@ -29,6 +29,7 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
    const [newNombre, setNewNombre] = useState("");
    const [newCobraEn, setNewCobraEn] = useState("");
    const [newCobraMinimo, setNewCobraMinimo] = useState("");
+   const [newPrecioUnitario, setNewPrecioUnitario] = useState("");
    const [busy, setBusy] = useState(false);
    const [error, setError] = useState<string | null>(null);
 
@@ -36,6 +37,7 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
    const [editNombre, setEditNombre] = useState("");
    const [editCobraEn, setEditCobraEn] = useState("");
    const [editCobraMinimo, setEditCobraMinimo] = useState("");
+   const [editPrecioUnitario, setEditPrecioUnitario] = useState("");
 
    const [deleteTarget, setDeleteTarget] = useState<CategoriaEquipo | null>(null);
 
@@ -60,11 +62,13 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
             nombre: newNombre.trim(),
             cobra_en: newCobraEn.trim(),
             cobra_minimo: newCobraMinimo ? Number(newCobraMinimo) : null,
+            precio_unitario: newPrecioUnitario ? Number(newPrecioUnitario) : null,
          });
          if (result instanceof Error) throw result;
          setNewNombre("");
          setNewCobraEn("");
          setNewCobraMinimo("");
+         setNewPrecioUnitario("");
       } catch (err: unknown) {
          setError(err instanceof Error ? err.message : "Error al crear categoría");
       } finally {
@@ -77,6 +81,7 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
       setEditNombre(cat.nombre);
       setEditCobraEn(cat.cobra_en);
       setEditCobraMinimo(cat.cobra_minimo != null ? String(cat.cobra_minimo) : "");
+      setEditPrecioUnitario(cat.precio_unitario != null ? String(cat.precio_unitario) : "");
       setError(null);
    }
 
@@ -89,6 +94,7 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
             nombre: editNombre.trim(),
             cobra_en: editCobraEn.trim(),
             cobra_minimo: editCobraMinimo ? Number(editCobraMinimo) : null,
+            precio_unitario: editPrecioUnitario ? Number(editPrecioUnitario) : null,
          });
          if (result instanceof Error) throw result;
          setEditId(null);
@@ -150,6 +156,21 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                         disabled={busy}
                      />
                   </div>
+               </div>
+               <div className="flex items-end gap-2">
+                  <div className="flex flex-col gap-1 flex-1">
+                     <Label className="text-xs">Precio unitario (opcional)</Label>
+                     <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={newPrecioUnitario}
+                        onChange={(e) => setNewPrecioUnitario(e.target.value)}
+                        placeholder="ej. 2"
+                        disabled={busy}
+                     />
+                  </div>
+
                </div>
                <div className="flex items-end gap-2">
                   <div className="flex flex-col gap-1 flex-1">
@@ -219,6 +240,19 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                                        placeholder="Mínimo (opcional)"
                                        disabled={busy}
                                     />
+
+                                 </div>
+                                 <div className="flex items-center gap-2">
+                                    <Input
+                                       type="number"
+                                       min="0"
+                                       step="0.01"
+                                       value={editPrecioUnitario}
+                                       onChange={(e) => setEditPrecioUnitario(e.target.value)}
+                                       className="h-8 flex-1"
+                                       placeholder="Precio unitario (opcional)"
+                                       disabled={busy}
+                                    />
                                     <button
                                        onClick={() => saveEdit(cat.id)}
                                        disabled={busy}
@@ -242,7 +276,7 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                                  <div className="flex-1 min-w-0">
                                     <p className="text-sm font-medium truncate">{cat.nombre}</p>
                                     <p className="text-xs text-muted-foreground">
-                                       Se cobra en: <span className="font-medium text-brand-blue dark:text-blue-400">{cat.cobra_en}</span>
+                                       Se cobra en: <span className="font-medium text-brand-blue dark:text-blue-400">{cat.cobra_en}</span> a <span className="font-medium text-green-500 dark:text-green-400">{cat.precio_unitario?.toFixed(2)}</span>
                                        {cat.cobra_minimo != null && (
                                           <span className="ml-2 text-muted-foreground">
                                              (mín. {cat.cobra_minimo})

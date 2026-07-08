@@ -17,7 +17,8 @@ import { useClientStore } from "@/stores/useClientStore";
 import { useEquipoStore } from "@/stores/useEquipoStore";
 import { useEmployeeStore } from "@/stores/useEmployeeStore";
 import type { CreateProyectoExpressForm, LineItemForm } from "@/dtos/proyecto.dto";
-import { SelectEquipos } from "@/components/select-equipos";
+import { SelectBuscarEquipos } from "@/components/select-equipos";
+import { Equipo } from "@/dtos/equipo.dto";
 
 interface Props {
    onSubmit: (data: CreateProyectoExpressForm) => Promise<void>;
@@ -153,13 +154,20 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
          nombre: "Proyecto Express",
 
          // Transformamos tu array de equipos a las "tarifas" y "equipos" que pide el backend
-         tarifas: equiposUsar.map((e) => ({
-            categoria_equipo_id: e.categoria_equipo_id,
-            // Si el precio es 0, forzamos un valor mínimo positivo para pasar la validación
-            precio_acordado: e.precio_unitario > 0 ? e.precio_unitario : 0.01,
-            cobra_en_snapshot: "HORA",
-            cobra_minimo_snapshot: e.precio_unitario > 0 ? e.precio_unitario : 0.01
-         })),
+         tarifas: Object.values(
+            equiposUsar.reduce((acc, e) => {
+               if (!acc[e.categoria_equipo_id]) {
+                  acc[e.categoria_equipo_id] = {
+                     categoria_equipo_id: e.categoria_equipo_id,
+                     precio_acordado: e.precio_unitario > 0 ? e.precio_unitario : 0.01,
+                     cobra_en_snapshot: "HORA",
+                     cobra_minimo_snapshot: e.precio_unitario > 0 ? e.precio_unitario : 0.01
+                  };
+               }
+
+               return acc;
+            }, {} as Record<string, any>)
+         ),
 
          equipos: equiposUsar.map(eq => ({
             equipo_id: eq.equipo_id,
@@ -224,10 +232,10 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
                <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_28px] gap-2 items-center">
 
                   <div className="space-y-1.5">
-                     <SelectEquipos
+                     <SelectBuscarEquipos
                         value={item.equipo_id}
                         onChange={(id, equipo) => {
-                           updateEquipo(idx, "equipo_id", id);
+                           updateEquipo(idx, "equipo_id", id ?? "");
                            if (equipo) {
                               updateEquipo(idx, "operador_id", equipo.operador_id || "");
                               // Algunos tipos de equipo pueden no tener la propiedad `categoria`.

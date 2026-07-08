@@ -31,7 +31,7 @@ const CreateEquipoDTO = z.object({
    operador_id: z.string().nullable().optional(),
    categoria_id: z.string(),
    estado: z.enum(ESTADOS_EQUIPO).optional(),
-   costo_por_hora: z.coerce.number().min(0).optional(),
+   // costo_por_hora: z.coerce.number().min(0).optional(),
    placa: z.string().nullable().optional(),
    modelo: z.string().nullable().optional(),
    ano: z.coerce.number().int().nullable().optional(),

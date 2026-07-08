@@ -6,16 +6,26 @@ import {
    IEquipoRepository,
    UpdateEquipoDTO,
 } from "../domain/equipo.domain";
+import { EmployeeService } from "../../employees/service/employees.service";
+import { EmployeeProps, IEmployeeRepository, OperadorProps } from "../../employees/domain/employees.domain";
 
 const ESTADOS = new Set<string>(ESTADOS_EQUIPO);
 const MIN_ANO = 1950;
 const MAX_ANO = new Date().getFullYear() + 1;
 
-export class EquipoService {
-   constructor(private readonly repo: IEquipoRepository) { }
 
-   async getAll(): Promise<EquipoProps[]> {
-      const equipos = await this.repo.findAll();
+export class EquipoService {
+
+   constructor(
+      private readonly repo: IEquipoRepository,
+      private readonly employeeRepo: IEmployeeRepository
+   ) { }
+
+
+
+   async getAll(params?: { page?: number; limit?: number; search?: string }): Promise<EquipoProps[]> {
+      const { page = 1, limit = 10, search = "" } = params || {};
+      const equipos = await this.repo.findAll({ page, limit, search });
       return equipos.map((e) => e.toJSON());
    }
 
@@ -65,6 +75,17 @@ export class EquipoService {
 
    async getCategoriaByEquipoId(id: string): Promise<CategoriaEquipo | null> {
       return this.repo.findCategoriaByEquipoId(id);
+   }
+
+   // Refactorización profesional
+   async getOperadorByEquipoId(id: string): Promise<EmployeeProps | null> {
+      try {
+         const operador = await this.employeeRepo.findById(id);
+         return operador ?? null;
+      } catch (error) {
+         console.error(`Error al obtener operador ${id}:`, error);
+         return null;
+      }
    }
 
    private validateCosto(costo: number | undefined): void {

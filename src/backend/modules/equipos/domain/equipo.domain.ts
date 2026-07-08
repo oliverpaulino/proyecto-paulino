@@ -36,6 +36,7 @@ export class Equipo {
    get id(): string { return this.props.id; }
    get nombre(): string { return this.props.nombre; }
    get categoria_id(): string { return this.props.categoria_id; }
+   get operador_id(): string | null { return this.props.operador_id; }
    get categoria_nombre(): string { return this.props.categoria_nombre; }
    get cobra_en(): string { return this.props.cobra_en; }
    get cobra_minimo(): number | null { return this.props.cobra_minimo; }
@@ -74,7 +75,7 @@ export interface UpdateEquipoDTO {
 }
 
 export interface IEquipoRepository {
-   findAll(): Promise<Equipo[]>;
+   findAll(params?: { page?: number; limit?: number; search?: string }): Promise<Equipo[]>;
    findById(id: string): Promise<Equipo | null>;
    create(data: CreateEquipoDTO): Promise<Equipo>;
    update(id: string, data: UpdateEquipoDTO): Promise<Equipo | null>;

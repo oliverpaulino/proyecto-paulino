@@ -70,7 +70,6 @@ export default function EquiposPage() {
       return (
          e.nombre.toLowerCase().includes(q) ||
          e.categoria_nombre.toLowerCase().includes(q) ||
-         e.cobra_en.toLowerCase().includes(q) ||
          (e.placa ?? "").toLowerCase().includes(q) ||
          (e.modelo ?? "").toLowerCase().includes(q)
       );
@@ -86,7 +85,6 @@ export default function EquiposPage() {
          nombre: data.nombre,
          categoria_id: data.categoria_id,
          estado: data.estado,
-         costo_por_hora: data.costo_por_hora === "" ? 0 : Number(data.costo_por_hora),
          placa: data.placa || null,
          modelo: data.modelo || null,
          ano: data.ano === "" ? null : Number(data.ano),

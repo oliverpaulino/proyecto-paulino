@@ -1,17 +1,20 @@
 import { create } from "zustand";
 import type { Equipo, EquipoForm, UpdateEquipoForm } from "@/dtos/equipo.dto";
 import { CategoriaEquipo } from "@/dtos/categoria-equipo.dto";
+import { Employee } from "@/dtos/employee.dto";
 
 type EquipoStore = {
    Equipos: Equipo[];
    loading: boolean;
    _fetchedLists: Set<string>;
 
-   GetEquipos: (params?: { force?: boolean }) => Promise<void>;
+
+   GetEquipos: (params?: { page?: number; limit?: number; search?: string; force?: boolean }) => Promise<void>;
    CreateEquipo: (form: EquipoForm) => Promise<Equipo | Error>;
    UpdateEquipo: (id: string, data: Partial<UpdateEquipoForm>) => Promise<void | Error>;
    DeleteEquipo: (id: string) => Promise<void | Error>;
    GetCategoriasEquipoById: (id: string) => Promise<CategoriaEquipo | Error>;
+   GetOperadorByEquipoId: (id: string) => Promise<Employee | Error>;
    invalidateCache: () => void;
 };
 
@@ -24,13 +27,13 @@ export const useEquipoStore = create<EquipoStore>((set, get) => ({
       set({ _fetchedLists: new Set<string>() });
    },
 
-   GetEquipos: async ({ force = false } = {}) => {
-      const cacheKey = "all";
+   GetEquipos: async ({ page = 1, limit = 10, search = "", force = false } = {}) => {
+      const cacheKey = `all_${search}_${page}_${limit}`;
       if (!force && get()._fetchedLists.has(cacheKey)) return;
 
       set({ loading: true });
       try {
-         const res = await fetch("/api/equipos");
+         const res = await fetch(`/api/equipos?page=${page}&limit=${limit}&search=${search}`);
          if (!res.ok) throw new Error("Error al cargar equipos");
 
          const data: Equipo[] = await res.json();
@@ -109,6 +112,18 @@ export const useEquipoStore = create<EquipoStore>((set, get) => ({
          // Aquí podrías hacer algo con los datos obtenidos, como almacenarlos en el estado si es necesario.
       } catch (error) {
          console.error("Error fetching categorias de equipo:", error);
+         throw error;
+      }
+   },
+
+   GetOperadorByEquipoId: async (id) => {
+      try {
+         const res = await fetch(`/api/equipos/${id}/operador`);
+         if (!res.ok) throw new Error("Error al cargar operador del equipo");
+         const data = await res.json();
+         return data;
+      } catch (error) {
+         console.error("Error fetching operador de equipo:", error);
          throw error;
       }
    },

@@ -12,12 +12,14 @@ import {
 } from "@/dtos/equipo.dto";
 import { ESTADO_LABEL } from "./equipo-labels";
 import { useCategoriaEquipoStore } from "@/stores/useCategoriaEquipoStore";
+import { SelectBuscadorOperator } from "@/components/select-operator";
+import { useEmployeeStore } from "@/stores/useEmployeeStore";
 
 export interface EquipoFormValues {
    nombre: string;
    categoria_id: string;
+   operador_id?: string;
    estado: EstadoEquipo;
-   costo_por_hora: string;
    placa: string;
    modelo: string;
    ano: string;
@@ -48,8 +50,8 @@ export function EquipoForm({
    const [values, setValues] = useState<EquipoFormValues>({
       nombre: initialData?.nombre ?? "",
       categoria_id: initialData?.categoria_id ?? "",
+      operador_id: initialData?.operador_id ?? undefined,
       estado: initialData?.estado ?? "ACTIVO",
-      costo_por_hora: initialData?.costo_por_hora != null ? String(initialData.costo_por_hora) : "0",
       placa: initialData?.placa ?? "",
       modelo: initialData?.modelo ?? "",
       ano: initialData?.ano != null ? String(initialData.ano) : "",
@@ -154,18 +156,9 @@ export function EquipoForm({
          </div>
 
          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-               <Label htmlFor="ef-costo">Costo por unidad (RD$)</Label>
-               <Input
-                  id="ef-costo"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={values.costo_por_hora}
-                  onChange={(e) => set("costo_por_hora", e.target.value)}
-                  placeholder="0"
-               />
-            </div>
+            <SelectBuscadorOperator value={values.operador_id} onChange={(id) => {
+               setValues((prev) => ({ ...prev, operador_id: id ?? undefined }));
+            }} disabled={loading} placeholder="Buscar operador..." />
 
             <div className="flex flex-col gap-1.5">
                <Label htmlFor="ef-ano">Año</Label>

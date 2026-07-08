@@ -12,13 +12,27 @@ import {
 import { DB } from "@/backend/database";
 
 export class KyselyEmployeeRepository implements IEmployeeRepository {
-   constructor(private readonly db: Kysely<DB>) {}
+   constructor(private readonly db: Kysely<DB>) { }
 
-   async findAll(): Promise<Employee[]> {
-      const rows = await this.db
+   async findAll(params?: { page?: number; limit?: number; search?: string }): Promise<Employee[]> {
+      const { page = 1, limit = 10, search = "" } = params || {};
+      let query = this.db
          .selectFrom("empleado")
-         .selectAll()
+         .selectAll();
+
+      if (search) {
+         query = query.where((eb) =>
+            eb.or([
+               eb("empleado.nombre", "like", `%${search}%`),
+               eb("empleado.identificacion", "like", `%${search}%`),
+            ])
+         );
+      }
+
+      const rows = await query
          .orderBy("created_at", "desc")
+         .offset((page - 1) * limit)
+         .limit(limit)
          .execute();
 
       return rows.map((row) =>
@@ -31,6 +45,43 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
          })
       );
    }
+
+   async findAllOperators(params?: { page?: number; limit?: number; search?: string }): Promise<OperadorProps[]> {
+      console.log("Fetching operators with params:", params);
+      const { page = 1, limit = 10, search = "" } = params || {};
+      let query = this.db
+         .selectFrom("empleado")
+         .innerJoin("operador", "empleado.id", "operador.empleado_id")
+         .selectAll();
+
+      if (search) {
+         query = query.where((eb) =>
+            eb.or([
+               eb("empleado.nombre", "like", `%${search}%`),
+               eb("empleado.identificacion", "like", `%${search}%`),
+               eb("operador.licencia", "like", `%${search}%`),
+            ])
+         );
+      }
+
+      const rowResult = await query
+         .orderBy("empleado.created_at", "desc")
+         .offset((page - 1) * limit)
+         .limit(limit)
+         .execute();
+
+
+      return rowResult.map((row) => ({
+         ...row,
+         tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
+         toJSON() {
+            return { ...row };
+         },
+      }));
+
+
+   }
+
 
    async findById(id: string): Promise<Employee | null> {
       const row = await this.db
@@ -151,7 +202,7 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
          .values(data)
          .returningAll()
          .executeTakeFirstOrThrow();
-         
+
       return {
          ...row,
          created_at: new Date(row.created_at),
@@ -166,7 +217,7 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
          .where("id", "=", id)
          .returningAll()
          .executeTakeFirstOrThrow();
-         
+
       return {
          ...row,
          created_at: new Date(row.created_at),

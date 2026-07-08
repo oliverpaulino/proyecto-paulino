@@ -3,35 +3,35 @@ import { GeneralSchemasDTO } from "./schema.dto";
 
 // SCHEMAS DE EMPLEADOS
 export const TipoIdentificacionEmpleado = {
-  CEDULA: "Cédula",
-  PASAPORTE: "Pasaporte",
+   CEDULA: "Cédula",
+   PASAPORTE: "Pasaporte",
 } as const;
 
 export const TipoRolEmpleado = {
-  OPERADOR: "Operador",
-  INGENIERO: "Ingeniero",
-  MECANICO: "Mecánico",
-  CONTABLE: "Contable",
-  MENSAJERO: "Mensajero",
+   OPERADOR: "Operador",
+   INGENIERO: "Ingeniero",
+   MECANICO: "Mecánico",
+   CONTABLE: "Contable",
+   MENSAJERO: "Mensajero",
 } as const;
 
 const TipoIdentificacionEmpleadoSchema = z.enum(
-  Object.keys(TipoIdentificacionEmpleado) as [
-    keyof typeof TipoIdentificacionEmpleado,
-    ...(keyof typeof TipoIdentificacionEmpleado)[]
-  ]
+   Object.keys(TipoIdentificacionEmpleado) as [
+      keyof typeof TipoIdentificacionEmpleado,
+      ...(keyof typeof TipoIdentificacionEmpleado)[]
+   ]
 );
 
 const TipoRolEmpleadoSchema = z.enum(
-  Object.keys(TipoRolEmpleado) as [
-    keyof typeof TipoRolEmpleado,
-    ...(keyof typeof TipoRolEmpleado)[]
-  ]
+   Object.keys(TipoRolEmpleado) as [
+      keyof typeof TipoRolEmpleado,
+      ...(keyof typeof TipoRolEmpleado)[]
+   ]
 );
 
 export const EmployeeSchemasDTO = {
-  TipoIdentificacionEmpleadoSchema,
-  TipoRolEmpleadoSchema,
+   TipoIdentificacionEmpleadoSchema,
+   TipoRolEmpleadoSchema,
 };
 
 // Empleado
@@ -132,6 +132,14 @@ const EmployeeDetailsDTO = z.object({
    operador: OperatorDTO.nullable().default(null),
 });
 
+const OperadorAsignableDTO = z.object({
+   id: z.string().uuid(), // empleado_id
+   nombre: z.string(),
+   identificacion: z.string(),
+   licencia: z.string().nullable(),
+   fecha_vencimiento: z.coerce.date().nullable(),
+});
+
 export type Employee = z.infer<typeof EmployeeDTO>;
 export type CreateEmployeeForm = z.infer<typeof CreateEmployeeDTO>;
 export type UpdateEmployeeForm = z.infer<typeof UpdateEmployeeDTO>;
@@ -142,3 +150,4 @@ export type Operator = z.infer<typeof OperatorDTO>;
 export type CreateOperatorForm = z.infer<typeof CreateOperatorDTO>;
 export type UpdateOperatorForm = z.infer<typeof UpdateOperatorDTO>;
 export type EmployeeDetails = z.infer<typeof EmployeeDetailsDTO>;
+export type OperadorAsignable = z.infer<typeof OperadorAsignableDTO>;

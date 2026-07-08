@@ -2,14 +2,20 @@ import { Hono } from "hono";
 import db from "@/backend/database";
 import { KyselyEquipoRepository } from "../infraestructure/equipo.infraestructure";
 import { EquipoService } from "../service/equipo.service";
+import { EmployeeService } from "../../employees/service/employees.service";
+import { KyselyEmployeeRepository } from "../../employees/infraestructure/employees.infraestructure";
 
 const equiposRoute = new Hono();
 const repo = new KyselyEquipoRepository(db);
-const service = new EquipoService(repo);
+const employeeRepo = new KyselyEmployeeRepository(db);
+const service = new EquipoService(repo, employeeRepo);
 
 // GET /api/equipos
 equiposRoute.get("/", async (c) => {
-   const equipos = await service.getAll();
+   const page = parseInt(c.req.query("page") || "1", 10);
+   const limit = parseInt(c.req.query("limit") || "10", 10);
+   const search = c.req.query("search") || "";
+   const equipos = await service.getAll({ page, limit, search });
    return c.json(equipos);
 });
 
@@ -54,6 +60,11 @@ equiposRoute.get(":id/categorias", async (c) => {
    const categorias = await service.getCategoriaByEquipoId(c.req.param("id"));
    if (!categorias) return c.json({ error: "Equipo no encontrado" }, 404);
    return c.json(categorias);
+})
+equiposRoute.get(":id/operador", async (c) => {
+   const operador = await service.getOperadorByEquipoId(c.req.param("id"));
+   if (!operador) return c.json({ error: "Equipo no encontrado" }, 404);
+   return c.json(operador);
 })
 
 export default equiposRoute;

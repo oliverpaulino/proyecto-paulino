@@ -8,17 +8,39 @@ const employeesRoute = new Hono();
 const repo = new KyselyEmployeeRepository(db);
 const service = new EmployeeService(repo);
 
+
 // GET /api/employees
 employeesRoute.get("/", async (c) => {
-   const employees = await service.getAll();
+   const page = parseInt(c.req.query("page") || "1", 10);
+   const limit = parseInt(c.req.query("limit") || "10", 10);
+   const search = c.req.query("search") || "";
+   const employees = await service.getAll({ page, limit, search });
    return c.json(employees);
 });
+
+
+
+employeesRoute.get("/operators", async (c) => {
+   console.log("tu maldit amadre")
+   const page = parseInt(c.req.query("page") || "1", 10);
+   const limit = parseInt(c.req.query("limit") || "10", 10);
+   const search = c.req.query("search") || "";
+   console.log("Fetching operators with params:", { page, limit, search });
+   const operators = await service.getAllOperators({ page, limit, search });
+   return c.json(operators);
+});
+
+
+// employeesRoute.get("/contacts", async (c) => {
+//    const contacts = await service.getContacts();
+//    return c.json(contacts);
+// });
 
 // GET /api/employees/:id/details
 employeesRoute.get("/:id/details", async (c) => {
    const { id } = c.req.param();
    const details = await service.getDetails(id);
-   
+
    if (!details) return c.json({ error: "Empleado no encontrado" }, 404);
    return c.json(details);
 });
@@ -65,7 +87,7 @@ employeesRoute.patch("/:id", async (c) => {
    // 1. Extraemos "operador" y dejamos el resto en "employeeData"
    const { operador, ...employeeData } = await c.req.json();
    const id = c.req.param("id");
-   
+
    try {
       // 2. Pasamos solo los datos limpios del empleado al update
       const employee = await service.update(id, employeeData);
@@ -74,7 +96,7 @@ employeesRoute.patch("/:id", async (c) => {
       // 3. Procesamos el operador usando los datos separados
       if (operador) {
          const existingOp = await service.getOperator(id);
-         
+
          if (existingOp) {
             await service.updateOperator(existingOp.id, {
                licencia: operador.licencia,

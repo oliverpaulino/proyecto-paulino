@@ -7,13 +7,18 @@ import {
    ContactEmpleadoProps,
    OperadorProps
 } from "../domain/employees.domain";
-
+``
 export class EmployeeService {
-   constructor(private readonly repo: IEmployeeRepository) {}
+   constructor(private readonly repo: IEmployeeRepository) { }
 
-   async getAll(): Promise<EmployeeProps[]> {
-      const employees = await this.repo.findAll();
+   async getAll(params?: { page?: number; limit?: number; search?: string }): Promise<EmployeeProps[]> {
+      const employees = await this.repo.findAll(params);
       return employees.map((e) => e.toJSON());
+   }
+
+   async getAllOperators(params?: { page?: number; limit?: number; search?: string }): Promise<OperadorProps[]> {
+      const operators = await this.repo.findAllOperators(params);
+      return operators.map(o => o.toJSON());
    }
 
    async getById(id: string): Promise<EmployeeProps | null> {
@@ -112,6 +117,9 @@ export class EmployeeService {
          fecha_vencimiento: data.fecha_vencimiento ? new Date(data.fecha_vencimiento) : null,
          created_at: new Date(),
          updated_at: new Date(),
+         toJSON: function () {
+            throw new Error("Function not implemented.");
+         }
       };
       return this.repo.createOperator(operatorData);
    }

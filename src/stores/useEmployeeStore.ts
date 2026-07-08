@@ -10,6 +10,7 @@ import type {
    CreateOperatorForm,
    UpdateOperatorForm,
    EmployeeDetails,
+   OperadorAsignable,
 } from "@/dtos/employee.dto";
 
 // Placeholder types for warning functionality (not yet implemented in DTO)
@@ -19,6 +20,7 @@ type UpdateEmployeeWarningForm = Record<string, unknown>;
 
 type EmployeeStore = {
    Employees: Employee[];
+   Operators: OperadorAsignable[];
    Contacts: ContactEmployee[];
    selectedEmployee: EmployeeDetails | null;
    loading: boolean;
@@ -35,6 +37,7 @@ type EmployeeStore = {
    _fetchedDetails: Set<string>;
 
    GetEmployees: (params?: { page?: number; limit?: number; search?: string; force?: boolean }) => Promise<void>;
+   GetOperators: (params?: { page?: number; limit?: number; search?: string; force?: boolean }) => Promise<void>;
    GetEmployeeDetails: (empleadoId: string, force?: boolean) => Promise<EmployeeDetails | null>;
    CreateEmployee: (form: CreateEmployeeForm) => Promise<Employee | Error>;
    UpdateEmployee: (empleadoId: string, data: UpdateEmployeeForm) => Promise<void | Error>;
@@ -61,6 +64,7 @@ type EmployeeStore = {
 
 export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
    Employees: [],
+   Operators: [],
    Contacts: [],
    selectedEmployee: null,
    loading: false,
@@ -124,6 +128,44 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
          set({ loading: false });
       }
    },
+
+   GetOperators: async (params = {}) => {
+      const { page = 1, limit = 20, search = "", force = false } = params;
+      const cacheKey = `operators:${page}:${limit}:${search}`;
+      if (!force && get()._fetchedEmployeeLists.has(cacheKey)) return;
+      set({ loading: true });
+      try {
+         const res = await fetch(`/api/employees/operators?page=${page}&limit=${limit}&search=${search}`);
+         if (!res.ok) {
+            const errorText = await res.text();
+            console.error(`Error ${res.status}: ${errorText}`);
+            throw new Error("Error al cargar operadores");
+         }
+         const data: { operators: Operator[]; total: number } = await res.json();
+         console.log(data)
+         const totalPages = Math.max(1, Math.ceil(data.total / limit));
+
+         set((state) => ({
+            Operators: data as any,
+            pagination: {
+               page,
+               limit,
+               total: data.total,
+               totalPages,
+               hasNext: page < totalPages,
+               hasPrev: page > 1,
+            },
+            _fetchedEmployeeLists: new Set(state._fetchedEmployeeLists).add(cacheKey),
+         }));
+      } catch (error) {
+         console.error("Error fetching operators:", error);
+         throw error;
+      } finally {
+         set({ loading: false });
+      }
+
+   },
+
 
    GetEmployeeDetails: async (empleadoId, force = false) => {
       if (!force && get()._fetchedDetails.has(empleadoId)) {

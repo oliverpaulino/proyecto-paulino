@@ -1,67 +1,36 @@
-
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
 import { Loader2, User, X } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useEmployeeStore } from "@/stores/useEmployeeStore";
-import type { Employee } from "@/dtos/employee.dto";
-import { useEquipoStore } from "@/stores/useEquipoStore";
-import { Equipo } from "@/dtos/equipo.dto";
+import type { Employee, OperadorAsignable } from "@/dtos/employee.dto";
 
-interface SelectBuscarEquiposProps {
+interface SelectBuscadorOperatorProps {
    value?: string | null;
    initialLabel?: string;
-   onChange: (equipoId: string | number | null, equipo: Equipo | null) => void;
+   onChange: (employeeId: string | null) => void;
    placeholder?: string;
    disabled?: boolean;
 }
 
-export function SelectBuscarEquipos({
+export function SelectBuscadorOperator({
    value,
    initialLabel = "",
    onChange,
-   placeholder = "Buscar equipo por nombre o ID...",
+   placeholder = "Buscar operador por nombre o ID...",
    disabled = false,
-}: SelectBuscarEquiposProps) {
-   const { Equipos, loading, GetEquipos, GetOperadorByEquipoId } = useEquipoStore();
-   const [operator, setOperator] = useState<Employee | null>(null);
+}: SelectBuscadorOperatorProps) {
+   const { Operators, loading, GetOperators } = useEmployeeStore();
    const [isOpen, setIsOpen] = useState(false);
    const [inputValue, setInputValue] = useState(initialLabel);
    const containerRef = useRef<HTMLDivElement>(null);
 
    const debouncedSearch = useDebounce(inputValue, 500);
 
-   useEffect(() => {
-      const loadOperator = async () => {
-         // 1. Limpiar el operador si no hay equipo seleccionado
-         if (!value) {
-            setOperator(null);
-            return;
-         }
+   const operators = Operators ?? [];
+   console.log("Operators in SelectBuscadorOperator:", operators);
 
-         try {
-            const result = await GetOperadorByEquipoId(value);
-
-            // ✅ CORRECCIÓN AQUÍ:
-            // Verificamos si el resultado es una instancia de Error
-            if (result instanceof Error) {
-               console.error("Error al cargar el operador:", result.message);
-               setOperator(null); // Opcional: manejar el error mostrando un mensaje visual
-            } else {
-               // Si no es error, es el objeto Empleado o null
-               setOperator(result);
-            }
-         } catch (error) {
-            console.error("Error inesperado:", error);
-            setOperator(null);
-         }
-      };
-
-      loadOperator();
-
-   }, [value, GetOperadorByEquipoId]);
 
    useEffect(() => {
       setInputValue(initialLabel);
@@ -78,26 +47,27 @@ export function SelectBuscarEquipos({
       return () => document.removeEventListener("mousedown", handleClickOutside);
    }, [value]);
 
+
    useEffect(() => {
       if (!isOpen) return;
 
       if (debouncedSearch.trim() !== "") {
-         GetEquipos({ search: debouncedSearch, limit: 20, force: true });
+         GetOperators({ search: debouncedSearch, limit: 20, force: true });
       } else {
-         GetEquipos({ search: "", limit: 20, force: true });
+         GetOperators({ search: "", limit: 20, force: true });
       }
-   }, [debouncedSearch, isOpen, GetEquipos]);
+   }, [debouncedSearch, isOpen, GetOperators]);
 
-   const handleSelect = (equipo: Equipo) => {
-      setInputValue(equipo.nombre);
-      onChange(equipo.id, equipo);
+   const handleSelect = (operator: OperadorAsignable) => {
+      setInputValue(operator.nombre);
+      onChange(operator.id);
       setIsOpen(false);
    };
 
    const handleClear = (e: React.MouseEvent) => {
       e.stopPropagation();
       setInputValue("");
-      onChange(null, null);
+      onChange(null);
       setIsOpen(false);
    };
 
@@ -110,7 +80,7 @@ export function SelectBuscarEquipos({
                value={inputValue}
                onChange={(e) => {
                   setInputValue(e.target.value);
-                  if (e.target.value === "") onChange(null, null);
+                  if (e.target.value === "") onChange(null);
                   if (!isOpen) setIsOpen(true);
                }}
                onFocus={() => setIsOpen(true)}
@@ -131,23 +101,23 @@ export function SelectBuscarEquipos({
 
          {isOpen && (
             <div className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-md p-1">
-               {loading && Equipos.length === 0 ? (
-                  <div className="p-4 text-center text-sm text-muted-foreground">Buscando equipos...</div>
-               ) : Equipos.length > 0 ? (
-                  Equipos.map((equipox) => (
+               {loading && (operators?.length ?? 0) === 0 ? (
+                  <div className="p-4 text-center text-sm text-muted-foreground">Buscando operadores...</div>
+               ) : (operators?.length ?? 0) > 0 ? (
+                  operators.map((operator) => (
                      <div
-                        key={equipox.id}
-                        onClick={() => handleSelect(equipox)}
+                        key={operator.id}
+                        onClick={() => handleSelect(operator)}
                         className="flex cursor-pointer flex-col gap-1 rounded-sm px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
                      >
                         <div className="flex justify-between items-center">
-                           <span className="font-medium truncate">{equipox.nombre}</span>
+                           <span className="font-medium truncate">{operator.nombre}</span>
                            <span className="text-[10px] uppercase font-semibold bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">
-                              {equipox.categoria_nombre}
+                              {/* {operator.id} poner aqui el numero identificador/referencia */}
                            </span>
                         </div>
                         <span className="text-xs text-muted-foreground truncate">
-                           {operator?.nombre || "Sin operador asignado"}
+                           Licencia: {operator.licencia || "No asignada"}
                         </span>
                      </div>
                   ))

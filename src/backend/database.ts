@@ -152,7 +152,7 @@ export interface DB {
       nombre: string;
       cobra_en: string;
       cobra_minimo: number | null;
-      precio_unitario: number;
+      precio_unitario: number | null;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
