@@ -1,20 +1,46 @@
 "use client";
 
+import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar } from "lucide-react";
+import { Calendar, Plus } from "lucide-react";
 import { AppointmentsGeneralView } from "./components/appointment-general-view";
 import { AppointmentsKanbanView } from "./components/appointments-kanban-view";
 import { Metadata } from "next";
 import { useEffect } from "react";
+
+
+import { Button } from "@/components/ui/button";
+import { useAppointmentStore } from "@/stores/useAppointmentStore";
+import { type CreateAppointmentForm } from "@/dtos/appointment.dto";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AppointmentForm } from "./components/appointment-form";
 
 export default function CitasPageWrapper() {
 
    useEffect(() => {
       document.title = "Citas"
    }, [])
+
+
+   const [formLoading, setFormLoading] = useState(false);
+   const [createOpen, setCreateOpen] = useState(false);
+
+   const { CreateAppointment } = useAppointmentStore();
+
+   async function handleCreate(data: CreateAppointmentForm) {
+      setFormLoading(true);
+      try {
+         const result = await CreateAppointment(data);
+         if (result instanceof Error) throw result;
+         setCreateOpen(false);
+      } finally {
+         setFormLoading(false);
+      }
+   }
+
    return (
-      <div className="flex flex-col gap-6 p-6">
-         <div>
+      <div className="flex flex-col flex-1 min-w-0 h-[calc(100dvh-3rem)] p-4 md:p-6 gap-6">
+         <div className="shrink-0">
             <div className="flex items-center gap-3">
                <div className="h-9 w-1.5 rounded-full bg-brand-yellow" />
                <Calendar className="size-7 text-brand-blue dark:text-blue-400" />
@@ -24,19 +50,44 @@ export default function CitasPageWrapper() {
             <div className="mt-4 h-px bg-gradient-to-r from-brand-blue via-brand-yellow/50 to-transparent" />
          </div>
 
-         <Tabs defaultValue="lista" className="space-y-4">
-            <TabsList className="w-full flex-wrap justify-start gap-1 bg-transparent p-0">
-               <TabsTrigger value="lista" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
-                  Vista de Tabla
-               </TabsTrigger>
-               <TabsTrigger value="kanban" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
-                  Tablero Kanban
-               </TabsTrigger>
-            </TabsList>
+         <Tabs defaultValue="lista" className="flex flex-col flex-1 w-full min-w-0 overflow-hidden space-y-4">
 
-            <TabsContent value="lista" className="m-0 focus-visible:ring-0"><AppointmentsGeneralView /></TabsContent>
-            <TabsContent value="kanban" className="m-0 focus-visible:ring-0"><AppointmentsKanbanView /></TabsContent>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-4 shrink-0">
+               <TabsList className="flex-wrap justify-start gap-1 bg-transparent p-0">
+                  <TabsTrigger value="lista" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                     Vista de Lista
+                  </TabsTrigger>
+                  <TabsTrigger value="kanban" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                     Vista de Tablero
+                  </TabsTrigger>
+               </TabsList>
+
+               <Button className="w-full sm:w-auto" onClick={() => setCreateOpen(true)}>
+                  <Plus className="size-4 mr-2" /> Agendar Cita
+               </Button>
+            </div>
+
+            <TabsContent value="lista" className="flex-1 w-full min-w-0 m-0 focus-visible:ring-0 custom-scrollbar">
+               <AppointmentsGeneralView />
+            </TabsContent>
+
+            <TabsContent value="kanban" className="flex-1 w-full min-w-0 m-0 focus-visible:ring-0 custom-scrollbar">
+               <AppointmentsKanbanView />
+            </TabsContent>
          </Tabs>
+
+         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogContent className="sm:max-w-lg">
+               <DialogHeader>
+                  <DialogTitle>Agendar Cita</DialogTitle>
+               </DialogHeader>
+               <AppointmentForm
+                  onSubmit={handleCreate}
+                  onCancel={() => setCreateOpen(false)}
+                  loading={formLoading}
+               />
+            </DialogContent>
+         </Dialog>
       </div>
    );
 }

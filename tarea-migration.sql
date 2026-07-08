@@ -1,10 +1,10 @@
 -- Tareas (tasks) module — Kanban board + table view.
--- estado_tarea: 3 estados (PENDIENTE / EN_PROGRESO / COMPLETADA).
+-- estado_tarea: 4 estados (PENDIENTE / EN_PROCESO / COMPLETADA / CANCELADA).
 -- proyecto_id es OPCIONAL: las tareas pueden existir "sueltas" (sin proyecto).
 -- Si el proyecto se elimina, sus tareas quedan sin proyecto (ON DELETE SET NULL).
 
 DO $$ BEGIN
-   CREATE TYPE public.estado_tarea AS ENUM ('PENDIENTE', 'EN_PROGRESO', 'COMPLETADA');
+   CREATE TYPE public.estado_tarea AS ENUM ('PENDIENTE', 'EN_PROCESO', 'COMPLETADA', 'CANCELADA');
 EXCEPTION
    WHEN duplicate_object THEN NULL;
 END $$;

@@ -89,7 +89,6 @@ export function TipoItemManager({ open, onOpenChange }: TipoItemManagerProps) {
          const result = await DeleteTipoItem(deleteTarget.id);
          if (result instanceof Error) throw result;
          setDeleteTarget(null);
-         // Items may have been cascade-deleted — force a refetch.
          await GetItems({ force: true });
       } catch (err: unknown) {
          setError(err instanceof Error ? err.message : "Error al eliminar categoría");
@@ -97,8 +96,6 @@ export function TipoItemManager({ open, onOpenChange }: TipoItemManagerProps) {
          setBusy(false);
       }
    }
-
-   const affectedCount = deleteTarget ? countItems(deleteTarget.id) : 0;
 
    return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -196,7 +193,7 @@ export function TipoItemManager({ open, onOpenChange }: TipoItemManagerProps) {
             </div>
          </DialogContent>
 
-         {/* Cascade-delete confirmation — warns loudly */}
+         {/* Simplificated Delete Dialog */}
          <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
             <DialogContent className="sm:max-w-md">
                <DialogHeader>
@@ -204,23 +201,8 @@ export function TipoItemManager({ open, onOpenChange }: TipoItemManagerProps) {
                      <AlertTriangle className="size-5" />
                      Eliminar categoría
                   </DialogTitle>
-                  <DialogDescription asChild>
-                     <div className="space-y-3 pt-1">
-                        <p>
-                           Vas a eliminar la categoría <strong>{deleteTarget?.nombre}</strong>.
-                        </p>
-                        {affectedCount > 0 ? (
-                           <div className="rounded-lg border border-brand-red/40 bg-brand-red/10 p-3 text-sm text-brand-red">
-                              <strong>Atención:</strong> esto también eliminará{" "}
-                              <strong>{affectedCount} {affectedCount === 1 ? "item" : "items"}</strong>{" "}
-                              de inventario asociados a esta categoría. Esta acción <strong>no se puede deshacer</strong>.
-                           </div>
-                        ) : (
-                           <p className="text-sm text-muted-foreground">
-                              No hay items asociados. Esta acción no se puede deshacer.
-                           </p>
-                        )}
-                     </div>
+                  <DialogDescription>
+                     ¿Estás seguro de eliminar la categoría <strong>{deleteTarget?.nombre}</strong>? Esta acción no se puede deshacer.
                   </DialogDescription>
                </DialogHeader>
                <div className="flex justify-end gap-2">
@@ -228,7 +210,7 @@ export function TipoItemManager({ open, onOpenChange }: TipoItemManagerProps) {
                      Cancelar
                   </Button>
                   <Button variant="destructive" onClick={confirmDelete} disabled={busy}>
-                     {busy ? "Eliminando…" : affectedCount > 0 ? `Eliminar categoría y ${affectedCount} items` : "Eliminar categoría"}
+                     {busy ? "Eliminando…" : "Eliminar"}
                   </Button>
                </div>
             </DialogContent>

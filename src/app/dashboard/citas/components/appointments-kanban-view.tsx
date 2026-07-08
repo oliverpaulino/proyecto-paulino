@@ -15,8 +15,8 @@ import { AppointmentForm } from "./appointment-form";
 const ESTADOS_LISTA = Object.entries(EstadoCita).map(([key, label]) => ({ key: key as keyof typeof EstadoCita, label }));
 
 const COLUMN_THEMES: Record<string, { bg: string; border: string; badge: string; text: string }> = {
-   PENDIENTE: { bg: "bg-amber-500/5", border: "border-amber-500/20", badge: "bg-amber-500", text: "text-amber-700 dark:text-amber-400" },
-   EN_REVISION:  { bg: "bg-purple-500/5", border: "border-purple-500/20", badge: "bg-purple-500", text: "text-purple-700 dark:text-purple-400" },
+   ASIGNADA: { bg: "bg-amber-500/5", border: "border-amber-500/20", badge: "bg-amber-500", text: "text-amber-700 dark:text-amber-400" },
+   PENDIENTE:  { bg: "bg-purple-500/5", border: "border-purple-500/20", badge: "bg-purple-500", text: "text-purple-700 dark:text-purple-400" },
    REALIZADA:  { bg: "bg-emerald-500/5", border: "border-emerald-500/20", badge: "bg-emerald-500", text: "text-emerald-700 dark:text-emerald-400" },
    CANCELADA:   { bg: "bg-rose-500/5",  border: "border-rose-500/20",  badge: "bg-rose-500",  text: "text-rose-700 dark:text-rose-400" },
 };
@@ -26,7 +26,6 @@ export function AppointmentsKanbanView() {
 
    const [searchInput, setSearchInput] = useState("");
    const [searchQuery, setSearchQuery] = useState("");
-   const [createOpen, setCreateOpen] = useState(false);
    const [editTarget, setEditTarget] = useState<AppointmentUI | null>(null);
    const [draggedId, setDraggedId] = useState<string | null>(null);
    const [formLoading, setFormLoading] = useState(false);
@@ -57,9 +56,6 @@ export function AppointmentsKanbanView() {
          {/* Sub-barra del tablero */}
          <div className="flex items-center justify-between gap-4 flex-none">
             <TableSearch value={searchInput} onValueChange={setSearchInput} onSearch={setSearchQuery} placeholder="Filtrar tarjetas rápidas..." className="w-full max-w-sm" />
-            <Button className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold shrink-0" onClick={() => setCreateOpen(true)}>
-               <Plus className="size-4 mr-2" /> Agendar Cita
-            </Button>
          </div>
 
          {/* Contenedor Flex de Columnas */}
@@ -119,13 +115,6 @@ export function AppointmentsKanbanView() {
          </div>
 
          {/* Diálogos */}
-         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogContent className="sm:max-w-lg">
-               <DialogHeader><DialogTitle>Agendar Cita</DialogTitle></DialogHeader>
-               <AppointmentForm onSubmit={async (f) => { await CreateAppointment(f); setCreateOpen(false); }} onCancel={() => setCreateOpen(false)} loading={formLoading} />
-            </DialogContent>
-         </Dialog>
-
          <Dialog open={!!editTarget} onOpenChange={(op) => !op && setEditTarget(null)}>
             <DialogContent className="sm:max-w-lg">
                <DialogHeader><DialogTitle>Reprogramar</DialogTitle></DialogHeader>

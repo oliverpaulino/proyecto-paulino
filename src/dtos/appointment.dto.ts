@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 export const EstadoCita = {
-   EN_REVISION: "En revisión", 
    PENDIENTE: "Pendiente", 
+   ASIGNADA: "Asignada", 
    REALIZADA: "Realizada",
    CANCELADA: "Cancelada",
 } as const;

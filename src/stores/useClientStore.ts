@@ -14,6 +14,7 @@ type ContactWithMeta = Contact & { id: string; client_id: string };
 type ClientStore = {
    Clients: Client[];
    Contacts: Contact[];
+   selectedClientDetails: ClientDetails | null;
    selectedClient: Client | null;
    loading: boolean;
    pagination: {
@@ -25,6 +26,7 @@ type ClientStore = {
       hasPrev: boolean;
    };
    _fetchedClientLists: Set<string>;
+   _fetchedClient: Set<string>;
    _fetchedDetails: Set<string>;
    _fetchedContacts: Set<string>;
 
@@ -35,7 +37,8 @@ type ClientStore = {
       search?: string;
       force?: boolean;
    }) => Promise<void>;
-   getClient: (clientId: string, force?: boolean) => Promise<Client | null>;
+   GetClientDetails: (clientId: string, force?: boolean) => Promise<ClientDetails | null>;
+   GetClient: (clientId: string, force?: boolean) => Promise<Client | null>;
    GetClientSales: (
       clientId: string,
       params?: Record<string, string>,
@@ -64,15 +67,19 @@ type ClientStore = {
    UpdateContact: (contactData: Partial<ContactWithMeta>) => Promise<void | Error>;
    DeleteContact: (clientId: string, contactId: string) => Promise<void | Error>;
 
+   setSelectedClientDetails: (client: ClientDetails | null) => void;
    setSelectedClient: (client: Client | null) => void;
    setLoading: (loading: boolean) => void;
+   clearSelectedClientDetails: () => void;
    clearSelectedClient: () => void;
+
    invalidateCache: () => void;
 };
 
 export const useClientStore = create<ClientStore>((set, get) => ({
    Clients: [],
    Contacts: [],
+   selectedClientDetails: null,
    selectedClient: null,
    loading: false,
    pagination: {
@@ -84,12 +91,14 @@ export const useClientStore = create<ClientStore>((set, get) => ({
       hasPrev: false,
    },
    _fetchedClientLists: new Set<string>(),
+   _fetchedClient: new Set<string>(),
    _fetchedDetails: new Set<string>(),
    _fetchedContacts: new Set<string>(),
 
    invalidateCache: () => {
       set({
          _fetchedClientLists: new Set<string>(),
+         _fetchedClient: new Set<string>(),
          _fetchedDetails: new Set<string>(),
          _fetchedContacts: new Set<string>(),
       });
@@ -116,6 +125,7 @@ export const useClientStore = create<ClientStore>((set, get) => ({
          return error as Error;
       }
    },
+
 
    UploadBulkClients: async (file) => {
       const formData = new FormData();
@@ -172,8 +182,39 @@ export const useClientStore = create<ClientStore>((set, get) => ({
       }
    },
 
-   getClient: async (clientId, force) => {
+   GetClientDetails: async (clientId, force) => {
       if (!force && get()._fetchedDetails.has(clientId)) {
+         return get().selectedClientDetails;
+      }
+      set({ loading: true });
+      try {
+         const res = await fetch(`/api/clients/${clientId}`);
+         if (!res.ok) throw new Error("Error al cargar detalles del cliente");
+
+         const clientData = await res.json();
+
+         const clientDetails = {
+            ...clientData,
+            ventas: [],
+            proyectos: []
+         };
+
+         set((state) => ({
+            selectedClientDetails: clientDetails as any,
+            _fetchedDetails: new Set(state._fetchedDetails).add(clientId),
+         }));
+
+         return clientDetails as any;
+      } catch (error) {
+         console.error("Error fetching client details:", error);
+         throw error;
+      } finally {
+         set({ loading: false });
+      }
+   },
+
+   GetClient: async (clientId, force = false) => {
+      if (!force && get()._fetchedClient.has(clientId)) {
          return get().selectedClient;
       }
       set({ loading: true });
@@ -181,16 +222,15 @@ export const useClientStore = create<ClientStore>((set, get) => ({
          const res = await fetch(`/api/clients/${clientId}`);
          if (!res.ok) throw new Error("Error al cargar detalles del cliente");
 
-         const clientDetails = await res.json();
-         console.log("Fetched client details:", clientDetails);
+         const details: Client = await res.json();
 
          set((state) => ({
-            selectedClient: clientDetails,
-            _fetchedDetails: new Set(state._fetchedDetails).add(clientId),
+            selectedClient: details,
+            _fetchedClient: new Set(state._fetchedClient).add(clientId),
          }));
-         return clientDetails;
+         return details;
       } catch (error) {
-         console.error("Error fetching client details:", error);
+         console.error("Error fetching clients details:", error);
          throw error;
       } finally {
          set({ loading: false });
@@ -352,6 +392,8 @@ export const useClientStore = create<ClientStore>((set, get) => ({
       }
    },
 
+   clearSelectedClientDetails: () => set({ selectedClientDetails: null }),
+   setSelectedClientDetails: (client) => set({ selectedClientDetails: client }),
    clearSelectedClient: () => set({ selectedClient: null }),
    setSelectedClient: (client) => set({ selectedClient: client }),
    setLoading: (loading) => set({ loading }),

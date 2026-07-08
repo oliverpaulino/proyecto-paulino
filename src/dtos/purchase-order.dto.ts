@@ -11,6 +11,8 @@ export const EstadoOrdenCompraSchema = z.enum([
 const PurchaseOrderItemSchema = z.object({
    id: z.string(),
    orden_compra_id: z.string(),
+   equipo_id: z.string().nullable(),
+   equipo_nombre: z.string().nullable(),
    descripcion: z.string(),
    cantidad: z.number(),
    precio_unitario: z.number(),
@@ -23,6 +25,7 @@ const PurchaseOrderItemFormSchema = z.object({
    descripcion: z.string().min(1),
    cantidad: z.number().positive(),
    precio_unitario: z.number().min(0),
+   equipo_id: z.string().nullable().optional(),
 });
 
 const PurchaseOrderDTO = z.object({
@@ -46,6 +49,12 @@ const PurchaseOrderDTO = z.object({
    updated_at: z.coerce.date(),
 });
 
+const PurchaseOrderDeletedDTO = PurchaseOrderDTO.extend({
+   deleted_by: z.string().nullable().optional(),
+   deleted_at: z.coerce.date().nullable().optional(),
+   deleted_reason: z.string().nullable().optional(),
+});
+
 const CreatePurchaseOrderDTO = z.object({
    proveedor_id: z.string().min(1),
    fecha: z.coerce.date(),
@@ -63,6 +72,7 @@ const UpdatePurchaseOrderDTO = z.object({
 
 
 export type PurchaseOrder = z.infer<typeof PurchaseOrderDTO>;
+export type PurchaseOrderDeleted = z.infer<typeof PurchaseOrderDeletedDTO>;
 export type PurchaseOrderForm = z.infer<typeof CreatePurchaseOrderDTO>;
 export type UpdatePurchaseOrderForm = z.infer<typeof UpdatePurchaseOrderDTO>;
 export type PurchaseOrderItemForm = z.infer<typeof PurchaseOrderItemFormSchema>;

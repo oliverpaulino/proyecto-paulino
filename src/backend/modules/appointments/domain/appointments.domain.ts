@@ -1,4 +1,4 @@
-export type EstadoCita = "EN_REVISION" | "PENDIENTE" | "REALIZADA" | "CANCELADA";
+export type EstadoCita = "PENDIENTE" | "ASIGNADA" | "REALIZADA" | "CANCELADA";
 
 export interface AppointmentProps {
     id: string;

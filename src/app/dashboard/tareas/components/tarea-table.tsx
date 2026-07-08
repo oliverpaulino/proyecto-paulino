@@ -100,7 +100,8 @@ export function TareaTable({ tareas }: { tareas: Tarea[] }) {
                            const isOverdue =
                               tarea.fecha_fin &&
                               isPast(new Date(tarea.fecha_fin)) &&
-                              tarea.estado !== "COMPLETADA";
+                              tarea.estado !== "COMPLETADA" &&
+                              tarea.estado !== "CANCELADA";
                            return (
                               <tr
                                  key={tarea.id}

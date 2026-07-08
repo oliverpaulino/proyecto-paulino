@@ -1,7 +1,7 @@
 import { create } from "zustand";
-import type { Equipo, EquipoForm, UpdateEquipoForm } from "@/dtos/equipo.dto";
 import { CategoriaEquipo } from "@/dtos/categoria-equipo.dto";
 import { Employee } from "@/dtos/employee.dto";
+import type { Equipo, EquipoForm, EstadoEquipo, UpdateEquipoForm } from "@/dtos/equipo.dto";
 
 type EquipoStore = {
    Equipos: Equipo[];
@@ -15,6 +15,7 @@ type EquipoStore = {
    DeleteEquipo: (id: string) => Promise<void | Error>;
    GetCategoriasEquipoById: (id: string) => Promise<CategoriaEquipo | Error>;
    GetOperadorByEquipoId: (id: string) => Promise<Employee | Error>;
+   ChangeEstado: (id: string, estado: EstadoEquipo, nota?: string) => Promise<Equipo | Error>;
    invalidateCache: () => void;
 };
 
@@ -125,6 +126,24 @@ export const useEquipoStore = create<EquipoStore>((set, get) => ({
       } catch (error) {
          console.error("Error fetching operador de equipo:", error);
          throw error;
+      }
+   },
+   ChangeEstado: async (id, estado, nota) => {
+      try {
+         const res = await fetch(`/api/equipos/${id}/estado`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ estado, nota }),
+         });
+
+         const data = await res.json();
+         if (!res.ok) throw new Error(data.error || data.message || "Error al cambiar el estado");
+
+         // Keep the cached list consistent (the list holds its own copy of estado).
+         get().invalidateCache();
+         return data as Equipo;
+      } catch (error) {
+         return error as Error;
       }
    },
 }));

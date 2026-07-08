@@ -170,6 +170,7 @@ const s = StyleSheet.create({
    },
    // Column widths
    colDesc: { flex: 1 },
+   colEquipo: { width: 90 },
    colQty: { width: 50, textAlign: "right" },
    colPrice: { width: 70, textAlign: "right" },
    colSub: { width: 70, textAlign: "right" },
@@ -278,6 +279,7 @@ function PurchaseOrderDocument({ order }: { order: PurchaseOrder }) {
                   {/* Head */}
                   <View style={s.tableHead}>
                      <Text style={[s.tableHeadCell, s.colDesc]}>Descripción</Text>
+                     <Text style={[s.tableHeadCell, s.colEquipo]}>Equipo</Text>
                      <Text style={[s.tableHeadCell, s.colQty]}>Cantidad</Text>
                      <Text style={[s.tableHeadCell, s.colPrice]}>P. Unitario</Text>
                      <Text style={[s.tableHeadCell, s.colSub]}>Subtotal</Text>
@@ -289,6 +291,7 @@ function PurchaseOrderDocument({ order }: { order: PurchaseOrder }) {
                         style={[s.tableRow, i % 2 !== 0 ? s.tableRowAlt : {}]}
                      >
                         <Text style={[s.tableCell, s.colDesc]}>{item.descripcion}</Text>
+                        <Text style={[s.tableCell, s.colEquipo]}>{item.equipo_nombre ?? "—"}</Text>
                         <Text style={[s.tableCell, s.colQty]}>{item.cantidad}</Text>
                         <Text style={[s.tableCell, s.colPrice]}>{fmt(item.precio_unitario)}</Text>
                         <Text style={[s.tableCell, s.colSub]}>{fmt(item.subtotal)}</Text>
@@ -297,6 +300,7 @@ function PurchaseOrderDocument({ order }: { order: PurchaseOrder }) {
                   {/* Footer */}
                   <View style={s.tableFoot}>
                      <Text style={[s.tableFootCell, s.colDesc]} />
+                     <Text style={[s.tableFootCell, s.colEquipo]} />
                      <Text style={[s.tableFootCell, s.colQty]} />
                      <Text style={[s.tableFootCell, s.colPrice]}>TOTAL</Text>
                      <Text style={[s.tableFootCell, s.colSub]}>{fmt(order.total)}</Text>

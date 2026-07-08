@@ -8,12 +8,22 @@ export type EstadoOrdenCompra =
 export interface PurchaseOrderItemProps {
    id: string;
    orden_compra_id: string;
+   equipo_id: string | null;
+   equipo_nombre: string | null;
    descripcion: string;
    cantidad: number;
    precio_unitario: number;
    subtotal: number;
    created_at: Date;
    updated_at: Date;
+}
+
+/** Shape of a line item as submitted from the client (create/update). */
+export interface PurchaseOrderItemInput {
+   descripcion: string;
+   cantidad: number;
+   precio_unitario: number;
+   equipo_id?: string | null;
 }
 
 export interface PurchaseOrderProps {
@@ -32,6 +42,9 @@ export interface PurchaseOrderProps {
    items: PurchaseOrderItemProps[];
    created_at: Date;
    updated_at: Date;
+   deleted_by: string | null;
+   deleted_at: Date | null;
+   deleted_reason: string | null;
 }
 
 const TRANSITIONS: Record<EstadoOrdenCompra, EstadoOrdenCompra[]> = {
@@ -84,6 +97,9 @@ export class PurchaseOrder {
 
       return `OC-${yy}${mm}${dd}-${ref}`;
    }
+   get deleted_by(): string | null { return this.props.deleted_by; }
+   get deleted_at(): Date | null { return this.props.deleted_at; }
+   get deleted_reason(): string | null { return this.props.deleted_reason; }
 
    toJSON(): PurchaseOrderProps {
       return {
@@ -97,22 +113,14 @@ export interface CreatePurchaseOrderDTO {
    proveedor_id: string;
    fecha: Date;
    notas?: string | null;
-   items: Array<{
-      descripcion: string;
-      cantidad: number;
-      precio_unitario: number;
-   }>;
+   items: PurchaseOrderItemInput[];
 }
 
 export interface UpdatePurchaseOrderDTO {
    proveedor_id?: string;
    fecha?: Date;
    notas?: string | null;
-   items?: Array<{
-      descripcion: string;
-      cantidad: number;
-      precio_unitario: number;
-   }>;
+   items?: PurchaseOrderItemInput[];
 }
 
 export interface ApproverRecord {
@@ -124,6 +132,7 @@ export interface ApproverRecord {
 
 export interface IPurchaseOrderRepository {
    findAll(): Promise<PurchaseOrder[]>;
+   findAllDeleted(): Promise<PurchaseOrder[]>;
    findById(id: string): Promise<PurchaseOrder | null>;
    create(data: CreatePurchaseOrderDTO): Promise<PurchaseOrder>;
    updateHeader(
@@ -132,11 +141,7 @@ export interface IPurchaseOrderRepository {
    ): Promise<PurchaseOrder | null>;
    replaceItems(
       id: string,
-      items: Array<{
-         descripcion: string;
-         cantidad: number;
-         precio_unitario: number;
-      }>
+      items: PurchaseOrderItemInput[]
    ): Promise<PurchaseOrder | null>;
    updateStatus(
       id: string,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
    Select,
    SelectContent,
@@ -16,8 +17,7 @@ import {
    DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Plus, LayoutGrid, List, CheckSquare } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Plus, CheckSquare } from "lucide-react";
 import { useTareaStore } from "@/stores/useTareaStore";
 import { SIN_PROYECTO } from "@/dtos/tarea.dto";
 import { TareaKanban } from "./components/tarea-kanban";
@@ -39,100 +39,91 @@ export default function TareasPage() {
    }, [GetProyectos]);
 
    useEffect(() => {
-      // El filtro pasa tal cual: TODOS → sin filtro; SIN_PROYECTO → solo tareas sueltas;
-      // un id → ese proyecto.
       GetTareas(proyectoFiltro === TODOS ? undefined : proyectoFiltro);
    }, [proyectoFiltro, GetTareas]);
 
-   // Id de proyecto real para preseleccionar en el formulario de creación.
-   // "Todos" y "Sin proyecto" no preseleccionan ningún proyecto.
    const proyectoIdActivo =
       proyectoFiltro === TODOS || proyectoFiltro === SIN_PROYECTO ? undefined : proyectoFiltro;
 
    return (
-      <div className="flex flex-col gap-6 p-6">
-         {/* Header */}
-         <div>
+      <div className="flex flex-col flex-1 min-w-0 h-[calc(100dvh-3rem)] overflow-hidden p-4 md:p-6 gap-6">         
+         <div className="shrink-0">
             <div className="flex items-center gap-3">
                <div className="h-9 w-1.5 rounded-full bg-brand-yellow" />
                <CheckSquare className="size-7 text-brand-blue dark:text-blue-400" />
-               <h1 className="text-3xl font-bold tracking-tight text-brand-blue dark:text-white">
+               <h1 className="text-3xl font-bold text-brand-blue dark:text-white tracking-tight">
                   Tareas
                </h1>
                <span className="rounded-full bg-muted px-2.5 py-0.5 text-sm text-muted-foreground">
                   {tareas.length}
                </span>
             </div>
-            <p className="ml-11 mt-1.5 text-sm text-muted-foreground">
-               Organiza las tareas de tus proyectos en un tablero Kanban o una lista
+            <p className="mt-1.5 ml-11 text-sm text-muted-foreground">
+               Organiza las tareas de tus proyectos
             </p>
             <div className="mt-4 h-px bg-gradient-to-r from-brand-blue via-brand-yellow/50 to-transparent" />
          </div>
 
-         {/* Toolbar */}
-         <div className="flex flex-wrap items-center gap-2">
-            {/* Project filter */}
-            <Select value={proyectoFiltro} onValueChange={setProyectoFiltro}>
-               <SelectTrigger className="w-[220px]">
-                  <SelectValue placeholder="Filtrar por proyecto" />
-               </SelectTrigger>
-               <SelectContent>
-                  <SelectItem value={TODOS}>Todos los proyectos</SelectItem>
-                  <SelectItem value={SIN_PROYECTO}>Sin proyecto</SelectItem>
-                  {proyectos.map((p) => (
-                     <SelectItem key={p.id} value={p.id}>
-                        {p.nombre}
-                     </SelectItem>
-                  ))}
-               </SelectContent>
-            </Select>
+         <Tabs value={vista} onValueChange={(v) => setVista(v as Vista)} className="flex flex-col flex-1 w-full max-w-full min-w-0 overflow-x-hidden space-y-4">            
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-4 shrink-0">
+               
+               {/* View toggle (Estilo Citas) */}
+               <TabsList className="flex-wrap justify-start gap-1 bg-transparent p-0">
+                  <TabsTrigger value="lista" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                     Vista de Lista
+                  </TabsTrigger>
+                  <TabsTrigger value="kanban" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                     Vista de Tablero
+                  </TabsTrigger>
+               </TabsList>
 
-            {/* View toggle */}
-            <div className="flex items-center rounded-md border border-border p-0.5">
-               <button
-                  onClick={() => setVista("kanban")}
-                  className={cn(
-                     "flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition-colors",
-                     vista === "kanban"
-                        ? "bg-brand-blue text-white"
-                        : "text-muted-foreground hover:bg-muted",
-                  )}
-               >
-                  <LayoutGrid className="size-4" />
-                  Kanban
-               </button>
-               <button
-                  onClick={() => setVista("lista")}
-                  className={cn(
-                     "flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition-colors",
-                     vista === "lista"
-                        ? "bg-brand-blue text-white"
-                        : "text-muted-foreground hover:bg-muted",
-                  )}
-               >
-                  <List className="size-4" />
-                  Lista
-               </button>
+               {/* Toolbar (Filtro y Botón de crear) */}
+               <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                  <Select value={proyectoFiltro} onValueChange={setProyectoFiltro}>
+                     <SelectTrigger className="w-full sm:w-[220px]">
+                        <SelectValue placeholder="Filtrar por proyecto" />
+                     </SelectTrigger>
+                     <SelectContent>
+                        <SelectItem value={TODOS}>Todos los proyectos</SelectItem>
+                        <SelectItem value={SIN_PROYECTO}>Sin proyecto</SelectItem>
+                        {proyectos.map((p) => (
+                           <SelectItem key={p.id} value={p.id}>
+                              {p.nombre}
+                           </SelectItem>
+                        ))}
+                     </SelectContent>
+                  </Select>
+
+                  <Button className="w-full sm:w-auto shrink-0" onClick={() => setCreateOpen(true)}>
+                     <Plus className="mr-1 size-4" />
+                     Nueva tarea
+                  </Button>
+               </div>
             </div>
 
-            <div className="ml-auto">
-               <Button onClick={() => setCreateOpen(true)}>
-                  <Plus className="mr-1 size-4" />
-                  Nueva tarea
-               </Button>
-            </div>
-         </div>
-
-         {/* Content */}
-         {loading && tareas.length === 0 ? (
-            <div className="flex flex-1 items-center justify-center py-20 text-sm text-muted-foreground">
-               Cargando tareas...
-            </div>
-         ) : vista === "kanban" ? (
-            <TareaKanban proyectoId={proyectoIdActivo} />
-         ) : (
-            <TareaTable tareas={tareas} />
-         )}
+            {/* Content */}
+            {loading && tareas.length === 0 ? (
+               <div className="flex flex-1 w-full items-center justify-center py-20 text-sm text-muted-foreground">
+                  Cargando tareas...
+               </div>
+            ) : (
+               <>
+                  <TabsContent 
+                     value="lista" 
+                     className="m-0 flex-1 w-full min-w-0 data-[state=active]:flex flex-col overflow-x-auto focus-visible:ring-0 custom-scrollbar"
+                  >
+                     <TareaTable tareas={tareas} />
+                  </TabsContent>
+                  
+                  <TabsContent 
+                     value="kanban" 
+                     className="m-0 flex-1 w-full min-w-0 data-[state=active]:flex flex-col focus-visible:ring-0"
+                  >
+                     <TareaKanban proyectoId={proyectoIdActivo} />
+                  </TabsContent>
+               </>
+            )}
+         </Tabs>
 
          {/* Top-level create dialog */}
          <Dialog open={createOpen} onOpenChange={setCreateOpen}>

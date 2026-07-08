@@ -7,7 +7,7 @@ import {
    ProyectoOption,
 } from "../domain/tareas.domain";
 
-const ESTADOS_VALIDOS: EstadoTarea[] = ["PENDIENTE", "EN_PROGRESO", "COMPLETADA"];
+const ESTADOS_VALIDOS: EstadoTarea[] = ["PENDIENTE", "EN_PROCESO", "COMPLETADA", "CANCELADA"];
 
 function validarRangoFechas(inicio?: Date | string | null, fin?: Date | string | null) {
    if (!inicio || !fin) return;

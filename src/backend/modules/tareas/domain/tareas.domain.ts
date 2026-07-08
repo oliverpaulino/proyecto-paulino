@@ -1,4 +1,4 @@
-export type EstadoTarea = "PENDIENTE" | "EN_PROGRESO" | "COMPLETADA";
+export type EstadoTarea = "PENDIENTE" | "EN_PROCESO" | "COMPLETADA" | "CANCELADA";
 
 /** Sentinel para filtrar tareas SIN proyecto en findAll/getAll. */
 export const SIN_PROYECTO = "__none__";

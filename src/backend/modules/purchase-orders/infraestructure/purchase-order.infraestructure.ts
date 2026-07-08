@@ -6,6 +6,7 @@ import {
    EstadoOrdenCompra,
    IPurchaseOrderRepository,
    PurchaseOrder,
+   PurchaseOrderItemInput,
    PurchaseOrderItemProps,
    PurchaseOrderProps,
    UpdatePurchaseOrderDTO,
@@ -62,6 +63,59 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             items: [],
             created_at: new Date(row.created_at),
             updated_at: new Date(row.updated_at),
+            deleted_by: null,
+            deleted_at: null,
+            deleted_reason: null,
+         })
+      );
+   }
+
+   async findAllDeleted(): Promise<PurchaseOrder[]> {
+      const rows = await this.db
+         .selectFrom("orden_compra")
+         .leftJoin("proveedor", "proveedor.id", "orden_compra.proveedor_id")
+         .select([
+            "orden_compra.id",
+            "orden_compra.proveedor_id",
+            "proveedor.nombre as proveedor_nombre",
+            "orden_compra.referencia",
+            "orden_compra.fecha",
+            "orden_compra.estado",
+            "orden_compra.notas",
+            "orden_compra.total",
+            "orden_compra.approved_by",
+            "orden_compra.approved_by_name",
+            "orden_compra.approved_at",
+            "orden_compra.created_at",
+            "orden_compra.updated_at",
+            "orden_compra.deleted_by",
+            "orden_compra.deleted_at",
+            "orden_compra.deleted_reason",
+         ])
+         .where("orden_compra.deleted_at", "is not", null)
+         .orderBy("orden_compra.deleted_at", "desc")
+         .execute();
+
+      return rows.map((row) =>
+         PurchaseOrder.create({
+            id: row.id,
+            proveedor_id: row.proveedor_id,
+            proveedor_nombre: row.proveedor_nombre ?? undefined,
+            referencia: row.referencia,
+            codigoReferencia: buildCodigoReferencia(row.referencia, new Date(row.fecha)),
+            fecha: new Date(row.fecha),
+            estado: row.estado as EstadoOrdenCompra,
+            notas: row.notas ?? null,
+            total: Number(row.total),
+            approved_by: row.approved_by ?? null,
+            approved_by_name: row.approved_by_name ?? null,
+            approved_at: row.approved_at ? new Date(row.approved_at) : null,
+            items: [],
+            created_at: new Date(row.created_at),
+            updated_at: new Date(row.updated_at),
+            deleted_by: row.deleted_by ?? null,
+            deleted_at: row.deleted_at ? new Date(row.deleted_at) : null,
+            deleted_reason: row.deleted_reason ?? null,
          })
       );
    }
@@ -93,13 +147,27 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
 
       const itemRows = await this.db
          .selectFrom("orden_compra_item")
-         .selectAll()
-         .where("orden_compra_id", "=", id)
+         .leftJoin("equipo", "equipo.id", "orden_compra_item.equipo_id")
+         .select([
+            "orden_compra_item.id",
+            "orden_compra_item.orden_compra_id",
+            "orden_compra_item.equipo_id",
+            "equipo.nombre as equipo_nombre",
+            "orden_compra_item.descripcion",
+            "orden_compra_item.cantidad",
+            "orden_compra_item.precio_unitario",
+            "orden_compra_item.subtotal",
+            "orden_compra_item.created_at",
+            "orden_compra_item.updated_at",
+         ])
+         .where("orden_compra_item.orden_compra_id", "=", id)
          .execute();
 
       const items: PurchaseOrderItemProps[] = itemRows.map((i) => ({
          id: i.id,
          orden_compra_id: i.orden_compra_id,
+         equipo_id: i.equipo_id ?? null,
+         equipo_nombre: i.equipo_nombre ?? null,
          descripcion: i.descripcion,
          cantidad: Number(i.cantidad),
          precio_unitario: Number(i.precio_unitario),
@@ -124,6 +192,9 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
          items,
          created_at: new Date(row.created_at),
          updated_at: new Date(row.updated_at),
+         deleted_by: null,
+         deleted_at: null,
+         deleted_reason: null,
       });
    }
 
@@ -143,6 +214,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
 
          const itemsToInsert = data.items.map((item) => ({
             orden_compra_id: header.id,
+            equipo_id: item.equipo_id ?? null,
             descripcion: item.descripcion,
             cantidad: item.cantidad,
             precio_unitario: item.precio_unitario,
@@ -166,39 +238,47 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             .where("id", "=", header.id)
             .execute();
 
-         return { header: { ...header, total }, items: insertedItems };
+         return header.id;
       });
 
-      const items: PurchaseOrderItemProps[] = result.items.map((i) => ({
-         id: i.id,
-         orden_compra_id: i.orden_compra_id,
-         descripcion: i.descripcion,
-         cantidad: Number(i.cantidad),
-         precio_unitario: Number(i.precio_unitario),
-         subtotal: Number(i.subtotal),
-         created_at: new Date(i.created_at),
-         updated_at: new Date(i.updated_at),
-      }));
+      // const items: PurchaseOrderItemProps[] = result.items.map((i) => ({
+      //    id: i.id,
+      //    orden_compra_id: i.orden_compra_id,
+      //    descripcion: i.descripcion,
+      //    cantidad: Number(i.cantidad),
+      //    precio_unitario: Number(i.precio_unitario),
+      //    subtotal: Number(i.subtotal),
+      //    created_at: new Date(i.created_at),
+      //    updated_at: new Date(i.updated_at),
+      // }));
 
-      return PurchaseOrder.create({
-         id: result.header.id,
-         referencia: result.header.referencia,
-         codigoReferencia: buildCodigoReferencia(
-            result.header.referencia,
-            new Date(result.header.fecha)
-         ),
-         proveedor_id: result.header.proveedor_id,
-         fecha: new Date(result.header.fecha),
-         estado: result.header.estado as EstadoOrdenCompra,
-         notas: result.header.notas ?? null,
-         total: Number(result.header.total),
-         approved_by: null,
-         approved_by_name: null,
-         approved_at: null,
-         items,
-         created_at: new Date(result.header.created_at),
-         updated_at: new Date(result.header.updated_at),
-      });
+      // return PurchaseOrder.create({
+      //    id: result.header.id,
+      //    referencia: result.header.referencia,
+      //    codigoReferencia: buildCodigoReferencia(
+      //       result.header.referencia,
+      //       new Date(result.header.fecha)
+      //    ),
+      //    proveedor_id: result.header.proveedor_id,
+      //    fecha: new Date(result.header.fecha),
+      //    estado: result.header.estado as EstadoOrdenCompra,
+      //    notas: result.header.notas ?? null,
+      //    total: Number(result.header.total),
+      //    approved_by: null,
+      //    approved_by_name: null,
+      //    approved_at: null,
+      //    items,
+      //    created_at: new Date(result.header.created_at),
+      //    updated_at: new Date(result.header.updated_at),
+      //    deleted_by: result.header.deleted_by ?? null,
+      //    deleted_at: result.header.deleted_at ?? null,
+      //    deleted_reason: result.header.deleted_reason ?? null
+      // });
+      // Re-fetch through findById so the response carries joined equipo names
+      // and the deleted_* fields, without re-mapping them here.
+      const order = await this.findById(result);
+      if (!order) throw new Error("Error al crear la orden de compra");
+      return order;
    }
 
    async updateHeader(
@@ -223,11 +303,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
 
    async replaceItems(
       id: string,
-      items: Array<{
-         descripcion: string;
-         cantidad: number;
-         precio_unitario: number;
-      }>
+      items: PurchaseOrderItemInput[]
    ): Promise<PurchaseOrder | null> {
       await this.db.transaction().execute(async (trx) => {
          await trx
@@ -237,6 +313,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
 
          const itemsToInsert = items.map((item) => ({
             orden_compra_id: id,
+            equipo_id: item.equipo_id ?? null,
             descripcion: item.descripcion,
             cantidad: item.cantidad,
             precio_unitario: item.precio_unitario,

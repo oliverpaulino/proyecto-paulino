@@ -35,15 +35,15 @@ import {
 import { AppointmentForm } from "../components/appointment-form"; 
 
 const ESTADO_LABEL: Record<string, string> = {
-   EN_REVISION: "En Revisión",
+   ASIGNADA: "Asignada",
    PENDIENTE: "Pendiente",
    REALIZADA: "Realizada",
    CANCELADA: "Cancelada",
 };
 
 const ESTADO_THEME: Record<string, string> = {
-   PENDIENTE: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
-   EN_REVISION: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
+   ASIGNADA: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
+   PENDIENTE: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
    REALIZADA: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
    CANCELADA: "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300",
 };
