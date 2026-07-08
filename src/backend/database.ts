@@ -146,13 +146,22 @@ export interface DB {
       precio_base: number;
    };
 
-
+   medida_cobro: {
+      id: Generated<string>;
+      nombre: string;
+      descripcion: string | null; // <-- Importante: aquí también debe ser null
+      permite_decimales: Generated<boolean>;
+      is_active: Generated<boolean>;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   }
 
    categoria_equipo: {
       id: Generated<string>;
       nombre: string;
       cobra_en: string;
       cobra_minimo: number | null;
+      medida_cobro_id: string;
       precio_unitario: number | null;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
