@@ -17,6 +17,7 @@ import tipoItemsRoute from "./modules/tipo-items/routes/tipo-items";
 import itemsRoute from "./modules/items/routes/items";
 import notificationsRoute from "./modules/notifications/routes/notifications";
 import { dgiiProvider } from "./providers/dgii.provider";
+import medidaCobroRoute from "./modules/categoria-equipos/routes/medida-cobro";
 
 const app = new Hono().basePath("/api");
 
@@ -43,6 +44,7 @@ app.route("/purchase-orders", purchaseOrdersRoute);
 app.route("/proyectos", proyectosRoute);
 app.route("/appointments", appointmentsRoute);
 app.route("/services", servicesRoute);
+app.route("/medida-cobros", medidaCobroRoute);
 app.route("/tareas", tareasRoute);
 app.route("/equipos", equiposRoute);
 app.route("/categoria-equipos", categoriaEquiposRoute);

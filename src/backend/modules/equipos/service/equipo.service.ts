@@ -11,6 +11,7 @@ import {
 } from "../domain/equipo.domain";
 import { EmployeeService } from "../../employees/service/employees.service";
 import { EmployeeProps, IEmployeeRepository, OperadorProps } from "../../employees/domain/employees.domain";
+import { OperadorAsignable } from "@/dtos/employee.dto";
 
 const ESTADOS = new Set<string>(ESTADOS_EQUIPO);
 const MIN_ANO = 1950;
@@ -43,12 +44,10 @@ export class EquipoService {
       if (data.estado !== undefined && !ESTADOS.has(data.estado)) {
          throw new Error("Estado de equipo inválido");
       }
-      this.validateCosto(data.costo_por_hora);
       this.validateAno(data.ano);
 
       const equipo = await this.repo.create({
          ...data,
-         costo_por_hora: data.costo_por_hora !== undefined ? Number(data.costo_por_hora) : 0,
          ano: data.ano != null ? Number(data.ano) : null,
       });
       return equipo.toJSON();
@@ -61,11 +60,9 @@ export class EquipoService {
       if (data.estado !== undefined && !ESTADOS.has(data.estado)) {
          throw new Error("Estado de equipo inválido");
       }
-      this.validateCosto(data.costo_por_hora);
       this.validateAno(data.ano);
 
       const payload: UpdateEquipoDTO = { ...data };
-      if (data.costo_por_hora !== undefined) payload.costo_por_hora = Number(data.costo_por_hora);
       if (data.ano !== undefined && data.ano !== null) payload.ano = Number(data.ano);
 
       const equipo = await this.repo.update(id, payload);
@@ -81,10 +78,18 @@ export class EquipoService {
    }
 
    // Refactorización profesional
-   async getOperadorByEquipoId(id: string): Promise<EmployeeProps | null> {
+   async getOperadorByEquipoId(id: string): Promise<OperadorProps | null> {
       try {
-         const operador = await this.employeeRepo.findById(id);
-         return operador ?? null;
+         const equipo = await this.repo.findById(id);
+         if (!equipo) {
+            console.error(`Equipo con id ${id} no encontrado`);
+            return null;
+         }
+         const operador = await this.employeeRepo.findOperatorById(equipo?.operador_id ?? "");
+         if (!operador) {
+            console.error(`Operador con id ${equipo?.operador_id} no encontrado para el equipo ${id}`);
+         }
+         return operador;
       } catch (error) {
          console.error(`Error al obtener operador ${id}:`, error);
          return null;

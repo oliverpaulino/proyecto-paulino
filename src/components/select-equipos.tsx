@@ -6,13 +6,15 @@ import { useState, useEffect, useRef } from "react";
 import { Loader2, User, X } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useEmployeeStore } from "@/stores/useEmployeeStore";
-import type { Employee } from "@/dtos/employee.dto";
+import type { Employee, OperadorAsignable } from "@/dtos/employee.dto";
 import { useEquipoStore } from "@/stores/useEquipoStore";
 import { Equipo } from "@/dtos/equipo.dto";
+import { EquipoUsarItem } from "@/app/dashboard/proyectos/components/proyecto-express-form";
 
 interface SelectBuscarEquiposProps {
    value?: string | null;
    initialLabel?: string;
+   exclude?: EquipoUsarItem[];
    onChange: (equipoId: string | number | null, equipo: Equipo | null) => void;
    placeholder?: string;
    disabled?: boolean;
@@ -22,11 +24,12 @@ export function SelectBuscarEquipos({
    value,
    initialLabel = "",
    onChange,
+   exclude = [],
    placeholder = "Buscar equipo por nombre o ID...",
    disabled = false,
 }: SelectBuscarEquiposProps) {
    const { Equipos, loading, GetEquipos, GetOperadorByEquipoId } = useEquipoStore();
-   const [operator, setOperator] = useState<Employee | null>(null);
+   const [operator, setOperator] = useState<OperadorAsignable | null>(null);
    const [isOpen, setIsOpen] = useState(false);
    const [inputValue, setInputValue] = useState(initialLabel);
    const containerRef = useRef<HTMLDivElement>(null);
@@ -44,13 +47,10 @@ export function SelectBuscarEquipos({
          try {
             const result = await GetOperadorByEquipoId(value);
 
-            // ✅ CORRECCIÓN AQUÍ:
-            // Verificamos si el resultado es una instancia de Error
             if (result instanceof Error) {
                console.error("Error al cargar el operador:", result.message);
                setOperator(null); // Opcional: manejar el error mostrando un mensaje visual
             } else {
-               // Si no es error, es el objeto Empleado o null
                setOperator(result);
             }
          } catch (error) {
@@ -134,7 +134,7 @@ export function SelectBuscarEquipos({
                {loading && Equipos.length === 0 ? (
                   <div className="p-4 text-center text-sm text-muted-foreground">Buscando equipos...</div>
                ) : Equipos.length > 0 ? (
-                  Equipos.map((equipox) => (
+                  Equipos.filter((eq) => !exclude.some((ex) => ex.equipo_id === eq.id)).map((equipox) => (
                      <div
                         key={equipox.id}
                         onClick={() => handleSelect(equipox)}

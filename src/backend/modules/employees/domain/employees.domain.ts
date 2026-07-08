@@ -88,9 +88,12 @@ export interface OperadorProps {
    id: string;
    empleado_id: string;
    licencia: string | null;
+   nombre: string;
+   identificacion: string;
    fecha_vencimiento?: Date | null;
    created_at: Date;
    updated_at: Date;
+
 }
 
 export interface CreateOperadorDTO {
@@ -108,6 +111,7 @@ export interface IEmployeeRepository {
    findAll(params?: { page?: number; limit?: number; search?: string }): Promise<Employee[]>;
    findAllOperators(params?: { page?: number; limit?: number; search?: string }): Promise<OperadorProps[]>;
    findById(id: string): Promise<Employee | null>;
+   findOperatorById(id: string): Promise<OperadorProps | null>;
    create(data: CreateEmployeeDTO): Promise<Employee>;
    update(id: string, data: UpdateEmployeeDTO): Promise<Employee | null>;
    delete(id: string): Promise<boolean>;

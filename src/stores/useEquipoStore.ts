@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { CategoriaEquipo } from "@/dtos/categoria-equipo.dto";
-import { Employee } from "@/dtos/employee.dto";
+import { Employee, OperadorAsignable } from "@/dtos/employee.dto";
 import type { Equipo, EquipoForm, EstadoEquipo, UpdateEquipoForm } from "@/dtos/equipo.dto";
 
 type EquipoStore = {
@@ -13,8 +13,8 @@ type EquipoStore = {
    CreateEquipo: (form: EquipoForm) => Promise<Equipo | Error>;
    UpdateEquipo: (id: string, data: Partial<UpdateEquipoForm>) => Promise<void | Error>;
    DeleteEquipo: (id: string) => Promise<void | Error>;
-   GetCategoriasEquipoById: (id: string) => Promise<CategoriaEquipo | Error>;
-   GetOperadorByEquipoId: (id: string) => Promise<Employee | Error>;
+   GetCategoriasEquipoByEquipoId: (id: string) => Promise<CategoriaEquipo>;
+   GetOperadorByEquipoId: (id: string) => Promise<OperadorAsignable | null>;
    ChangeEstado: (id: string, estado: EstadoEquipo, nota?: string) => Promise<Equipo | Error>;
    invalidateCache: () => void;
 };
@@ -104,7 +104,7 @@ export const useEquipoStore = create<EquipoStore>((set, get) => ({
       }
    },
 
-   GetCategoriasEquipoById: async (id) => {
+   GetCategoriasEquipoByEquipoId: async (id) => {
       try {
          const res = await fetch(`/api/equipos/${id}/categorias`);
          if (!res.ok) throw new Error("Error al cargar categorías de equipo");
@@ -120,6 +120,7 @@ export const useEquipoStore = create<EquipoStore>((set, get) => ({
    GetOperadorByEquipoId: async (id) => {
       try {
          const res = await fetch(`/api/equipos/${id}/operador`);
+         console.log("estatus", res.ok)
          if (!res.ok) throw new Error("Error al cargar operador del equipo");
          const data = await res.json();
          return data;

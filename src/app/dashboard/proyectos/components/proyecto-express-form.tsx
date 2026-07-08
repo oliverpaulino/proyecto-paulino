@@ -27,7 +27,7 @@ interface Props {
 }
 
 // 1. Creamos una interfaz específica para los equipos en campo
-interface EquipoUsarItem {
+export interface EquipoUsarItem {
    categoria_equipo_id: any;
    equipo_id: string;
    operador_id: string;
@@ -245,6 +245,7 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
                               updateEquipo(idx, "categoria_equipo_id", equipo.categoria_id);
                            }
                         }}
+                        exclude={equiposUsar}
                      />
                   </div>
 

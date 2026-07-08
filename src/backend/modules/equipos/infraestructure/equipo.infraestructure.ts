@@ -122,7 +122,6 @@ export class KyselyEquipoRepository implements IEquipoRepository {
             nombre: data.nombre,
             categoria_id: data.categoria_id,
             estado: data.estado ?? "ACTIVO",
-            costo_por_hora: data.costo_por_hora ?? 0,
             placa: data.placa ?? null,
             modelo: data.modelo ?? null,
             ano: data.ano ?? null,

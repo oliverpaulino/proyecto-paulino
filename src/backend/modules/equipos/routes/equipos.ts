@@ -102,12 +102,12 @@ equiposRoute.delete("/:id", async (c) => {
 
 equiposRoute.get(":id/categorias", async (c) => {
    const categorias = await service.getCategoriaByEquipoId(c.req.param("id"));
-   if (!categorias) return c.json({ error: "Equipo no encontrado" }, 404);
+   // if (!categorias) return c.json({ error: "Categoría no encontrada" }, 404);
    return c.json(categorias);
 })
 equiposRoute.get(":id/operador", async (c) => {
    const operador = await service.getOperadorByEquipoId(c.req.param("id"));
-   if (!operador) return c.json({ error: "Equipo no encontrado" }, 404);
+   if (!operador) return c.json({ error: "Operador no encontrado" }, 200);
    return c.json(operador);
 })
 

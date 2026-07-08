@@ -133,7 +133,7 @@ const EmployeeDetailsDTO = z.object({
 });
 
 const OperadorAsignableDTO = z.object({
-   id: z.string().uuid(), // empleado_id
+   id: z.string(), // empleado_id
    nombre: z.string(),
    identificacion: z.string(),
    licencia: z.string().nullable(),

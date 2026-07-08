@@ -14,6 +14,7 @@ import { ESTADO_LABEL } from "./equipo-labels";
 import { useCategoriaEquipoStore } from "@/stores/useCategoriaEquipoStore";
 import { SelectBuscadorOperator } from "@/components/select-operator";
 import { useEmployeeStore } from "@/stores/useEmployeeStore";
+import { CategoriaEquipoManager } from "./categoria-equipo-manager";
 
 export interface EquipoFormValues {
    nombre: string;
@@ -46,6 +47,9 @@ export function EquipoForm({
    submitLabel = "Crear equipo",
 }: EquipoFormProps) {
    const { CategoriaEquipos, GetCategoriaEquipos } = useCategoriaEquipoStore();
+   const { GetOperators } = useEmployeeStore();
+   const [manageOpen, setManageOpen] = useState(false);
+
 
    const [values, setValues] = useState<EquipoFormValues>({
       nombre: initialData?.nombre ?? "",
@@ -60,6 +64,7 @@ export function EquipoForm({
 
    useEffect(() => {
       GetCategoriaEquipos();
+      GetOperators({ search: "", limit: 20, force: true });
    }, [GetCategoriaEquipos]);
 
    // Cuando cargan las categorías y no hay una seleccionada, pre-seleccionar la primera.
@@ -105,16 +110,14 @@ export function EquipoForm({
          <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
                <Label htmlFor="ef-categoria">Categoría *</Label>
-               {onManageCategorias && (
-                  <button
-                     type="button"
-                     onClick={onManageCategorias}
-                     className="flex items-center gap-1 text-xs text-brand-blue hover:underline"
-                  >
-                     <Settings2 className="size-3" />
-                     Gestionar categorías
-                  </button>
-               )}
+               <button
+                  type="button"
+                  onClick={() => setManageOpen(true)}
+                  className="flex items-center gap-1 text-xs text-brand-blue hover:underline"
+               >
+                  <Settings2 className="size-3" />
+                  Gestionar categorías
+               </button>
             </div>
             <select
                id="ef-categoria"
@@ -156,10 +159,14 @@ export function EquipoForm({
          </div>
 
          <div className="grid grid-cols-2 gap-3">
-            <SelectBuscadorOperator value={values.operador_id} onChange={(id) => {
-               setValues((prev) => ({ ...prev, operador_id: id ?? undefined }));
-            }} disabled={loading} placeholder="Buscar operador..." />
-
+            <div className="flex flex-col gap-1.5">
+               <Label htmlFor="ef-operador">Operador</Label>
+               <SelectBuscadorOperator
+                  value={values.operador_id ?? null}
+                  onChange={(id) => {
+                     setValues((prev) => ({ ...prev, operador_id: id ?? undefined }));
+                  }} disabled={loading} placeholder="Buscar operador..." />
+            </div>
             <div className="flex flex-col gap-1.5">
                <Label htmlFor="ef-ano">Año</Label>
                <Input
@@ -208,6 +215,7 @@ export function EquipoForm({
                {loading ? "Guardando…" : submitLabel}
             </Button>
          </div>
+         <CategoriaEquipoManager open={manageOpen} onOpenChange={setManageOpen} />
       </form>
    );
 }

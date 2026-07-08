@@ -37,8 +37,6 @@ export class Equipo {
    get categoria_id(): string { return this.props.categoria_id; }
    get operador_id(): string | null { return this.props.operador_id; }
    get categoria_nombre(): string { return this.props.categoria_nombre; }
-   get cobra_en(): string { return this.props.cobra_en; }
-   get cobra_minimo(): number | null { return this.props.cobra_minimo; }
    get estado(): EstadoEquipo { return this.props.estado; }
    get costo_por_hora(): number { return this.props.costo_por_hora; }
    get placa(): string | null { return this.props.placa; }
@@ -75,11 +73,10 @@ export interface EquipoCompraItemProps {
 }
 
 export interface CreateEquipoDTO {
-   operador_id: null;
+   operador_id: string | null;
    nombre: string;
    categoria_id: string;
    estado?: EstadoEquipo;
-   costo_por_hora?: number;
    placa?: string | null;
    modelo?: string | null;
    ano?: number | null;
@@ -87,9 +84,9 @@ export interface CreateEquipoDTO {
 
 export interface UpdateEquipoDTO {
    nombre?: string;
+   operador_id?: string | null;
    categoria_id?: string;
    estado?: EstadoEquipo;
-   costo_por_hora?: number;
    placa?: string | null;
    modelo?: string | null;
    ano?: number | null;

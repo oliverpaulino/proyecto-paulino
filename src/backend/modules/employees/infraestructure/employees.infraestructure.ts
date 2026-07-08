@@ -100,6 +100,27 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
          updated_at: new Date(row.updated_at),
       });
    }
+   async findOperatorById(id: string): Promise<OperadorProps | null> {
+      const row = await this.db
+         .selectFrom("operador")
+         .innerJoin("empleado", "operador.empleado_id", "empleado.id")
+         .selectAll()
+         .where("operador.id", "=", id)
+         .executeTakeFirst();
+      console.log("Fetched operator row:", row);
+      if (!row) return null;
+
+      return {
+         empleado_id: row.empleado_id,
+         id: row.id,
+         licencia: row.licencia,
+         nombre: row.nombre,
+         identificacion: row.identificacion,
+         fecha_vencimiento: row.fecha_vencimiento ? new Date(row.fecha_vencimiento) : null,
+         created_at: new Date(row.created_at),
+         updated_at: new Date(row.updated_at),
+      } as OperadorProps;
+   }
 
    async existsByIdentificacion(identificacion: string, excludeId?: string): Promise<boolean> {
       let query = this.db

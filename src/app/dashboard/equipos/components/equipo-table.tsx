@@ -4,6 +4,10 @@ import Link from "next/link";
 import { Pencil, Trash2 } from "lucide-react";
 import type { Equipo } from "@/dtos/equipo.dto";
 import { ESTADO_BADGE, ESTADO_LABEL } from "./equipo-labels";
+import { useEquipoStore } from "@/stores/useEquipoStore";
+import { useEffect, useState } from "react";
+import { OperadorAsignable } from "@/dtos/employee.dto";
+import { CategoriaEquipo } from "@/dtos/categoria-equipo.dto";
 
 interface EquipoTableProps {
    equipos: Equipo[];
@@ -12,6 +16,8 @@ interface EquipoTableProps {
 }
 
 export function EquipoTable({ equipos, onEdit, onDelete }: EquipoTableProps) {
+   const { GetOperadorByEquipoId } = useEquipoStore();
+   const [operadores, setOperadores] = useState<OperadorAsignable[]>([]);
    if (equipos.length === 0) {
       return (
          <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-brand-blue/20 bg-brand-blue/5 p-12 text-sm text-muted-foreground gap-2">
@@ -21,6 +27,10 @@ export function EquipoTable({ equipos, onEdit, onDelete }: EquipoTableProps) {
       );
    }
 
+
+
+   console.log("operadores", operadores);
+   console.log("equipos", equipos);
    return (
       <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
          <table className="w-full text-sm">
@@ -28,9 +38,8 @@ export function EquipoTable({ equipos, onEdit, onDelete }: EquipoTableProps) {
                <tr className="bg-brand-blue">
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Equipo</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Categoría</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Cobra en</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Operador</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Estado</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-blue-200">Costo/unidad</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Placa</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Modelo</th>
                   <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-blue-200">Año</th>
@@ -60,22 +69,12 @@ export function EquipoTable({ equipos, onEdit, onDelete }: EquipoTableProps) {
                         </span>
                      </td>
                      <td className="px-4 py-3 text-xs text-muted-foreground">
-                        <span>{equipo.cobra_en}</span>
-                        {equipo.cobra_minimo != null && (
-                           <span className="ml-1 text-muted-foreground/60">(mín. {equipo.cobra_minimo})</span>
-                        )}
+                        <span>{GetOperadorByEquipoId(equipo.id)?.nombre || "Sin operador asignado"}</span>
                      </td>
                      <td className="px-4 py-3">
                         <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${ESTADO_BADGE[equipo.estado]}`}>
                            {ESTADO_LABEL[equipo.estado]}
                         </span>
-                     </td>
-                     <td className="px-4 py-3 text-right font-mono text-xs">
-                        {Number(equipo.costo_por_hora).toLocaleString("es-DO", {
-                           style: "currency",
-                           currency: "DOP",
-                           minimumFractionDigits: 2,
-                        })}
                      </td>
                      <td className="px-4 py-3 text-xs text-muted-foreground">
                         {equipo.placa ?? "—"}

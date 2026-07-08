@@ -23,17 +23,19 @@ export function SelectBuscadorOperator({
 }: SelectBuscadorOperatorProps) {
    const { Operators, loading, GetOperators } = useEmployeeStore();
    const [isOpen, setIsOpen] = useState(false);
+   const [hasTyped, setHasTyped] = useState(false);
    const [inputValue, setInputValue] = useState(initialLabel);
    const containerRef = useRef<HTMLDivElement>(null);
 
    const debouncedSearch = useDebounce(inputValue, 500);
 
-   const operators = Operators ?? [];
+   let operators = Operators ?? [];
    console.log("Operators in SelectBuscadorOperator:", operators);
 
 
+
    useEffect(() => {
-      setInputValue(initialLabel);
+      setInputValue(Operators.find(e => e.id === value)?.nombre ?? initialLabel)
    }, [initialLabel]);
 
    useEffect(() => {
@@ -51,6 +53,11 @@ export function SelectBuscadorOperator({
    useEffect(() => {
       if (!isOpen) return;
 
+      if (!hasTyped) {
+         GetOperators({ search: "", limit: 20, force: true });
+         return;
+      }
+
       if (debouncedSearch.trim() !== "") {
          GetOperators({ search: debouncedSearch, limit: 20, force: true });
       } else {
@@ -60,6 +67,7 @@ export function SelectBuscadorOperator({
 
    const handleSelect = (operator: OperadorAsignable) => {
       setInputValue(operator.nombre);
+      setHasTyped(false);
       onChange(operator.id);
       setIsOpen(false);
    };
@@ -71,6 +79,9 @@ export function SelectBuscadorOperator({
       setIsOpen(false);
    };
 
+
+
+
    return (
       <div className="relative w-full" ref={containerRef}>
          <div className="relative flex items-center">
@@ -80,6 +91,8 @@ export function SelectBuscadorOperator({
                value={inputValue}
                onChange={(e) => {
                   setInputValue(e.target.value);
+                  setHasTyped(true);
+
                   if (e.target.value === "") onChange(null);
                   if (!isOpen) setIsOpen(true);
                }}
@@ -104,23 +117,25 @@ export function SelectBuscadorOperator({
                {loading && (operators?.length ?? 0) === 0 ? (
                   <div className="p-4 text-center text-sm text-muted-foreground">Buscando operadores...</div>
                ) : (operators?.length ?? 0) > 0 ? (
-                  operators.map((operator) => (
-                     <div
-                        key={operator.id}
-                        onClick={() => handleSelect(operator)}
-                        className="flex cursor-pointer flex-col gap-1 rounded-sm px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
-                     >
-                        <div className="flex justify-between items-center">
-                           <span className="font-medium truncate">{operator.nombre}</span>
-                           <span className="text-[10px] uppercase font-semibold bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">
-                              {/* {operator.id} poner aqui el numero identificador/referencia */}
+                  operators
+                     .filter(o => o.id !== value) // Filtrar solo operadores activos y no seleccionados
+                     .map((operator) => (
+                        <div
+                           key={operator.id}
+                           onClick={() => handleSelect(operator)}
+                           className="flex cursor-pointer flex-col gap-1 rounded-sm px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                        >
+                           <div className="flex justify-between items-center">
+                              <span className="font-medium truncate">{operator.nombre}</span>
+                              <span className="text-[10px] uppercase font-semibold bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">
+                                 {/* {operator.id} poner aqui el numero identificador/referencia */}
+                              </span>
+                           </div>
+                           <span className="text-xs text-muted-foreground truncate">
+                              Licencia: {operator.licencia || "No asignada"}
                            </span>
                         </div>
-                        <span className="text-xs text-muted-foreground truncate">
-                           Licencia: {operator.licencia || "No asignada"}
-                        </span>
-                     </div>
-                  ))
+                     ))
                ) : (
                   <div className="p-4 text-center text-sm text-muted-foreground">No se encontraron empleados.</div>
                )}
