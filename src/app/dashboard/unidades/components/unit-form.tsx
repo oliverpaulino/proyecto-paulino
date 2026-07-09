@@ -213,8 +213,13 @@ export function UnitForm({
                      </span>
                   )
                ) : (
-                  <span className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
-                     Aún no hay unidad base para {values.tipo_unidad}. Si dejas este factor en <strong>1</strong>, esta será considerada la unidad principal.
+                  <span className="flex flex-col gap-1 rounded-md text-xs text-muted-foreground">
+                     <span className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
+                        Aún no hay unidad base para {values.tipo_unidad}.
+                     </span>
+                     <span className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
+                        Si dejas este factor en <strong>1</strong>, esta será considerada la unidad principal.
+                     </span>
                   </span>
                )}
             </div>

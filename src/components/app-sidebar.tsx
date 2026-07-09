@@ -71,6 +71,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const settingsItems = [
     { id: "settings-general", title: "General", url: "/dashboard/settings" },
+    { id: "settings-unidades", title: "Unidades", url: "/dashboard/unidades" },
     ...(isAdmin ? [{ id: "settings-usuarios", title: "Usuarios", url: "/dashboard/settings/users" }] : []),
   ]
 
@@ -123,6 +124,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       items: [
         { id: "fin-compras", title: "Compras", url: "/dashboard/compras" },
         ...(isAdmin ? [{ id: "fin-aprobadores", title: "Firmantes de Compras", url: "/dashboard/compras/aprobadores" }] : []),
+        { id: "fin-compras-eliminadas", title: "Compras eliminadas", url: "/dashboard/compras/eliminadas" },
         { id: "fin-gastos", title: "Gastos", url: "/dashboard/gastos" },
         { id: "fin-pagos", title: "Pagos", url: "/dashboard/pagos" },
       ],
