@@ -11,6 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import type { Proyecto } from "@/dtos/proyecto.dto";
 import { useEffect } from "react";
+import Link from "next/link";
 
 interface Props {
    proyectos: Proyecto[];
@@ -35,8 +36,6 @@ export function ProyectoExpressTable({ proyectos }: Props) {
                   <TableHead className="text-right">Total Cobrable</TableHead>
                   <TableHead className="text-right">Gastos Internos</TableHead>
                   <TableHead className="text-right">Rentabilidad</TableHead>
-                  <TableHead>Operador</TableHead>
-                  <TableHead>Equipo</TableHead>
                   <TableHead>Fecha</TableHead>
                   <TableHead>Estado</TableHead>
                </TableRow>
@@ -67,17 +66,19 @@ export function ProyectoExpressTable({ proyectos }: Props) {
                         >
                            RD$ {rent.toLocaleString("es-DO")}
                         </TableCell>
-                        <TableCell className="text-muted-foreground">
-                           {asig?.empleado_nombre ?? "—"}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                           {asig?.equipo_nombre ?? "—"}
-                        </TableCell>
+
                         <TableCell className="text-muted-foreground">
                            {new Date(p.fecha_inicio).toLocaleDateString("es-DO")}
                         </TableCell>
                         <TableCell>
                            <EstadoBadge estado={p.estado} />
+                        </TableCell>
+                        <TableCell>
+                           <Link
+                              href={`/dashboard/proyectos/${p.id}`}
+                              className="text-blue-600 hover:underline">
+                              Ver detalles
+                           </Link>
                         </TableCell>
                      </TableRow>
                   );

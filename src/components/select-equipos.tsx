@@ -101,6 +101,8 @@ export function SelectBuscarEquipos({
       setIsOpen(false);
    };
 
+   const equiposFiltrados = Equipos.filter((eq) => !exclude.some((ex) => ex.equipo_id === eq.id))
+
    return (
       <div className="relative w-full" ref={containerRef}>
          <div className="relative flex items-center">
@@ -129,12 +131,13 @@ export function SelectBuscarEquipos({
             </div>
          </div>
 
+
          {isOpen && (
             <div className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-md p-1">
                {loading && Equipos.length === 0 ? (
                   <div className="p-4 text-center text-sm text-muted-foreground">Buscando equipos...</div>
-               ) : Equipos.length > 0 ? (
-                  Equipos.filter((eq) => !exclude.some((ex) => ex.equipo_id === eq.id)).map((equipox) => (
+               ) : equiposFiltrados.length > 0 ? (
+                  equiposFiltrados.map((equipox) => (
                      <div
                         key={equipox.id}
                         onClick={() => handleSelect(equipox)}

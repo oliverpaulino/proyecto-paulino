@@ -16,9 +16,12 @@ import { Separator } from "@/components/ui/separator";
 import { useClientStore } from "@/stores/useClientStore";
 import { useEquipoStore } from "@/stores/useEquipoStore";
 import { useEmployeeStore } from "@/stores/useEmployeeStore";
+import { useCategoriaEquipoStore } from "@/stores/useCategoriaEquipoStore";
 import type { CreateProyectoExpressForm, LineItemForm } from "@/dtos/proyecto.dto";
 import { SelectBuscarEquipos } from "@/components/select-equipos";
 import { Equipo } from "@/dtos/equipo.dto";
+import { X } from "lucide-react";
+import { SelectBuscadorOperator } from "@/components/select-operator";
 
 interface Props {
    onSubmit: (data: CreateProyectoExpressForm) => Promise<void>;
@@ -26,42 +29,54 @@ interface Props {
    loading: boolean;
 }
 
-// 1. Creamos una interfaz específica para los equipos en campo
 export interface EquipoUsarItem {
    categoria_equipo_id: any;
    equipo_id: string;
-   operador_id: string;
-   horas: number;
-   precio_unitario: number;
+   operador_id: string;   // = empleado_id (para que matchee el <Select> de operadores)
+   cantidad: number;
+   unidad_medida: string; // categoria.cobra_en
+   precio_unitario: number; // categoria.precio_unitario — solo lectura
+   es_cobrable: boolean;    // si se incluye en el cobro al cliente
 }
 
+const emptyEquipo = (): EquipoUsarItem => ({
+   equipo_id: "",
+   operador_id: "",
+   cantidad: 0,
+   unidad_medida: "",
+   precio_unitario: 0,
+   categoria_equipo_id: "",
+   es_cobrable: true,
+});
+
 const emptyItem = (): LineItemForm => ({ descripcion: "", cantidad: 1, precio_unitario: 0 });
-const emptyEquipo = (): EquipoUsarItem => ({ equipo_id: "", operador_id: "", horas: 0, precio_unitario: 0, categoria_equipo_id: "" });
 
 export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
    const { Clients, GetClients } = useClientStore();
-   const { Equipos, GetEquipos } = useEquipoStore();
+   const { Equipos, GetEquipos, GetOperadorByEquipoId } = useEquipoStore();
    const { Employees, GetEmployees } = useEmployeeStore();
+   const { CategoriaEquipos, GetCategoriaEquipos } = useCategoriaEquipoStore();
 
    useEffect(() => {
       GetClients();
       GetEquipos();
       GetEmployees();
-   }, [GetClients, GetEquipos, GetEmployees]);
+      GetCategoriaEquipos();
+   }, [GetClients, GetEquipos, GetEmployees, GetCategoriaEquipos]);
 
    const [clienteId, setClienteId] = useState("");
    const [tarifaServicio, setTarifaServicio] = useState(0);
    const [notas, setNotas] = useState("");
 
-   // 2. Usamos el nuevo tipado para el array de equipos
    const [equiposUsar, setEquiposUsar] = useState<EquipoUsarItem[]>([]);
    const [cobrables, setCobrables] = useState<LineItemForm[]>([]);
    const [internos, setInternos] = useState<LineItemForm[]>([]);
    const [error, setError] = useState<string | null>(null);
+   // idx que está resolviendo el operador (para mostrar loader puntual en esa fila)
+   const [resolvingOperador, setResolvingOperador] = useState<number | null>(null);
 
    const operadores = Employees.filter((e) => e.rol === "OPERADOR");
 
-   // Funciones utilitarias para los arrays
    function addItem(setter: React.Dispatch<React.SetStateAction<LineItemForm[]>>) {
       setter((prev) => [...prev, emptyItem()]);
    }
@@ -79,23 +94,71 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
       setter((prev) => prev.map((item, i) => (i === idx ? { ...item, [field]: value } : item)));
    }
 
-   // 3. Función dedicada para actualizar los equipos dinámicos (reemplaza a updateTruck)
-   function updateEquipo(idx: number, field: keyof EquipoUsarItem, value: string | number) {
+   function updateEquipo(idx: number, field: keyof EquipoUsarItem, value: string | number | boolean) {
       setEquiposUsar((prev) => prev.map((item, i) => (i === idx ? { ...item, [field]: value } : item)));
    }
 
-   function removeItem<T>(
-      setter: React.Dispatch<React.SetStateAction<T[]>>,
-      idx: number
-   ) {
+   function updateEquipoFields(idx: number, fields: Partial<EquipoUsarItem>) {
+      setEquiposUsar((prev) => prev.map((item, i) => (i === idx ? { ...item, ...fields } : item)));
+   }
+
+   function removeItem<T>(setter: React.Dispatch<React.SetStateAction<T[]>>, idx: number) {
       setter((prev) => prev.filter((_, i) => i !== idx));
    }
 
+   // ── Selección de equipo: autocompleta operador, categoría, unidad y precio ──
+   async function handleSelectEquipo(idx: number, id: string | number | null, equipo: Equipo | null) {
+      if (!equipo) {
+         updateEquipoFields(idx, {
+            equipo_id: "",
+            operador_id: "",
+            categoria_equipo_id: "",
+            unidad_medida: "",
+            precio_unitario: 0,
+         });
+         return;
+      }
+
+
+      const categoria = CategoriaEquipos.find((c) => c.id === equipo.categoria_id);
+
+      // Precarga inmediata de lo que sí tenemos, sin esperar la llamada de red
+      updateEquipoFields(idx, {
+         equipo_id: String(id ?? ""),
+         categoria_equipo_id: equipo.categoria_id,
+         unidad_medida: categoria?.cobra_en ?? "",
+         precio_unitario: categoria?.precio_unitario ?? 0,
+      });
+
+      if (!equipo.operador_id) {
+         updateEquipo(idx, "operador_id", "");
+         return;
+      }
+
+      setResolvingOperador(idx);
+      try {
+         const operadorAsignable = await GetOperadorByEquipoId(equipo.id);
+         // OperadorAsignable.id === empleado_id, matchea directo con el <Select> de operadores
+         if (operadorAsignable && !(operadorAsignable instanceof Error)) {
+            updateEquipo(idx, "operador_id", operadorAsignable.id);
+         } else {
+            updateEquipo(idx, "operador_id", "");
+         }
+      } catch {
+         updateEquipo(idx, "operador_id", "");
+      } finally {
+         setResolvingOperador(null);
+      }
+   }
+
    const subtotalCobrables = cobrables.reduce((s, i) => s + i.cantidad * i.precio_unitario, 0);
-   const totalCobrable = tarifaServicio + subtotalCobrables;
+   const subtotalEquipos = equiposUsar
+      .filter((i) => i.es_cobrable)
+      .reduce((s, i) => s + (i.cantidad || 0) * (i.precio_unitario || 0), 0);
+   const totalCobrable = tarifaServicio + subtotalCobrables + subtotalEquipos;
    const totalInterno = internos.reduce((s, i) => s + i.cantidad * i.precio_unitario, 0);
    const rentabilidad = totalCobrable - totalInterno;
-   // Dentro de ProyectoExpressForm, en el handleSubmit:
+
    async function handleSubmit(e: React.FormEvent) {
       e.preventDefault();
       if (!clienteId) {
@@ -106,88 +169,76 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
          setError("Se requiere al menos un equipo con operador");
          return;
       }
-
       if (tarifaServicio < 0) {
          setError("La tarifa del servicio debe ser mayor o igual a 0");
          return;
       }
-
       if (operadores.length === 0) {
          setError("No hay operadores disponibles para asignar al proyecto");
          return;
       }
-
-
-
-      if (equiposUsar.some(eq => eq.horas < 0)) {
-         setError("Las horas trabajadas deben ser mayor o igual a 0");
+      if (equiposUsar.some((eq) => eq.cantidad < 0)) {
+         setError("La cantidad trabajada por equipo debe ser mayor o igual a 0");
          return;
       }
-
-      if (equiposUsar.some(eq => eq.precio_unitario < 0)) {
+      if (equiposUsar.some((eq) => eq.precio_unitario < 0)) {
          setError("El precio unitario de los equipos debe ser mayor o igual a 0");
          return;
       }
-
-      if (cobrables.some(c => c.cantidad <= 0 || c.precio_unitario < 0)) {
+      if (cobrables.some((c) => c.cantidad <= 0 || c.precio_unitario < 0)) {
          setError("Los cargos cobrables deben tener cantidad > 0 y precio unitario >= 0");
          return;
       }
-
-      if (internos.some(i => i.cantidad <= 0 || i.precio_unitario < 0)) {
+      if (internos.some((i) => i.cantidad <= 0 || i.precio_unitario < 0)) {
          setError("Los gastos internos deben tener cantidad > 0 y precio unitario >= 0");
          return;
       }
-
       if (rentabilidad < 0) {
-         const confirm = window.confirm(
-            "La rentabilidad es negativa. ¿Desea continuar con la liquidación?"
-         );
+         const confirm = window.confirm("La rentabilidad es negativa. ¿Desea continuar con la liquidación?");
          if (!confirm) return;
       }
 
-
-      // Mapeamos lo que el formulario tiene hacia lo que el DTO requiere
       const payload = {
          cliente_id: clienteId,
-         servicio_id: null, // Necesitas este campo
+         servicio_id: null,
          nombre: "Proyecto Express",
 
-         // Transformamos tu array de equipos a las "tarifas" y "equipos" que pide el backend
          tarifas: Object.values(
             equiposUsar.reduce((acc, e) => {
                if (!acc[e.categoria_equipo_id]) {
                   acc[e.categoria_equipo_id] = {
                      categoria_equipo_id: e.categoria_equipo_id,
                      precio_acordado: e.precio_unitario > 0 ? e.precio_unitario : 0.01,
-                     cobra_en_snapshot: "HORA",
-                     cobra_minimo_snapshot: e.precio_unitario > 0 ? e.precio_unitario : 0.01
+                     cobra_en_snapshot: e.unidad_medida || "no tiene",
+                     cobra_minimo_snapshot: e.precio_unitario > 0 ? e.precio_unitario : 0.01,
                   };
                }
-
                return acc;
             }, {} as Record<string, any>)
          ),
 
-         equipos: equiposUsar.map(eq => ({
+         // Se manda SIEMPRE todo el equipo usado (cobrable o no) para conservar
+         // el historial de trabajo por equipo/operador. `es_cobrable` decide
+         // si entra en el total facturado (ver notas de backend).
+         equipos: equiposUsar.map((eq) => ({
             equipo_id: eq.equipo_id,
             categoria_equipo_id: eq.categoria_equipo_id,
-            operador_id: eq.operador_id
+            operador_id: eq.operador_id,
+            cantidad: eq.cantidad,
+            es_cobrable: eq.es_cobrable,
          })),
 
          cargos_cobrables: cobrables,
-         gastos_internos: internos
+         gastos_internos: internos,
       };
 
-      await onSubmit(payload as any); // Temporalmente 'as any' para forzar la compatibilidad
+      await onSubmit(payload as any);
    }
 
-   // Validación para habilitar el botón
    const isFormValid = clienteId && equiposUsar.length > 0 && equiposUsar[0].equipo_id && equiposUsar[0].operador_id;
 
    return (
       <form onSubmit={handleSubmit} className="space-y-5">
-
          {/* ── Cliente + Tarifa ── */}
          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
@@ -223,63 +274,68 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
 
          <Separator />
 
-         {/* ── Equipo trabajado (Refactorizado) ── */}
+         {/* ── Equipo trabajado ── */}
          <div className="space-y-2">
-            <div>
-               <h3 className="text-sm font-semibold">Equipo en campo</h3>
-            </div>
-            {equiposUsar.map((item, idx) => (
-               <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_28px] gap-2 items-center">
+            <h3 className="text-sm font-semibold">Equipo en campo</h3>
 
+            {equiposUsar.map((item, idx) => (
+               <div
+                  key={idx}
+                  className="grid grid-cols-[28px_1.2fr_1fr_90px_100px_28px] gap-2 items-center mt-4"
+               >
+                  <input
+                     type="checkbox"
+                     checked={item.es_cobrable}
+                     onChange={(e) => updateEquipo(idx, "es_cobrable", e.target.checked)}
+                     title="Incluir en el cobro al cliente (si se destilda, solo queda en el historial)"
+                     className="size-4 justify-self-center accent-brand-blue"
+                  />
                   <div className="space-y-1.5">
                      <SelectBuscarEquipos
                         value={item.equipo_id}
-                        onChange={(id, equipo) => {
-                           updateEquipo(idx, "equipo_id", id ?? "");
-                           if (equipo) {
-                              updateEquipo(idx, "operador_id", equipo.operador_id || "");
-                              // Algunos tipos de equipo pueden no tener la propiedad `categoria`.
-                              // Intentamos leer la tarifa de forma segura y usar 0 como fallback.
-                              const tarifa = (equipo as any)?.categoria?.tarifa ?? (equipo as any)?.categoria_tarifa ?? 0;
-                              updateEquipo(idx, "precio_unitario", tarifa);
-                              updateEquipo(idx, "categoria_equipo_id", equipo.categoria_id);
-                           }
-                        }}
+                        onChange={(id, equipo) => handleSelectEquipo(idx, id, equipo)}
                         exclude={equiposUsar}
                      />
                   </div>
-
                   <div className="space-y-1.5">
-                     <Select
+                     <SelectBuscadorOperator
                         value={item.operador_id}
-                        onValueChange={(val) => updateEquipo(idx, "operador_id", val)}
-                        required
-                     >
-                        <SelectTrigger className="w-full">
-                           <SelectValue placeholder="Operador" />
-                        </SelectTrigger>
-                        <SelectContent>
-                           {operadores.map((e) => (
-                              <SelectItem key={e.id} value={e.id}>
-                                 {e.nombre}
-                              </SelectItem>
-                           ))}
-                        </SelectContent>
-                     </Select>
+                        onChange={(id) => updateEquipo(idx, "operador_id", id ?? "")} />
+
                   </div>
 
+                  <div className="relative">
+                     <span className="absolute -top-4 left-1 text-[10px] font-semibold text-muted-foreground">
+                        {item.unidad_medida || "Unidad"}
+                     </span>
+
+                     <Input
+                        type="number"
+                        placeholder={item.unidad_medida || "Cant."}
+                        className="w-full bg-muted/50 text-muted-foreground cursor-not-allowed"
+                        min={0}
+                        step="0.5"
+                        value={item.cantidad || 0}
+                        onChange={(e) => updateEquipo(idx, "cantidad", Number(e.target.value))}
+                     />
+                  </div>
 
                   <div className="space-y-1.5">
                      <Input
                         type="number"
-                        placeholder="Horas"
-                        className="w-full"
+                        placeholder="P. Unit."
+                        className="w-full bg-muted/50 text-muted-foreground cursor-not-allowed"
                         min={0}
-                        step="0.5"
-                        value={item.horas || 0}
-                        onChange={(e) => updateEquipo(idx, "horas", Number(e.target.value))}
+                        step="0.01"
+                        value={item.precio_unitario || 0}
+                        readOnly
+                        disabled
+                        title="Precio definido por la categoría del equipo"
                      />
                   </div>
+
+
+
                   <Button
                      type="button"
                      variant="ghost"
@@ -287,18 +343,19 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
                      className="size-7 text-muted-foreground hover:text-destructive"
                      onClick={() => removeItem(setEquiposUsar, idx)}
                   >
-                     ×
+                     <X className="h-4 w-4" />
                   </Button>
                </div>
             ))}
-            <Button
-               type="button"
-               variant="outline"
-               size="sm"
-               onClick={addEquipo}
-            >
-               + Agregar cargo Equipo
-            </Button>
+
+            <div className="flex items-center gap-3">
+               <Button type="button" variant="outline" size="sm" onClick={addEquipo}>
+                  + Agregar cargo Equipo
+               </Button>
+               <p className="text-xs text-muted-foreground">
+                  Desmarca la casilla para registrar el trabajo del equipo sin incluirlo en el cobro al cliente.
+               </p>
+            </div>
          </div>
 
          <Separator />
@@ -341,16 +398,11 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
                      className="size-7 text-muted-foreground hover:text-destructive"
                      onClick={() => removeItem(setCobrables, idx)}
                   >
-                     ×
+                     <X className="h-4 w-4" />
                   </Button>
                </div>
             ))}
-            <Button
-               type="button"
-               variant="outline"
-               size="sm"
-               onClick={() => addItem(setCobrables)}
-            >
+            <Button type="button" variant="outline" size="sm" onClick={() => addItem(setCobrables)}>
                + Agregar cargo cobrable
             </Button>
          </div>
@@ -399,12 +451,7 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
                   </Button>
                </div>
             ))}
-            <Button
-               type="button"
-               variant="outline"
-               size="sm"
-               onClick={() => addItem(setInternos)}
-            >
+            <Button type="button" variant="outline" size="sm" onClick={() => addItem(setInternos)}>
                + Agregar gasto interno
             </Button>
          </div>
@@ -416,6 +463,10 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
             <div className="flex justify-between">
                <span className="text-muted-foreground">Tarifa del servicio</span>
                <span>RD$ {tarifaServicio.toLocaleString("es-DO")}</span>
+            </div>
+            <div className="flex justify-between">
+               <span className="text-muted-foreground">Subtotal equipos (cobrables)</span>
+               <span>RD$ {subtotalEquipos.toLocaleString("es-DO")}</span>
             </div>
             <div className="flex justify-between">
                <span className="text-muted-foreground">Cargos cobrables</span>
@@ -437,7 +488,6 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
             </div>
          </div>
 
-         {/* ── Notas ── */}
          <Textarea
             placeholder="Notas adicionales (opcional)"
             value={notas}
@@ -447,7 +497,6 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
 
          {error && <p className="text-sm text-destructive">{error}</p>}
 
-         {/* ── Acciones ── */}
          <div className="flex justify-end gap-2 pt-1">
             <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
                Cancelar

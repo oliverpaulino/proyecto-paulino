@@ -147,20 +147,20 @@ export class KyselyProyectoRepository implements IProyectoRepository {
             .execute();
 
          // 4 — Asignar Equipos Físicos (El nuevo esquema)
-         if (data.equipos && data.equipos.length > 0) {
-            const equiposToInsert = data.equipos.map((e) => {
-               const tarifa = insertedTarifas.find(t => t.categoria_equipo_id === e.categoria_equipo_id);
-               if (!tarifa) throw new Error(`Inconsistencia: No se encontró tarifa para categoría ${e.categoria_equipo_id}`);
+         const equiposToInsert = data.equipos?.map((e) => {
+            const tarifa = insertedTarifas.find(t => t.categoria_equipo_id === e.categoria_equipo_id);
+            if (!tarifa) throw new Error(`Inconsistencia: No se encontró tarifa para categoría ${e.categoria_equipo_id}`);
+            return {
+               proyecto_id: header.id,
+               equipo_id: e.equipo_id,
+               operador_id: e.operador_id || null,
+               proyecto_tarifa_id: tarifa.id,
+               cantidad: e.cantidad,
+               es_cobrable: e.es_cobrable,
+            };
+         });
 
-               return {
-                  proyecto_id: header.id,
-                  equipo_id: e.equipo_id,
-                  operador_id: e.operador_id || null,
-                  proyecto_tarifa_id: tarifa.id, // Enlace crucial
-               };
-            });
-            await trx.insertInto("proyecto_equipos").values(equiposToInsert).execute(); // <-- Singular
-         }
+         const insertedEquipos = await trx.insertInto("proyecto_equipos").values(equiposToInsert || []).returningAll().execute();
 
          // 5 — Cargos y Gastos (Detalles)
          const itemsCobrables = data.cargos_cobrables.map((c) => ({
@@ -188,8 +188,16 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          // 6 — Calcular totales financieros
          const total_cobrable_tarifas = insertedTarifas.reduce((sum, t) => sum + Number(t.precio_acordado), 0);
          const total_cobrable_cargos = insertedDetalle.filter(i => i.es_cobrable).reduce((sum, i) => sum + Number(i.subtotal), 0);
+         const total_cobrable_equipos = insertedEquipos
+            .filter(e => e.es_cobrable)
+            .reduce((sum, e) => {
+               const tarifa = insertedTarifas.find(t => t.id === e.proyecto_tarifa_id);
+               return sum + Number(e.cantidad) * Number(tarifa?.precio_acordado ?? 0);
+            }, 0);
 
-         const total_cobrable = total_cobrable_tarifas + total_cobrable_cargos;
+         const total_cobrable = total_cobrable_equipos + total_cobrable_cargos;
+
+
          const total_gasto_interno = insertedDetalle.filter(i => !i.es_cobrable).reduce((sum, i) => sum + Number(i.subtotal), 0);
          const rentabilidad = total_cobrable - total_gasto_interno;
 
@@ -290,6 +298,8 @@ export class KyselyProyectoRepository implements IProyectoRepository {
                   equipo_id: e.equipo_id,
                   operador_id: e.operador_id || null,
                   proyecto_tarifa_id: tarifa.id, // Enlace crucial
+                  cantidad: e.cantidad ?? 1,
+                  es_cobrable: e.es_cobrable ?? true,
                };
             });
 

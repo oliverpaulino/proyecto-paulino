@@ -129,6 +129,8 @@ export const EquipoAsignadoSchema = z.object({
    categoria_equipo_id: z.string(), // Necesario para enlazarlo con su tarifa
    equipo_id: z.string(),
    operador_id: z.string().optional(),
+   cantidad: z.number().min(0),
+   es_cobrable: z.boolean().default(true),
 });
 
 // El Payload completo para crear un Proyecto Express

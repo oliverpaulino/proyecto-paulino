@@ -79,6 +79,8 @@ export interface CreateProyectoExpressDTO {
       operador_id?: string;
       categoria_equipo_id: string;
       equipo_id: string;
+      cantidad: number;
+      es_cobrable: boolean;
    }>;
    cargos_cobrables: Array<{
       descripcion: string;

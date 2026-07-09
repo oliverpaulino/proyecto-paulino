@@ -32,11 +32,21 @@ export function SelectBuscadorOperator({
    let operators = Operators ?? [];
    console.log("Operators in SelectBuscadorOperator:", operators);
 
-
-
    useEffect(() => {
-      setInputValue(Operators.find(e => e.id === value)?.nombre ?? initialLabel)
-   }, [initialLabel]);
+      GetOperators({ search: "", limit: 20, force: true });
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, []);
+
+   // Sincroniza el texto visible cada vez que cambian `value` o la lista de operadores,
+   // no solo cuando cambia `initialLabel`.
+   useEffect(() => {
+      if (!value) {
+         setInputValue(initialLabel);
+         return;
+      }
+      const match = operators.find((o) => o.id === value);
+      if (match) setInputValue(match.nombre);
+   }, [value, operators, initialLabel]);
 
    useEffect(() => {
       function handleClickOutside(event: MouseEvent) {

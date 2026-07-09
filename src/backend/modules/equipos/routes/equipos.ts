@@ -111,4 +111,28 @@ equiposRoute.get(":id/operador", async (c) => {
    return c.json(operador);
 })
 
+// GET /api/equipos/:id/historial-trabajo
+equiposRoute.get("/:id/historial-trabajo", async (c) => {
+   const rows = await db
+      .selectFrom("proyecto_equipos")
+      .innerJoin("proyecto", "proyecto.id", "proyecto_equipos.proyecto_id")
+      .innerJoin("proyecto_tarifas", "proyecto_tarifas.id", "proyecto_equipos.proyecto_tarifa_id")
+      .select([
+         "proyecto.id as proyecto_id",
+         "proyecto.nombre as proyecto_nombre",
+         "proyecto.fecha_inicio",
+         "proyecto_equipos.cantidad",
+         "proyecto_equipos.es_cobrable",
+         "proyecto_tarifas.precio_acordado",
+      ])
+      .where("proyecto_equipos.equipo_id", "=", c.req.param("id"))
+      .orderBy("proyecto.fecha_inicio", "desc")
+      .execute();
+
+   return c.json(rows.map(r => ({
+      ...r,
+      subtotal: Number(r.cantidad) * Number(r.precio_acordado),
+   })));
+});
+
 export default equiposRoute;

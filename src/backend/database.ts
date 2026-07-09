@@ -34,6 +34,8 @@ export interface ProyectoEquipoTable {
    equipo_id: string;
    operador_id: string | null;
    proyecto_tarifa_id: string; // <-- El enlace crucial a la tarifa (Snapshot)
+   cantidad: number;
+   es_cobrable: boolean;
    created_at: Generated<Date>;
    updated_at: Generated<Date>;
 }
