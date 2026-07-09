@@ -265,6 +265,16 @@ export interface DB {
       created_at: Generated<Date>;
    };
    
+   unidades: {
+      id: Generated<string>;
+      nombre: string;
+      abreviatura: string;
+      tipo_unidad: string;
+      factor_a_base: number;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   }
+   
    cita: {
       id: Generated<string>;
       cliente_id: string | null;
