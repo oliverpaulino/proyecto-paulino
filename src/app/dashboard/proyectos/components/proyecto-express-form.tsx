@@ -299,7 +299,7 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
                   </div>
                   <div className="space-y-1.5">
                      <SelectBuscadorOperator
-                        value={item.operador_id}
+                        value={item.operador_id ?? null}
                         onChange={(id) => updateEquipo(idx, "operador_id", id ?? "")} />
 
                   </div>

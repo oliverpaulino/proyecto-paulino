@@ -8,6 +8,7 @@ import type {
    ProyectoAsignacionProps,
    TipoProyecto,
    LiquidacionExpressFacade,
+   ProyectoEquipoDetalleProps,
 } from "../domain/proyecto.domain";
 
 export class KyselyProyectoRepository implements IProyectoRepository {
@@ -71,7 +72,7 @@ export class KyselyProyectoRepository implements IProyectoRepository {
 
       if (!row) return null;
 
-      const [detalle, asignaciones] = await Promise.all([
+      const [detalle, asignaciones, equiposDetalleRaw] = await Promise.all([
          this.db
             .selectFrom("proyecto_detalle")
             .selectAll()
@@ -92,9 +93,48 @@ export class KyselyProyectoRepository implements IProyectoRepository {
             ])
             .where("proyecto_asignacion.proyecto_id", "=", id)
             .execute(),
+         this.db
+            .selectFrom("proyecto_equipos")
+            .innerJoin("proyecto_tarifas", "proyecto_tarifas.id", "proyecto_equipos.proyecto_tarifa_id")
+            .innerJoin("equipo", "equipo.id", "proyecto_equipos.equipo_id")
+            .innerJoin("categoria_equipo", "categoria_equipo.id", "proyecto_tarifas.categoria_equipo_id")
+            .leftJoin("operador", "operador.id", "proyecto_equipos.operador_id")
+            .leftJoin("empleado", "empleado.id", "operador.empleado_id")
+            .select([
+               "proyecto_equipos.id",
+               "proyecto_equipos.equipo_id",
+               "equipo.nombre as equipo_nombre",
+               "proyecto_equipos.operador_id",
+               "empleado.nombre as operador_nombre",
+               "proyecto_tarifas.categoria_equipo_id",
+               "categoria_equipo.nombre as categoria_nombre",
+               "proyecto_equipos.cantidad",
+               "proyecto_tarifas.precio_acordado",
+               "proyecto_tarifas.cobra_en_snapshot",
+               "proyecto_equipos.es_cobrable",
+            ])
+            .where("proyecto_equipos.proyecto_id", "=", id)
+            .execute(),
       ]);
 
-      return this.#mapRow(row, detalle, asignaciones);
+      const equiposDetalle: ProyectoEquipoDetalleProps[] = equiposDetalleRaw.map((e) => ({
+         id: e.id,
+         equipo_id: e.equipo_id,
+         equipo_nombre: e.equipo_nombre ?? undefined,
+         operador_id: e.operador_id,
+         operador_nombre: (e.operador_nombre as string) ?? undefined,
+         categoria_equipo_id: e.categoria_equipo_id,
+         categoria_nombre: (e.categoria_nombre as string) ?? undefined,
+         cantidad: Number(e.cantidad),
+         precio_acordado: Number(e.precio_acordado),
+         cobra_en_snapshot: e.cobra_en_snapshot,
+         subtotal: Number(e.cantidad) * Number(e.precio_acordado),
+         es_cobrable: e.es_cobrable,
+      }));
+
+      return this.#mapRow(row, detalle, asignaciones, equiposDetalle);
+
+
    }
 
    async createExpress(data: CreateProyectoExpressDTO): Promise<ProyectoProps> {
@@ -318,7 +358,8 @@ export class KyselyProyectoRepository implements IProyectoRepository {
    #mapRow(
       row: Record<string, unknown>,
       detalle: Array<Record<string, unknown>>,
-      asignaciones: Array<Record<string, unknown>>
+      asignaciones: Array<Record<string, unknown>>,
+      equiposDetalle: ProyectoEquipoDetalleProps[] = []
    ): ProyectoProps {
       const tipo = row.tipo_proyecto as string;
 
@@ -361,6 +402,7 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          updated_at: new Date(row.updated_at as string),
          detalle: mappedDetalle,
          asignaciones: mappedAsignaciones,
+         equiposDetalle,
       };
 
       if (tipo === "EXPRESS") {

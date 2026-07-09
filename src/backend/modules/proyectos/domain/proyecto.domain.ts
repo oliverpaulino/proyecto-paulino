@@ -54,9 +54,26 @@ export type ProyectoProps = ProyectoTypeFields & {
    fecha_fin: Date | null;
    detalle: ProyectoDetalleProps[];
    asignaciones: ProyectoAsignacionProps[];
+   equiposDetalle: ProyectoEquipoDetalleProps[]; // ← nuevo
    created_at: Date;
    updated_at: Date;
 };
+export interface ProyectoEquipoDetalleProps {
+   id: string;
+   equipo_id: string;
+   equipo_nombre?: string;
+   operador_id: string | null;
+   operador_nombre?: string;
+   categoria_equipo_id: string;
+   categoria_nombre?: string;
+   cantidad: number;
+   precio_acordado: number;
+   cobra_en_snapshot: string | null;
+   subtotal: number;
+   es_cobrable: boolean;
+}
+
+
 
 // ─── DTO de creación — Proyecto Express ──────────────────────────────────────
 export interface CreateProyectoExpressDTO {

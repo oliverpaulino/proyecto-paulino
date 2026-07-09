@@ -15,6 +15,21 @@ const ProyectoDetalleSchema = z.object({
    updated_at: z.coerce.date(),
 });
 
+export const ProyectoEquipoDetalleSchema = z.object({
+   id: z.string(),
+   equipo_id: z.string(),
+   equipo_nombre: z.string().optional(),
+   operador_id: z.string().nullable(),
+   operador_nombre: z.string().optional(),
+   categoria_equipo_id: z.string(),
+   categoria_nombre: z.string().optional(),
+   cantidad: z.number(),
+   precio_acordado: z.number(),
+   cobra_en_snapshot: z.string().nullable(),
+   subtotal: z.number(),
+   es_cobrable: z.boolean(),
+});
+
 const ProyectoAsignacionSchema = z.object({
    id: z.string(),
    proyecto_id: z.string(),
@@ -42,6 +57,7 @@ export const ProyectoDTO = z.discriminatedUnion("tipo_proyecto", [
       fecha_fin: z.coerce.date().nullable(),
       detalle: z.array(ProyectoDetalleSchema),
       asignaciones: z.array(ProyectoAsignacionSchema),
+      equiposDetalle: z.array(ProyectoEquipoDetalleSchema).optional(),
       created_at: z.coerce.date(),
       updated_at: z.coerce.date(),
    }),
@@ -148,10 +164,13 @@ export const CreateProyectoExpressDTOSchema = z.object({
    gastos_internos: z.array(z.any()).optional(),
 });
 
+
+
+
+
+
 export type CreateProyectoExpressDTO = z.infer<typeof CreateProyectoExpressDTOSchema>;
-
-
-
+export type ProyectoEquipoDetalle = z.infer<typeof ProyectoEquipoDetalleSchema>;
 export type Proyecto = z.infer<typeof ProyectoDTO>;
 export type ProyectoExpressDTO = Extract<Proyecto, { tipo_proyecto: "EXPRESS" }>;
 export type ProyectoDetalle = z.infer<typeof ProyectoDetalleSchema>;

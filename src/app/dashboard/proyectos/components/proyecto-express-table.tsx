@@ -26,6 +26,8 @@ export function ProyectoExpressTable({ proyectos }: Props) {
       );
    }
 
+   console.log("Proyectos Express:", proyectos);
+
    return (
       <div className="rounded-xl border overflow-hidden">
          <Table>
@@ -41,6 +43,7 @@ export function ProyectoExpressTable({ proyectos }: Props) {
                </TableRow>
             </TableHeader>
             <TableBody>
+
                {proyectos.map((p) => {
                   const asig = p.asignaciones[0];
                   const tarifa = p.tipo_proyecto === "EXPRESS" ? p.tarifa_servicio : 0;
@@ -52,7 +55,8 @@ export function ProyectoExpressTable({ proyectos }: Props) {
                            {p.cliente_nombre ?? p.cliente_id.slice(0, 8) + "…"}
                         </TableCell>
                         <TableCell className="text-right text-muted-foreground">
-                           RD$ {tarifa.toLocaleString("es-DO")}
+                           {/* RD$ {tarifa.toLocaleString("es-DO")} */}
+                           {p.asignaciones.length > 0 && "Varias Tarifas"}
                         </TableCell>
                         <TableCell className="text-right font-medium text-green-700">
                            RD$ {p.total_cobrable.toLocaleString("es-DO")}
