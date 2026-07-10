@@ -13,6 +13,7 @@ export interface EquipoProps {
    nombre: string;
    categoria_id: string;
    operador_id: string | null;
+   operador_nombre: string | null;
    categoria_nombre: string;
    cobra_en: string;
    cobra_minimo: number | null;
@@ -36,6 +37,7 @@ export class Equipo {
    get nombre(): string { return this.props.nombre; }
    get categoria_id(): string { return this.props.categoria_id; }
    get operador_id(): string | null { return this.props.operador_id; }
+   get operador_nombre(): string | null { return this.props.operador_nombre }
    get categoria_nombre(): string { return this.props.categoria_nombre; }
    get estado(): EstadoEquipo { return this.props.estado; }
    get costo_por_hora(): number { return this.props.costo_por_hora; }

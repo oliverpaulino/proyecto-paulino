@@ -173,6 +173,7 @@ export interface DB {
       id: Generated<string>;
       nombre: string;
       operador_id: string | null;
+      operador_nombre: string | null;
       categoria_id: string;
       estado: Generated<string>;
       costo_por_hora: Generated<number>;

@@ -120,7 +120,6 @@ export const useEquipoStore = create<EquipoStore>((set, get) => ({
    GetOperadorByEquipoId: async (id) => {
       try {
          const res = await fetch(`/api/equipos/${id}/operador`);
-         console.log("estatus", res.ok)
          if (!res.ok) throw new Error("Error al cargar operador del equipo");
          const data = await res.json();
          return data;

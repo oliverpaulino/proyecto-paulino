@@ -12,6 +12,7 @@ const EquipoDTO = z.object({
    id: z.string(),
    nombre: z.string(),
    operador_id: z.string().nullable(),
+   operador_nombre: z.string().nullable(),
    categoria_id: z.string(),
    categoria_nombre: z.string(),
    // cobra_en: z.string(),
@@ -28,6 +29,7 @@ const EquipoDTO = z.object({
 const CreateEquipoDTO = z.object({
    nombre: z.string().min(1),
    operador_id: z.string().nullable().optional(),
+   operador_nombre: z.string().nullable().optional(),
    categoria_id: z.string(),
    estado: z.enum(ESTADOS_EQUIPO).optional(),
    // costo_por_hora: z.coerce.number().min(0).optional(),

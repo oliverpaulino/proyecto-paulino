@@ -139,6 +139,7 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
       try {
          const operadorAsignable = await GetOperadorByEquipoId(equipo.id);
          // OperadorAsignable.id === empleado_id, matchea directo con el <Select> de operadores
+         console.log(operadorAsignable, "hola");
          if (operadorAsignable && !(operadorAsignable instanceof Error)) {
             updateEquipo(idx, "operador_id", operadorAsignable.id);
          } else {
@@ -230,6 +231,7 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
 
          cargos_cobrables: cobrables,
          gastos_internos: internos,
+         tarifa_servicio: tarifaServicio,
       };
 
       await onSubmit(payload as any);
@@ -292,7 +294,7 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
                   />
                   <div className="space-y-1.5">
                      <SelectBuscarEquipos
-                        value={item.equipo_id}
+                        value={item.equipo_id ?? null}
                         onChange={(id, equipo) => handleSelectEquipo(idx, id, equipo)}
                         exclude={equiposUsar}
                      />

@@ -81,7 +81,7 @@ export default function ClientDetailPage() {
    const router = useRouter();
    const clientId = params.id as string;
 
-   const { selectedClient, getClient } = useClientStore();
+   const { selectedClient, GetClient } = useClientStore();
 
    const {
       Contacts,
@@ -107,14 +107,14 @@ export default function ClientDetailPage() {
    useEffect(() => {
       const loadClient = async () => {
          setLoading(true);
-         const client = await getClient(clientId);
+         const client = await GetClient(clientId);
          setSelectedClient(client);
          document.title = client ? `${client.nombre}` : "Cargando Cliente...";
          setLoading(false);
       };
 
       loadClient();
-   }, [clientId, getClient, setSelectedClient]);
+   }, [clientId, GetClient, setSelectedClient]);
 
    const totalContacts = Contacts.length;
 
@@ -129,7 +129,7 @@ export default function ClientDetailPage() {
    );
 
    async function refreshClient() {
-      getClient(clientId);
+      GetClient(clientId);
    }
 
    async function handleUpdateClient(values: {

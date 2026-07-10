@@ -32,6 +32,7 @@ export function SelectBuscarEquipos({
    const [operator, setOperator] = useState<OperadorAsignable | null>(null);
    const [isOpen, setIsOpen] = useState(false);
    const [inputValue, setInputValue] = useState(initialLabel);
+   const [hasTyped, setHasTyped] = useState(false);
    const containerRef = useRef<HTMLDivElement>(null);
 
    const debouncedSearch = useDebounce(inputValue, 500);
@@ -81,15 +82,25 @@ export function SelectBuscarEquipos({
    useEffect(() => {
       if (!isOpen) return;
 
-      if (debouncedSearch.trim() !== "") {
-         GetEquipos({ search: debouncedSearch, limit: 20, force: true });
-      } else {
-         GetEquipos({ search: "", limit: 20, force: true });
+      if (!hasTyped) {
+         GetEquipos({
+            search: "",
+            limit: 20,
+            force: true,
+         });
+         return;
       }
-   }, [debouncedSearch, isOpen, GetEquipos]);
+
+      GetEquipos({
+         search: debouncedSearch,
+         limit: 20,
+         force: true,
+      });
+   }, [debouncedSearch, hasTyped, isOpen, GetEquipos]);
 
    const handleSelect = (equipo: Equipo) => {
       setInputValue(equipo.nombre);
+      setHasTyped(false);
       onChange(equipo.id, equipo);
       setIsOpen(false);
    };
@@ -112,10 +123,12 @@ export function SelectBuscarEquipos({
                value={inputValue}
                onChange={(e) => {
                   setInputValue(e.target.value);
+                  setHasTyped(true);
+
                   if (e.target.value === "") onChange(null, null);
                   if (!isOpen) setIsOpen(true);
                }}
-               onFocus={() => setIsOpen(true)}
+               onFocus={() => { setHasTyped(false); setIsOpen(true) }}
                disabled={disabled}
                placeholder={placeholder}
                className="h-10 w-full rounded-md border border-input bg-input/30 pl-9 pr-9 py-2 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"

@@ -16,6 +16,7 @@ type EquipoRow = {
    nombre: string;
    categoria_id: string;
    operador_id: string | null;
+   operador_nombre: string | null;
    categoria_nombre: string;
    cobra_en: string;
    cobra_minimo: number | string | null;
@@ -34,6 +35,7 @@ function toDomain(row: EquipoRow): Equipo {
       nombre: row.nombre,
       categoria_id: row.categoria_id,
       operador_id: row.operador_id,
+      operador_nombre: row.operador_nombre ?? null,
       categoria_nombre: row.categoria_nombre,
       cobra_en: row.cobra_en,
       cobra_minimo: row.cobra_minimo == null ? null : Number(row.cobra_minimo),
@@ -55,6 +57,8 @@ export class KyselyEquipoRepository implements IEquipoRepository {
       let qb = this.db
          .selectFrom("equipo")
          .innerJoin("categoria_equipo", "categoria_equipo.id", "equipo.categoria_id")
+         .innerJoin("operador", "operador.id", "equipo.operador_id")
+         .innerJoin("empleado", "empleado.id", "operador.empleado_id")
          .select([
             "equipo.id",
             "equipo.nombre",
@@ -68,6 +72,7 @@ export class KyselyEquipoRepository implements IEquipoRepository {
             "equipo.modelo",
             "equipo.ano",
             "equipo.operador_id",
+            "empleado.nombre as operador_nombre",
             "equipo.created_at",
             "equipo.updated_at",
          ])
@@ -92,6 +97,8 @@ export class KyselyEquipoRepository implements IEquipoRepository {
       const row = await this.db
          .selectFrom("equipo")
          .innerJoin("categoria_equipo", "categoria_equipo.id", "equipo.categoria_id")
+         .innerJoin("operador", "operador.id", "equipo.operador_id")
+         .innerJoin("empleado", "empleado.id", "operador.empleado_id")
          .select([
             "equipo.id",
             "equipo.nombre",
@@ -105,6 +112,7 @@ export class KyselyEquipoRepository implements IEquipoRepository {
             "equipo.modelo",
             "equipo.ano",
             "equipo.operador_id",
+            "empleado.nombre as operador_nombre",
             "equipo.created_at",
             "equipo.updated_at",
          ])
@@ -170,6 +178,7 @@ export class KyselyEquipoRepository implements IEquipoRepository {
             "categoria_equipo.nombre",
             "categoria_equipo.cobra_en",
             "categoria_equipo.cobra_minimo",
+            "categoria_equipo.medida_cobro_id",
             "categoria_equipo.precio_unitario",
             "categoria_equipo.created_at",
             "categoria_equipo.updated_at",

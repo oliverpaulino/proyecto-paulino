@@ -73,7 +73,7 @@ export function SelectBuscadorOperator({
       } else {
          GetOperators({ search: "", limit: 20, force: true });
       }
-   }, [debouncedSearch, isOpen, GetOperators]);
+   }, [debouncedSearch, isOpen, GetOperators, hasTyped]);
 
    const handleSelect = (operator: OperadorAsignable) => {
       setInputValue(operator.nombre);
@@ -106,7 +106,7 @@ export function SelectBuscadorOperator({
                   if (e.target.value === "") onChange(null);
                   if (!isOpen) setIsOpen(true);
                }}
-               onFocus={() => setIsOpen(true)}
+               onFocus={() => { setHasTyped(false); setIsOpen(true) }}
                disabled={disabled}
                placeholder={placeholder}
                className="h-10 w-full rounded-md border border-input bg-input/30 pl-9 pr-9 py-2 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
