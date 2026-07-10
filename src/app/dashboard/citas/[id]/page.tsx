@@ -269,7 +269,9 @@ export default function AppointmentDetailPage() {
                   <CardContent>
                      {cita.notas ? (
                         <div className="rounded-lg border border-border bg-muted/20 p-4 text-sm whitespace-pre-wrap text-foreground">
-                           {cita.notas}
+                           <p className="break-words">
+                              {cita.notas}
+                           </p>
                         </div>
                      ) : (
                         <div className="flex flex-col items-center justify-center gap-2 py-6 text-muted-foreground">
@@ -301,7 +303,10 @@ export default function AppointmentDetailPage() {
                   <CardContent>
                      {cita.notas ? (
                         <div className="rounded-lg border border-border bg-muted/20 p-4 text-sm whitespace-pre-wrap text-foreground">
-                           {cita.notas}
+                           <p className="break-words">
+                              {cita.notas}
+
+                           </p>
                         </div>
                      ) : (
                         <div className="flex flex-col items-center justify-center gap-4 py-10 text-center text-muted-foreground">
