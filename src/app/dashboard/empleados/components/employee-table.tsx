@@ -70,10 +70,10 @@ export function EmployeeTable({ employees, onEdit, onDelete }: EmployeeTableProp
                      key={employee.id}
                      className="border-t border-border hover:bg-brand-blue/5 transition-colors"
                   >
-                     <td className="px-4 py-3">
+                     <td className="px-4 py-3 hover:bg-brand-yellow/25 transition-colors">
                         <Link href={`/dashboard/empleados/${employee.id}`} className="" >
                            <div className="text-xs text-muted-foreground">{employee.tipo_identificacion}</div>
-                           <span className="inline-block rounded bg-brand-yellow/25 px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-black dark:text-brand-yellow">
+                           <span className="inline-block rounded bg-brand-yellow/25  px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-black dark:text-brand-yellow">
                               {employee.identificacion}
                            </span>
                         </Link>
