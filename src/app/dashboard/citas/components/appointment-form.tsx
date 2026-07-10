@@ -51,7 +51,7 @@ export function AppointmentForm({
       notas: initialData?.notas ?? "",
    });
 
-// Cargar nombres si estamos editando y no tenemos el objeto completo
+   // Cargar nombres si estamos editando y no tenemos el objeto completo
    useEffect(() => {
       async function loadInitialData() {
          if (initialData?.cliente_id && !nombreCliente) {
@@ -59,7 +59,7 @@ export function AppointmentForm({
             const nombreReal = data?.nombre;
             setNombreCliente(nombreReal ?? "Cliente no encontrado");
          }
-         
+
          if (initialData?.employee_id && !nombreEmpleado) {
             const data = await GetEmployeeDetails(initialData.employee_id, false);
             const nombreEmpReal = data?.empleado?.nombre;
@@ -163,7 +163,7 @@ export function AppointmentForm({
                onChange={(e) => set("motivo", e.target.value)}
                placeholder="Ej: Revisión técnica..."
                required
-               className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 transition-colors"
+               className="flex min-h-[30vh] w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 transition-colors"
             />
          </div>
 

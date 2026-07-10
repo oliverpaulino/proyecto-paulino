@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useAppointmentStore } from "@/stores/useAppointmentStore"; 
+import { useAppointmentStore } from "@/stores/useAppointmentStore";
 import { Button } from "@/components/ui/button";
 import {
    Card,
@@ -32,7 +32,7 @@ import {
    FileText,
    Layers,
 } from "lucide-react";
-import { AppointmentForm } from "../components/appointment-form"; 
+import { AppointmentForm } from "../components/appointment-form";
 
 const ESTADO_LABEL: Record<string, string> = {
    ASIGNADA: "Asignada",
@@ -97,7 +97,7 @@ export default function AppointmentDetailPage() {
       setActionLoading(true);
       try {
          await DeleteAppointment(citaId);
-         router.push("/dashboard/citas"); 
+         router.push("/dashboard/citas");
       } finally {
          setActionLoading(false);
       }
@@ -225,8 +225,8 @@ export default function AppointmentDetailPage() {
                         <CardDescription>Auditoría de tiempos del sistema.</CardDescription>
                      </CardHeader>
                      <CardContent className="space-y-4">
-                        <InfoField label="Creado el" value={new Date(cita.created_at).toLocaleDateString("es-DO") + " " + new Date(cita.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} />
-                        <InfoField label="Actualizado el" value={new Date(cita.updated_at).toLocaleDateString("es-DO") + " " + new Date(cita.updated_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} />
+                        <InfoField label="Creado el" value={new Date(cita.created_at).toLocaleDateString("es-DO") + " " + new Date(cita.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} />
+                        <InfoField label="Actualizado el" value={new Date(cita.updated_at).toLocaleDateString("es-DO") + " " + new Date(cita.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} />
                      </CardContent>
                   </Card>
                </div>
@@ -242,8 +242,11 @@ export default function AppointmentDetailPage() {
                   </CardHeader>
                   <CardContent>
                      {cita.motivo ? (
-                        <div className="rounded-lg border border-border bg-muted/20 p-4 text-sm whitespace-pre-wrap text-foreground font-medium">
-                           {cita.motivo}
+                        <div className="rounded-lg border border-border max-w-full bg-muted/20 p-4 text-sm whitespace-pre-wrap text-foreground font-medium">
+                           <p className="break-words" title={cita.motivo}>
+                              {cita.motivo}
+
+                           </p>
                         </div>
                      ) : (
                         <div className="flex flex-col items-center justify-center gap-2 py-6 text-muted-foreground">
