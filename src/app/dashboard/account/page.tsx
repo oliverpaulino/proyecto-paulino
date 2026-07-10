@@ -26,11 +26,11 @@ import { User, Mail, ShieldCheck, Loader2, ArrowRight, KeyRound } from "lucide-r
 import Link from "next/link";
 
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {
-  administrador: { label: "Administrador", color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
+  administrador: { label: "Administrador", color: "bg-red-500/10 text-red-600 border-red-500/20" },
   coordinador: { label: "Coordinador", color: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
   contable: { label: "Contable", color: "bg-violet-500/10 text-violet-600 border-violet-500/20" },
-  asistente: { label: "Asistente", color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" },
-  usuario: { label: "Usuario", color: "bg-muted text-muted-foreground border-border" },
+  asistente: { label: "Asistente", color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
+  usuario: { label: "Usuario", color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" },
 };
 
 export default function AccountPage() {
@@ -58,31 +58,7 @@ export default function AccountPage() {
 
   return (
     <>
-
-      {/* // <SidebarProvider> */}
-      {/* <AppSidebar /> */}
-      {/* // <SidebarInset> */}
-      {/* ── header ── */}
-      <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-        <div className="flex items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href="/dashboard">Inicio</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator className="hidden md:block" />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Mi cuenta</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-      </header>
-
       <div className="flex flex-1 flex-col gap-0 w-full max-w-2xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-
         {/* ── identity card ── */}
         <div className="mb-8 flex flex-wrap items-center gap-4">
           <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-xl font-bold tracking-tight select-none">
@@ -162,10 +138,7 @@ export default function AccountPage() {
             <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
           </Link>
         </Section>
-
       </div>
-      {/* // </SidebarInset> */}
-      {/* // </SidebarProvider> */}
     </>
   )
 }

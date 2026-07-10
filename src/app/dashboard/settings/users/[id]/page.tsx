@@ -6,16 +6,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import {
   SidebarInset,
   SidebarProvider,
-  SidebarTrigger,
 } from "@/components/ui/sidebar";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,29 +33,31 @@ const ROLES = ["usuario", "asistente", "coordinador", "contable", "administrador
 type Role = (typeof ROLES)[number];
 
 const ROLE_META: Record<string, { color: string; desc: string }> = {
-  administrador: { color: "border-amber-500/40 bg-amber-500/10 text-amber-600",   desc: "Acceso total al sistema" },
+  administrador: { color: "border-red-500/40 bg-red-500/10 text-red-600",   desc: "Acceso total al sistema" },
   coordinador:   { color: "border-blue-500/40 bg-blue-500/10 text-blue-600",       desc: "Gestión de proyectos y tareas" },
   contable:      { color: "border-violet-500/40 bg-violet-500/10 text-violet-600", desc: "Contabilidad, nómina y pagos" },
-  asistente:     { color: "border-emerald-500/40 bg-emerald-500/10 text-emerald-600", desc: "Tareas, citas y recepción" },
-  usuario:       { color: "border-border bg-muted text-muted-foreground",           desc: "Solo lectura y consultas" },
+  asistente:     { color: "border-amber-500/40 bg-amber-500/10 text-amber-600", desc: "Tareas, citas y recepción" },
+  usuario:       { color: "border-emerald-500/40 bg-emerald-500/10 text-emerald-600",     desc: "Solo lectura y consultas" },
 };
 
 interface UserRecord {
   id: string;
   name: string;
   email: string;
+  emailVerified?: boolean;
+  image?: string | null;
   role: string | null;
   banned: boolean | null;
   createdAt: Date;
+  updatedAt?: Date;
 }
 
 export default function EditUserPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const router  = useRouter();
+  const router = useRouter();
 
   const [user,       setUser]       = useState<UserRecord | null>(null);
   const [loading,    setLoading]    = useState(true);
-  const [name,       setName]       = useState("");
   const [role,       setRole]       = useState<Role>("usuario");
   const [saving,     setSaving]     = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -77,7 +70,6 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
       const found = (data?.users as UserRecord[] | undefined)?.find((u) => u.id === id) ?? null;
       if (found) {
         setUser(found);
-        setName(found.name);
         setRole((found.role as Role) ?? "usuario");
       }
       setLoading(false);
@@ -89,19 +81,19 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
     if (!user) return;
     setSaving(true);
 
+    // Solo actualizamos el rol
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [roleRes, nameRes] = await Promise.all([
-      (authClient.admin as any).setRole({ userId: user.id, role }),
-      (authClient.admin as any).setUserInfo
-        ? (authClient.admin as any).setUserInfo({ userId: user.id, name })
-        : Promise.resolve({ error: null }),
-    ]);
+    const { error } = await (authClient.admin as any).setRole({ userId: user.id, role });
 
     setSaving(false);
 
-    if (roleRes?.error) { toast.error(roleRes.error.message ?? "Error al guardar rol"); return; }
-    toast.success("Usuario actualizado");
-    setUser((u) => u ? { ...u, name, role } : u);
+    if (error) { 
+      toast.error(error.message ?? "Error al guardar rol"); 
+      return; 
+    }
+    
+    toast.success("Rol del usuario actualizado");
+    setUser((u) => u ? { ...u, role } : u);
   };
 
   const handleBanToggle = async () => {
@@ -168,33 +160,16 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
 
   return (
     <SidebarProvider>
-      <AppSidebar />
       <SidebarInset>
-        {/* header */}
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <span className="mr-2 h-4 w-px bg-border" />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="/dashboard/settings/users">Usuarios</BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage className="max-w-[140px] truncate">{user.name}</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </div>
-        </header>
-
         <div className="flex flex-1 flex-col w-full max-w-xl mx-auto px-4 py-6 sm:px-6 gap-0">
-
-          {/* identity */}
+          {/* Identity Header */}
           <div className="mb-8 flex items-center gap-4">
             <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-lg font-bold tracking-tight select-none">
-              {initials}
+              {user.image ? (
+                <img src={user.image} alt={user.name} className="h-full w-full rounded-2xl object-cover" />
+              ) : (
+                initials
+              )}
               {user.banned && (
                 <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground">
                   <Ban className="h-3 w-3" />
@@ -204,9 +179,11 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
             <div className="min-w-0 flex-1">
               <p className="font-semibold truncate">{user.name}</p>
               <p className="text-sm text-muted-foreground truncate">{user.email}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Creado {new Date(user.createdAt).toLocaleDateString("es-DO", { day: "2-digit", month: "long", year: "numeric" })}
-              </p>
+              {user.emailVerified && (
+                <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold text-emerald-600 mt-1 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                  <CheckCircle2 className="h-3 w-3" /> Verificado
+                </span>
+              )}
             </div>
             {user.banned && (
               <span className="shrink-0 rounded-full border border-destructive/40 bg-destructive/10 px-2.5 py-0.5 text-xs font-medium text-destructive">
@@ -215,34 +192,59 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
             )}
           </div>
 
-          {/* form */}
           <form onSubmit={handleSave} className="grid gap-6">
 
+            {/* User Data (Read Only) */}
             <SectionHeader icon={User} title="Datos del usuario" />
-            <div className="grid gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid gap-1.5 md:col-span-2">
+                <Label htmlFor="u-id" className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                  ID de Usuario
+                </Label>
+                <Input id="u-id" value={user.id.slice(0, 10).concat("...")} disabled className="opacity-60 cursor-not-allowed font-mono text-xs" />
+              </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="u-name" className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
                   Nombre
                 </Label>
-                <Input
-                  id="u-name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Nombre completo"
-                  required
-                />
+                <Input id="u-name" value={user.name} disabled className="opacity-60 cursor-not-allowed" />
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="u-email" className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
                   Correo electrónico
                 </Label>
                 <Input id="u-email" value={user.email} disabled className="opacity-60 cursor-not-allowed" />
-                <p className="text-[11px] text-muted-foreground">El correo no es editable desde este panel.</p>
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="u-created" className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                  Fecha de registro
+                </Label>
+                <Input 
+                  id="u-created" 
+                  value={new Date(user.createdAt).toLocaleString("es-DO", { dateStyle: "medium", timeStyle: "short" })} 
+                  disabled 
+                  className="opacity-60 cursor-not-allowed" 
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="u-updated" className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                  Última actualización
+                </Label>
+                <Input 
+                  id="u-updated" 
+                  value={user.updatedAt ? new Date(user.updatedAt).toLocaleString("es-DO", { dateStyle: "medium", timeStyle: "short" }) : "N/D"} 
+                  disabled 
+                  className="opacity-60 cursor-not-allowed" 
+                />
               </div>
             </div>
+            <p className="text-[11px] text-muted-foreground -mt-2">
+              Los datos personales son de solo lectura. El usuario debe modificarlos desde su propia cuenta.
+            </p>
 
             <Separator />
 
+            {/* Role Assignment */}
             <SectionHeader icon={ShieldCheck} title="Rol y permisos" />
             <div className="grid gap-3">
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
@@ -269,17 +271,16 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
                 })}
               </div>
             </div>
-
             <div className="flex justify-end pt-2">
               <Button type="submit" size="sm" disabled={saving}>
-                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Guardar cambios"}
+                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Guardar rol"}
               </Button>
             </div>
           </form>
 
           <Separator className="my-6" />
 
-          {/* danger zone */}
+          {/* Danger Zone */}
           <SectionHeader icon={AlertTriangle} title="Zona de peligro" className="text-destructive/70" />
           <div className="mt-4 grid gap-3">
             <div className="flex items-center justify-between rounded-lg border border-border bg-muted/20 px-4 py-3">
@@ -312,13 +313,13 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
         </div>
       </SidebarInset>
 
-      {/* delete confirm dialog */}
+      {/* Delete confirm dialog */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
               <AlertTriangle className="h-5 w-5" />
-              ¿Eliminar a {user.name}?
+              ¿Eliminar a {user?.name}?
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
