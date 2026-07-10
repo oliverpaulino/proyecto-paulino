@@ -49,7 +49,7 @@ export default function ProyectosPage() {
    useEffect(() => {
       GetProyectos("EXPRESS");
       document.title = "Proyectos"
-   }, [GetProyectos]);
+   }, [GetProyectos, proyectos.length]);
 
    const expressList = proyectos.filter((p) => p.tipo_proyecto === "EXPRESS");
    const completados = expressList.filter((p) => p.estado === "COMPLETADO").length;

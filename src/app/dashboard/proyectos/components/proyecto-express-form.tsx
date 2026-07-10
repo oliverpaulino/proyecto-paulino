@@ -36,6 +36,7 @@ export interface EquipoUsarItem {
    cantidad: number;
    unidad_medida: string; // categoria.cobra_en
    precio_unitario: number; // categoria.precio_unitario — solo lectura
+   cobro_minimo_snapshot: number; // snapshot de la categoría al momento de crear el proyecto
    es_cobrable: boolean;    // si se incluye en el cobro al cliente
 }
 
@@ -46,6 +47,7 @@ const emptyEquipo = (): EquipoUsarItem => ({
    unidad_medida: "",
    precio_unitario: 0,
    categoria_equipo_id: "",
+   cobro_minimo_snapshot: 0,
    es_cobrable: true,
 });
 
@@ -128,6 +130,7 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
          categoria_equipo_id: equipo.categoria_id,
          unidad_medida: categoria?.cobra_en ?? "",
          precio_unitario: categoria?.precio_unitario ?? 0,
+         cantidad: categoria?.cobra_minimo ?? 0,
       });
 
       if (!equipo.operador_id) {
@@ -211,7 +214,7 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
                      categoria_equipo_id: e.categoria_equipo_id,
                      precio_acordado: e.precio_unitario > 0 ? e.precio_unitario : 0.01,
                      cobra_en_snapshot: e.unidad_medida || "no tiene",
-                     cobra_minimo_snapshot: e.precio_unitario > 0 ? e.precio_unitario : 0.01,
+                     cobra_minimo_snapshot: e.cobro_minimo_snapshot || 0,
                   };
                }
                return acc;
@@ -314,10 +317,10 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
                      <Input
                         type="number"
                         placeholder={item.unidad_medida || "Cant."}
-                        className="w-full bg-muted/50 text-muted-foreground cursor-not-allowed"
+                        className="w-full bg-muted/50 text-muted-foreground "
                         min={0}
                         step="0.5"
-                        value={item.cantidad || 0}
+                        value={item.cantidad + item.cobro_minimo_snapshot || 0}
                         onChange={(e) => updateEquipo(idx, "cantidad", Number(e.target.value))}
                      />
                   </div>
@@ -326,12 +329,13 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
                      <Input
                         type="number"
                         placeholder="P. Unit."
-                        className="w-full bg-muted/50 text-muted-foreground cursor-not-allowed"
+                        className="w-full bg-muted/50 text-muted-foreground "
                         min={0}
                         step="0.01"
                         value={item.precio_unitario || 0}
-                        readOnly
-                        disabled
+                        onChange={(e) => updateEquipo(idx, "precio_unitario", Number(e.target.value))}
+                        // readOnly
+                        // disabled
                         title="Precio definido por la categoría del equipo"
                      />
                   </div>

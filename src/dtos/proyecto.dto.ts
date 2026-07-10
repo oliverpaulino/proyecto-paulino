@@ -152,8 +152,10 @@ export const EquipoAsignadoSchema = z.object({
 // El Payload completo para crear un Proyecto Express
 export const CreateProyectoExpressDTOSchema = z.object({
    cliente_id: z.string("Seleccione un cliente válido"),
+   nombre: z.string().min(1, "El nombre del proyecto es requerido"),
+   notas: z.string().optional(),
    servicio_id: z.string({ message: "ID de servicio inválido" }).nullable().optional(),
-   nombre: z.string(),
+   tarifa_servicio: z.number().min(0, "La tarifa debe ser >= 0").optional(),
    fecha_inicio: z.string().datetime().optional(),
 
    // Arrays con la configuración que el usuario armó en la UI

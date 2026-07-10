@@ -36,6 +36,7 @@ export function ProyectoExpressTable({ proyectos }: Props) {
                <TableRow className="bg-muted/40">
                   <TableHead>Cliente</TableHead>
                   <TableHead className="text-right">Tarifa</TableHead>
+                  <TableHead className="text-right">Total en Camiones</TableHead>
                   <TableHead className="text-right">Total Cobrable</TableHead>
                   <TableHead className="text-right">Gastos Internos</TableHead>
                   <TableHead className="text-right">Rentabilidad</TableHead>
@@ -47,7 +48,7 @@ export function ProyectoExpressTable({ proyectos }: Props) {
 
                {proyectos.map((p) => {
                   console.log(p)
-                  const asig = p.asignaciones[0];
+                  const totalCamiones = p.detalle.reduce((acc, item) => acc + item.subtotal, 0);
                   const tarifa = p.tipo_proyecto === "EXPRESS" ? p.tarifa_servicio : 0;
                   const rent = p.rentabilidad;
 
@@ -60,6 +61,9 @@ export function ProyectoExpressTable({ proyectos }: Props) {
                            {tarifa.toLocaleString
                               ? `RD$ ${tarifa.toLocaleString("es-DO")}`
                               : tarifa}
+                        </TableCell>
+                        <TableCell className="text-right font-medium text-green-700">
+                           RD$ {totalCamiones.toLocaleString("es-DO")}
                         </TableCell>
                         <TableCell className="text-right font-medium text-green-700">
                            RD$ {p.total_cobrable.toLocaleString("es-DO")}

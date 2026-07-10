@@ -52,9 +52,10 @@ proyectosRoute.post("/express", async (c) => {
 
       // 2. Obtenemos el body crudo que mandó el Frontend
       const rawBody = await c.req.json();
-
+      console.log("rawBody recibido en route:", rawBody);
       // 3. VALIDACIÓN NORMAL Y MANUAL CON ZOD
       const validation = CreateProyectoExpressDTOSchema.safeParse(rawBody);
+      console.log("validation result:", validation);
 
       // 4. Si la validación falla, controlamos el error manualmente
       if (!validation.success) {

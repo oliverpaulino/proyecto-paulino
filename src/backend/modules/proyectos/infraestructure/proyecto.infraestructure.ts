@@ -153,6 +153,7 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          // const nombreServicio = servicio ? servicio.nombre : "Desconocido";
 
          // 2 — Cabecera: estado COMPLETADO para Express
+         console.log(data.tarifa_servicio, "TARIFA SERVICIO");
          const header = await trx
             .insertInto("proyecto")
             .values({
@@ -162,7 +163,7 @@ export class KyselyProyectoRepository implements IProyectoRepository {
                cliente_id: data.cliente_id,
                servicio_id: data.servicio_id ?? null,
                tipo_servicio_id: data.servicio_id ?? null,
-               tarifa_servicio: data.tarifas[0]?.precio_acordado ?? 0,
+               tarifa_servicio: data.tarifa_servicio ?? 0,
 
                notas: data.notas ?? null,
                fecha_inicio: data.fecha_inicio ?? new Date(),

@@ -22,6 +22,7 @@ export class ProyectoService {
       if (!data.cliente_id?.trim()) throw new Error("El cliente es requerido");
       // if (!data.servicio_id?.trim()) throw new Error("El servicio es requerido");
       if (!data.tarifas || data.tarifas.length === 0) throw new Error("Debe agregar al menos una tarifa");
+      console.log("data desde service:", data);
 
       // Validar las tablas de gastos y cargos
       this.#validateItems(data.cargos_cobrables || [], "cargo cobrable");

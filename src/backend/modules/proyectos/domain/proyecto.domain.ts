@@ -82,10 +82,9 @@ export interface CreateProyectoExpressDTO {
    cliente_id: string;
    notas?: string | null;
    fecha_inicio?: Date;
+   tarifa_servicio?: number; // <-- Corregido de 'any' a 'number'
 
-   // ❌ ELIMINAR: tarifa_servicio, empleado_id, equipo_id, horas_trabajadas, tipo_servicio_id
 
-   // ✅ Los nuevos arrays obligatorios/opcionales
    tarifas: Array<{
       categoria_equipo_id: string;
       precio_acordado: number;
