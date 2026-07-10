@@ -109,6 +109,8 @@ export interface IEmployeeRepository {
    existsByIdentificacion(identificacion: string, excludeId?: string): Promise<boolean>;
    
    // Relaciones
+   findUnlinkedEmployees(): Promise<Employee[]>;
+   findLinkedEmployeesByUserId(userId: string): Promise<Employee[]>;
    getContactsByEmployeeId(empleadoId: string): Promise<ContactEmpleadoProps[]>;
    getOperatorByEmployeeId(empleadoId: string): Promise<OperadorProps | null>;
    createContact(data: ContactEmpleadoProps): Promise<ContactEmpleadoProps>;
