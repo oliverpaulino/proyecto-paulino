@@ -16,6 +16,7 @@ import tipoItemsRoute from "./modules/tipo-items/routes/tipo-items";
 import itemsRoute from "./modules/items/routes/items";
 import notificationsRoute from "./modules/notifications/routes/notifications";
 import unitsRoute from "./modules/units/routes/units.routes";
+import userEmployeeLinksRoute from "./modules/user-employee-link/routes/user-employee-link.routes";
 
 const app = new Hono().basePath("/api");
 
@@ -48,5 +49,6 @@ app.route("/tipo-items", tipoItemsRoute);
 app.route("/items", itemsRoute);
 app.route("/notifications", notificationsRoute);
 app.route("/units", unitsRoute);
+app.route("/user-employee-links", userEmployeeLinksRoute);
 
 export default app;

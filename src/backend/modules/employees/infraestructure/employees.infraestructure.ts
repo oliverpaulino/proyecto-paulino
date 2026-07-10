@@ -32,6 +32,52 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
       );
    }
 
+   async findUnlinkedEmployees(): Promise<Employee[]> {
+      const rows = await this.db
+         .selectFrom("empleado")
+         .selectAll()
+         .where((eb) =>
+            eb.not(
+            eb.exists(
+               eb
+                  .selectFrom("user_employee_link")
+                  .select("user_employee_link.id")
+                  .whereRef("user_employee_link.empleado_id", "=", "empleado.id")
+            )
+            )
+         )
+         .execute();
+
+      return rows.map((row) =>
+         Employee.create({
+            ...row,
+            tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
+            rol: row.rol as TipoRolEmpleado,
+            created_at: new Date(row.created_at),
+            updated_at: new Date(row.updated_at),
+         })
+      );
+   }
+
+   async findLinkedEmployeesByUserId(userId: string): Promise<Employee[]> {
+      const rows = await this.db
+         .selectFrom("empleado")
+         .innerJoin("user_employee_link", "empleado.id", "user_employee_link.empleado_id")
+         .selectAll("empleado")
+         .where("user_employee_link.user_id", "=", userId)
+         .execute();
+
+      return rows.map((row) =>
+         Employee.create({
+            ...row,
+            tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
+            rol: row.rol as TipoRolEmpleado,
+            created_at: new Date(row.created_at),
+            updated_at: new Date(row.updated_at),
+         })
+      );
+   }
+
    async findById(id: string): Promise<Employee | null> {
       const row = await this.db
          .selectFrom("empleado")

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "@/lib/auth-client";
 import { authClient } from "@/lib/auth-client";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -22,15 +22,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { User, Mail, ShieldCheck, Loader2, ArrowRight, KeyRound } from "lucide-react";
+import { User, Mail, ShieldCheck, Loader2, ArrowRight, KeyRound, Trash2, Link2 } from "lucide-react";
 import Link from "next/link";
+import type { UserEmployeeLink } from "@/dtos/user-employee-link.dto";
+import type { Employee } from "@/dtos/employee.dto";
+import { useEmployeeStore } from "@/stores/useEmployeeStore";
+import { useUserEmployeeLinkStore } from "@/stores/useUserEmployeeLinkStore";
+
 
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {
-  administrador: { label: "Administrador", color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
+  administrador: { label: "Administrador", color: "bg-red-500/10 text-red-600 border-red-500/20" },
   coordinador: { label: "Coordinador", color: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
   contable: { label: "Contable", color: "bg-violet-500/10 text-violet-600 border-violet-500/20" },
-  asistente: { label: "Asistente", color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" },
-  usuario: { label: "Usuario", color: "bg-muted text-muted-foreground border-border" },
+  asistente: { label: "Asistente", color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
+  usuario: { label: "Usuario", color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" },
 };
 
 export default function AccountPage() {
@@ -40,6 +45,12 @@ export default function AccountPage() {
   const [name, setName] = useState(user?.name ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [saving, setSaving] = useState(false);
+  const [loadingLinks, setLoadingLinks] = useState(false);
+  const [linkedEmployees, setLinkedEmployees] = useState<Employee[]>([]);
+  const [userLinks, setUserLinks] = useState<UserEmployeeLink[]>([]);
+  const { GetLinkedEmployeesByUserId } = useEmployeeStore();
+  const { GetLinksByUserId } = useUserEmployeeLinkStore();
+  
 
   const role = (user as { role?: string } | undefined)?.role ?? "usuario";
   const roleInfo = ROLE_LABELS[role] ?? ROLE_LABELS.usuario;
@@ -56,33 +67,32 @@ export default function AccountPage() {
     toast.success("Perfil actualizado");
   };
 
+  const fetchLinks = async (userId: string) => {
+    setLoadingLinks(true);
+    try {
+      const [links, employees] = await Promise.all([
+        GetLinksByUserId(userId),
+        GetLinkedEmployeesByUserId(userId)
+      ]);
+      setUserLinks(links || []);
+      setLinkedEmployees(employees || []);
+    } catch (error) {
+      toast.error("Error al cargar vínculos de empleados");
+    } finally {
+      setLoadingLinks(false);
+    }
+  };
+
+  // Se agregó el useEffect para disparar la carga de datos al obtener el usuario
+  useEffect(() => {
+    if (user?.id) {
+      fetchLinks(user.id);
+    }
+  }, [user?.id]);
+
   return (
     <>
-
-      {/* // <SidebarProvider> */}
-      {/* <AppSidebar /> */}
-      {/* // <SidebarInset> */}
-      {/* ── header ── */}
-      <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-        <div className="flex items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href="/dashboard">Inicio</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator className="hidden md:block" />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Mi cuenta</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-      </header>
-
       <div className="flex flex-1 flex-col gap-0 w-full max-w-2xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-
         {/* ── identity card ── */}
         <div className="mb-8 flex flex-wrap items-center gap-4">
           <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-xl font-bold tracking-tight select-none">
@@ -135,6 +145,36 @@ export default function AccountPage() {
 
         <DividerLine />
 
+        <Section icon={Link2} title="Empleados Vinculados">
+        <div className="mt-4 grid gap-2">
+          {loadingLinks ? (
+            <div className="flex items-center justify-center py-6 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+            </div>
+          ) : userLinks.length === 0 ? (
+            <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+              No hay empleados vinculados a este usuario.
+            </div>
+          ) : (
+            // Se corrigió el map para retornar el componente correctamente
+            userLinks.map((link) => {
+              const emp = linkedEmployees.find(e => e.id === link.empleado_id);
+              return (
+                <LinkedEmployeeItem 
+                  key={link.id}
+                  link={link}
+                  employee={emp}
+                />
+              );
+            })
+          )}
+        </div>
+        <p className="text-[11px] text-muted-foreground mt-4">
+            Asignado por un administrador. Contacta al administrador para vincular otros empleados.
+        </p>
+        </Section>
+        <DividerLine />
+
         {/* ── section: role ── */}
         <Section icon={ShieldCheck} title="Rol y permisos">
           <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3">
@@ -142,7 +182,7 @@ export default function AccountPage() {
               {roleInfo.label}
             </span>
             <p className="text-sm text-muted-foreground">
-              Asignado por un administrador. Contacta al admin para cambiar tu rol.
+              Asignado por un administrador. Contacta al administrador para cambiar tu rol.
             </p>
           </div>
         </Section>
@@ -162,10 +202,7 @@ export default function AccountPage() {
             <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
           </Link>
         </Section>
-
       </div>
-      {/* // </SidebarInset> */}
-      {/* // </SidebarProvider> */}
     </>
   )
 }
@@ -209,6 +246,34 @@ function Field({
         {label}
       </Label>
       {children}
+    </div>
+  );
+}
+
+// Se removió el parámetro onDelete que no se usaba para evitar errores en TypeScript
+function LinkedEmployeeItem({ 
+  link, 
+  employee 
+}: { 
+  link: UserEmployeeLink; 
+  employee?: Employee; 
+}) {
+  const empName = employee?.nombre || "Cargando o Desconocido...";
+  const empRol = employee?.rol || "";
+
+  return (
+    <div className="flex items-center justify-between rounded-md border border-border bg-card px-4 py-3">
+      <div className="flex flex-col">
+        <span className="text-sm font-medium">{empName}</span>
+        <div className="mt-1 flex items-center gap-2">
+          <span className="text-xs text-muted-foreground font-mono">{link.empleado_id.slice(0, 8)}...</span>
+          {empRol && (
+            <span className="text-[10px] bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded-sm uppercase font-semibold">
+              {empRol}
+            </span>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
