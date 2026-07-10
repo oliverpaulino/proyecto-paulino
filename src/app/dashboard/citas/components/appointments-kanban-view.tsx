@@ -11,14 +11,15 @@ import { EstadoCita, type AppointmentUI } from "@/dtos/appointment.dto";
 import { TableSearch } from "@/components/table-search";
 import type { DragEvent } from "react";
 import { AppointmentForm } from "./appointment-form";
+import Link from "next/link";
 
 const ESTADOS_LISTA = Object.entries(EstadoCita).map(([key, label]) => ({ key: key as keyof typeof EstadoCita, label }));
 
 const COLUMN_THEMES: Record<string, { bg: string; border: string; badge: string; text: string }> = {
    ASIGNADA: { bg: "bg-amber-500/5", border: "border-amber-500/20", badge: "bg-amber-500", text: "text-amber-700 dark:text-amber-400" },
-   PENDIENTE:  { bg: "bg-purple-500/5", border: "border-purple-500/20", badge: "bg-purple-500", text: "text-purple-700 dark:text-purple-400" },
-   REALIZADA:  { bg: "bg-emerald-500/5", border: "border-emerald-500/20", badge: "bg-emerald-500", text: "text-emerald-700 dark:text-emerald-400" },
-   CANCELADA:   { bg: "bg-rose-500/5",  border: "border-rose-500/20",  badge: "bg-rose-500",  text: "text-rose-700 dark:text-rose-400" },
+   PENDIENTE: { bg: "bg-purple-500/5", border: "border-purple-500/20", badge: "bg-purple-500", text: "text-purple-700 dark:text-purple-400" },
+   REALIZADA: { bg: "bg-emerald-500/5", border: "border-emerald-500/20", badge: "bg-emerald-500", text: "text-emerald-700 dark:text-emerald-400" },
+   CANCELADA: { bg: "bg-rose-500/5", border: "border-rose-500/20", badge: "bg-rose-500", text: "text-rose-700 dark:text-rose-400" },
 };
 
 export function AppointmentsKanbanView() {
@@ -52,7 +53,7 @@ export function AppointmentsKanbanView() {
 
    return (
       <div className="flex flex-col gap-4 h-[calc(100vh-14rem)]">
-         
+
          {/* Sub-barra del tablero */}
          <div className="flex items-center justify-between gap-4 flex-none">
             <TableSearch value={searchInput} onValueChange={setSearchInput} onSearch={setSearchQuery} placeholder="Filtrar tarjetas rápidas..." className="w-full max-w-sm" />
@@ -65,16 +66,16 @@ export function AppointmentsKanbanView() {
                const cards = filtered.filter((c) => c.estado === col.key);
 
                return (
-                  <div 
-                     key={col.key} 
-                     onDragOver={(e) => e.preventDefault()} 
+                  <div
+                     key={col.key}
+                     onDragOver={(e) => e.preventDefault()}
                      onDrop={(e) => {
                         e.preventDefault();
                         const id = e.dataTransfer.getData("text/plain");
                         setDraggedId(null);
                         const c = Appointments.find(x => x.id === id);
                         if (c && c.estado !== col.key) handleMove(id, col.key);
-                     }} 
+                     }}
                      className={`w-80 shrink-0 flex flex-col max-h-full rounded-2xl border ${theme.border} ${theme.bg} bg-card/40 shadow-sm snap-start`}
                   >
                      {/* Cabecera de la columna */}
@@ -132,14 +133,14 @@ function KanbanCard({ cita, isDragging, colIdx, onDragStart, onMove, onEdit, onD
    const f = new Date(cita.fecha);
 
    return (
-      <div 
-        draggable 
-        onDragStart={onDragStart}
-        className={`group relative flex flex-col rounded-xl border border-border bg-card p-3 shadow-sm hover:border-brand-blue/40 transition-all cursor-grab active:cursor-grabbing ${isDragging ? "opacity-30 border-dashed border-brand-blue scale-95" : ""}`}
+      <div
+         draggable
+         onDragStart={onDragStart}
+         className={`group relative flex flex-col rounded-xl border border-border bg-card p-3 shadow-sm hover:border-brand-blue/40 transition-all cursor-grab active:cursor-grabbing ${isDragging ? "opacity-30 border-dashed border-brand-blue scale-95" : ""}`}
       >
          <div className="flex items-center justify-between gap-1 text-[11px] font-medium text-muted-foreground">
             <span className="flex items-center gap-1 bg-muted px-1.5 py-0.5 rounded">
-               <Clock className="size-3" /> 
+               <Clock className="size-3" />
                {f.toLocaleDateString("es-DO", { month: "short", day: "numeric" })} • {f.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </span>
          </div>
@@ -158,6 +159,11 @@ function KanbanCard({ cita, isDragging, colIdx, onDragStart, onMove, onEdit, onD
                      <Button variant="ghost" size="icon" className="size-6"><MoreHorizontal className="size-3.5" /></Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                     <DropdownMenuItem className="text-xs">
+                        <Link href={`/dashboard/citas/${cita.id}`} className="flex items-center gap-2 w-full">
+                           Ver detalles
+                        </Link>
+                     </DropdownMenuItem>
                      <DropdownMenuItem onClick={onEdit} className="text-xs">Editar</DropdownMenuItem>
                      <DropdownMenuItem onClick={onDelete} className="text-xs text-destructive focus:bg-destructive/10">Eliminar</DropdownMenuItem>
                   </DropdownMenuContent>
