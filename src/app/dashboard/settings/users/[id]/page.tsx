@@ -164,6 +164,9 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
         <div className="flex flex-1 flex-col w-full max-w-xl mx-auto px-4 py-6 sm:px-6 gap-0">
           {/* Identity Header */}
           <div className="mb-8 flex items-center gap-4">
+            <Button variant="outline" size="icon" onClick={() => router.push("/dashboard/settings/users")}>
+              <ArrowLeft className="size-4" />
+            </Button>
             <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-lg font-bold tracking-tight select-none">
               {user.image ? (
                 <img src={user.image} alt={user.name} className="h-full w-full rounded-2xl object-cover" />
