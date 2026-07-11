@@ -74,6 +74,11 @@ export class PurchaseOrderService {
       return this.getById(id);
    }
 
+   async restore (id: string): Promise<PurchaseOrderProps | null> {
+      await this.repo.restore(id);
+      return this.getById(id);
+   }
+
    async changeStatus(
       id: string,
       nuevoEstado: EstadoOrdenCompra,

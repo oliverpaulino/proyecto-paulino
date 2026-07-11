@@ -118,6 +118,7 @@ export interface IPurchaseOrderRepository {
    findAll(): Promise<PurchaseOrder[]>;
    findAllDeleted(): Promise<PurchaseOrder[]>;
    findById(id: string): Promise<PurchaseOrder | null>;
+   restore(id: string): Promise<PurchaseOrder | null>;
    create(data: CreatePurchaseOrderDTO): Promise<PurchaseOrder>;
    updateHeader(
       id: string,
