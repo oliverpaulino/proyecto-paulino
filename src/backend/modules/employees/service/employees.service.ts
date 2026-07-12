@@ -20,6 +20,15 @@ export class EmployeeService {
       const operators = await this.repo.findAllOperators(params);
       return operators.map(o => o.toJSON());
    }
+   async getUnlinked(): Promise<EmployeeProps[]> {
+      const employees = await this.repo.findUnlinkedEmployees();
+      return employees.map((e) => e.toJSON());
+   }
+
+   async getLinkedByUserId(userId: string): Promise<EmployeeProps[]> {
+      const employees = await this.repo.findLinkedEmployeesByUserId(userId);
+      return employees.map((e) => e.toJSON());
+   }
 
    async getById(id: string): Promise<EmployeeProps | null> {
       const employee = await this.repo.findById(id);
@@ -119,7 +128,9 @@ export class EmployeeService {
          updated_at: new Date(),
          toJSON: function () {
             throw new Error("Function not implemented.");
-         }
+         },
+         nombre: "",
+         identificacion: ""
       };
       return this.repo.createOperator(operatorData);
    }

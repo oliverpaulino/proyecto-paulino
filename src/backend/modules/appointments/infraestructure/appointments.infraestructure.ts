@@ -22,58 +22,53 @@ export class KyselyAppointmentRepository implements IAppointmentRepository {
       });
    }
 
-   async findAll(): Promise<Appointment[]> {
-      const rows = await this.db
-         .selectFrom("cita")
-         .selectAll()
-         .orderBy("fecha", "asc")
-         .execute();
-
-      return rows.map((row) => this.mapToEntity(row));
+   private mapToEntityUI(row: any): AppointmentUI {
+      return AppointmentUI.create({
+         ...row,
+         estado: row.estado as EstadoCita,
+         fecha: new Date(row.fecha),
+         created_at: new Date(row.created_at),
+         updated_at: new Date(row.updated_at),
+      });
    }
 
-   async findAllUI(): Promise<AppointmentUI[]> {
-      const rows = await this.db
+   async findAll(start?: Date | null, end?: Date | null, state?: EstadoCita | null, mine?: boolean | null, userId?: string | null): Promise<AppointmentUI[]> {
+      let query = await this.db
          .selectFrom("cita")
          .selectAll("cita")
          .leftJoin("cliente", "cliente.id", "cita.cliente_id")
-         .leftJoin("empleado", "empleado.id", "cita.employee_id")
-         .select([
+         .leftJoin("empleado", "empleado.id", "cita.employee_id");
+
+         if (mine && userId) {
+            query = query.innerJoin("user_employee_link", "user_employee_link.empleado_id", "empleado.id")
+            .where("user_employee_link.user_id", "=", userId);
+         }
+         
+         if (start) {
+            query = query.where("fecha", ">=", start);
+         }
+         
+         if (end) {
+            query = query.where("fecha", "<=", end);
+         }
+         
+         if (state) {
+            query = query.where("estado", "=", state);
+         }
+
+         query = query.select([
             "cliente.nombre as cliente_nombre",
             "empleado.nombre as employee_nombre"
-         ])
+         ]);
+
+         const rows = await query
          .orderBy("cita.fecha", "asc")
          .execute();
 
-      return rows.map((row) => 
-         AppointmentUI.create({
-            id: row.id,
-            cliente_id: row.cliente_id,
-            employee_id: row.employee_id,
-            fecha: new Date(row.fecha),
-            motivo: row.motivo,
-            estado: row.estado as any,
-            notas: row.notas,
-            created_at: new Date(row.created_at),
-            updated_at: new Date(row.updated_at),
-            cliente_nombre: row.cliente_nombre || "-",
-            employee_nombre: row.employee_nombre || "-"
-         })
-      );
+      return rows.map((row) => this.mapToEntityUI(row));
    }
 
-   async findById(id: string): Promise<Appointment | null> {
-      const row = await this.db
-         .selectFrom("cita")
-         .selectAll()
-         .where("id", "=", id)
-         .executeTakeFirst();
-
-      if (!row) return null;
-      return this.mapToEntity(row);
-   }
-
-   async findByIdUI(id: string): Promise<AppointmentUI | null> {
+   async findById(id: string): Promise<AppointmentUI | null> {
       const row = await this.db
          .selectFrom("cita")
          .selectAll("cita")
@@ -141,56 +136,7 @@ export class KyselyAppointmentRepository implements IAppointmentRepository {
       return Number(result.numDeletedRows) > 0;
    }
 
-   async findAppointmentsByClientId(clientId: string): Promise<Appointment[]> {
-      const rows = await this.db
-         .selectFrom("cita")
-         .selectAll()
-         .where("cliente_id", "=", clientId)
-         .orderBy("fecha", "desc")
-         .execute();
-
-      return rows.map((row) => this.mapToEntity(row));
-   }
-
-   async findAppointmentsByEmployeeId(employeeId: string): Promise<Appointment[]> {
-      const rows = await this.db
-         .selectFrom("cita")
-         .selectAll()
-         .where("employee_id", "=", employeeId)
-         .orderBy("fecha", "asc")
-         .execute();
-
-      return rows.map((row) => this.mapToEntity(row));
-   }
-
-   async findAppointmentsByRangeOfTime(start?: Date | null, end?: Date | null): Promise<Appointment[]> {
-      let query = this.db.selectFrom("cita").selectAll();
-
-      if (start) {
-         query = query.where("fecha", ">=", start);
-      }
-
-      if (end) {
-         query = query.where("fecha", "<=", end);
-      }
-
-      const rows = await query.orderBy("fecha", "asc").execute();
-
-      return rows.map((row) => this.mapToEntity(row));
-   }
-
-   async findAppointmentsByState(state: EstadoCita): Promise<Appointment[]> {
-      const rows = await this.db
-         .selectFrom("cita")
-         .selectAll()
-         .where("estado", "=", state)
-         .orderBy("fecha", "asc")
-         .execute();
-
-      return rows.map((row) => this.mapToEntity(row));
-   }
-
-   async findAppointmentsByClientIdUI(clientId: string): Promise<AppointmentUI[]> {
+   async findAppointmentsByClientId(clientId: string): Promise<AppointmentUI[]> {
       const rows = await this.db
          .selectFrom("cita")
          .selectAll("cita")
@@ -221,7 +167,7 @@ export class KyselyAppointmentRepository implements IAppointmentRepository {
       );
    }
 
-   async findAppointmentsByEmployeeIdUI(employeeId: string): Promise<AppointmentUI[]> {
+   async findAppointmentsByEmployeeId(employeeId: string): Promise<AppointmentUI[]> {
       const rows = await this.db
          .selectFrom("cita")
          .selectAll("cita")
@@ -252,55 +198,18 @@ export class KyselyAppointmentRepository implements IAppointmentRepository {
       );
    }
 
-   async findAppointmentsByRangeOfTimeUI(start?: Date | null, end?: Date | null): Promise<AppointmentUI[]> {
-      let query = this.db
-         .selectFrom("cita")
-         .selectAll("cita")
-         .leftJoin("cliente", "cliente.id", "cita.cliente_id")
-         .leftJoin("empleado", "empleado.id", "cita.employee_id")
-         .select([
-            "cliente.nombre as cliente_nombre",
-            "empleado.nombre as employee_nombre"
-         ]);
-
-      if (start) {
-         query = query.where("cita.fecha", ">=", start);
-      }
-
-      if (end) {
-         query = query.where("cita.fecha", "<=", end);
-      }
-
-      const rows = await query.orderBy("cita.fecha", "asc").execute();
-
-      return rows.map((row) => 
-         AppointmentUI.create({
-            id: row.id,
-            cliente_id: row.cliente_id,
-            employee_id: row.employee_id,
-            fecha: new Date(row.fecha),
-            motivo: row.motivo,
-            estado: row.estado as any,
-            notas: row.notas,
-            created_at: new Date(row.created_at),
-            updated_at: new Date(row.updated_at),
-            cliente_nombre: row.cliente_nombre || "No encontrado",
-            employee_nombre: row.employee_nombre || "Sin asignar"
-         })
-      );
-   }
-
-   async findAppointmentsByStateUI(state: EstadoCita): Promise<AppointmentUI[]> {
+   async findAppointmentsByUserId(userId: string): Promise<AppointmentUI[]> {
       const rows = await this.db
          .selectFrom("cita")
          .selectAll("cita")
          .leftJoin("cliente", "cliente.id", "cita.cliente_id")
          .leftJoin("empleado", "empleado.id", "cita.employee_id")
+         .innerJoin("user_employee_link", "user_employee_link.empleado_id", "empleado.id")
          .select([
             "cliente.nombre as cliente_nombre",
             "empleado.nombre as employee_nombre"
          ])
-         .where("cita.estado", "=", state)
+         .where("user_employee_link.user_id", "=", userId)
          .orderBy("cita.fecha", "asc")
          .execute();
 

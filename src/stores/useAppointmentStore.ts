@@ -26,6 +26,7 @@ type AppointmentStore = {
       state?: EstadoCita;
       start?: string;
       end?: string;
+      mine?: boolean;
    };
 
    _fetchedAppointmentLists: Set<string>;
@@ -37,6 +38,7 @@ type AppointmentStore = {
       state?: EstadoCita;
       start?: string;
       end?: string;
+      mine?: boolean;
       force?: boolean;
    }) => Promise<void>;
 
@@ -72,6 +74,7 @@ export const useAppointmentStore = create<AppointmentStore>((set, get) => ({
    },
    currentFilters: {
       search: "",
+      mine: false,
    },
    _fetchedAppointmentLists: new Set<string>(),
 
@@ -87,12 +90,13 @@ export const useAppointmentStore = create<AppointmentStore>((set, get) => ({
          state = get().currentFilters.state,
          start = get().currentFilters.start,
          end = get().currentFilters.end,
+         mine = get().currentFilters.mine,
          force = false,
       } = params;
 
-      set({ currentFilters: { search, state, start, end } });
+      set({ currentFilters: { search, state, start, end, mine } });
 
-      const cacheKey = `${state || ""}:${start || ""}:${end || ""}`;
+      const cacheKey = `${state || ""}:${start || ""}:${end || ""}:${mine || false}`;
       let masterList = get().allFetchedAppointments;
 
       if (force || !get()._fetchedAppointmentLists.has(cacheKey)) {
@@ -101,6 +105,8 @@ export const useAppointmentStore = create<AppointmentStore>((set, get) => ({
             const query = new URLSearchParams();
             if (start) query.append("start", start);
             if (end) query.append("end", end);
+            if (state) query.append("state", state);
+            if (mine) query.append("mine", "true");
 
             const url = query.toString() ? `${BASE_URL}?${query.toString()}` : BASE_URL;
             const res = await fetch(url);

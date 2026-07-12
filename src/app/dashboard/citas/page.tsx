@@ -5,7 +5,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Plus } from "lucide-react";
 import { AppointmentsGeneralView } from "./components/appointment-general-view";
 import { AppointmentsKanbanView } from "./components/appointments-kanban-view";
-import { Metadata } from "next";
 import { useEffect } from "react";
 
 
@@ -14,6 +13,7 @@ import { useAppointmentStore } from "@/stores/useAppointmentStore";
 import { type CreateAppointmentForm } from "@/dtos/appointment.dto";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AppointmentForm } from "./components/appointment-form";
+import { AppointmentFilters } from "./components/appointment-filters";
 
 export default function CitasPageWrapper() {
 
@@ -24,6 +24,7 @@ export default function CitasPageWrapper() {
 
    const [formLoading, setFormLoading] = useState(false);
    const [createOpen, setCreateOpen] = useState(false);
+   const [activeTab, setActiveTab] = useState("lista");
 
    const { CreateAppointment } = useAppointmentStore();
 
@@ -50,7 +51,7 @@ export default function CitasPageWrapper() {
             <div className="mt-4 h-px bg-gradient-to-r from-brand-blue via-brand-yellow/50 to-transparent" />
          </div>
 
-         <Tabs defaultValue="lista" className="flex flex-col flex-1 w-full min-w-0 overflow-hidden space-y-4">
+         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 w-full min-w-0 overflow-hidden space-y-4">
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-4 shrink-0">
                <TabsList className="flex-wrap justify-start gap-1 bg-transparent p-0">
@@ -66,6 +67,8 @@ export default function CitasPageWrapper() {
                   <Plus className="size-4 mr-2" /> Agendar Cita
                </Button>
             </div>
+
+            <AppointmentFilters viewLimit={activeTab === "lista" ? 20 : 100} />
 
             <TabsContent value="lista" className="flex-1 w-full min-w-0 m-0 focus-visible:ring-0 custom-scrollbar">
                <AppointmentsGeneralView />

@@ -12,6 +12,7 @@ interface SelectBuscadorEmployeeProps {
    onChange: (employeeId: string | null) => void;
    placeholder?: string;
    disabled?: boolean;
+   unlinkedOnly?: boolean;
 }
 
 export function SelectBuscadorEmployee({
@@ -20,8 +21,9 @@ export function SelectBuscadorEmployee({
    onChange,
    placeholder = "Buscar empleado por nombre o ID...",
    disabled = false,
+   unlinkedOnly = false,
 }: SelectBuscadorEmployeeProps) {
-   const { Employees, loading, GetEmployees } = useEmployeeStore();
+   const { Employees, loading, GetEmployees, GetUnlinkedEmployees } = useEmployeeStore();
    const [isOpen, setIsOpen] = useState(false);
    const [inputValue, setInputValue] = useState(initialLabel);
    const containerRef = useRef<HTMLDivElement>(null);
@@ -46,12 +48,14 @@ export function SelectBuscadorEmployee({
    useEffect(() => {
       if (!isOpen) return;
 
-      if (debouncedSearch.trim() !== "") {
-         GetEmployees({ search: debouncedSearch, limit: 20, force: true });
+      const params = { search: debouncedSearch.trim(), limit: 20, force: true };
+      
+      if (unlinkedOnly) {
+         GetUnlinkedEmployees(params);
       } else {
-         GetEmployees({ search: "", limit: 20, force: true });
+         GetEmployees(params);
       }
-   }, [debouncedSearch, isOpen, GetEmployees]);
+   }, [debouncedSearch, isOpen, GetEmployees, GetUnlinkedEmployees, unlinkedOnly]);
 
    const handleSelect = (employee: Employee) => {
       setInputValue(employee.nombre);

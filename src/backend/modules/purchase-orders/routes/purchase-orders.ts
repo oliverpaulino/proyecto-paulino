@@ -221,6 +221,24 @@ purchaseOrdersRoute.patch("/:id", async (c) => {
    }
 });
 
+// PATCH /api/purchase-orders/:id/restore
+purchaseOrdersRoute.patch("/:id/restore", async (c) => {
+   try {
+      const order = await service.restore(c.req.param("id"));
+      
+      if (!order) {
+         return c.json({ error: "Orden no encontrada" }, 404);
+      }
+
+      return c.json(order);
+   } catch (err: unknown) {
+      return c.json(
+         { error: err instanceof Error ? err.message : "Error desconocido" },
+         400
+      );
+   }
+});
+
 // DELETE /api/purchase-orders/:id
 purchaseOrdersRoute.delete("/:id", async (c) => {
    try {

@@ -37,6 +37,16 @@ employeesRoute.get("/operators", async (c) => {
 // });
 
 // GET /api/employees/:id/details
+employeesRoute.get("/unlinked", async (c) => {
+   const employees = await service.getUnlinked();
+   return c.json(employees);
+});
+
+employeesRoute.get("/linked/:userId", async (c) => {
+   const employees = await service.getLinkedByUserId(c.req.param("userId"));
+   return c.json(employees);
+});
+
 employeesRoute.get("/:id/details", async (c) => {
    const { id } = c.req.param();
    const details = await service.getDetails(id);
@@ -45,29 +55,23 @@ employeesRoute.get("/:id/details", async (c) => {
    return c.json(details);
 });
 
-// GET /api/employees/:id
 employeesRoute.get("/:id", async (c) => {
    const employee = await service.getById(c.req.param("id"));
    if (!employee) return c.json({ error: "Empleado no encontrado" }, 404);
    return c.json(employee);
 });
 
-// GET /api/employees/:id/operator
 employeesRoute.get("/:id/operator", async (c) => {
    const { id } = c.req.param();
    const operator = await service.getOperator(id);
    return c.json(operator ?? null);
 });
 
-// POST /api/employees
 employeesRoute.post("/", async (c) => {
-   // 1. Extraemos "operador" y dejamos el resto en "employeeData"
    const { operador, ...employeeData } = await c.req.json();
    try {
-      // 2. Pasamos solo los datos del empleado
       const employee = await service.create(employeeData);
 
-      // 3. Procesamos el operador por separado
       if (employeeData.rol === "OPERADOR" && operador) {
          await service.createOperator({
             empleado_id: employee.id,
@@ -82,18 +86,14 @@ employeesRoute.post("/", async (c) => {
    }
 });
 
-// PATCH /api/employees/:id
 employeesRoute.patch("/:id", async (c) => {
-   // 1. Extraemos "operador" y dejamos el resto en "employeeData"
    const { operador, ...employeeData } = await c.req.json();
    const id = c.req.param("id");
 
    try {
-      // 2. Pasamos solo los datos limpios del empleado al update
       const employee = await service.update(id, employeeData);
       if (!employee) return c.json({ error: "Empleado no encontrado" }, 404);
 
-      // 3. Procesamos el operador usando los datos separados
       if (operador) {
          const existingOp = await service.getOperator(id);
 
@@ -117,14 +117,12 @@ employeesRoute.patch("/:id", async (c) => {
    }
 });
 
-// DELETE /api/employees/:id
 employeesRoute.delete("/:id", async (c) => {
    const deleted = await service.delete(c.req.param("id"));
    if (!deleted) return c.json({ error: "Empleado no encontrado" }, 404);
    return c.json({ success: true });
 });
 
-// POST /api/employees/contacts
 employeesRoute.post("/contacts", async (c) => {
    const body = await c.req.json();
 
@@ -141,7 +139,6 @@ employeesRoute.post("/contacts", async (c) => {
    return c.json({ data: contact }, 201);
 });
 
-// PATCH /api/employees/contacts/:contactId
 employeesRoute.patch("/contacts/:contactId", async (c) => {
    const { contactId } = c.req.param();
    const body = await c.req.json();
@@ -156,7 +153,6 @@ employeesRoute.patch("/contacts/:contactId", async (c) => {
    return c.json({ contact });
 });
 
-// DELETE /api/employees/contacts/:contactId
 employeesRoute.delete("/contacts/:contactId", async (c) => {
    const { contactId } = c.req.param();
 
@@ -166,7 +162,6 @@ employeesRoute.delete("/contacts/:contactId", async (c) => {
    return c.json({ success: true });
 });
 
-// POST /api/employees/operators
 employeesRoute.post("/operators", async (c) => {
    const body = await c.req.json();
 
@@ -183,7 +178,6 @@ employeesRoute.post("/operators", async (c) => {
    return c.json({ data: operator }, 201);
 });
 
-// PATCH /api/employees/operators/:operatorId
 employeesRoute.patch("/operators/:operatorId", async (c) => {
    const { operatorId } = c.req.param();
    const body = await c.req.json();

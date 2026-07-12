@@ -26,6 +26,7 @@ import {
   EyeOff,
   CheckCircle2,
   ShieldAlert,
+  ArrowLeft,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -130,24 +131,6 @@ export default function DashboardResetPasswordPage() {
 
   return (
     <>
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <span className="mr-2 h-4 w-px bg-border" />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="/dashboard/account">Mi cuenta</BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>Cambiar contraseña</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </div>
-        </header>
-
         <div className="flex flex-1 flex-col w-full max-w-md mx-auto px-4 py-6 sm:px-6">
 
           {/* header */}

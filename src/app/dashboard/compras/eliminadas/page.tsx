@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { ArrowLeft, Trash2, RefreshCw } from "lucide-react";
 import { usePurchaseOrderStore } from "@/stores/usePurchaseOrderStore";
+import type { PurchaseOrderDeleted } from "@/dtos/purchase-order.dto";
+import { RestorePurchaseOrderDialog } from "../components/restore-purchase-order-dialog";
 
-// Funciones nativas de JavaScript para formatear moneda y fecha (sin dependencias extra)
 function formatMoney(value: number): string {
    return new Intl.NumberFormat("es-DO", {
       style: "currency",
@@ -22,8 +23,11 @@ function formatDate(value: string | Date | null | undefined): string {
 
 export default function ComprasEliminadasPage() {
    const router = useRouter();
-   const { PurchaseOrdersDeleted, loading, GetPurchaseOrdersDeleted } = usePurchaseOrderStore();
+   const { PurchaseOrdersDeleted, loading, GetPurchaseOrdersDeleted, RestorePurchaseOrder } = usePurchaseOrderStore();
    const [search, setSearch] = useState("");
+   
+   const [restoreTarget, setRestoreTarget] = useState<PurchaseOrderDeleted | null>(null);
+   const [formLoading, setFormLoading] = useState(false);
 
    useEffect(() => {
       GetPurchaseOrdersDeleted();
@@ -37,6 +41,21 @@ export default function ComprasEliminadasPage() {
          (o.deleted_reason ?? "").toLowerCase().includes(q)
       );
    });
+
+   async function handleRestore() {
+      if (!restoreTarget) return;
+      setFormLoading(true);
+      try {
+         const result = await RestorePurchaseOrder(restoreTarget.id);
+         if (result instanceof Error) {
+            alert(result.message);
+         } else {
+            setRestoreTarget(null);
+         }
+      } finally {
+         setFormLoading(false);
+      }
+   }
 
    return (
       <div className="flex flex-col gap-6 p-6">
@@ -72,7 +91,7 @@ export default function ComprasEliminadasPage() {
          </div>
 
          {/* Área de la Tabla / Estado de Carga */}
-         {loading ? (
+         {loading && PurchaseOrdersDeleted.length === 0 ? (
             <div className="flex items-center justify-center py-12 text-sm text-gray-500">
                Cargando historial de eliminaciones...
             </div>
@@ -83,14 +102,15 @@ export default function ComprasEliminadasPage() {
             </div>
          ) : (
             <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
-               <table className="w-full text-sm text-left">
-                  <thead className="bg-gray-50 text-gray-500 dark:bg-gray-900 dark:text-gray-400">
-                     <tr>
-                        <th className="px-4 py-3 font-medium uppercase">Nº / Fecha Original</th>
-                        <th className="px-4 py-3 font-medium uppercase">Proveedor</th>
-                        <th className="px-4 py-3 font-medium uppercase">Eliminado Por / El</th>
-                        <th className="px-4 py-3 font-medium uppercase">Motivo</th>
-                        <th className="px-4 py-3 font-medium uppercase text-right">Total</th>
+               <table className="w-full text-sm">
+                  <thead>
+                     <tr className="bg-brand-blue">
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Nº / Fecha</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Proveedor</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Eliminado Por</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Motivo</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Total</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-blue-200">Acciones</th>
                      </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
@@ -121,12 +141,32 @@ export default function ComprasEliminadasPage() {
                            <td className="px-4 py-3 text-right font-medium text-gray-400 line-through">
                               {formatMoney(order.total)}
                            </td>
+                           <td className="px-4 py-3 text-right whitespace-nowrap">
+                              <Button
+                                 variant="ghost"
+                                 size="sm"
+                                 onClick={() => setRestoreTarget(order)}
+                                 disabled={loading || formLoading}
+                                 className="h-8 text-brand-blue hover:bg-brand-blue/10 dark:text-blue-400 transition-colors"
+                                 title="Restaurar Orden"
+                              >
+                                 <RefreshCw className="size-4 mr-1" />
+                                 Restaurar
+                              </Button>
+                           </td>
                         </tr>
                      ))}
                   </tbody>
                </table>
             </div>
          )}
+
+         <RestorePurchaseOrderDialog
+            order={restoreTarget}
+            onConfirm={handleRestore}
+            onClose={() => setRestoreTarget(null)}
+            loading={formLoading}
+         />
       </div>
    );
 }

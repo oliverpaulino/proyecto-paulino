@@ -307,6 +307,23 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
       return this.findById(id);
    }
 
+   async restore(id: string): Promise<PurchaseOrder | null> {
+      const row = await this.db
+         .updateTable("orden_compra")
+         .set({
+            deleted_by: null,
+            deleted_at: null,
+            deleted_reason: null,
+         })
+         .where("id", "=", id)
+         .returningAll()
+         .executeTakeFirst();
+
+      if (!row) return null;
+
+      return this.findById(id);
+   }
+
    async replaceItems(
       id: string,
       items: PurchaseOrderItemInput[]

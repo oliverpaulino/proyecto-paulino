@@ -71,9 +71,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const settingsItems = [
     { id: "settings-general", title: "General", url: "/dashboard/settings" },
-    { id: "settings-equipo", title: "Equipo", url: "/dashboard/equipo" },
+    { id: "settings-unidades", title: "Unidades", url: "/dashboard/unidades" },
     ...(isAdmin ? [{ id: "settings-usuarios", title: "Usuarios", url: "/dashboard/settings/users" }] : []),
-    { id: "settings-limites", title: "Límites", url: "/dashboard/limites" },
   ]
 
   const navMain = [
@@ -101,8 +100,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       items: [
         { id: "op-proyectos", title: "Proyectos", url: "/dashboard/proyectos" },
         { id: "op-tareas", title: "Tareas", url: "/dashboard/tareas" },
-        { id: "op-servicios", title: "Servicios", url: "/dashboard/servicios" },
         { id: "op-citas", title: "Citas", url: "/dashboard/citas" },
+        { id: "op-cotizaciones", title: "Cotizaciones", url: "/dashboard/cotizaciones" },
+        { id: "op-servicios", title: "Servicios", url: "/dashboard/servicios" },
       ],
     },
     {
@@ -111,9 +111,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       url: "#",
       icon: Truck,
       items: [
-        { id: "flota-equipos", title: "Equipos Pesados", url: "/dashboard/equipos" },
-        { id: "flota-mantenimientos", title: "Mantenimientos", url: "/dashboard/equipos/mantenimientos" },
-        { id: "flota-inventario", title: "Inventario de Repuestos", url: "/dashboard/inventario" },
+        { id: "flota-equipos", title: "Equipos", url: "/dashboard/equipos" },
+        { id: "flota-mantenimientos", title: "Mantenimientos", url: "/dashboard/mantenimientos" },
+        { id: "flota-inventario", title: "Inventario", url: "/dashboard/inventario" },
       ],
     },
     {
@@ -125,14 +125,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         { id: "fin-cotizaciones", title: "Cotizaciones", url: "/dashboard/cotizaciones" },
         { id: "fin-compras", title: "Compras", url: "/dashboard/compras" },
         ...(isAdmin ? [{ id: "fin-aprobadores", title: "Firmantes de Compras", url: "/dashboard/compras/aprobadores" }] : []),
+        { id: "fin-compras-eliminadas", title: "Compras eliminadas", url: "/dashboard/compras/eliminadas" },
         { id: "fin-gastos", title: "Gastos", url: "/dashboard/gastos" },
         { id: "fin-pagos", title: "Pagos", url: "/dashboard/pagos" },
-        { id: "fin-contabilidad", title: "Contabilidad", url: "/dashboard/contabilidad" },
       ],
     },
     {
       id: "personal",
-      title: "Personal en Terreno",
+      title: "Personal",
       url: "#",
       icon: HardHat,
       items: [

@@ -75,19 +75,13 @@ export class AppointmentUI {
 }
 
 export interface IAppointmentRepository {
-   findAll(): Promise<Appointment[]>;
-   findAllUI(): Promise<AppointmentUI[]>;
-   findById(id: string): Promise<Appointment | null>;
-   findByIdUI(id: string): Promise<AppointmentUI | null>;
+   findAll(start?: Date | null, end?: Date | null, state?: EstadoCita | null, mine?: boolean | null, userId?: string | null): Promise<AppointmentUI[]>;
+   findById(id: string): Promise<AppointmentUI | null>;
    create(data: CreateAppointmentDTO): Promise<Appointment>;
    update(id: string, data: UpdateAppointmentDTO): Promise<Appointment | null>;
    delete(id: string): Promise<boolean>;
-   findAppointmentsByClientId(clientId: string): Promise<Appointment[]>;
-   findAppointmentsByClientIdUI(clientId: string): Promise<AppointmentUI[]>;
-   findAppointmentsByEmployeeId(userId: string): Promise<Appointment[]>;
-   findAppointmentsByEmployeeIdUI(employeeId: string): Promise<AppointmentUI[]>;
-   findAppointmentsByRangeOfTime(start?: Date | null, end?: Date | null): Promise<Appointment[]>;
-   findAppointmentsByRangeOfTimeUI(start?: Date | null, end?: Date | null): Promise<AppointmentUI[]>;
-   findAppointmentsByState(state: EstadoCita): Promise<Appointment[]>;
-   findAppointmentsByStateUI(state: EstadoCita): Promise<AppointmentUI[]>;
+
+   findAppointmentsByClientId(clientId: string): Promise<AppointmentUI[]>;
+   findAppointmentsByUserId(user: string): Promise<AppointmentUI[]>;
+   findAppointmentsByEmployeeId(employeeId: string): Promise<AppointmentUI[]>;
 }

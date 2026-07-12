@@ -1,17 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Clock, User, MoreHorizontal, Pencil, Trash2, ArrowRight, ArrowLeft } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Clock, User, MoreHorizontal, ArrowRight, ArrowLeft } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 import { useAppointmentStore } from "@/stores/useAppointmentStore";
 import { EstadoCita, type AppointmentUI } from "@/dtos/appointment.dto";
-import { TableSearch } from "@/components/table-search";
 import type { DragEvent } from "react";
 import { AppointmentForm } from "./appointment-form";
 import Link from "next/link";
+import { TableSearch } from "@/components/table-search";
 
 const ESTADOS_LISTA = Object.entries(EstadoCita).map(([key, label]) => ({ key: key as keyof typeof EstadoCita, label }));
 
@@ -23,22 +23,11 @@ const COLUMN_THEMES: Record<string, { bg: string; border: string; badge: string;
 };
 
 export function AppointmentsKanbanView() {
-   const { Appointments, GetAppointments, CreateAppointment, UpdateAppointment, DeleteAppointment } = useAppointmentStore();
+   const { Appointments, UpdateAppointment, DeleteAppointment } = useAppointmentStore();
 
-   const [searchInput, setSearchInput] = useState("");
-   const [searchQuery, setSearchQuery] = useState("");
    const [editTarget, setEditTarget] = useState<AppointmentUI | null>(null);
    const [draggedId, setDraggedId] = useState<string | null>(null);
    const [formLoading, setFormLoading] = useState(false);
-
-   useEffect(() => {
-      GetAppointments({ limit: 100, search: searchQuery, force: true });
-   }, [searchQuery, GetAppointments]);
-
-   const filtered = Appointments.filter((a) => {
-      const q = searchQuery.toLowerCase();
-      return a.cliente_nombre?.toLowerCase().includes(q) || a.motivo?.toLowerCase().includes(q);
-   });
 
    async function handleMove(id: string, nuevoEstado: string) {
       setFormLoading(true);
@@ -60,10 +49,12 @@ export function AppointmentsKanbanView() {
          </div>
 
          {/* Contenedor Flex de Columnas */}
+
          <div className="flex-1 flex gap-4 overflow-x-auto pb-4 pt-1 snap-x">
             {ESTADOS_LISTA.map((col, colIdx) => {
                const theme = COLUMN_THEMES[col.key] ?? { bg: "bg-muted/10", border: "border-border", badge: "bg-slate-400", text: "text-foreground" };
-               const cards = filtered.filter((c) => c.estado === col.key);
+               // Utilizamos directamente Appointments, ya que el store se encarga del filtro de búsqueda globalmente
+               const cards = Appointments.filter((c) => c.estado === col.key);
 
                return (
                   <div
@@ -78,7 +69,6 @@ export function AppointmentsKanbanView() {
                      }}
                      className={`w-80 shrink-0 flex flex-col max-h-full rounded-2xl border ${theme.border} ${theme.bg} bg-card/40 shadow-sm snap-start`}
                   >
-                     {/* Cabecera de la columna */}
                      <div className="flex items-center justify-between p-3.5 border-b border-border/50 bg-background/40 rounded-t-2xl flex-none">
                         <div className="flex items-center gap-2">
                            <span className={`size-2.5 rounded-full ${theme.badge}`} />
@@ -87,7 +77,6 @@ export function AppointmentsKanbanView() {
                         <span className="rounded-full bg-muted px-2 py-0.5 font-mono text-xs font-semibold text-muted-foreground">{cards.length}</span>
                      </div>
 
-                     {/* Contenedor de las tarjetas con scroll interno si desborda */}
                      <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3 custom-scrollbar">
                         {cards.map((cita) => (
                            <KanbanCard
@@ -115,7 +104,6 @@ export function AppointmentsKanbanView() {
             })}
          </div>
 
-         {/* Diálogos */}
          <Dialog open={!!editTarget} onOpenChange={(op) => !op && setEditTarget(null)}>
             <DialogContent className="sm:max-w-lg">
                <DialogHeader><DialogTitle>Reprogramar</DialogTitle></DialogHeader>

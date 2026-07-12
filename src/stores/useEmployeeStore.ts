@@ -29,10 +29,14 @@ type EmployeeStore = {
    };
 
    _fetchedEmployeeLists: Set<string>;
+   _fetchedEmployeeListsUnlinked: Set<string>;
    _fetchedDetails: Set<string>;
 
    GetEmployees: (params?: { page?: number; limit?: number; search?: string; force?: boolean }) => Promise<void>;
    GetOperators: (params?: { page?: number; limit?: number; search?: string; force?: boolean }) => Promise<void>;
+   GetUnlinkedEmployees: (params?: { page?: number; limit?: number; search?: string; force?: boolean }) => Promise<void>;
+   GetLinkedEmployeesByUserId: (userId: string) => Promise<Employee[]>;
+
    GetEmployeeDetails: (empleadoId: string, force?: boolean) => Promise<EmployeeDetails | null>;
    CreateEmployee: (form: CreateEmployeeForm) => Promise<Employee | Error>;
    UpdateEmployee: (empleadoId: string, data: UpdateEmployeeForm) => Promise<void | Error>;
@@ -72,11 +76,13 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
       hasPrev: false,
    },
    _fetchedEmployeeLists: new Set<string>(),
+   _fetchedEmployeeListsUnlinked: new Set<string>(),
    _fetchedDetails: new Set<string>(),
 
    invalidateCache: () => {
       set({
          _fetchedEmployeeLists: new Set<string>(),
+         _fetchedEmployeeListsUnlinked: new Set<string>(),
          _fetchedDetails: new Set<string>(),
       });
    },
@@ -117,7 +123,66 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
             _fetchedEmployeeLists: new Set(state._fetchedEmployeeLists).add(cacheKey),
          }));
       } catch (error) {
-         console.error("Error fetching employees:", error);
+         console.error(error);
+         throw error;
+      } finally {
+         set({ loading: false });
+      }
+   },
+
+   GetUnlinkedEmployees: async (params = {}) => {
+      const { page = 1, limit = 20, search = "", force = false } = params;
+      const cacheKey = `${page}:${limit}:${search}`;
+      if (!force && get()._fetchedEmployeeListsUnlinked.has(cacheKey)) return;
+
+      set({ loading: true });
+      try {
+         const res = await fetch(`/api/employees/unlinked`);
+         if (!res.ok) throw new Error("Error al cargar empleados sin vincular");
+
+         const allEmployees: Employee[] = await res.json();
+
+         const filtered = search
+            ? allEmployees.filter((e) =>
+               e.nombre.toLowerCase().includes(search.toLowerCase()) ||
+               e.identificacion.includes(search)
+            )
+            : allEmployees;
+
+         const total = filtered.length;
+         const totalPages = Math.max(1, Math.ceil(total / limit));
+         const start = (page - 1) * limit;
+
+         set((state) => ({
+            Employees: filtered.slice(start, start + limit),
+            pagination: {
+               page,
+               limit,
+               total,
+               totalPages,
+               hasNext: page < totalPages,
+               hasPrev: page > 1,
+            },
+            _fetchedEmployeeListsUnlinked: new Set(state._fetchedEmployeeListsUnlinked).add(cacheKey),
+         }));
+      } catch (error) {
+         console.error(error);
+         throw error;
+      } finally {
+         set({ loading: false });
+      }
+   },
+
+   GetLinkedEmployeesByUserId: async (userId: string) => {
+      set({ loading: true });
+      try {
+         const res = await fetch(`/api/employees/linked/${userId}`);
+         if (!res.ok) throw new Error("Error al cargar empleados vinculados");
+
+         const linkedEmployees: Employee[] = await res.json();
+         return linkedEmployees;
+      } catch (error) {
+         console.error(error);
          throw error;
       } finally {
          set({ loading: false });
@@ -178,7 +243,7 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
          }));
          return details;
       } catch (error) {
-         console.error("Error fetching employee details:", error);
+         console.error(error);
          throw error;
       } finally {
          set({ loading: false });
@@ -346,7 +411,7 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
          const contacts: ContactEmployee[] = await res.json();
          set({ Contacts: contacts });
       } catch (error) {
-         console.error("Error fetching contact by ID:", error);
+         console.error(error);
          throw error;
       }
    },
