@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2Icon, ArrowLeftIcon, MailCheckIcon } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
+import Image from "next/image";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -40,7 +41,7 @@ export default function ForgotPasswordPage() {
     <div className="grid min-h-svh lg:grid-cols-2">
       <div className="flex flex-col gap-4 p-6 md:p-10">
         <div className="flex justify-center gap-2 md:justify-start">
-          
+
         </div>
 
         <div className="flex flex-1 items-center justify-center">
@@ -107,7 +108,8 @@ export default function ForgotPasswordPage() {
       </div>
 
       <div className="bg-muted relative hidden lg:block">
-        <img
+        <Image width={96} // Explicitly set width (24 * 4 for Tailwind)
+          height={96}
           src="/fingers.png"
           alt=""
           className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"

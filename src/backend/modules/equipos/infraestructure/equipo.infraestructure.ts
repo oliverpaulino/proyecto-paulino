@@ -9,11 +9,14 @@ import {
    IEquipoRepository,
    UpdateEquipoDTO,
 } from "../domain/equipo.domain";
+import { CategoriaEquipo } from "@/dtos/categoria-equipo.dto";
 
 type EquipoRow = {
    id: string;
    nombre: string;
    categoria_id: string;
+   operador_id: string | null;
+   operador_nombre: string | null;
    categoria_nombre: string;
    cobra_en: string;
    cobra_minimo: number | string | null;
@@ -31,6 +34,8 @@ function toDomain(row: EquipoRow): Equipo {
       id: row.id,
       nombre: row.nombre,
       categoria_id: row.categoria_id,
+      operador_id: row.operador_id,
+      operador_nombre: row.operador_nombre ?? null,
       categoria_nombre: row.categoria_nombre,
       cobra_en: row.cobra_en,
       cobra_minimo: row.cobra_minimo == null ? null : Number(row.cobra_minimo),
@@ -47,10 +52,13 @@ function toDomain(row: EquipoRow): Equipo {
 export class KyselyEquipoRepository implements IEquipoRepository {
    constructor(private readonly db: Kysely<DB>) { }
 
-   async findAll(): Promise<Equipo[]> {
-      const rows = await this.db
+   async findAll(params?: { page?: number; limit?: number; search?: string }): Promise<Equipo[]> {
+      const { page = 1, limit = 10, search = "" } = params || {};
+      let qb = this.db
          .selectFrom("equipo")
          .innerJoin("categoria_equipo", "categoria_equipo.id", "equipo.categoria_id")
+         .innerJoin("operador", "operador.id", "equipo.operador_id")
+         .innerJoin("empleado", "empleado.id", "operador.empleado_id")
          .select([
             "equipo.id",
             "equipo.nombre",
@@ -63,11 +71,24 @@ export class KyselyEquipoRepository implements IEquipoRepository {
             "equipo.placa",
             "equipo.modelo",
             "equipo.ano",
+            "equipo.operador_id",
+            "empleado.nombre as operador_nombre",
             "equipo.created_at",
             "equipo.updated_at",
          ])
-         .orderBy("equipo.created_at", "desc")
-         .execute();
+         .orderBy("equipo.created_at", "desc");
+
+
+      if (search) {
+         qb = qb.where((eb) =>
+            eb.or([
+               eb("equipo.nombre", "like", `%${search}%`),
+               eb("categoria_equipo.nombre", "like", `%${search}%`),
+            ])
+         );
+      }
+
+      const rows = await qb.offset((page - 1) * limit).limit(limit).execute();
 
       return rows.map(toDomain);
    }
@@ -76,6 +97,8 @@ export class KyselyEquipoRepository implements IEquipoRepository {
       const row = await this.db
          .selectFrom("equipo")
          .innerJoin("categoria_equipo", "categoria_equipo.id", "equipo.categoria_id")
+         .innerJoin("operador", "operador.id", "equipo.operador_id")
+         .innerJoin("empleado", "empleado.id", "operador.empleado_id")
          .select([
             "equipo.id",
             "equipo.nombre",
@@ -88,6 +111,8 @@ export class KyselyEquipoRepository implements IEquipoRepository {
             "equipo.placa",
             "equipo.modelo",
             "equipo.ano",
+            "equipo.operador_id",
+            "empleado.nombre as operador_nombre",
             "equipo.created_at",
             "equipo.updated_at",
          ])
@@ -105,10 +130,10 @@ export class KyselyEquipoRepository implements IEquipoRepository {
             nombre: data.nombre,
             categoria_id: data.categoria_id,
             estado: data.estado ?? "ACTIVO",
-            costo_por_hora: data.costo_por_hora ?? 0,
             placa: data.placa ?? null,
             modelo: data.modelo ?? null,
             ano: data.ano ?? null,
+            operador_id: data.operador_id ?? null,
          })
          .returning("id")
          .executeTakeFirstOrThrow();
@@ -138,6 +163,33 @@ export class KyselyEquipoRepository implements IEquipoRepository {
       return Number(result.numDeletedRows) > 0;
    }
 
+   async findCategoriaByEquipoId(
+      equipoId: string
+   ): Promise<CategoriaEquipo | null> {
+      const row = await this.db
+         .selectFrom("equipo")
+         .innerJoin(
+            "categoria_equipo",
+            "categoria_equipo.id",
+            "equipo.categoria_id"
+         )
+         .select([
+            "categoria_equipo.id",
+            "categoria_equipo.nombre",
+            "categoria_equipo.cobra_en",
+            "categoria_equipo.cobra_minimo",
+            "categoria_equipo.medida_cobro_id",
+            "categoria_equipo.precio_unitario",
+            "categoria_equipo.created_at",
+            "categoria_equipo.updated_at",
+         ])
+         .where("equipo.id", "=", equipoId)
+         .executeTakeFirst();
+
+      if (!row) return null;
+
+      return row;
+   }
    async changeEstado(
       id: string,
       nuevoEstado: EstadoEquipo,

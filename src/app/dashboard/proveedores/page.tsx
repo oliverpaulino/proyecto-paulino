@@ -56,6 +56,7 @@ export default function ProveedoresPage() {
    const [deleteTarget, setDeleteTarget] = useState<Supplier | null>(null);
 
    useEffect(() => {
+      document.title = "Proveedores";
       GetSuppliers();
    }, [GetSuppliers]);
 

@@ -1,3 +1,5 @@
+import { Operator } from "kysely";
+
 export type TipoIdentificacion = "CEDULA" | "RNC" | "PASAPORTE";
 export type TipoRolEmpleado = "OPERADOR" | "INGENIERO" | "MECANICO" | "CONTABLE" | "MENSAJERO";
 export interface EmployeeProps {
@@ -13,7 +15,7 @@ export interface EmployeeProps {
 }
 
 export class Employee {
-   private constructor(private readonly props: EmployeeProps) {}
+   private constructor(private readonly props: EmployeeProps) { }
 
    static create(props: EmployeeProps): Employee {
       return new Employee(props);
@@ -33,6 +35,7 @@ export class Employee {
       return { ...this.props };
    }
 }
+
 
 export interface CreateEmployeeDTO {
    nombre: string;
@@ -81,12 +84,16 @@ export interface UpdateContactEmpleadoDTO {
 
 // Operador
 export interface OperadorProps {
+   toJSON(): any;
    id: string;
    empleado_id: string;
    licencia: string | null;
+   nombre: string;
+   identificacion: string;
    fecha_vencimiento?: Date | null;
    created_at: Date;
    updated_at: Date;
+
 }
 
 export interface CreateOperadorDTO {
@@ -101,13 +108,15 @@ export interface UpdateOperadorDTO {
 }
 
 export interface IEmployeeRepository {
-   findAll(): Promise<Employee[]>;
+   findAll(params?: { page?: number; limit?: number; search?: string }): Promise<Employee[]>;
+   findAllOperators(params?: { page?: number; limit?: number; search?: string }): Promise<OperadorProps[]>;
    findById(id: string): Promise<Employee | null>;
+   findOperatorById(id: string): Promise<OperadorProps | null>;
    create(data: CreateEmployeeDTO): Promise<Employee>;
    update(id: string, data: UpdateEmployeeDTO): Promise<Employee | null>;
    delete(id: string): Promise<boolean>;
    existsByIdentificacion(identificacion: string, excludeId?: string): Promise<boolean>;
-   
+
    // Relaciones
    findUnlinkedEmployees(): Promise<Employee[]>;
    findLinkedEmployeesByUserId(userId: string): Promise<Employee[]>;
