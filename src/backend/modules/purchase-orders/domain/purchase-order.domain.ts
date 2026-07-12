@@ -131,7 +131,7 @@ export interface ApproverRecord {
 }
 
 export interface IPurchaseOrderRepository {
-   findAll(): Promise<PurchaseOrder[]>;
+   findAll(params: { supplierId?: string }): Promise<PurchaseOrder[]>;
    findAllDeleted(): Promise<PurchaseOrder[]>;
    findById(id: string): Promise<PurchaseOrder | null>;
    create(data: CreatePurchaseOrderDTO): Promise<PurchaseOrder>;

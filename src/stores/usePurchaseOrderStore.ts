@@ -27,6 +27,7 @@ type PurchaseOrderStore = {
       estado: EstadoOrdenCompra
    ) => Promise<void | Error>;
    DeletePurchaseOrder: (id: string) => Promise<void | Error>;
+   GetOrdenesCompraBySupplier: (supplierId: string, params?: { force?: boolean }) => Promise<void>;
    CheckIsApprover: () => Promise<boolean>;
    invalidateCache: () => void;
 };
@@ -190,6 +191,29 @@ export const usePurchaseOrderStore = create<PurchaseOrderStore>((set, get) => ({
          await get().GetPurchaseOrders();
       } catch (error) {
          return error as Error;
+      }
+   },
+
+   GetOrdenesCompraBySupplier: async (supplierId, { force = false } = {}) => {
+      const cacheKey = `supplier-${supplierId}`;
+      if (!force && get()._fetchedLists.has(cacheKey)) return;
+
+      set({ loading: true });
+      try {
+         const res = await fetch(`/api/purchase-orders?supplierId=${supplierId}`);
+         if (!res.ok) throw new Error("Error al cargar órdenes de compra por proveedor");
+         const data = await res.json();
+         set({ loading: false });
+         set((state) => ({
+            PurchaseOrders: data,
+            _fetchedLists: new Set(state._fetchedLists).add(cacheKey),
+         }));
+      } catch (error) {
+         console.error("Error fetching purchase orders by supplier:", error);
+         set({ loading: false });
+         throw error;
+      } finally {
+         set({ loading: false });
       }
    },
 }));

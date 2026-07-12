@@ -222,7 +222,7 @@ export default function PurchaseOrderDetail() {
                <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => router.push("/dashboard/compras")}
+                  onClick={() => router.back()}
                >
                   <ArrowLeft className="size-4" />
                </Button>

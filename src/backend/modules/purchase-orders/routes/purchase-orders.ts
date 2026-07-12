@@ -16,7 +16,8 @@ const notifService = new NotificationService(notifRepo);
 // GET /api/purchase-orders
 purchaseOrdersRoute.get("/", async (c) => {
    try {
-      const orders = await service.getAll();
+      const supplierId = c.req.query("supplierId") as string | undefined;
+      const orders = await service.getAll({ supplierId });
       return c.json(orders);
    } catch (err: unknown) {
       return c.json(

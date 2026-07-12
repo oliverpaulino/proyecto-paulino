@@ -23,8 +23,9 @@ function buildCodigoReferencia(referencia: string, fecha: Date): string {
 export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
    constructor(private readonly db: Kysely<DB>) { }
 
-   async findAll(): Promise<PurchaseOrder[]> {
-      const rows = await this.db
+   async findAll(params: { supplierId?: string }): Promise<PurchaseOrder[]> {
+      const { supplierId = "" } = params;
+      let qb = this.db
          .selectFrom("orden_compra")
          .leftJoin("proveedor", "proveedor.id", "orden_compra.proveedor_id")
          .select([
@@ -42,7 +43,12 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             "orden_compra.created_at",
             "orden_compra.updated_at",
          ])
-         .where("orden_compra.deleted_at", "is", null)
+         .where("orden_compra.deleted_at", "is", null);
+
+      if (supplierId) {
+         qb = qb.where("orden_compra.proveedor_id", "=", supplierId);
+      }
+      const rows = await qb
          .orderBy("orden_compra.created_at", "desc")
          .execute();
 
