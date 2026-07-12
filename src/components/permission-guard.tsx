@@ -5,40 +5,7 @@ import { Lock } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePermissions } from "@/hooks/usePermissions";
-
-type Resource =
-   | "project"
-   | "product"
-   | "sale"
-   | "category"
-   | "service"
-   | "user"
-   | "supplier"
-   | "organization"
-   | "bu"
-   | "finances"
-   | "invoice"
-   | "ac"
-   | "features"
-   | "users"
-   | "taxOrgProfiles"
-   | "material_request"
-   | "payment_request";
-
-type Action =
-   | "create"
-   | "read"
-   | "update"
-   | "delete"
-   | "share"
-   | "discount"
-   | "margin"
-   | "approve"
-   | "manage"
-   | "view"
-   | "add"
-   | "readAll"
-   | "readOwn";
+import type { Action, Resource } from "@/hooks/permissions.types";
 
 interface PermissionGuardProps {
    resource: Resource;
