@@ -17,18 +17,20 @@ type NotificationStore = {
    notifications: Notification[];
    unreadCount: number;
    loading: boolean;
+   deleteLoading: boolean;
 
    fetchNotifications: () => Promise<void>;
    fetchUnreadCount: () => Promise<void>;
    markAsRead: (id: string) => Promise<void>;
    markAllAsRead: () => Promise<void>;
+   deleteNotification: (id: string) => Promise<void>;
 };
 
 export const useNotificationStore = create<NotificationStore>((set, get) => ({
    notifications: [],
    unreadCount: 0,
    loading: false,
-
+   deleteLoading: false,
    fetchNotifications: async () => {
       set({ loading: true });
       try {
@@ -91,4 +93,28 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
          // silent
       }
    },
+
+   deleteNotification: async (id: string) => {
+      try {
+         set((state) => ({ ...state, deleteLoading: true }));
+         const res = await fetch(`/api/notifications/${id}`, {
+            method: "DELETE",
+         });
+         if (!res.ok) return;
+         set((state) => ({
+            notifications: state.notifications.filter((n) => n.id !== id),
+            unreadCount: Math.max(
+               0,
+               state.unreadCount - (state.notifications.find((n) => n.id === id)?.is_read ? 0 : 1)
+            ),
+         }));
+         // loading: false;
+      } catch {
+         set((state) => ({ ...state, deleteLoading: false }));
+         // silent
+      }
+      finally {
+         set((state) => ({ ...state, deleteLoading: false }));
+      }
+   }
 }));

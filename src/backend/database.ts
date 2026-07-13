@@ -1,6 +1,45 @@
 import { Kysely, PostgresDialect, Generated } from "kysely";
 import { Pool } from "pg";
 
+export interface ServicioTable {
+   id: Generated<string>;
+   nombre: string;
+   is_custom: Generated<boolean>;
+   activo: Generated<boolean>;
+   created_at: Generated<Date>;
+   updated_at: Generated<Date>;
+}
+
+export interface ServicioTarifaTable {
+   id: Generated<string>;
+   servicio_id: string;
+   categoria_equipo_id: string;
+   precio_sugerido: number;
+   created_at: Generated<Date>;
+}
+
+export interface ProyectoTarifaTable {
+   id: Generated<string>;
+   proyecto_id: string;
+   categoria_equipo_id: string;
+   precio_acordado: number;
+   cobra_en_snapshot: string | null;
+   cobra_minimo_snapshot: number | null;
+   created_at: Generated<Date>;
+}
+
+export interface ProyectoEquipoTable {
+   id: Generated<string>;
+   proyecto_id: string;
+   equipo_id: string;
+   operador_id: string | null;
+   proyecto_tarifa_id: string; // <-- El enlace crucial a la tarifa (Snapshot)
+   cantidad: number;
+   es_cobrable: boolean;
+   created_at: Generated<Date>;
+   updated_at: Generated<Date>;
+}
+
 export interface DB {
    cliente: {
       id: Generated<string>;
@@ -108,12 +147,24 @@ export interface DB {
       // repository normalizes it to a number. DB has a default of 0 (not generated).
       precio_base: number;
    };
-   
+
+   medida_cobro: {
+      id: Generated<string>;
+      nombre: string;
+      descripcion: string | null; // <-- Importante: aquí también debe ser null
+      permite_decimales: Generated<boolean>;
+      is_active: Generated<boolean>;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   }
+
    categoria_equipo: {
       id: Generated<string>;
       nombre: string;
       cobra_en: string;
       cobra_minimo: number | null;
+      medida_cobro_id: string;
+      precio_unitario: number | null;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
@@ -121,6 +172,8 @@ export interface DB {
    equipo: {
       id: Generated<string>;
       nombre: string;
+      operador_id: string | null;
+      operador_nombre: string | null;
       categoria_id: string;
       estado: Generated<string>;
       costo_por_hora: Generated<number>;
@@ -133,6 +186,7 @@ export interface DB {
 
    orden_compra: {
       id: Generated<string>;
+      referencia: Generated<string>;
       proveedor_id: string;
       fecha: Date;
       estado: Generated<string>;
@@ -151,6 +205,7 @@ export interface DB {
    purchase_order_approvers: {
       user_id: string;
       user_name: string;
+      is_protected: boolean;
       granted_by: string;
       granted_at: Generated<Date>;
    };
@@ -226,13 +281,6 @@ export interface DB {
       updated_at: Generated<Date>;
    };
 
-   // Read-only minimal view of proyecto (the full module lives elsewhere/TBD).
-   // Only the columns the tareas feature needs are typed here.
-   proyecto: {
-      id: Generated<string>;
-      nombre: string;
-   };
-
    tarea: {
       id: Generated<string>;
       proyecto_id: string | null;
@@ -264,7 +312,9 @@ export interface DB {
       empleado_id: string;
       created_at: Generated<Date>;
    };
-   
+
+
+
    unidades: {
       id: Generated<string>;
       nombre: string;
@@ -274,7 +324,7 @@ export interface DB {
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    }
-   
+
    cita: {
       id: Generated<string>;
       cliente_id: string | null;
@@ -285,7 +335,57 @@ export interface DB {
       notas: string | null;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
-   }
+   };
+
+   proyecto: {
+      id: Generated<string>;
+      tipo_proyecto: string;
+      nombre: string;       // 'EXPRESS' | 'NORMAL' | 'GRANDE'
+      // tipo_servicio_snapshot: string | null; // FK se añade cuando exista tipo_servicio
+      estado: string;       // 'BORRADOR' | 'COMPLETADO' | 'CANCELADO' | 'EN PROGRESO'
+      cliente_id: string;
+      // Servicios (nullable como solicitaste)
+      servicio_id: string | null;
+      tipo_servicio_snapshot: string | null;
+      tipo_servicio_id: string | null;
+      tarifa_servicio: number | null;
+
+      total_cobrable: Generated<number>;
+      total_gasto_interno: Generated<number>;
+      rentabilidad: Generated<number>;
+
+      notas: string | null;
+      fecha_inicio: Date;
+      fecha_fin: Date | null;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+
+   proyecto_detalle: {
+      id: Generated<string>;
+      proyecto_id: string;
+      descripcion: string;
+      cantidad: number;
+      precio_unitario: number;
+      subtotal: number;
+      es_cobrable: boolean;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+
+   proyecto_asignacion: {
+      id: Generated<string>;
+      proyecto_id: string;
+      empleado_id: string;
+      equipo_id: string;
+      horas_trabajadas: number;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+   servicios: ServicioTable;
+   servicio_tarifas: ServicioTarifaTable;
+   proyecto_tarifas: ProyectoTarifaTable;
+   proyecto_equipos: ProyectoEquipoTable;
 }
 
 const db = new Kysely<DB>({

@@ -34,6 +34,9 @@ import {
 import type { Supplier } from "@/dtos/supplier.dto";
 import { useSupplierStore } from "@/stores/useSupplierStore";
 import { SupplierForm } from "../components/supplier-form";
+import { OrdenesCompraTable } from "./components/ordenes-compra-table";
+import { usePurchaseOrderStore } from "@/stores/usePurchaseOrderStore";
+import { PurchaseOrder } from "@/dtos/purchase-order.dto";
 
 const TIPO_LABEL: Record<string, string> = {
    SUPLIDOR: "SUPLIDOR",
@@ -50,7 +53,8 @@ export default function SupplierDetailPage() {
    const router = useRouter();
    const supplierId = params.id as string;
 
-   const { UpdateSupplier, DeleteSupplier } = useSupplierStore();
+   const { UpdateSupplier, DeleteSupplier, GetSupplierById } = useSupplierStore();
+   const { GetOrdenesCompraBySupplier, PurchaseOrders: ordenes } = usePurchaseOrderStore();
 
    const [supplier, setSupplier] = useState<Supplier | null>(null);
    const [loading, setLoading] = useState(true);
@@ -64,10 +68,12 @@ export default function SupplierDetailPage() {
       async function load() {
          setLoading(true);
          try {
-            const res = await fetch(`/api/suppliers/${supplierId}`);
-            if (!res.ok) throw new Error("Not found");
-            const data: Supplier = await res.json();
-            if (active) setSupplier(data);
+            const data = await GetSupplierById(supplierId);
+            const ordenesData = await GetOrdenesCompraBySupplier(supplierId);
+
+            setSupplier(data);
+            if (data)
+               document.title = `${data.nombre}`;
          } catch {
             if (active) setSupplier(null);
          } finally {
@@ -76,8 +82,9 @@ export default function SupplierDetailPage() {
       }
 
       load();
+      console.log("Supplier ID:", ordenes);
       return () => { active = false; };
-   }, [supplierId]);
+   }, [supplierId, ordenes.length]);
 
    async function refreshSupplier() {
       const res = await fetch(`/api/suppliers/${supplierId}`);
@@ -202,20 +209,20 @@ export default function SupplierDetailPage() {
                   <MiniStatCard
                      icon={<ShoppingCart className="size-4 text-brand-blue" />}
                      label="Órdenes de compra"
-                     value="0"
+                     value={ordenes.length.toString() ?? 0}
                      index={0}
 
                   />
                   <MiniStatCard
                      icon={<Receipt className="size-4 text-brand-blue" />}
                      label="Monto total"
-                     value="RD$0"
+                     value={ordenes.reduce((acc, orden) => acc + (orden.total || 0), 0).toLocaleString("es-DO", { style: "currency", currency: "DOP" })}
                      index={1}
                   />
                   <MiniStatCard
                      icon={<PackageSearch className="size-4 text-brand-blue" />}
                      label="Última compra"
-                     value="—"
+                     value={ordenes.length > 0 ? new Date(Math.max(...ordenes.map(o => new Date(o.fecha).getTime()))).toLocaleDateString("es-DO") : "N/A"}
                      index={2}
                   />
                   <MiniStatCard
@@ -279,6 +286,7 @@ export default function SupplierDetailPage() {
                         <MiniStat label="Completadas" value="0" />
                         <MiniStat label="Total pagado" value="RD$0" />
                      </div>
+                     <OrdenesCompraTable ordenes={ordenes} onEdit={() => { }} onDelete={() => { }} />
                      <EmptyState
                         icon={<ShoppingCart className="size-8 opacity-30" />}
                         title="Sin órdenes de compra"
@@ -396,7 +404,7 @@ function MiniStatCard({
          <div className={`mt-0.5 rounded-lg ${index !== undefined && index % 2 === 0 ? "bg-brand-red/50" : "bg-brand-yellow/50"} p-2`}>{icon}</div>
          <div className="min-w-0">
             <p className="text-xs font-medium text-muted-foreground">{label}</p>
-            <p className={`mt-0.5 font-bold text-foreground ${compact ? "text-base" : "text-2xl"}`}>{value}</p>
+            <p className={`mt-0.5 font-bold text-foreground break-words ${compact ? "text-base" : "text-2xl"}`}>{value}</p>
          </div>
       </div>
    );

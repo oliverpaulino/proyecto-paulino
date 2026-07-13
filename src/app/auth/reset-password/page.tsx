@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2Icon, ArrowLeftIcon, CheckCircleIcon, AlertCircleIcon } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
+import Image from "next/image";
 
 function ResetPasswordForm() {
   const [password, setPassword] = useState("");
@@ -167,7 +168,8 @@ export default function ResetPasswordPage() {
         </div>
       </div>
       <div className="bg-muted relative hidden lg:block">
-        <img
+        <Image width={96} // Explicitly set width (24 * 4 for Tailwind)
+          height={96}
           src="/fingers.png"
           alt=""
           className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"

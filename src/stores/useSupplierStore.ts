@@ -7,6 +7,7 @@ type SupplierStore = {
    _fetchedLists: Set<string>;
 
    GetSuppliers: (params?: { force?: boolean }) => Promise<void>;
+   GetSupplierById: (id: string) => Promise<Supplier | null>;
    CreateSupplier: (form: SupplierForm) => Promise<Supplier | Error>;
    UpdateSupplier: (id: string, data: Partial<UpdateSupplierForm>) => Promise<void | Error>;
    DeleteSupplier: (id: string) => Promise<void | Error>;
@@ -42,6 +43,17 @@ export const useSupplierStore = create<SupplierStore>((set, get) => ({
          throw error;
       } finally {
          set({ loading: false });
+      }
+   },
+   GetSupplierById: async (id) => {
+      try {
+         const res = await fetch(`/api/suppliers/${id}`);
+         if (!res.ok) throw new Error("Error al cargar proveedor");
+         const data: Supplier = await res.json();
+         return data;
+      } catch (error) {
+         console.error("Error fetching supplier:", error);
+         return null;
       }
    },
 

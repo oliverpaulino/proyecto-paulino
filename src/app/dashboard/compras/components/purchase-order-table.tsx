@@ -88,13 +88,13 @@ export function PurchaseOrderTable({
             <tbody>
                {orders.map((order) => (
                   <tr
-                     key={order.id}
+                     key={order.codigoReferencia}
                      className="border-t border-border hover:bg-brand-blue/5 transition-colors"
                   >
                      <td className="px-4 py-3">
                         <Link href={`/dashboard/compras/${order.id}`} className="hover:underline">
                            <span className="inline-block rounded bg-brand-yellow/25 px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-black dark:text-brand-yellow">
-                              {order.id.slice(0, 8)}…
+                              {order.codigoReferencia}
                            </span>
                         </Link>
                         <div className="text-xs text-muted-foreground mt-0.5">
@@ -127,13 +127,6 @@ export function PurchaseOrderTable({
                               title="Editar"
                            >
                               <Pencil className="size-4" />
-                           </button>
-                           <button
-                              onClick={() => onDelete(order)}
-                              className="rounded-md p-1.5 text-brand-red hover:bg-brand-red/10 transition-colors"
-                              title="Eliminar"
-                           >
-                              <Trash2 className="size-4" />
                            </button>
 
                            <DropdownMenu modal={false}>

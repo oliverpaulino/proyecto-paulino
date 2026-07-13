@@ -13,8 +13,9 @@ import {
 export class PurchaseOrderService {
    constructor(private readonly repo: IPurchaseOrderRepository) { }
 
-   async getAll(): Promise<PurchaseOrderProps[]> {
-      const orders = await this.repo.findAll();
+   async getAll(params: { supplierId?: string }): Promise<PurchaseOrderProps[]> {
+      const { supplierId = "" } = params;
+      const orders = await this.repo.findAll({ supplierId });
       return orders.map((o) => o.toJSON());
    }
 

@@ -1,28 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "@/lib/auth-client";
-import { authClient } from "@/lib/auth-client";
-import { AppSidebar } from "@/components/app-sidebar";
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
+import { authClient, useSession } from "@/lib/auth-client";
 import { Separator } from "@/components/ui/separator";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
+import MyAccount from "./components/myAccount";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { User, Mail, ShieldCheck, Loader2, ArrowRight, KeyRound, Trash2, Link2 } from "lucide-react";
+import { User, Mail, ShieldCheck, Loader2, ArrowRight, KeyRound, Link2 } from "lucide-react";
 import Link from "next/link";
 import type { UserEmployeeLink } from "@/dtos/user-employee-link.dto";
 import type { Employee } from "@/dtos/employee.dto";
@@ -39,6 +25,15 @@ const ROLE_LABELS: Record<string, { label: string; color: string }> = {
 };
 
 export default function AccountPage() {
+
+  useEffect(() => {
+    document.title = "Mi Cuenta"
+  }, [])
+  return (
+    <>
+      <MyAccount />
+    </>
+  )
   const { data: session, refetch } = useSession();
   const user = session?.user;
 
@@ -50,7 +45,7 @@ export default function AccountPage() {
   const [userLinks, setUserLinks] = useState<UserEmployeeLink[]>([]);
   const { GetLinkedEmployeesByUserId } = useEmployeeStore();
   const { GetLinksByUserId } = useUserEmployeeLinkStore();
-  
+
 
   const role = (user as { role?: string } | undefined)?.role ?? "usuario";
   const roleInfo = ROLE_LABELS[role] ?? ROLE_LABELS.usuario;
@@ -146,32 +141,32 @@ export default function AccountPage() {
         <DividerLine />
 
         <Section icon={Link2} title="Empleados Vinculados">
-        <div className="mt-4 grid gap-2">
-          {loadingLinks ? (
-            <div className="flex items-center justify-center py-6 text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-            </div>
-          ) : userLinks.length === 0 ? (
-            <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-              No hay empleados vinculados a este usuario.
-            </div>
-          ) : (
-            // Se corrigió el map para retornar el componente correctamente
-            userLinks.map((link) => {
-              const emp = linkedEmployees.find(e => e.id === link.empleado_id);
-              return (
-                <LinkedEmployeeItem 
-                  key={link.id}
-                  link={link}
-                  employee={emp}
-                />
-              );
-            })
-          )}
-        </div>
-        <p className="text-[11px] text-muted-foreground mt-4">
+          <div className="mt-4 grid gap-2">
+            {loadingLinks ? (
+              <div className="flex items-center justify-center py-6 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
+            ) : userLinks.length === 0 ? (
+              <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                No hay empleados vinculados a este usuario.
+              </div>
+            ) : (
+              // Se corrigió el map para retornar el componente correctamente
+              userLinks.map((link) => {
+                const emp = linkedEmployees.find(e => e.id === link.empleado_id);
+                return (
+                  <LinkedEmployeeItem
+                    key={link.id}
+                    link={link}
+                    employee={emp}
+                  />
+                );
+              })
+            )}
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-4">
             Asignado por un administrador. Contacta al administrador para vincular otros empleados.
-        </p>
+          </p>
         </Section>
         <DividerLine />
 
@@ -251,12 +246,12 @@ function Field({
 }
 
 // Se removió el parámetro onDelete que no se usaba para evitar errores en TypeScript
-function LinkedEmployeeItem({ 
-  link, 
-  employee 
-}: { 
-  link: UserEmployeeLink; 
-  employee?: Employee; 
+function LinkedEmployeeItem({
+  link,
+  employee
+}: {
+  link: UserEmployeeLink;
+  employee?: Employee;
 }) {
   const empName = employee?.nombre || "Cargando o Desconocido...";
   const empRol = employee?.rol || "";

@@ -28,4 +28,5 @@ export interface INotificationRepository {
    markReadByReference(referenceId: string, referenceType: string): Promise<void>;
    create(data: CreateNotificationDTO): Promise<NotificationProps>;
    createMany(data: CreateNotificationDTO[]): Promise<void>;
+   delete(id: string, userId: string): Promise<void>;
 }

@@ -56,14 +56,19 @@ export default function UsersPage() {
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+
   const fetchUsers = async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data } = await (authClient.admin as any).listUsers({ query: { limit: 100 } });
+    const { data } = await (authClient.admin).listUsers({ query: { limit: 100 } });
+    console.log(data)
     setUsers((data?.users as User[]) ?? []);
     setLoading(false);
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => {
+    document.title = "Usuarios";
+    fetchUsers();
+  }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,6 +108,8 @@ export default function UsersPage() {
   };
 
   return (
+
+
     <div className="flex flex-1 flex-col gap-4 w-full max-w-5xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
       <div className="flex items-center justify-between">
         <div>

@@ -3,14 +3,20 @@ import db from "@/backend/database";
 import { auth } from "@/lib/auth";
 import { KyselyEquipoRepository } from "../infraestructure/equipo.infraestructure";
 import { EquipoService } from "../service/equipo.service";
+import { EmployeeService } from "../../employees/service/employees.service";
+import { KyselyEmployeeRepository } from "../../employees/infraestructure/employees.infraestructure";
 
 const equiposRoute = new Hono();
 const repo = new KyselyEquipoRepository(db);
-const service = new EquipoService(repo);
+const employeeRepo = new KyselyEmployeeRepository(db);
+const service = new EquipoService(repo, employeeRepo);
 
 // GET /api/equipos
 equiposRoute.get("/", async (c) => {
-   const equipos = await service.getAll();
+   const page = parseInt(c.req.query("page") || "1", 10);
+   const limit = parseInt(c.req.query("limit") || "10", 10);
+   const search = c.req.query("search") || "";
+   const equipos = await service.getAll({ page, limit, search });
    return c.json(equipos);
 });
 
@@ -92,6 +98,41 @@ equiposRoute.delete("/:id", async (c) => {
    const deleted = await service.delete(c.req.param("id"));
    if (!deleted) return c.json({ error: "Equipo no encontrado" }, 404);
    return c.json({ success: true });
+});
+
+equiposRoute.get(":id/categorias", async (c) => {
+   const categorias = await service.getCategoriaByEquipoId(c.req.param("id"));
+   // if (!categorias) return c.json({ error: "Categoría no encontrada" }, 404);
+   return c.json(categorias);
+})
+equiposRoute.get(":id/operador", async (c) => {
+   const operador = await service.getOperadorByEquipoId(c.req.param("id"));
+   if (!operador) return c.json({ error: "Operador no encontrado" }, 200);
+   return c.json(operador);
+})
+
+// GET /api/equipos/:id/historial-trabajo
+equiposRoute.get("/:id/historial-trabajo", async (c) => {
+   const rows = await db
+      .selectFrom("proyecto_equipos")
+      .innerJoin("proyecto", "proyecto.id", "proyecto_equipos.proyecto_id")
+      .innerJoin("proyecto_tarifas", "proyecto_tarifas.id", "proyecto_equipos.proyecto_tarifa_id")
+      .select([
+         "proyecto.id as proyecto_id",
+         "proyecto.nombre as proyecto_nombre",
+         "proyecto.fecha_inicio",
+         "proyecto_equipos.cantidad",
+         "proyecto_equipos.es_cobrable",
+         "proyecto_tarifas.precio_acordado",
+      ])
+      .where("proyecto_equipos.equipo_id", "=", c.req.param("id"))
+      .orderBy("proyecto.fecha_inicio", "desc")
+      .execute();
+
+   return c.json(rows.map(r => ({
+      ...r,
+      subtotal: Number(r.cantidad) * Number(r.precio_acordado),
+   })));
 });
 
 export default equiposRoute;

@@ -19,6 +19,7 @@ import { EquipoTable } from "./components/equipo-table";
 import { DeleteEquipoDialog } from "./components/delete-equipo-dialog";
 import { CategoriaEquipoManager } from "./components/categoria-equipo-manager";
 import { TableSearch } from "@/components/table-search";
+import { MedidaCobroManager } from "./components/medida-cobro-manager";
 
 const STAT_STYLES = {
    blue: {
@@ -58,8 +59,11 @@ export default function EquiposPage() {
    const [editTarget, setEditTarget] = useState<Equipo | null>(null);
    const [deleteTarget, setDeleteTarget] = useState<Equipo | null>(null);
    const [manageOpen, setManageOpen] = useState(false);
+   const [manageMedidasOpen, setManageMedidasOpen] = useState(false);
+
 
    useEffect(() => {
+      document.title = "Equipos"
       GetEquipos();
       GetCategoriaEquipos();
    }, [GetEquipos, GetCategoriaEquipos]);
@@ -69,7 +73,6 @@ export default function EquiposPage() {
       return (
          e.nombre.toLowerCase().includes(q) ||
          e.categoria_nombre.toLowerCase().includes(q) ||
-         e.cobra_en.toLowerCase().includes(q) ||
          (e.placa ?? "").toLowerCase().includes(q) ||
          (e.modelo ?? "").toLowerCase().includes(q)
       );
@@ -83,9 +86,9 @@ export default function EquiposPage() {
    function toForm(data: EquipoFormValues) {
       return {
          nombre: data.nombre,
+         operador_id: data.operador_id || null,
          categoria_id: data.categoria_id,
          estado: data.estado,
-         costo_por_hora: data.costo_por_hora === "" ? 0 : Number(data.costo_por_hora),
          placa: data.placa || null,
          modelo: data.modelo || null,
          ano: data.ano === "" ? null : Number(data.ano),
@@ -173,6 +176,14 @@ export default function EquiposPage() {
                   <Tag className="size-4 mr-2" />
                   Gestionar categorías
                </Button>
+               <Button
+                  variant="outline"
+                  onClick={() => setManageMedidasOpen(true)}
+                  className="font-semibold w-auto"
+               >
+                  <Tag className="size-4 mr-2" />
+                  Medidas de Cobro
+               </Button>
 
                <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                   <DialogTrigger asChild>
@@ -192,7 +203,6 @@ export default function EquiposPage() {
                         onSubmit={handleCreate}
                         onCancel={() => setCreateOpen(false)}
                         loading={formLoading}
-                        onManageCategorias={() => { setCreateOpen(false); setManageOpen(true); }}
                      />
                   </DialogContent>
                </Dialog>
@@ -232,7 +242,6 @@ export default function EquiposPage() {
                      onCancel={() => setEditTarget(null)}
                      loading={formLoading}
                      submitLabel="Guardar cambios"
-                     onManageCategorias={() => { setEditTarget(null); setManageOpen(true); }}
                   />
                )}
             </DialogContent>
@@ -246,7 +255,9 @@ export default function EquiposPage() {
          />
 
          <CategoriaEquipoManager open={manageOpen} onOpenChange={setManageOpen} />
-      </div>
+         <MedidaCobroManager open={manageMedidasOpen} onOpenChange={setManageMedidasOpen} />
+
+      </div >
    );
 }
 

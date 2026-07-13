@@ -16,7 +16,7 @@ import {
    DialogHeader,
    DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Loader2, Shield, Trash2, UserPlus } from "lucide-react";
+import { ArrowLeft, Loader2, Lock, Shield, ShieldAlert, Trash2, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { authClient, useSession } from "@/lib/auth-client";
 
@@ -25,6 +25,7 @@ interface Approver {
    user_name: string;
    granted_by: string;
    granted_at: string;
+   is_protected: boolean;
 }
 
 interface UserRecord {
@@ -65,6 +66,7 @@ export default function AprobadoresPage() {
       setUsersError(null);
       try {
          const res = await authClient.admin.listUsers({ query: { limit: 200 } });
+         // console.log(res)
          if (res.data?.users) {
             setUsers(
                res.data.users.map((u) => ({
@@ -83,6 +85,7 @@ export default function AprobadoresPage() {
    }, []);
 
    useEffect(() => {
+      document.title = "Aprobadores de Órdenes de Compra";
       if (role === "administrador") {
          loadApprovers();
          loadUsers();
@@ -123,8 +126,8 @@ export default function AprobadoresPage() {
    const dropdownUsers = eligibleUsers.length > 0
       ? eligibleUsers
       : currentAdminEligible
-        ? [currentAdminEligible as UserRecord]
-        : [];
+         ? [currentAdminEligible as UserRecord]
+         : [];
 
    async function handleAdd() {
       if (!selectedUserId) return;
@@ -284,16 +287,24 @@ export default function AprobadoresPage() {
                                  {new Date(a.granted_at).toLocaleDateString("es-DO")}
                               </td>
                               <td className="px-4 py-3 text-right">
-                                 <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="text-destructive hover:text-destructive"
-                                    onClick={() => handleRemove(a.user_id)}
-                                 >
-                                    <Trash2 className="size-4" />
-                                 </Button>
+                                 {a.is_protected ? (
+                                    <Button size="icon" className="bg-transparent hover:bg-muted/20 text-muted-foreground cursor-not-allowed" >
+                                       <Lock className="size-4 text-blue-500" />
+                                    </Button>
+                                 ) : (
+                                    <Button
+                                       variant="ghost"
+                                       size="icon"
+                                       className="text-destructive hover:text-destructive"
+                                       disabled={currentUser?.id === a.user_id}
+                                       onClick={() => handleRemove(a.user_id)}
+                                    >
+                                       <Trash2 className="size-4" />
+                                    </Button>
+                                 )}
                               </td>
                            </tr>
+
                         ))}
                      </tbody>
                   </table>
