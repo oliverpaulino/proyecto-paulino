@@ -1,36 +1,39 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Loader2, User, X } from "lucide-react";
+import { Loader2, User as UserIcon, X } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useEmployeeStore } from "@/stores/useEmployeeStore";
-import type { Employee } from "@/dtos/employee.dto";
+import { authClient } from "@/lib/auth-client";
 
-interface SelectBuscadorEmployeeProps {
-   value?: string | null;
-   initialLabel?: string;
-   onChange: (employeeId: string | null) => void;
-   placeholder?: string;
-   disabled?: boolean;
-   unlinkedOnly?: boolean;
+interface UserRecord {
+   id: string;
+   name: string;
+   email: string;
+   role: string | null;
 }
 
-export function SelectBuscadorEmployee({
+interface SelectBuscadorUserProps {
+   value?: string | null;
+   initialLabel?: string;
+   onChange: (userId: string | null) => void;
+   placeholder?: string;
+   disabled?: boolean;
+}
+
+export function SelectBuscadorUser({
    value,
    initialLabel = "",
    onChange,
-   placeholder = "Buscar empleado por nombre o ID...",
+   placeholder = "Buscar usuario por nombre o correo...",
    disabled = false,
-   unlinkedOnly = false,
-}: SelectBuscadorEmployeeProps) {
-   const { Employees, UnlinkedEmployees, loading, GetEmployees, GetUnlinkedEmployees } = useEmployeeStore();
+}: SelectBuscadorUserProps) {
+   const [users, setUsers] = useState<UserRecord[]>([]);
+   const [loading, setLoading] = useState(false);
    const [isOpen, setIsOpen] = useState(false);
    const [inputValue, setInputValue] = useState(initialLabel);
    const containerRef = useRef<HTMLDivElement>(null);
 
    const debouncedSearch = useDebounce(inputValue, 500);
-
-   const currentEmployeesList = unlinkedOnly ? UnlinkedEmployees : Employees;
 
    useEffect(() => {
       setInputValue(initialLabel);
@@ -40,28 +43,34 @@ export function SelectBuscadorEmployee({
       function handleClickOutside(event: MouseEvent) {
          if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
             setIsOpen(false);
-            if (!value) setInputValue(""); 
+            if (!value) setInputValue("");
          }
       }
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
    }, [value]);
 
-   useEffect(() => {
-      if (!isOpen) return;
-
-      const params = { search: debouncedSearch.trim(), limit: 20, force: true };
-      
-      if (unlinkedOnly) {
-         GetUnlinkedEmployees(params);
-      } else {
-         GetEmployees(params);
+   const fetchUsers = async () => {
+      setLoading(true);
+      try {
+         const { data } = await (authClient.admin as any).listUsers({ query: { limit: 500 } });
+         setUsers((data?.users as UserRecord[]) || []);
+      } catch (error) {
+         console.error(error);
+      } finally {
+         setLoading(false);
       }
-   }, [debouncedSearch, isOpen, GetEmployees, GetUnlinkedEmployees, unlinkedOnly]);
+   };
 
-   const handleSelect = (employee: Employee) => {
-      setInputValue(employee.nombre);
-      onChange(employee.id);
+   useEffect(() => {
+      if (isOpen && users.length === 0) {
+         fetchUsers();
+      }
+   }, [isOpen, users.length]);
+
+   const handleSelect = (user: UserRecord) => {
+      setInputValue(user.name);
+      onChange(user.id);
       setIsOpen(false);
    };
 
@@ -72,10 +81,19 @@ export function SelectBuscadorEmployee({
       setIsOpen(false);
    };
 
+   const filteredUsers = users.filter((user) => {
+      const query = debouncedSearch.trim().toLowerCase();
+      if (!query) return true;
+      return (
+         user.name.toLowerCase().includes(query) ||
+         user.email.toLowerCase().includes(query)
+      );
+   }).slice(0, 20);
+
    return (
       <div className="relative w-full" ref={containerRef}>
          <div className="relative flex items-center">
-            <User className="absolute left-3 h-4 w-4 text-muted-foreground" />
+            <UserIcon className="absolute left-3 h-4 w-4 text-muted-foreground" />
             <input
                type="text"
                value={inputValue}
@@ -102,28 +120,28 @@ export function SelectBuscadorEmployee({
 
          {isOpen && (
             <div className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-md p-1">
-               {loading && currentEmployeesList.length === 0 ? (
-                  <div className="p-4 text-center text-sm text-muted-foreground">Buscando empleados...</div>
-               ) : currentEmployeesList.length > 0 ? (
-                  currentEmployeesList.map((employee) => (
+               {loading && users.length === 0 ? (
+                  <div className="p-4 text-center text-sm text-muted-foreground">Buscando usuarios...</div>
+               ) : filteredUsers.length > 0 ? (
+                  filteredUsers.map((user) => (
                      <div
-                        key={employee.id}
-                        onClick={() => handleSelect(employee)}
+                        key={user.id}
+                        onClick={() => handleSelect(user)}
                         className="flex cursor-pointer flex-col gap-1 rounded-sm px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
                      >
                         <div className="flex justify-between items-center">
-                           <span className="font-medium truncate">{employee.nombre}</span>
+                           <span className="font-medium truncate">{user.name}</span>
                            <span className="text-[10px] uppercase font-semibold bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">
-                              {employee.rol}
+                              {user.role || "USUARIO"}
                            </span>
                         </div>
                         <span className="text-xs text-muted-foreground truncate">
-                           {employee.tipo_identificacion}: {employee.identificacion}
+                           {user.email}
                         </span>
                      </div>
                   ))
                ) : (
-                  <div className="p-4 text-center text-sm text-muted-foreground">No se encontraron empleados.</div>
+                  <div className="p-4 text-center text-sm text-muted-foreground">No se encontraron usuarios.</div>
                )}
             </div>
          )}
