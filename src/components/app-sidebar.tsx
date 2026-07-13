@@ -72,6 +72,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const settingsItems = [
     { id: "settings-general", title: "General", url: "/dashboard/settings" },
     { id: "settings-unidades", title: "Unidades", url: "/dashboard/unidades" },
+    { id: "settings-vinculos", title: "Vínculos", url: "/dashboard/user-employee-link" },
     ...(isAdmin ? [{ id: "settings-usuarios", title: "Usuarios", url: "/dashboard/settings/users" }] : []),
   ]
 

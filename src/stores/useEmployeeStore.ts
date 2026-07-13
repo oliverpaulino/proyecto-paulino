@@ -14,6 +14,7 @@ import type {
 
 type EmployeeStore = {
    Employees: Employee[];
+   UnlinkedEmployees: Employee[];
    Contacts: ContactEmployee[];
    selectedEmployee: EmployeeDetails | null;
    loading: boolean;
@@ -60,6 +61,7 @@ type EmployeeStore = {
 
 export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
    Employees: [],
+   UnlinkedEmployees: [],
    Contacts: [],
    selectedEmployee: null,
    loading: false,
@@ -150,7 +152,7 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
          const start = (page - 1) * limit;
 
          set((state) => ({
-            Employees: filtered.slice(start, start + limit),
+            UnlinkedEmployees: filtered.slice(start, start + limit),
             pagination: {
                page,
                limit,

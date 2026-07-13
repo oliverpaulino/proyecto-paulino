@@ -19,8 +19,6 @@ import {
   ArrowLeft,
   Ban,
   CheckCircle2,
-  Link2,
-  Plus
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
@@ -28,14 +26,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import { useUserEmployeeLinkStore } from "@/stores/useUserEmployeeLinkStore";
-import { useEmployeeStore } from "@/stores/useEmployeeStore";
-import { SelectBuscadorEmployee } from "@/components/shared/selectBuscadorEmployee";
-import type { UserEmployeeLink } from "@/dtos/user-employee-link.dto";
-import type { Employee } from "@/dtos/employee.dto";
+import { UserEmployeeLinkManager } from "@/app/dashboard/user-employee-link/components/user-employee-link-manager";
 
 const ROLES = ["usuario", "asistente", "coordinador", "contable", "administrador"] as const;
 type Role = (typeof ROLES)[number];
@@ -71,37 +63,6 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const { GetLinksByUserId, CreateLink, DeleteLink } = useUserEmployeeLinkStore();
-  const { GetLinkedEmployeesByUserId } = useEmployeeStore();
-  
-  const [userLinks, setUserLinks] = useState<UserEmployeeLink[]>([]);
-  const [linkedEmployees, setLinkedEmployees] = useState<Employee[]>([]);
-  const [loadingLinks, setLoadingLinks] = useState(false);
-
-  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
-  const [linking, setLinking] = useState(false);
-
-  // Estados para el modal de eliminación de vínculo
-  const [linkToDelete, setLinkToDelete] = useState<{ id: string; name: string } | null>(null);
-  const [deletingLink, setDeletingLink] = useState(false);
-
-  const fetchLinks = async (userId: string) => {
-    setLoadingLinks(true);
-    try {
-      const [links, employees] = await Promise.all([
-        GetLinksByUserId(userId),
-        GetLinkedEmployeesByUserId(userId)
-      ]);
-      setUserLinks(links || []);
-      setLinkedEmployees(employees || []);
-    } catch (error) {
-      toast.error("Error al cargar vínculos de empleados");
-    } finally {
-      setLoadingLinks(false);
-    }
-  };
-
   useEffect(() => {
     (async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -110,7 +71,6 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
       if (found) {
         setUser(found);
         setRole((found.role as Role) ?? "usuario");
-        await fetchLinks(found.id);
       }
       setLoading(false);
     })();
@@ -161,37 +121,6 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
     if (error) { toast.error(error.message ?? "Error al eliminar"); return; }
     toast.success("Usuario eliminado");
     router.push("/dashboard/settings/users");
-  };
-
-  const handleCreateLink = async () => {
-    if (!user || !selectedEmployeeId) return;
-    setLinking(true);
-    const result = await CreateLink({ user_id: user.id, empleado_id: selectedEmployeeId });
-    setLinking(false);
-
-    if (result instanceof Error) {
-      toast.error(result.message);
-    } else {
-      toast.success("Empleado vinculado exitosamente");
-      setLinkDialogOpen(false);
-      setSelectedEmployeeId(null);
-      await fetchLinks(user.id);
-    }
-  };
-
-  const confirmDeleteLink = async () => {
-    if (!user || !linkToDelete) return;
-    setDeletingLink(true);
-    const result = await DeleteLink(linkToDelete.id);
-    setDeletingLink(false);
-
-    if (result instanceof Error) {
-      toast.error(result.message);
-    } else {
-      toast.success("Vínculo eliminado");
-      setLinkToDelete(null);
-      await fetchLinks(user.id);
-    }
   };
 
   const meta = ROLE_META[role] ?? ROLE_META.usuario;
@@ -341,37 +270,8 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
 
           <Separator className="my-6" />
 
-          <div className="flex items-center justify-between">
-            <SectionHeader icon={Link2} title="Empleados Vinculados" />
-            <Button variant="outline" size="sm" onClick={() => setLinkDialogOpen(true)}>
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Vincular
-            </Button>
-          </div>
-
-          <div className="mt-4 grid gap-2">
-            {loadingLinks ? (
-              <div className="flex items-center justify-center py-6 text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-              </div>
-            ) : userLinks.length === 0 ? (
-              <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-                No hay empleados vinculados a este usuario.
-              </div>
-            ) : (
-              userLinks.map((link) => {
-                const emp = linkedEmployees.find(e => e.id === link.empleado_id);
-                return (
-                  <LinkedEmployeeItem 
-                    key={link.id} 
-                    link={link} 
-                    employee={emp} 
-                    onDelete={(id, name) => setLinkToDelete({ id, name })} 
-                  />
-                );
-              })
-            )}
-          </div>
+          <UserEmployeeLinkManager fixedUserId={user.id} />
+          
           <p className="text-[11px] text-muted-foreground mt-4">
               Recibirás las notificaciones correspondientes a los empleados vinculados.
           </p>
@@ -410,60 +310,6 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
         </div>
       </SidebarInset>
 
-      <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Vincular Empleado</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label>ID de Usuario</Label>
-              <Input value={user?.id} disabled className="font-mono text-xs opacity-60" />
-            </div>
-            <div className="grid gap-2">
-              <Label>Seleccionar Empleado</Label>
-              <SelectBuscadorEmployee 
-                onChange={setSelectedEmployeeId} 
-                unlinkedOnly={true} 
-              />
-              <p className="text-[11px] text-muted-foreground">
-                Solo se muestran los empleados que no tienen un usuario asignado en el sistema.
-              </p>
-            </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setLinkDialogOpen(false)} disabled={linking}>
-              Cancelar
-            </Button>
-            <Button onClick={handleCreateLink} disabled={!selectedEmployeeId || linking}>
-              {linking ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : "Vincular"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog para Eliminar Vínculo */}
-      <Dialog open={!!linkToDelete} onOpenChange={(open) => { if (!open) setLinkToDelete(null); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Eliminar vínculo</DialogTitle>
-            <DialogDescription>
-              ¿Estás seguro de eliminar el vínculo con <strong>{linkToDelete?.name}</strong>? Esta acción no se puede deshacer.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setLinkToDelete(null)} disabled={deletingLink}>
-              Cancelar
-            </Button>
-            <Button variant="destructive" onClick={confirmDeleteLink} disabled={deletingLink}>
-              {deletingLink ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {deletingLink ? "Eliminando…" : "Eliminar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog para Eliminar Usuario Completo */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
           <DialogHeader>
@@ -508,41 +354,4 @@ function SectionHeader({
 
 function Separator({ className }: { className?: string }) {
   return <hr className={`border-border opacity-50 ${className ?? ""}`} />;
-}
-
-function LinkedEmployeeItem({ 
-  link, 
-  employee, 
-  onDelete 
-}: { 
-  link: UserEmployeeLink; 
-  employee?: Employee; 
-  onDelete: (id: string, name: string) => void 
-}) {
-  const empName = employee?.nombre || "Cargando o Desconocido...";
-  const empRol = employee?.rol || "";
-
-  return (
-    <div className="flex items-center justify-between rounded-md border border-border bg-card px-4 py-3">
-      <div className="flex flex-col">
-        <span className="text-sm font-medium">{empName}</span>
-        <div className="mt-1 flex items-center gap-2">
-          <span className="text-xs text-muted-foreground font-mono">{link.empleado_id.slice(0, 8)}...</span>
-          {empRol && (
-            <span className="text-[10px] bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded-sm uppercase font-semibold">
-              {empRol}
-            </span>
-          )}
-        </div>
-      </div>
-      <Button 
-        variant="ghost" 
-        size="icon" 
-        onClick={() => onDelete(link.id, empName)} 
-        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
-    </div>
-  );
 }
