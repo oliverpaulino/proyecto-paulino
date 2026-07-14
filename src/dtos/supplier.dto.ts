@@ -18,6 +18,8 @@ export const SupplierSchemasDTO = {
 
 const SupplierDTO = z.object({
    id: z.string(),
+   referencia: z.number(),
+   codigoReferencia: z.string(),
    nombre: z.string(),
    tipo: SupplierSchemasDTO.TipoProveedorSchema,
    rnc: z.string(),
