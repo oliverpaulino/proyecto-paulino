@@ -43,7 +43,7 @@ export interface ProyectoEquipoTable {
 export interface DB {
    cliente: {
       id: Generated<string>;
-      referencia: Generated<string>;
+      referencia: Generated<number>;
       nombre: string;
       identificacion: string;
       tipo_identificacion: string;
@@ -68,7 +68,7 @@ export interface DB {
 
    empleado: {
       id: Generated<string>;
-      referencia: Generated<string>;
+      referencia: Generated<number>;
       nombre: string;
       identificacion: string;
       tipo_identificacion: string;
@@ -111,7 +111,7 @@ export interface DB {
 
    proveedor: {
       id: Generated<string>;
-      referencia: Generated<string>;
+      referencia: Generated<number>;
       nombre: string;
       tipo: string;
       rnc: string;
@@ -174,7 +174,7 @@ export interface DB {
 
    equipo: {
       id: Generated<string>;
-      referencia: Generated<string>;
+      referencia: Generated<number>;
       nombre: string;
       operador_id: string | null;
       operador_nombre: string | null;
@@ -190,7 +190,7 @@ export interface DB {
 
    orden_compra: {
       id: Generated<string>;
-      referencia: Generated<string>;
+      referencia: Generated<number>;
       proveedor_id: string;
       fecha: Date;
       estado: Generated<string>;
@@ -331,7 +331,7 @@ export interface DB {
 
    cita: {
       id: Generated<string>;
-      referencia: Generated<string>;
+      referencia: Generated<number>;
       cliente_id: string | null;
       employee_id: string | null;
       fecha: Date;
