@@ -2,6 +2,8 @@ export type EstadoCita = "PENDIENTE" | "ASIGNADA" | "REALIZADA" | "CANCELADA";
 
 export interface AppointmentProps {
     id: string;
+    referencia: number;
+    codigoReferencia: string;
     cliente_id: string | null;
     employee_id: string | null;
     fecha: Date;
@@ -20,6 +22,9 @@ export class Appointment {
     }
 
     get id() { return this.props.id; }
+    get referencia() { return this.props.referencia; }
+    get codigoReferencia() { const ref = String(this.props.referencia).padStart(3, "0");
+                        return `CIT-${ref}`; }
     get cliente_id() { return this.props.cliente_id; }
     get employee_id() { return this.props.employee_id; }
     get fecha() { return this.props.fecha; }
@@ -58,6 +63,9 @@ export class AppointmentUI {
     }
 
     get id() { return this.props.id; }
+    get referencia() { return this.props.referencia; }
+    get codigoReferencia() { const ref = String(this.props.referencia).padStart(3, "0");
+                        return `CIT-${ref}`; }
     get cliente_id() { return this.props.cliente_id; }
     get employee_id() { return this.props.employee_id; }
     get fecha() { return this.props.fecha; }

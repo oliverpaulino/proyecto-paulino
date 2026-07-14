@@ -5,6 +5,7 @@ import { AppointmentService } from "../service/appointments.service";
 import { CreateAppointmentSchema, UpdateAppointmentSchema, EstadoCita as ESTADOS_CITA } from "@/dtos/appointment.dto";
 import { EstadoCita } from "../domain/appointments.domain";
 import { auth } from "@/lib/auth";
+import app from "@/backend/app";
 
 const appointmentsRoute = new Hono();
 const repo = new KyselyAppointmentRepository(db);
@@ -54,6 +55,8 @@ appointmentsRoute.get("/", async (c) => {
 appointmentsRoute.get("/:id", async (c) => {
    const appointment = await service.getById(c.req.param("id"));
    if (!appointment) return c.json({ error: "Cita no encontrada" }, 404);
+   console.log(appointment.referencia);
+   console.log(appointment.codigoReferencia);
    return c.json(appointment);
 });
 
