@@ -58,7 +58,11 @@ export function AppointmentTable({ appointments, onEdit, onDelete }: Appointment
                   const horaFmt = isValidDate ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
 
                   return (
-                     <tr key={cita.id} className="border-t border-border hover:bg-brand-blue/5 transition-colors">
+                     <tr 
+                        key={cita.id} 
+                        onClick={() => router.push(`/dashboard/citas/${cita.id}`)}
+                        className="border-t border-border hover:bg-brand-blue/5 transition-colors cursor-pointer"
+                     >
                         <td className="px-4 py-3 whitespace-nowrap">
                            <div className="flex items-center gap-1.5 font-medium text-foreground">
                               <Calendar className="size-3.5 text-brand-blue dark:text-blue-400" />
@@ -94,7 +98,10 @@ export function AppointmentTable({ appointments, onEdit, onDelete }: Appointment
                            </span>
                         </td>
 
-                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <td 
+                           className="px-4 py-3 text-right whitespace-nowrap"
+                           onClick={(e) => e.stopPropagation()}
+                        >
                            <div className="flex items-center justify-end gap-1">
                               <button
                                  onClick={() => onEdit(cita)}
