@@ -21,6 +21,8 @@ export const ClientSchemasDTO = {
 const ClientDTO = z.object({
    id: z.string(),
    nombre: z.string(),
+   referencia: z.number(),
+   codigoReferencia: z.string(),
    identificacion: z.string(),
    tipo_identificacion: GeneralSchemasDTO.TipoIdentificacionSchema,
    tipo_cliente: TipoClienteSchema,
