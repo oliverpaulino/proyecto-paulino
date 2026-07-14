@@ -5,6 +5,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { Supplier } from "@/dtos/supplier.dto";
+import Link from "next/link";
 
 interface SupplierTableProps {
    suppliers: Supplier[];
@@ -56,9 +57,11 @@ export function SupplierTable({ suppliers, onEdit, onDelete }: SupplierTableProp
                      className="border-t border-border hover:bg-brand-blue/5 transition-colors"
                   >
                      <td className="px-4 py-3">
-                        <span className="inline-block rounded bg-brand-yellow/25 px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-black dark:text-brand-yellow">
-                           {supplier.rnc}
-                        </span>
+                        <Link href={`/dashboard/proveedores/${supplier.id}`} className="hover:bg-brand-yellow/50 transition">
+                           <span className="inline-block rounded bg-brand-yellow/25 px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-black dark:text-brand-yellow">
+                              {supplier.rnc}
+                           </span>
+                        </Link>
                      </td>
                      <td className="px-4 py-3">
                         <div className="font-semibold text-brand-blue dark:text-white">{supplier.nombre}</div>

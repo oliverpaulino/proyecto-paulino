@@ -12,24 +12,82 @@ import {
 import { DB } from "@/backend/database";
 
 export class KyselyEmployeeRepository implements IEmployeeRepository {
-   constructor(private readonly db: Kysely<DB>) {}
+   constructor(private readonly db: Kysely<DB>) { }
 
-   async findAll(): Promise<Employee[]> {
-      const rows = await this.db
-         .selectFrom("empleado")
-         .selectAll()
-         .orderBy("created_at", "desc")
-         .execute();
+   private buildCodigoReferencia(referencia: number): string {
+      const ref = String(referencia).padStart(3, "0");
+      return `EMP-${ref}`;
+   }
 
-      return rows.map((row) =>
-         Employee.create({
+   private mapToEntity(row: any): Employee {
+      return Employee.create({
             ...row,
+            codigoReferencia: this.buildCodigoReferencia(row.referencia),
             tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
             rol: row.rol as TipoRolEmpleado,
             created_at: new Date(row.created_at),
             updated_at: new Date(row.updated_at),
          })
-      );
+   }
+   
+   async findAll(params?: { page?: number; limit?: number; search?: string }): Promise<Employee[]> {
+      const { page = 1, limit = 10, search = "" } = params || {};
+      let query = this.db
+         .selectFrom("empleado")
+         .selectAll();
+
+      if (search) {
+         query = query.where((eb) =>
+            eb.or([
+               eb("empleado.nombre", "like", `%${search}%`),
+               eb("empleado.identificacion", "like", `%${search}%`),
+            ])
+         );
+      }
+
+      const rows = await query
+         .orderBy("created_at", "desc")
+         .offset((page - 1) * limit)
+         .limit(limit)
+         .execute();
+
+      return rows.map((row) => this.mapToEntity(row));
+   }
+
+   async findAllOperators(params?: { page?: number; limit?: number; search?: string }): Promise<OperadorProps[]> {
+      console.log("Fetching operators with params:", params);
+      const { page = 1, limit = 10, search = "" } = params || {};
+      let query = this.db
+         .selectFrom("empleado")
+         .innerJoin("operador", "empleado.id", "operador.empleado_id")
+         .selectAll();
+
+      if (search) {
+         query = query.where((eb) =>
+            eb.or([
+               eb("empleado.nombre", "like", `%${search}%`),
+               eb("empleado.identificacion", "like", `%${search}%`),
+               eb("operador.licencia", "like", `%${search}%`),
+            ])
+         );
+      }
+
+      const rowResult = await query
+         .orderBy("empleado.created_at", "desc")
+         .offset((page - 1) * limit)
+         .limit(limit)
+         .execute();
+
+
+      return rowResult.map((row) => ({
+         ...row,
+         tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
+         toJSON() {
+            return { ...row };
+         },
+      }));
+
+
    }
 
    async findUnlinkedEmployees(): Promise<Employee[]> {
@@ -38,25 +96,17 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
          .selectAll()
          .where((eb) =>
             eb.not(
-            eb.exists(
-               eb
-                  .selectFrom("user_employee_link")
-                  .select("user_employee_link.id")
-                  .whereRef("user_employee_link.empleado_id", "=", "empleado.id")
-            )
+               eb.exists(
+                  eb
+                     .selectFrom("user_employee_link")
+                     .select("user_employee_link.id")
+                     .whereRef("user_employee_link.empleado_id", "=", "empleado.id")
+               )
             )
          )
          .execute();
 
-      return rows.map((row) =>
-         Employee.create({
-            ...row,
-            tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
-            rol: row.rol as TipoRolEmpleado,
-            created_at: new Date(row.created_at),
-            updated_at: new Date(row.updated_at),
-         })
-      );
+      return rows.map((row) => this.mapToEntity(row));
    }
 
    async findLinkedEmployeesByUserId(userId: string): Promise<Employee[]> {
@@ -67,15 +117,7 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
          .where("user_employee_link.user_id", "=", userId)
          .execute();
 
-      return rows.map((row) =>
-         Employee.create({
-            ...row,
-            tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
-            rol: row.rol as TipoRolEmpleado,
-            created_at: new Date(row.created_at),
-            updated_at: new Date(row.updated_at),
-         })
-      );
+      return rows.map((row) => this.mapToEntity(row));
    }
 
    async findById(id: string): Promise<Employee | null> {
@@ -87,13 +129,33 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
 
       if (!row) return null;
 
-      return Employee.create({
-         ...row,
-         tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
-         rol: row.rol as TipoRolEmpleado,
+      return this.mapToEntity(row);
+   }
+   async findOperatorById(id: string): Promise<OperadorProps | null> {
+      const row = await this.db
+         .selectFrom("operador")
+         .where("operador.id", "=", id)
+         .selectAll()
+         .executeTakeFirst();
+      if (!row) return null;
+
+      const rowEmpleado = await this.db
+         .selectFrom("empleado")
+         .where("empleado.id", "=", row.empleado_id)
+         .selectAll()
+         .executeTakeFirst();
+
+
+      return {
+         empleado_id: row.empleado_id,
+         id: row.id,
+         licencia: row.licencia,
+         nombre: rowEmpleado?.nombre || "",
+         identificacion: rowEmpleado?.identificacion || "",
+         fecha_vencimiento: row.fecha_vencimiento ? new Date(row.fecha_vencimiento) : null,
          created_at: new Date(row.created_at),
          updated_at: new Date(row.updated_at),
-      });
+      } as OperadorProps;
    }
 
    async existsByIdentificacion(identificacion: string, excludeId?: string): Promise<boolean> {
@@ -124,13 +186,7 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
          .returningAll()
          .executeTakeFirstOrThrow();
 
-      return Employee.create({
-         ...row,
-         tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
-         rol: row.rol as TipoRolEmpleado,
-         created_at: new Date(row.created_at),
-         updated_at: new Date(row.updated_at),
-      });
+      return this.mapToEntity(row);
    }
 
    async update(id: string, data: UpdateEmployeeDTO): Promise<Employee | null> {
@@ -143,13 +199,7 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
 
       if (!row) return null;
 
-      return Employee.create({
-         ...row,
-         tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
-         rol: row.rol as TipoRolEmpleado,
-         created_at: new Date(row.created_at),
-         updated_at: new Date(row.updated_at),
-      });
+      return this.mapToEntity(row);
    }
 
    async delete(id: string): Promise<boolean> {
@@ -197,7 +247,7 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
          .values(data)
          .returningAll()
          .executeTakeFirstOrThrow();
-         
+
       return {
          ...row,
          created_at: new Date(row.created_at),
@@ -212,7 +262,7 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
          .where("id", "=", id)
          .returningAll()
          .executeTakeFirstOrThrow();
-         
+
       return {
          ...row,
          created_at: new Date(row.created_at),

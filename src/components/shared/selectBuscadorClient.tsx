@@ -23,6 +23,7 @@ export function SelectBuscadorClient({
 }: SelectBuscadorClientProps) {
    const { Clients, loading, GetClients } = useClientStore();
    const [isOpen, setIsOpen] = useState(false);
+   const [hasTyped, setHasTyped] = useState(false);
    const [inputValue, setInputValue] = useState(initialLabel);
    const containerRef = useRef<HTMLDivElement>(null);
 
@@ -36,7 +37,7 @@ export function SelectBuscadorClient({
       function handleClickOutside(event: MouseEvent) {
          if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
             setIsOpen(false);
-            if (!value) setInputValue(""); 
+            if (!value) setInputValue("");
          }
       }
       document.addEventListener("mousedown", handleClickOutside);
@@ -46,15 +47,25 @@ export function SelectBuscadorClient({
    useEffect(() => {
       if (!isOpen) return;
 
+      if (!hasTyped) {
+         GetClients({
+            search: "",
+            limit: 20,
+            force: true,
+         });
+         return;
+      }
+
       if (debouncedSearch.trim() !== "") {
-         GetClients({ search: debouncedSearch, limit: 20, force: true });
+         GetClients({ search: debouncedSearch.trim(), limit: 20, force: true });
       } else {
          GetClients({ search: "", limit: 20, force: true });
       }
-   }, [debouncedSearch, isOpen, GetClients]);
+   }, [debouncedSearch, isOpen, GetClients, hasTyped]);
 
    const handleSelect = (client: Client) => {
       setInputValue(client.nombre);
+      setHasTyped(false);
       onChange(client.id);
       setIsOpen(false);
    };
@@ -75,15 +86,16 @@ export function SelectBuscadorClient({
                value={inputValue}
                onChange={(e) => {
                   setInputValue(e.target.value);
+                  setHasTyped(true);
                   if (e.target.value === "") onChange(null);
                   if (!isOpen) setIsOpen(true);
                }}
-               onFocus={() => setIsOpen(true)}
+               onFocus={() => { setHasTyped(false); setIsOpen(true); }}
                disabled={disabled}
                placeholder={placeholder}
                className="h-10 w-full rounded-md border border-input bg-input/30 pl-9 pr-9 py-2 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
             />
-            
+
             <div className="absolute right-3 flex items-center gap-1">
                {loading && isOpen && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
                {value && !disabled && (

@@ -63,6 +63,7 @@ export default function ServiciosPage() {
    const [deleteTarget, setDeleteTarget] = useState<Servicio | null>(null);
 
    useEffect(() => {
+      document.title = "Servicios";
       GetServices();
    }, [GetServices]);
 

@@ -17,7 +17,7 @@ clientsRoute.post("/contacts", async (c) => {
    if (error) {
       return c.json({ error: String(error) }, 400);
    }
-   
+
    const contact: Contact = {
       id: insertedContact.id,
       client_id: insertedContact.client_id,
@@ -51,6 +51,7 @@ clientsRoute.get("/:id", async (c) => {
    if (!client) return c.json({ error: "Cliente no encontrado" }, 404);
    return c.json(client);
 });
+
 
 // POST /api/clients
 clientsRoute.post("/", async (c) => {
@@ -106,7 +107,7 @@ clientsRoute.delete("/:id/contacts/:contactId", async (c) => {
       console.log(error);
       return c.json({ error: String(error) }, 400);
    }
-   
+
    const successPayload = { numDeletedRows: result ? "1" : "0" };
 
    return c.json({ result: successPayload });

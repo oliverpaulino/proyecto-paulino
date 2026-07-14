@@ -13,6 +13,8 @@ function toProps(row: {
    nombre: string;
    cobra_en: string;
    cobra_minimo: number | string | null;
+   precio_unitario: number | string | null;
+   medida_cobro_id: string;
    created_at: Date;
    updated_at: Date;
 }): CategoriaEquipoProps {
@@ -20,7 +22,9 @@ function toProps(row: {
       id: row.id,
       nombre: row.nombre,
       cobra_en: row.cobra_en,
+      medida_cobro_id: row.medida_cobro_id,
       cobra_minimo: row.cobra_minimo == null ? null : Number(row.cobra_minimo),
+      precio_unitario: row.precio_unitario == null ? null : Number(row.precio_unitario),
       created_at: new Date(row.created_at),
       updated_at: new Date(row.updated_at),
    };
@@ -58,6 +62,10 @@ export class KyselyCategoriaEquipoRepository implements ICategoriaEquipoReposito
                nombre: data.nombre,
                cobra_en: data.cobra_en,
                cobra_minimo: data.cobra_minimo ?? null,
+               precio_unitario: data.precio_unitario ?? null,
+               medida_cobro_id: data.medida_cobro_id,
+               created_at: new Date(),
+               updated_at: new Date(),
             })
             .returningAll()
             .executeTakeFirstOrThrow();

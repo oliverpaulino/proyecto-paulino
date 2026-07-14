@@ -91,4 +91,11 @@ notificationsRoute.patch("/:id/read", async (c) => {
    return c.json({ success: true });
 });
 
+notificationsRoute.delete("/:id", async (c) => {
+   const session = await auth.api.getSession({ headers: c.req.raw.headers });
+   if (!session?.user) return c.json({ error: "No autenticado" }, 401);
+   await repo.delete(c.req.param("id"), session.user.id);
+   return c.json({ success: true });
+})
+
 export default notificationsRoute;

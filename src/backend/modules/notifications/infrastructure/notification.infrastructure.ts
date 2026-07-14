@@ -8,7 +8,7 @@ import type {
 } from "../domain/notification.domain";
 
 export class KyselyNotificationRepository implements INotificationRepository {
-   constructor(private readonly db: Kysely<DB>) {}
+   constructor(private readonly db: Kysely<DB>) { }
 
    async findByUserId(userId: string): Promise<NotificationProps[]> {
       const rows = await this.db
@@ -108,5 +108,13 @@ export class KyselyNotificationRepository implements INotificationRepository {
       for (const userId of uniqueUserIds) {
          notificationEmitter.emit("new_notification", { userId });
       }
+   }
+
+   async delete(id: string, userId: string): Promise<void> {
+      await this.db
+         .deleteFrom("notifications")
+         .where("id", "=", id)
+         .where("user_id", "=", userId)
+         .execute();
    }
 }

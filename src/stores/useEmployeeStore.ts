@@ -10,10 +10,13 @@ import type {
    CreateOperatorForm,
    UpdateOperatorForm,
    EmployeeDetails,
+   OperadorAsignable,
 } from "@/dtos/employee.dto";
 
 type EmployeeStore = {
    Employees: Employee[];
+   UnlinkedEmployees: Employee[];
+   Operators: OperadorAsignable[];
    Contacts: ContactEmployee[];
    selectedEmployee: EmployeeDetails | null;
    loading: boolean;
@@ -31,6 +34,7 @@ type EmployeeStore = {
    _fetchedDetails: Set<string>;
 
    GetEmployees: (params?: { page?: number; limit?: number; search?: string; force?: boolean }) => Promise<void>;
+   GetOperators: (params?: { page?: number; limit?: number; search?: string; force?: boolean }) => Promise<void>;
    GetUnlinkedEmployees: (params?: { page?: number; limit?: number; search?: string; force?: boolean }) => Promise<void>;
    GetLinkedEmployeesByUserId: (userId: string) => Promise<Employee[]>;
 
@@ -60,6 +64,8 @@ type EmployeeStore = {
 
 export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
    Employees: [],
+   UnlinkedEmployees: [],
+   Operators: [],
    Contacts: [],
    selectedEmployee: null,
    loading: false,
@@ -150,7 +156,7 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
          const start = (page - 1) * limit;
 
          set((state) => ({
-            Employees: filtered.slice(start, start + limit),
+            UnlinkedEmployees: filtered.slice(start, start + limit),
             pagination: {
                page,
                limit,
@@ -174,7 +180,7 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
       try {
          const res = await fetch(`/api/employees/linked/${userId}`);
          if (!res.ok) throw new Error("Error al cargar empleados vinculados");
-         
+
          const linkedEmployees: Employee[] = await res.json();
          return linkedEmployees;
       } catch (error) {
@@ -184,6 +190,44 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
          set({ loading: false });
       }
    },
+
+   GetOperators: async (params = {}) => {
+      const { page = 1, limit = 20, search = "", force = false } = params;
+      const cacheKey = `operators:${page}:${limit}:${search}`;
+      if (!force && get()._fetchedEmployeeLists.has(cacheKey)) return;
+      set({ loading: true });
+      try {
+         const res = await fetch(`/api/employees/operators?page=${page}&limit=${limit}&search=${search}`);
+         if (!res.ok) {
+            const errorText = await res.text();
+            console.error(`Error ${res.status}: ${errorText}`);
+            throw new Error("Error al cargar operadores");
+         }
+         const data: { operators: Operator[]; total: number } = await res.json();
+         console.log(data)
+         const totalPages = Math.max(1, Math.ceil(data.total / limit));
+
+         set((state) => ({
+            Operators: data as any,
+            pagination: {
+               page,
+               limit,
+               total: data.total,
+               totalPages,
+               hasNext: page < totalPages,
+               hasPrev: page > 1,
+            },
+            _fetchedEmployeeLists: new Set(state._fetchedEmployeeLists).add(cacheKey),
+         }));
+      } catch (error) {
+         console.error("Error fetching operators:", error);
+         throw error;
+      } finally {
+         set({ loading: false });
+      }
+
+   },
+
 
    GetEmployeeDetails: async (empleadoId, force = false) => {
       if (!force && get()._fetchedDetails.has(empleadoId)) {
@@ -195,7 +239,6 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
          if (!res.ok) throw new Error("Error al cargar detalles del empleado");
 
          const details: EmployeeDetails = await res.json();
-
          set((state) => ({
             selectedEmployee: details,
             _fetchedDetails: new Set(state._fetchedDetails).add(empleadoId),
@@ -363,6 +406,7 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
          return error as Error;
       }
    },
+   
    GetContacts: async () => {
       try {
          const res = await fetch(`/api/employees/contacts`);

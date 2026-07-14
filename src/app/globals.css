@@ -124,7 +124,120 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+}
+
+@keyframes blobA {
+
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate(60px, 40px) scale(1.15);
+  }
+}
+
+@keyframes blobB {
+
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate(-50px, 30px) scale(1.1);
+  }
+}
+
+@keyframes blobC {
+
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate(30px, -40px) scale(1.2);
+  }
+}
+
+@keyframes floatLogo {
+
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+
+  50% {
+    transform: translateY(-12px) scale(1.05);
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-blob-a {
+  animation: blobA 14s ease-in-out infinite;
+}
+
+.animate-blob-b {
+  animation: blobB 18s ease-in-out infinite;
+}
+
+.animate-blob-c {
+  animation: blobC 22s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: floatLogo 6s ease-in-out infinite;
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.8s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .animate-blob-a,
+  .animate-blob-b,
+  .animate-blob-c,
+  .animate-float,
+  .animate-fade-up {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+}
+
+@keyframes shake {
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(-4px);
+  }
+
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+.animate-shake {
+  animation: shake 0.3s ease-in-out;
 }

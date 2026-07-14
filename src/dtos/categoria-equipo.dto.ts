@@ -1,10 +1,12 @@
 import { z } from "zod";
 
 const CategoriaEquipoDTO = z.object({
-   id: z.string().uuid(),
+   id: z.string(),
    nombre: z.string(),
    cobra_en: z.string(),
    cobra_minimo: z.number().nullable(),
+   precio_unitario: z.number().nullable(),
+   medida_cobro_id: z.string(),
    created_at: z.coerce.date(),
    updated_at: z.coerce.date(),
 });
@@ -13,6 +15,8 @@ const CreateCategoriaEquipoDTO = z.object({
    nombre: z.string().min(1),
    cobra_en: z.string().min(1),
    cobra_minimo: z.coerce.number().min(0).nullable().optional(),
+   precio_unitario: z.coerce.number().min(0).nullable().optional(),
+   medida_cobro_id: z.string().min(1),
 });
 
 const UpdateCategoriaEquipoDTO = CreateCategoriaEquipoDTO.partial();

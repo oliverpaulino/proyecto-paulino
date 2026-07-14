@@ -8,18 +8,29 @@ import {
    PurchaseOrder,
    PurchaseOrderItemInput,
    PurchaseOrderItemProps,
+   PurchaseOrderProps,
    UpdatePurchaseOrderDTO,
 } from "../domain/purchase-order.domain";
+
+function buildCodigoReferencia(referencia: number, fecha: Date): string {
+   const yy = String(fecha.getFullYear()).slice(-2);
+   const mm = String(fecha.getMonth() + 1).padStart(2, "0");
+   const dd = String(fecha.getDate()).padStart(2, "0");
+   const ref = String(referencia).padStart(3, "0");
+   return `OC-${yy}${mm}${dd}-${ref}`;
+}
 
 export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
    constructor(private readonly db: Kysely<DB>) { }
 
-   async findAll(): Promise<PurchaseOrder[]> {
-      const rows = await this.db
+   async findAll(params: { supplierId?: string }): Promise<PurchaseOrder[]> {
+      const { supplierId = "" } = params;
+      let qb = this.db
          .selectFrom("orden_compra")
          .leftJoin("proveedor", "proveedor.id", "orden_compra.proveedor_id")
          .select([
             "orden_compra.id",
+            "orden_compra.referencia",
             "orden_compra.proveedor_id",
             "proveedor.nombre as proveedor_nombre",
             "orden_compra.fecha",
@@ -32,13 +43,20 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             "orden_compra.created_at",
             "orden_compra.updated_at",
          ])
-         .where("orden_compra.deleted_at", "is", null)
+         .where("orden_compra.deleted_at", "is", null);
+
+      if (supplierId) {
+         qb = qb.where("orden_compra.proveedor_id", "=", supplierId);
+      }
+      const rows = await qb
          .orderBy("orden_compra.created_at", "desc")
          .execute();
 
       return rows.map((row) =>
          PurchaseOrder.create({
             id: row.id,
+            referencia: row.referencia,
+            codigoReferencia: buildCodigoReferencia(row.referencia, new Date(row.fecha)),
             proveedor_id: row.proveedor_id,
             proveedor_nombre: row.proveedor_nombre ?? undefined,
             fecha: new Date(row.fecha),
@@ -66,6 +84,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             "orden_compra.id",
             "orden_compra.proveedor_id",
             "proveedor.nombre as proveedor_nombre",
+            "orden_compra.referencia",
             "orden_compra.fecha",
             "orden_compra.estado",
             "orden_compra.notas",
@@ -88,6 +107,8 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             id: row.id,
             proveedor_id: row.proveedor_id,
             proveedor_nombre: row.proveedor_nombre ?? undefined,
+            referencia: row.referencia,
+            codigoReferencia: buildCodigoReferencia(row.referencia, new Date(row.fecha)),
             fecha: new Date(row.fecha),
             estado: row.estado as EstadoOrdenCompra,
             notas: row.notas ?? null,
@@ -111,6 +132,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
          .leftJoin("proveedor", "proveedor.id", "orden_compra.proveedor_id")
          .select([
             "orden_compra.id",
+            "orden_compra.referencia",
             "orden_compra.proveedor_id",
             "proveedor.nombre as proveedor_nombre",
             "orden_compra.fecha",
@@ -162,6 +184,8 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
 
       return PurchaseOrder.create({
          id: row.id,
+         referencia: row.referencia,
+         codigoReferencia: buildCodigoReferencia(row.referencia, new Date(row.fecha)),
          proveedor_id: row.proveedor_id,
          proveedor_nombre: row.proveedor_nombre ?? undefined,
          fecha: new Date(row.fecha),
@@ -223,6 +247,39 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
          return header.id;
       });
 
+      // const items: PurchaseOrderItemProps[] = result.items.map((i) => ({
+      //    id: i.id,
+      //    orden_compra_id: i.orden_compra_id,
+      //    descripcion: i.descripcion,
+      //    cantidad: Number(i.cantidad),
+      //    precio_unitario: Number(i.precio_unitario),
+      //    subtotal: Number(i.subtotal),
+      //    created_at: new Date(i.created_at),
+      //    updated_at: new Date(i.updated_at),
+      // }));
+
+      // return PurchaseOrder.create({
+      //    id: result.header.id,
+      //    referencia: result.header.referencia,
+      //    codigoReferencia: buildCodigoReferencia(
+      //       result.header.referencia,
+      //       new Date(result.header.fecha)
+      //    ),
+      //    proveedor_id: result.header.proveedor_id,
+      //    fecha: new Date(result.header.fecha),
+      //    estado: result.header.estado as EstadoOrdenCompra,
+      //    notas: result.header.notas ?? null,
+      //    total: Number(result.header.total),
+      //    approved_by: null,
+      //    approved_by_name: null,
+      //    approved_at: null,
+      //    items,
+      //    created_at: new Date(result.header.created_at),
+      //    updated_at: new Date(result.header.updated_at),
+      //    deleted_by: result.header.deleted_by ?? null,
+      //    deleted_at: result.header.deleted_at ?? null,
+      //    deleted_reason: result.header.deleted_reason ?? null
+      // });
       // Re-fetch through findById so the response carries joined equipo names
       // and the deleted_* fields, without re-mapping them here.
       const order = await this.findById(result);
@@ -247,6 +304,23 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
          .executeTakeFirst();
 
       if (!row) return null;
+      return this.findById(id);
+   }
+
+   async restore(id: string): Promise<PurchaseOrder | null> {
+      const row = await this.db
+         .updateTable("orden_compra")
+         .set({
+            deleted_by: null,
+            deleted_at: null,
+            deleted_reason: null,
+         })
+         .where("id", "=", id)
+         .returningAll()
+         .executeTakeFirst();
+
+      if (!row) return null;
+
       return this.findById(id);
    }
 
@@ -334,18 +408,34 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
          user_name: r.user_name,
          granted_by: r.granted_by,
          granted_at: new Date(r.granted_at),
+         is_protected: r.is_protected,
       }));
    }
 
    async addApprover(userId: string, userName: string, grantedBy: string): Promise<void> {
       await this.db
          .insertInto("purchase_order_approvers")
-         .values({ user_id: userId, user_name: userName, granted_by: grantedBy })
+         .values({ user_id: userId, user_name: userName, granted_by: grantedBy, granted_at: new Date(), is_protected: false })
          .onConflict((oc) => oc.column("user_id").doUpdateSet({ user_name: userName }))
          .execute();
    }
 
    async removeApprover(userId: string): Promise<void> {
+      const approver = await this.db
+         .selectFrom("purchase_order_approvers")
+         .select("is_protected")
+         .where("user_id", "=", userId)
+         .executeTakeFirst();
+
+      // 2. Si no existe, no hacemos nada (o puedes lanzar error)
+      if (!approver) return;
+
+      // 3. Si está protegido, bloqueamos la acción con un error claro
+      if (approver.is_protected) {
+         throw new Error("Este aprobador está protegido y no puede ser removido");
+      }
+
+      // 4. Si pasa las validaciones, lo eliminamos
       await this.db
          .deleteFrom("purchase_order_approvers")
          .where("user_id", "=", userId)
@@ -353,12 +443,15 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
    }
 
    async delete(userId: string, id: string): Promise<boolean> {
+
+
       const result = await this.db
          .updateTable("orden_compra")
          .set({ deleted_by: userId, deleted_at: new Date() })
          .where("id", "=", id)
          .where("deleted_at", "is", null)
          .executeTakeFirst();
+
       return Number(result.numUpdatedRows) > 0;
    }
 }

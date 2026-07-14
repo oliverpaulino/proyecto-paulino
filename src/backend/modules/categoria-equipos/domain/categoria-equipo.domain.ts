@@ -3,6 +3,8 @@ export interface CategoriaEquipoProps {
    nombre: string;
    cobra_en: string;
    cobra_minimo: number | null;
+   precio_unitario: number | null;
+   medida_cobro_id: string;
    created_at: Date;
    updated_at: Date;
 }
@@ -18,6 +20,8 @@ export class CategoriaEquipo {
    get nombre(): string { return this.props.nombre; }
    get cobra_en(): string { return this.props.cobra_en; }
    get cobra_minimo(): number | null { return this.props.cobra_minimo; }
+   get precio_unitario(): number | null { return this.props.precio_unitario; }
+   get medida_cobro_id(): string { return this.props.medida_cobro_id; }
    get created_at(): Date { return this.props.created_at; }
    get updated_at(): Date { return this.props.updated_at; }
 
@@ -30,12 +34,16 @@ export interface CreateCategoriaEquipoDTO {
    nombre: string;
    cobra_en: string;
    cobra_minimo?: number | null;
+   medida_cobro_id: string;
+   precio_unitario?: number | null;
 }
 
 export interface UpdateCategoriaEquipoDTO {
    nombre?: string;
    cobra_en?: string;
    cobra_minimo?: number | null;
+   medida_cobro_id?: string;
+   precio_unitario?: number | null;
 }
 
 export interface ICategoriaEquipoRepository {
