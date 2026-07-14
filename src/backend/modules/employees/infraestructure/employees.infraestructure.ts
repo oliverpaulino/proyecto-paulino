@@ -14,6 +14,22 @@ import { DB } from "@/backend/database";
 export class KyselyEmployeeRepository implements IEmployeeRepository {
    constructor(private readonly db: Kysely<DB>) { }
 
+   private buildCodigoReferencia(referencia: number): string {
+      const ref = String(referencia).padStart(3, "0");
+      return `EMP-${ref}`;
+   }
+
+   private mapToEntity(row: any): Employee {
+      return Employee.create({
+            ...row,
+            codigoReferencia: this.buildCodigoReferencia(row.referencia),
+            tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
+            rol: row.rol as TipoRolEmpleado,
+            created_at: new Date(row.created_at),
+            updated_at: new Date(row.updated_at),
+         })
+   }
+   
    async findAll(params?: { page?: number; limit?: number; search?: string }): Promise<Employee[]> {
       const { page = 1, limit = 10, search = "" } = params || {};
       let query = this.db
@@ -35,15 +51,7 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
          .limit(limit)
          .execute();
 
-      return rows.map((row) =>
-         Employee.create({
-            ...row,
-            tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
-            rol: row.rol as TipoRolEmpleado,
-            created_at: new Date(row.created_at),
-            updated_at: new Date(row.updated_at),
-         })
-      );
+      return rows.map((row) => this.mapToEntity(row));
    }
 
    async findAllOperators(params?: { page?: number; limit?: number; search?: string }): Promise<OperadorProps[]> {
@@ -98,15 +106,7 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
          )
          .execute();
 
-      return rows.map((row) =>
-         Employee.create({
-            ...row,
-            tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
-            rol: row.rol as TipoRolEmpleado,
-            created_at: new Date(row.created_at),
-            updated_at: new Date(row.updated_at),
-         })
-      );
+      return rows.map((row) => this.mapToEntity(row));
    }
 
    async findLinkedEmployeesByUserId(userId: string): Promise<Employee[]> {
@@ -117,15 +117,7 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
          .where("user_employee_link.user_id", "=", userId)
          .execute();
 
-      return rows.map((row) =>
-         Employee.create({
-            ...row,
-            tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
-            rol: row.rol as TipoRolEmpleado,
-            created_at: new Date(row.created_at),
-            updated_at: new Date(row.updated_at),
-         })
-      );
+      return rows.map((row) => this.mapToEntity(row));
    }
 
    async findById(id: string): Promise<Employee | null> {
@@ -137,13 +129,7 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
 
       if (!row) return null;
 
-      return Employee.create({
-         ...row,
-         tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
-         rol: row.rol as TipoRolEmpleado,
-         created_at: new Date(row.created_at),
-         updated_at: new Date(row.updated_at),
-      });
+      return this.mapToEntity(row);
    }
    async findOperatorById(id: string): Promise<OperadorProps | null> {
       const row = await this.db
@@ -200,13 +186,7 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
          .returningAll()
          .executeTakeFirstOrThrow();
 
-      return Employee.create({
-         ...row,
-         tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
-         rol: row.rol as TipoRolEmpleado,
-         created_at: new Date(row.created_at),
-         updated_at: new Date(row.updated_at),
-      });
+      return this.mapToEntity(row);
    }
 
    async update(id: string, data: UpdateEmployeeDTO): Promise<Employee | null> {
@@ -219,13 +199,7 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
 
       if (!row) return null;
 
-      return Employee.create({
-         ...row,
-         tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
-         rol: row.rol as TipoRolEmpleado,
-         created_at: new Date(row.created_at),
-         updated_at: new Date(row.updated_at),
-      });
+      return this.mapToEntity(row);
    }
 
    async delete(id: string): Promise<boolean> {

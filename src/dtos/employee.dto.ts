@@ -37,6 +37,8 @@ export const EmployeeSchemasDTO = {
 // Empleado
 const EmployeeDTO = z.object({
    id: z.uuid(),
+   referencia: z.number(),
+   codigoReferencia: z.string(),
    nombre: z.string(),
    identificacion: z.string(),
    tipo_identificacion: EmployeeSchemasDTO.TipoIdentificacionEmpleadoSchema,
