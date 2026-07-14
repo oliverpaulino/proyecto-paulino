@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Eye, MoreHorizontal, Pencil, Trash2, Calendar, User } from "lucide-react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 
 interface AppointmentTableProps {
    appointments: AppointmentUI[];
@@ -20,7 +19,7 @@ interface AppointmentTableProps {
 }
 
 const ESTADO_BADGE: Record<string, string> = {
-   ASIGNADA: "bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800",
+   ASIGNADA:  "bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800",
    PENDIENTE: "bg-purple-100 text-purple-900 border border-purple-300 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800",
    REALIZADA: "bg-emerald-100 text-emerald-900 border border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800",
    CANCELADA: "bg-rose-100 text-rose-900 border border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800",
@@ -60,18 +59,15 @@ export function AppointmentTable({ appointments, onEdit, onDelete }: Appointment
 
                   return (
                      <tr key={cita.id} className="border-t border-border hover:bg-brand-blue/5 transition-colors">
-                        <Link href={`/dashboard/citas/${cita.id}`} className="contents ">
-                           <td className="px-4 py-3 whitespace-nowrap hover:bg-brand-blue/5 transition-colors">
-                              <div className="flex items-center gap-1.5 font-medium text-foreground">
-                                 <Calendar className="size-3.5 text-brand-blue dark:text-blue-400" />
-                                 {fechaFmt}
-                              </div>
-                              <span className="inline-block mt-1 rounded bg-brand-yellow/25 px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-black dark:text-brand-yellow">
-                                 {horaFmt}
-                              </span>
-                           </td>
-                        </Link>
-
+                        <td className="px-4 py-3 whitespace-nowrap">
+                           <div className="flex items-center gap-1.5 font-medium text-foreground">
+                              <Calendar className="size-3.5 text-brand-blue dark:text-blue-400" />
+                              {fechaFmt}
+                           </div>
+                           <span className="inline-block mt-1 rounded bg-brand-yellow/25 px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-black dark:text-brand-yellow">
+                              {horaFmt}
+                           </span>
+                        </td>
 
                         <td className="px-4 py-3 whitespace-nowrap">
                            <div className="font-semibold text-brand-blue dark:text-white">

@@ -29,7 +29,7 @@ export interface PurchaseOrderItemInput {
 export interface PurchaseOrderProps {
    id: string;
    proveedor_id: string;
-   referencia: string;
+   referencia: number;
    codigoReferencia: string;
    proveedor_nombre?: string;
    fecha: Date;
@@ -74,7 +74,7 @@ export class PurchaseOrder {
    }
 
    get id(): string { return this.props.id; }
-   get referencia(): string { return this.props.referencia }
+   get referencia(): number { return this.props.referencia }
    get proveedor_id(): string { return this.props.proveedor_id; }
    get proveedor_nombre(): string | undefined { return this.props.proveedor_nombre; }
    get fecha(): Date { return this.props.fecha; }

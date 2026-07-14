@@ -11,46 +11,35 @@ import {
 } from "../domain/equipo.domain";
 import { CategoriaEquipo } from "@/dtos/categoria-equipo.dto";
 
-type EquipoRow = {
-   id: string;
-   nombre: string;
-   categoria_id: string;
-   operador_id: string | null;
-   operador_nombre: string | null;
-   categoria_nombre: string;
-   cobra_en: string;
-   cobra_minimo: number | string | null;
-   estado: string;
-   costo_por_hora: number | string;
-   placa: string | null;
-   modelo: string | null;
-   ano: number | string | null;
-   created_at: Date;
-   updated_at: Date;
-};
-
-function toDomain(row: EquipoRow): Equipo {
-   return Equipo.create({
-      id: row.id,
-      nombre: row.nombre,
-      categoria_id: row.categoria_id,
-      operador_id: row.operador_id,
-      operador_nombre: row.operador_nombre ?? null,
-      categoria_nombre: row.categoria_nombre,
-      cobra_en: row.cobra_en,
-      cobra_minimo: row.cobra_minimo == null ? null : Number(row.cobra_minimo),
-      estado: row.estado as EstadoEquipo,
-      costo_por_hora: Number(row.costo_por_hora),
-      placa: row.placa,
-      modelo: row.modelo,
-      ano: row.ano == null ? null : Number(row.ano),
-      created_at: new Date(row.created_at),
-      updated_at: new Date(row.updated_at),
-   });
-}
-
 export class KyselyEquipoRepository implements IEquipoRepository {
    constructor(private readonly db: Kysely<DB>) { }
+   
+   private buildCodigoReferencia(referencia: number): string {
+      const ref = String(referencia).padStart(3, "0");
+      return `EQU-${ref}`;
+   }
+
+   private mapToEntity(row: any): Equipo {
+      return Equipo.create({
+         id: row.id,
+         referencia: row.referencia,
+         codigoReferencia: this.buildCodigoReferencia(row.referencia),
+         nombre: row.nombre,
+         categoria_id: row.categoria_id,
+         operador_id: row.operador_id,
+         operador_nombre: row.operador_nombre ?? null,
+         categoria_nombre: row.categoria_nombre,
+         cobra_en: row.cobra_en,
+         cobra_minimo: row.cobra_minimo == null ? null : Number(row.cobra_minimo),
+         estado: row.estado as EstadoEquipo,
+         costo_por_hora: Number(row.costo_por_hora),
+         placa: row.placa,
+         modelo: row.modelo,
+         ano: row.ano == null ? null : Number(row.ano),
+         created_at: new Date(row.created_at),
+         updated_at: new Date(row.updated_at),
+      });
+   }
 
    async findAll(params?: { page?: number; limit?: number; search?: string }): Promise<Equipo[]> {
       const { page = 1, limit = 10, search = "" } = params || {};
@@ -61,6 +50,7 @@ export class KyselyEquipoRepository implements IEquipoRepository {
          .innerJoin("empleado", "empleado.id", "operador.empleado_id")
          .select([
             "equipo.id",
+            "equipo.referencia",
             "equipo.nombre",
             "equipo.categoria_id",
             "categoria_equipo.nombre as categoria_nombre",
@@ -90,7 +80,7 @@ export class KyselyEquipoRepository implements IEquipoRepository {
 
       const rows = await qb.offset((page - 1) * limit).limit(limit).execute();
 
-      return rows.map(toDomain);
+      return rows.map((row) => this.mapToEntity(row));
    }
 
    async findById(id: string): Promise<Equipo | null> {
@@ -101,6 +91,7 @@ export class KyselyEquipoRepository implements IEquipoRepository {
          .innerJoin("empleado", "empleado.id", "operador.empleado_id")
          .select([
             "equipo.id",
+            "equipo.referencia",
             "equipo.nombre",
             "equipo.categoria_id",
             "categoria_equipo.nombre as categoria_nombre",
@@ -120,7 +111,7 @@ export class KyselyEquipoRepository implements IEquipoRepository {
          .executeTakeFirst();
 
       if (!row) return null;
-      return toDomain(row);
+      return this.mapToEntity(row);
    }
 
    async create(data: CreateEquipoDTO): Promise<Equipo> {

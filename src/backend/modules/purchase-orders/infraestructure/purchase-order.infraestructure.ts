@@ -12,7 +12,7 @@ import {
    UpdatePurchaseOrderDTO,
 } from "../domain/purchase-order.domain";
 
-function buildCodigoReferencia(referencia: string, fecha: Date): string {
+function buildCodigoReferencia(referencia: number, fecha: Date): string {
    const yy = String(fecha.getFullYear()).slice(-2);
    const mm = String(fecha.getMonth() + 1).padStart(2, "0");
    const dd = String(fecha.getDate()).padStart(2, "0");

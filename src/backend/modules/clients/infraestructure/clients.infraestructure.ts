@@ -2,8 +2,26 @@ import { Kysely } from "kysely";
 import { IClientRepository, CreateClientDTO, UpdateClientDTO, Client, TipoIdentificacion, TipoCliente, ContactClientProps } from "../domain/clients.domain";
 import { DB } from "@/backend/database";
 
+
+
 export class KyselyClientRepository implements IClientRepository {
    constructor(private readonly db: Kysely<DB>) { }
+
+   private buildCodigoReferencia(referencia: number): string {
+      const ref = String(referencia).padStart(3, "0");
+      return `CLI-${ref}`;
+   }
+
+   private mapToEntity(row: any): Client {
+      return Client.create({
+         ...row,
+         codigoReferencia: this.buildCodigoReferencia(row.referencia),
+         tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
+         tipo_cliente: row.tipo_cliente as TipoCliente,
+         created_at: new Date(row.created_at),
+         updated_at: new Date(row.updated_at),
+      })
+   }
 
    async findAll(): Promise<Client[]> {
       const rows = await this.db
@@ -12,15 +30,7 @@ export class KyselyClientRepository implements IClientRepository {
          .orderBy("created_at", "desc")
          .execute();
 
-      return rows.map((row) =>
-         Client.create({
-            ...row,
-            tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
-            tipo_cliente: row.tipo_cliente as TipoCliente,
-            created_at: new Date(row.created_at),
-            updated_at: new Date(row.updated_at),
-         })
-      );
+      return rows.map((row) => this.mapToEntity(row));
    }
 
    async findById(id: string): Promise<Client | null> {
@@ -32,13 +42,7 @@ export class KyselyClientRepository implements IClientRepository {
 
       if (!row) return null;
 
-      return Client.create({
-         ...row,
-         tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
-         tipo_cliente: row.tipo_cliente as TipoCliente,
-         created_at: new Date(row.created_at),
-         updated_at: new Date(row.updated_at),
-      });
+      return this.mapToEntity(row);
    }
 
    async create(data: CreateClientDTO): Promise<Client> {
@@ -56,13 +60,7 @@ export class KyselyClientRepository implements IClientRepository {
          .returningAll()
          .executeTakeFirstOrThrow();
 
-      return Client.create({
-         ...row,
-         tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
-         tipo_cliente: row.tipo_cliente as TipoCliente,
-         created_at: new Date(row.created_at),
-         updated_at: new Date(row.updated_at),
-      });
+      return this.mapToEntity(row);
    }
 
    async update(id: string, data: UpdateClientDTO): Promise<Client | null> {
@@ -75,13 +73,7 @@ export class KyselyClientRepository implements IClientRepository {
 
       if (!row) return null;
 
-      return Client.create({
-         ...row,
-         tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
-         tipo_cliente: row.tipo_cliente as TipoCliente,
-         created_at: new Date(row.created_at),
-         updated_at: new Date(row.updated_at),
-      });
+      return this.mapToEntity(row);
    }
 
    async delete(id: string): Promise<boolean> {

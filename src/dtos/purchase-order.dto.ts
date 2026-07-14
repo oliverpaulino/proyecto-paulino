@@ -32,7 +32,7 @@ const PurchaseOrderDTO = z.object({
    id: z.string(),
    proveedor_id: z.string(),
    proveedor_nombre: z.string().optional(),
-   referencia: z.string(),
+   referencia: z.number(),
    codigoReferencia: z.string(),
    fecha: z.coerce.date(),
    estado: EstadoOrdenCompraSchema,
