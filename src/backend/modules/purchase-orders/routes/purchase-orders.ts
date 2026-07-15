@@ -17,7 +17,11 @@ const notifService = new NotificationService(notifRepo);
 purchaseOrdersRoute.get("/", async (c) => {
    try {
       const supplierId = c.req.query("supplierId") as string | undefined;
-      const orders = await service.getAll({ supplierId });
+      const search = c.req.query("search") as string | undefined;
+      const page = parseInt(c.req.query("page") as string) || 1;
+      const limit = parseInt(c.req.query("limit") as string) || 0;
+
+      const orders = await service.getAll({ supplierId, search, page, limit });
       return c.json(orders);
    } catch (err: unknown) {
       return c.json(
@@ -30,7 +34,11 @@ purchaseOrdersRoute.get("/", async (c) => {
 // GET /api/purchase-orders/deleted
 purchaseOrdersRoute.get("/deleted", async (c) => {
    try {
-      const orders = await service.getAllDeleted();
+      const supplierId = c.req.query("supplierId") as string | undefined;
+      const search = c.req.query("search") as string | undefined;
+      const page = parseInt(c.req.query("page") as string) || 1;
+      const limit = parseInt(c.req.query("limit") as string) || 0;
+      const orders = await service.getAllDeleted({ supplierId, search, page, limit });
       return c.json(orders);
    } catch (err: unknown) {
       return c.json(
@@ -225,7 +233,7 @@ purchaseOrdersRoute.patch("/:id", async (c) => {
 purchaseOrdersRoute.patch("/:id/restore", async (c) => {
    try {
       const order = await service.restore(c.req.param("id"));
-      
+
       if (!order) {
          return c.json({ error: "Orden no encontrada" }, 404);
       }

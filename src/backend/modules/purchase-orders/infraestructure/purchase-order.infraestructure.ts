@@ -23,36 +23,115 @@ function buildCodigoReferencia(referencia: number, fecha: Date): string {
 export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
    constructor(private readonly db: Kysely<DB>) { }
 
-   async findAll(params: { supplierId?: string }): Promise<PurchaseOrder[]> {
-      const { supplierId = "" } = params;
-      let qb = this.db
+   async findAll(params: {
+      supplierId?: string;
+      search?: string;
+      page?: number;
+      limit?: number;
+   }): Promise<{
+      data: PurchaseOrder[];
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+   }> {
+      const { supplierId = "", search = "", page = 1, limit = 10 } = params;
+
+      let baseQuery = this.db
+         .selectFrom("orden_compra")
+         .leftJoin("proveedor", "proveedor.id", "orden_compra.proveedor_id")
+         .where("orden_compra.deleted_at", "is", null);
+
+      if (supplierId) {
+         baseQuery = baseQuery.where(
+            "orden_compra.proveedor_id",
+            "=",
+            supplierId
+         );
+      }
+
+      if (search) {
+         const match = search.match(/OC-\d{6}-(\d+)/i);
+         const referencia = match ? Number(match[1]) : Number(search);
+
+         baseQuery = baseQuery.where((eb) =>
+            eb.or([
+               ...(Number.isNaN(referencia)
+                  ? []
+                  : [eb("orden_compra.referencia", "=", referencia)]),
+               eb("proveedor.nombre", "like", `%${search}%`),
+               eb("proveedor.rnc", "like", `%${search}%`),
+               eb("orden_compra.estado", "like", `%${search}%`),
+            ])
+         );
+      }
+
+      // Total de órdenes
+      const totalResult = await baseQuery
+         .select(({ fn }) => fn.count("orden_compra.id").as("count"))
+         .executeTakeFirstOrThrow();
+
+      const total = Number(totalResult.count);
+
+      // IDs de la página
+      const pageOrders = await baseQuery
+         .select("orden_compra.id")
+         .orderBy("orden_compra.created_at", "desc")
+         .offset((page - 1) * limit)
+         .limit(limit)
+         .execute();
+
+      if (pageOrders.length === 0) {
+         return {
+            data: [],
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+         };
+      }
+
+      const ids = pageOrders.map((o) => o.id);
+
+      // Traer todos los datos de esas órdenes
+      const rows = await this.db
          .selectFrom("orden_compra")
          .leftJoin("proveedor", "proveedor.id", "orden_compra.proveedor_id")
          .innerJoin("orden_compra_item as oci", "oci.orden_compra_id", "orden_compra.id")
          .select([
-            "orden_compra.id", "orden_compra.referencia", "orden_compra.proveedor_id",
-            "proveedor.nombre as proveedor_nombre", "orden_compra.fecha", "orden_compra.estado",
-            "orden_compra.notas", "orden_compra.total", "orden_compra.approved_by",
-            "orden_compra.approved_by_name", "orden_compra.approved_at",
-            "orden_compra.created_at", "orden_compra.updated_at",
-            "oci.id as item_id", "oci.cantidad", "oci.precio_unitario",
-            "oci.descripcion", "oci.equipo_id", "oci.subtotal"
+            "orden_compra.id",
+            "orden_compra.referencia",
+            "orden_compra.proveedor_id",
+            "proveedor.nombre as proveedor_nombre",
+            "orden_compra.fecha",
+            "orden_compra.estado",
+            "orden_compra.notas",
+            "orden_compra.total",
+            "orden_compra.approved_by",
+            "orden_compra.approved_by_name",
+            "orden_compra.approved_at",
+            "orden_compra.created_at",
+            "orden_compra.updated_at",
+
+            "oci.id as item_id",
+            "oci.cantidad",
+            "oci.precio_unitario",
+            "oci.descripcion",
+            "oci.equipo_id",
+            "oci.subtotal",
          ])
-         .where("orden_compra.deleted_at", "is", null);
+         .where("orden_compra.id", "in", ids)
+         .orderBy("orden_compra.created_at", "desc")
+         .execute();
 
-      if (supplierId) {
-         qb = qb.where("orden_compra.proveedor_id", "=", supplierId);
-      }
-
-      const rows = await qb.orderBy("orden_compra.created_at", "desc").execute();
-
-      // 1. Agrupamos las filas por ID de orden
       const grouped = rows.reduce((acc, row) => {
          if (!acc[row.id]) {
-            acc[row.id] = { ...row, items: [] };
+            acc[row.id] = {
+               ...row,
+               items: [],
+            };
          }
 
-         // 2. Agregamos el ítem al array de la orden correspondiente
          acc[row.id].items.push({
             id: row.item_id,
             orden_compra_id: row.id,
@@ -66,13 +145,14 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
          return acc;
       }, {} as Record<string, any>);
 
-
-      // 3. Mapeamos el resultado agrupado a tu objeto de dominio
-      return Object.values(grouped).map((row) =>
+      const data = Object.values(grouped).map((row) =>
          PurchaseOrder.create({
             id: row.id,
             referencia: row.referencia,
-            codigoReferencia: buildCodigoReferencia(row.referencia, new Date(row.fecha)),
+            codigoReferencia: buildCodigoReferencia(
+               row.referencia,
+               new Date(row.fecha)
+            ),
             proveedor_id: row.proveedor_id,
             proveedor_nombre: row.proveedor_nombre ?? undefined,
             fecha: new Date(row.fecha),
@@ -81,8 +161,10 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             total: Number(row.total),
             approved_by: row.approved_by ?? null,
             approved_by_name: row.approved_by_name ?? null,
-            approved_at: row.approved_at ? new Date(row.approved_at) : null,
-            items: row.items, // Aquí ya tienes todos los ítems agrupados correctamente
+            approved_at: row.approved_at
+               ? new Date(row.approved_at)
+               : null,
+            items: row.items,
             created_at: new Date(row.created_at),
             updated_at: new Date(row.updated_at),
             deleted_by: null,
@@ -90,10 +172,25 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             deleted_reason: null,
          })
       );
+
+      return {
+         data,
+         total,
+         page,
+         limit,
+         totalPages: Math.ceil(total / limit),
+      };
    }
 
-   async findAllDeleted(): Promise<PurchaseOrder[]> {
-      const rows = await this.db
+   async findAllDeleted(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<{
+      data: PurchaseOrder[];
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+   }> {
+      const { supplierId, search = "", page = 1, limit = 10 } = params;
+      let qb = await this.db
          .selectFrom("orden_compra")
          .leftJoin("proveedor", "proveedor.id", "orden_compra.proveedor_id")
          .select([
@@ -116,9 +213,40 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
          ])
          .where("orden_compra.deleted_at", "is not", null)
          .orderBy("orden_compra.deleted_at", "desc")
+
+      if (search) {
+         const match = search.match(/OC-\d{6}-(\d+)/i);
+         const referencia = match ? Number(match[1]) : Number(search);
+
+         qb = qb.where((eb) =>
+            eb.or([
+               ...(Number.isNaN(referencia)
+                  ? []
+                  : [eb("orden_compra.referencia", "=", referencia)]),
+               eb("proveedor.nombre", "like", `%${search}%`),
+               eb("proveedor.rnc", "like", `%${search}%`),
+               eb("orden_compra.estado", "like", `%${search}%`),
+            ])
+         );
+      }
+
+      const rows = await qb
+         .select("orden_compra.id")
+         .orderBy("orden_compra.created_at", "desc")
+         .offset((page - 1) * limit)
+         .limit(limit)
          .execute();
 
-      return rows.map((row) =>
+
+      // Total de órdenes
+      const totalResult = await qb
+         .select(({ fn }) => fn.count("orden_compra.id").as("count"))
+         .executeTakeFirstOrThrow();
+
+      const total = Number(totalResult.count);
+
+
+      const data = rows.map((row) =>
          PurchaseOrder.create({
             id: row.id,
             proveedor_id: row.proveedor_id,
@@ -140,6 +268,14 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             deleted_reason: row.deleted_reason ?? null,
          })
       );
+
+      return {
+         data,
+         total,
+         page,
+         limit,
+         totalPages: Math.ceil(total / limit),
+      };
    }
 
    async findById(id: string): Promise<PurchaseOrder | null> {

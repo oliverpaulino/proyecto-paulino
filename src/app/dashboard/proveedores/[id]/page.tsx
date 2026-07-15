@@ -69,7 +69,7 @@ export default function SupplierDetailPage() {
          setLoading(true);
          try {
             const data = await GetSupplierById(supplierId);
-            const ordenesData = await GetOrdenesCompraBySupplier(supplierId);
+            await GetOrdenesCompraBySupplier(supplierId);
 
             setSupplier(data);
             if (data)
@@ -82,9 +82,8 @@ export default function SupplierDetailPage() {
       }
 
       load();
-      console.log("Supplier ID:", ordenes);
       return () => { active = false; };
-   }, [supplierId, ordenes.length]);
+   }, [supplierId]);
 
    async function refreshSupplier() {
       const res = await fetch(`/api/suppliers/${supplierId}`);
@@ -126,10 +125,9 @@ export default function SupplierDetailPage() {
       }
    }
 
-   const ordenesPendientes = ordenes.filter(o => o.estado === "PENDIENTE");
+   const ordenesPendientes = ordenes.data?.filter(o => o.estado === "PENDIENTE") || [];
 
-   const totalDeuda = ordenes
-      .filter(o => ["PENDIENTE", "APROBADA", "RECIBIDA"].includes(o.estado))
+   const totalDeuda = ordenes.data?.filter(o => ["PENDIENTE", "APROBADA", "RECIBIDA"].includes(o.estado))
       .reduce((acc, o) => {
          return acc + o.total;
       }, 0);
@@ -216,14 +214,14 @@ export default function SupplierDetailPage() {
                   <MiniStatCard
                      icon={<ShoppingCart className="size-4 text-brand-blue" />}
                      label="Órdenes de compra"
-                     value={ordenes.length.toString() ?? 0}
+                     value={ordenes.data?.length.toString() ?? 0}
                      index={0}
 
                   />
                   <MiniStatCard
                      icon={<Receipt className="size-4 text-brand-blue" />}
                      label="Monto total"
-                     value={ordenes.reduce((acc, orden) => acc + (orden.total || 0), 0).toLocaleString("es-DO", { style: "currency", currency: "DOP" })}
+                     value={ordenes.data.reduce((sum, order) => sum + (order.total || 0), 0).toLocaleString("es-DO", { style: "currency", currency: "DOP" })}
                      index={1}
                   />
                   <MiniStatCard
@@ -290,7 +288,7 @@ export default function SupplierDetailPage() {
 
                         <MiniStat
                            label="Total Deuda"
-                           value={`RD$ ${totalDeuda.toLocaleString('es-DO', { minimumFractionDigits: 2 })}`}
+                           value={`RD$ ${totalDeuda?.toLocaleString('es-DO', { minimumFractionDigits: 2 })}`}
                         />
 
                         <MiniStat
@@ -298,8 +296,8 @@ export default function SupplierDetailPage() {
                            value="RD$ 0.00"
                         />
                      </div>
-                     <OrdenesCompraTable ordenes={ordenes} onEdit={() => { }} onDelete={() => { }} />
-                     {ordenes.length === 0 && (
+                     <OrdenesCompraTable ordenes={ordenes} onPageChange={() => { }} onEdit={() => { }} onDelete={() => { }} />
+                     {ordenes.data?.length === 0 && (
                         <EmptyState
                            icon={<ShoppingCart className="size-8 opacity-30" />}
                            title="Sin órdenes de compra"
