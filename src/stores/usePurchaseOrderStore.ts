@@ -93,7 +93,6 @@ export const usePurchaseOrderStore = create<PurchaseOrderStore>((set, get) => ({
          if (!res.ok) throw new Error("Error al cargar órdenes de compra eliminadas");
 
          const data: PaginatedPurchaseOrders = await res.json();
-         console.log(data, "deleted data")
 
          set((state) => ({
             PurchaseOrdersDeleted: data,
@@ -217,7 +216,6 @@ export const usePurchaseOrderStore = create<PurchaseOrderStore>((set, get) => ({
          const res = await fetch(`/api/purchase-orders?supplierId=${supplierId}&page=${page}&limit=${limit}&search=${search}`);
          if (!res.ok) throw new Error("Error al cargar órdenes de compra por proveedor");
          const data = await res.json();
-         console.log(data, "data")
          set({ loading: false });
          set((state) => ({
             PurchaseOrders: data,
