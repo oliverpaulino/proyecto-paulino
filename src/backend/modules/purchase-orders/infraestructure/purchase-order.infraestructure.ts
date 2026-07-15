@@ -1,4 +1,4 @@
-import { Kysely } from "kysely";
+import { Kysely, sql } from "kysely";
 import { DB } from "@/backend/database";
 import {
    ApproverRecord,
@@ -51,19 +51,27 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
       }
 
       if (search) {
-         const match = search.match(/OC-\d{6}-(\d+)/i);
-         const referencia = match ? Number(match[1]) : Number(search);
+         const cleanSearch = search.trim();
 
-         baseQuery = baseQuery.where((eb) =>
-            eb.or([
-               ...(Number.isNaN(referencia)
-                  ? []
-                  : [eb("orden_compra.referencia", "=", referencia)]),
-               eb("proveedor.nombre", "like", `%${search}%`),
-               eb("proveedor.rnc", "like", `%${search}%`),
-               eb("orden_compra.estado", "like", `%${search}%`),
-            ])
-         );
+         // Si el usuario solo escribió "oc" u "oc-", ignoramos la búsqueda
+         // porque todas las órdenes son OC y no aporta al filtro.
+         if (cleanSearch.toLowerCase() === "oc" || cleanSearch.toLowerCase() === "oc-") {
+            // No hacemos nada, la consulta base ya trae todas las órdenes
+         } else {
+            const match = cleanSearch.match(/OC-\d{6}-(\d+)/i);
+            const numeroReferencia = match ? parseInt(match[1], 10) : parseInt(cleanSearch, 10);
+            const esNumeroValido = !Number.isNaN(numeroReferencia);
+
+            baseQuery = baseQuery.where((eb) =>
+               eb.or([
+                  ...(esNumeroValido ? [eb("orden_compra.referencia", "=", numeroReferencia)] : []),
+                  eb("proveedor.nombre", "ilike", `%${cleanSearch}%`),
+                  eb("proveedor.rnc", "ilike", `%${cleanSearch}%`),
+                  eb(sql<string>`cast(orden_compra.referencia as text)`, "ilike", `%${cleanSearch}%`),
+                  eb("orden_compra.estado", "ilike", `%${cleanSearch}%`),
+               ])
+            );
+         }
       }
 
       // Total de órdenes
@@ -232,30 +240,38 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
       }
 
       if (search) {
-         const match = search.match(/OC-\d{6}-(\d+)/i);
-         const referencia = match ? Number(match[1]) : Number(search);
+         const cleanSearch = search.trim();
 
-         dataQuery = dataQuery.where((eb) =>
-            eb.or([
-               ...(Number.isNaN(referencia)
-                  ? []
-                  : [eb("orden_compra.referencia", "=", referencia)]),
-               eb("proveedor.nombre", "like", `%${search}%`),
-               eb("proveedor.rnc", "like", `%${search}%`),
-               eb("orden_compra.estado", "like", `%${search}%`),
-            ])
-         );
+         // Si el usuario solo escribió "oc" u "oc-", ignoramos la búsqueda
+         if (cleanSearch.toLowerCase() === "oc" || cleanSearch.toLowerCase() === "oc-") {
+            // No hacemos nada, la consulta base ya trae todas las órdenes
+         } else {
+            const match = cleanSearch.match(/OC-\d{6}-(\d+)/i);
+            const numeroReferencia = match ? parseInt(match[1], 10) : parseInt(cleanSearch, 10);
+            const esNumeroValido = !Number.isNaN(numeroReferencia);
 
-         countQuery = countQuery.where((eb) =>
-            eb.or([
-               ...(Number.isNaN(referencia)
-                  ? []
-                  : [eb("orden_compra.referencia", "=", referencia)]),
-               eb("proveedor.nombre", "like", `%${search}%`),
-               eb("proveedor.rnc", "like", `%${search}%`),
-               eb("orden_compra.estado", "like", `%${search}%`),
-            ])
-         );
+            // Aplicamos a la consulta de DATOS
+            dataQuery = dataQuery.where((eb) =>
+               eb.or([
+                  ...(esNumeroValido ? [eb("orden_compra.referencia", "=", numeroReferencia)] : []),
+                  eb("proveedor.nombre", "ilike", `%${cleanSearch}%`),
+                  eb("proveedor.rnc", "ilike", `%${cleanSearch}%`),
+                  eb(sql<string>`cast(orden_compra.referencia as text)`, "ilike", `%${cleanSearch}%`),
+                  eb("orden_compra.estado", "ilike", `%${cleanSearch}%`),
+               ])
+            );
+
+            // Aplicamos exactamente lo mismo a la consulta de CONTEO (TotalPages)
+            countQuery = countQuery.where((eb) =>
+               eb.or([
+                  ...(esNumeroValido ? [eb("orden_compra.referencia", "=", numeroReferencia)] : []),
+                  eb("proveedor.nombre", "ilike", `%${cleanSearch}%`),
+                  eb("proveedor.rnc", "ilike", `%${cleanSearch}%`),
+                  eb(sql<string>`cast(orden_compra.referencia as text)`, "ilike", `%${cleanSearch}%`),
+                  eb("orden_compra.estado", "ilike", `%${cleanSearch}%`),
+               ])
+            );
+         }
       }
 
       const totalResult = await countQuery

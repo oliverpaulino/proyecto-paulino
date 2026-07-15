@@ -41,8 +41,6 @@ export function EquipoTable({ equipos, onEdit, onDelete }: EquipoTableProps) {
 
 
 
-   console.log("operadores", Operators);
-   console.log("equipos", equipos);
    return (
       <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
          <table className="w-full text-sm">

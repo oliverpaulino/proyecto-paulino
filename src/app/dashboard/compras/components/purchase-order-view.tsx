@@ -68,27 +68,26 @@ export default function ComprasView() {
 
    const [formLoading, setFormLoading] = useState(false);
    const [searchInput, setSearchInput] = useState("");
+   const [page, setPage] = useState(1);
+   const limit = 10;
    const [search, setSearch] = useState("");
    const [createOpen, setCreateOpen] = useState(false);
    const [editTarget, setEditTarget] = useState<PurchaseOrder | null>(null);
    const [deleteTarget, setDeleteTarget] = useState<PurchaseOrder | null>(null);
 
    useEffect(() => {
-      GetPurchaseOrders();
-   }, [GetPurchaseOrders]);
+      GetPurchaseOrders({
+         force: true,
+         page,
+         limit,
+         search,
+      });
+   }, [GetPurchaseOrders, page, search]);
 
-   const filtered = PurchaseOrders.filter((o) => {
-      const q = search.toLowerCase();
-      return (
-         o.id.toLowerCase().includes(q) ||
-         (o.proveedor_nombre ?? "").toLowerCase().includes(q) ||
-         o.estado.toLowerCase().includes(q)
-      );
-   });
 
-   const total = PurchaseOrders.length;
-   const pendientes = PurchaseOrders.filter((o) => o.estado === "PENDIENTE").length;
-   const aprobadas = PurchaseOrders.filter((o) => o.estado === "APROBADA").length;
+   const total = PurchaseOrders.total;
+   const pendientes = PurchaseOrders.data.filter((o) => o.estado === "PENDIENTE").length;
+   const aprobadas = PurchaseOrders.data.filter((o) => o.estado === "APROBADA").length;
 
    async function handleCreate(data: FormPayload) {
       setFormLoading(true);
@@ -134,7 +133,6 @@ export default function ComprasView() {
          setFormLoading(false);
       }
    }
-
    return (
       <div className="flex flex-col gap-6 p-6">
 
@@ -165,7 +163,10 @@ export default function ComprasView() {
             <TableSearch
                value={searchInput}
                onValueChange={setSearchInput}
-               onSearch={setSearch}
+               onSearch={(value) => {
+                  setPage(1);
+                  setSearch(value);
+               }}
                placeholder="Buscar por proveedor, estado…"
                debounceDelay={350}
                className="w-full max-w-sm"
@@ -204,11 +205,34 @@ export default function ComprasView() {
             </div>
          ) : (
             <PurchaseOrderTable
-               orders={filtered}
+               orders={PurchaseOrders.data}
                onEdit={setEditTarget}
                onDelete={setDeleteTarget}
             />
          )}
+         <div className="flex items-center justify-between mt-4">
+            <p className="text-sm text-muted-foreground">
+               Página {page} de {Math.ceil(PurchaseOrders.total / limit)}
+            </p>
+
+            <div className="flex gap-2">
+               <Button
+                  variant="outline"
+                  disabled={page === 1}
+                  onClick={() => setPage((p) => p - 1)}
+               >
+                  Anterior
+               </Button>
+
+               <Button
+                  variant="outline"
+                  disabled={page >= Math.ceil(PurchaseOrders.total / limit)}
+                  onClick={() => setPage((p) => p + 1)}
+               >
+                  Siguiente
+               </Button>
+            </div>
+         </div>
 
          {/* Edit dialog */}
          <Dialog

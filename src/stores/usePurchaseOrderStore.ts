@@ -68,16 +68,10 @@ export const usePurchaseOrderStore = create<PurchaseOrderStore>((set, get) => ({
          const res = await fetch(`/api/purchase-orders?page=${page}&limit=${limit}&search=${search}`);
          if (!res.ok) throw new Error("Error al cargar órdenes de compra");
 
-         const data: PurchaseOrder[] = await res.json();
+         const data: PaginatedPurchaseOrders = await res.json();
 
          set((state) => ({
-            PurchaseOrders: {
-               data,
-               total: data.length,
-               page: page,
-               limit: limit,
-               totalPages: Math.ceil(data.length / limit),
-            },
+            PurchaseOrders: data,
             _fetchedLists: new Set(state._fetchedLists).add(cacheKey),
          }));
       } catch (error) {

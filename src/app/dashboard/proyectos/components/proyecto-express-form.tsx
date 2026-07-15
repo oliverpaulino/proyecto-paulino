@@ -142,7 +142,6 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
       try {
          const operadorAsignable = await GetOperadorByEquipoId(equipo.id);
          // OperadorAsignable.id === empleado_id, matchea directo con el <Select> de operadores
-         console.log(operadorAsignable, "hola");
          if (operadorAsignable && !(operadorAsignable instanceof Error)) {
             updateEquipo(idx, "operador_id", operadorAsignable.id);
          } else {
