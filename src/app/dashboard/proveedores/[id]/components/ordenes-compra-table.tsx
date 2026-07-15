@@ -86,36 +86,37 @@ export function OrdenesCompraTable({ ordenes, onPageChange, onEdit, onDelete }: 
                   ))
                )}
             </TableBody>
-            <div className="flex items-center justify-between border-t p-4">
-               <p className="text-sm text-muted-foreground">
-                  Mostrando {(ordenes.page - 1) * ordenes.limit + 1} -{" "}
-                  {Math.min(ordenes.page * ordenes.limit, ordenes.total)} de{" "}
-                  {ordenes.total} órdenes
-               </p>
-
-               <div className="flex gap-2">
-                  <Button
-                     variant="outline"
-                     disabled={ordenes.page === 1}
-                     onClick={() => onPageChange(ordenes.page - 1)}
-                  >
-                     Anterior
-                  </Button>
-
-                  <span className="flex items-center px-3 text-sm">
-                     Página {ordenes.page} de {ordenes.totalPages}
-                  </span>
-
-                  <Button
-                     variant="outline"
-                     disabled={ordenes.page >= ordenes.totalPages}
-                     onClick={() => onPageChange(ordenes.page + 1)}
-                  >
-                     Siguiente
-                  </Button>
-               </div>
-            </div>
          </Table>
+         <div className="flex items-center justify-between border-t p-4">
+            <p className="text-sm text-muted-foreground">
+               Mostrando {(ordenes.page - 1) * ordenes.limit + 1} -{" "}
+               {Math.min(ordenes.page * ordenes.limit, ordenes.total)} de{" "}
+               {ordenes.total} órdenes
+            </p>
+
+            <div className="flex gap-2">
+               <Button
+                  variant="outline"
+                  disabled={ordenes.page === 1}
+                  onClick={() => onPageChange(ordenes.page - 1)}
+               >
+                  Anterior
+               </Button>
+
+               <span className="flex items-center px-3 text-sm">
+                  Página {ordenes.page} de {ordenes.totalPages}
+               </span>
+
+               <Button
+                  variant="outline"
+                  disabled={ordenes.page >= ordenes.totalPages}
+                  onClick={() => onPageChange(ordenes.page + 1)}
+               >
+                  Siguiente
+               </Button>
+            </div>
+         </div>
       </div>
    );
 }
+

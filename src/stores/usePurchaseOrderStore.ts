@@ -10,7 +10,7 @@ import type {
 
 type PurchaseOrderStore = {
    PurchaseOrders: PaginatedPurchaseOrders;
-   PurchaseOrdersDeleted: PurchaseOrderDeleted[];
+   PurchaseOrdersDeleted: PaginatedPurchaseOrders;
    loading: boolean;
    _fetchedLists: Set<string>;
    _fetchedListsDeleted: Set<string>;
@@ -42,7 +42,13 @@ export const usePurchaseOrderStore = create<PurchaseOrderStore>((set, get) => ({
       limit: 10,
       totalPages: 1,
    },
-   PurchaseOrdersDeleted: [],
+   PurchaseOrdersDeleted: {
+      data: [],
+      total: 0,
+      page: 1,
+      limit: 10,
+      totalPages: 1,
+   },
    loading: false,
    _fetchedLists: new Set<string>(),
    _fetchedListsDeleted: new Set<string>(),
@@ -92,7 +98,8 @@ export const usePurchaseOrderStore = create<PurchaseOrderStore>((set, get) => ({
          const res = await fetch(`/api/purchase-orders/deleted?page=${page}&limit=${limit}&search=${search}`);
          if (!res.ok) throw new Error("Error al cargar órdenes de compra eliminadas");
 
-         const data: PurchaseOrderDeleted[] = await res.json();
+         const data: PaginatedPurchaseOrders = await res.json();
+         console.log(data, "deleted data")
 
          set((state) => ({
             PurchaseOrdersDeleted: data,

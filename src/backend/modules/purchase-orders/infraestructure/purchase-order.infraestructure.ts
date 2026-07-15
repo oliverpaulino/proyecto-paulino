@@ -189,8 +189,8 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
       limit: number;
       totalPages: number;
    }> {
-      const { supplierId, search = "", page = 1, limit = 10 } = params;
-      let qb = await this.db
+      const { supplierId = "", search = "", page = 1, limit = 10 } = params;
+      let dataQuery = this.db
          .selectFrom("orden_compra")
          .leftJoin("proveedor", "proveedor.id", "orden_compra.proveedor_id")
          .select([
@@ -211,14 +211,42 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             "orden_compra.deleted_at",
             "orden_compra.deleted_reason",
          ])
-         .where("orden_compra.deleted_at", "is not", null)
-         .orderBy("orden_compra.deleted_at", "desc")
+         .where("orden_compra.deleted_at", "is not", null);
+      let countQuery = this.db
+         .selectFrom("orden_compra")
+         .leftJoin("proveedor", "proveedor.id", "orden_compra.proveedor_id")
+         .where("orden_compra.deleted_at", "is not", null);
+
+      if (supplierId) {
+         dataQuery = dataQuery.where(
+            "orden_compra.proveedor_id",
+            "=",
+            supplierId
+         );
+
+         countQuery = countQuery.where(
+            "orden_compra.proveedor_id",
+            "=",
+            supplierId
+         );
+      }
 
       if (search) {
          const match = search.match(/OC-\d{6}-(\d+)/i);
          const referencia = match ? Number(match[1]) : Number(search);
 
-         qb = qb.where((eb) =>
+         dataQuery = dataQuery.where((eb) =>
+            eb.or([
+               ...(Number.isNaN(referencia)
+                  ? []
+                  : [eb("orden_compra.referencia", "=", referencia)]),
+               eb("proveedor.nombre", "like", `%${search}%`),
+               eb("proveedor.rnc", "like", `%${search}%`),
+               eb("orden_compra.estado", "like", `%${search}%`),
+            ])
+         );
+
+         countQuery = countQuery.where((eb) =>
             eb.or([
                ...(Number.isNaN(referencia)
                   ? []
@@ -230,21 +258,17 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
          );
       }
 
-      const rows = await qb
-         .select("orden_compra.id")
-         .orderBy("orden_compra.created_at", "desc")
-         .offset((page - 1) * limit)
-         .limit(limit)
-         .execute();
-
-
-      // Total de órdenes
-      const totalResult = await qb
+      const totalResult = await countQuery
          .select(({ fn }) => fn.count("orden_compra.id").as("count"))
          .executeTakeFirstOrThrow();
 
       const total = Number(totalResult.count);
 
+      const rows = await dataQuery
+         .orderBy("orden_compra.deleted_at", "desc")
+         .offset((page - 1) * limit)
+         .limit(limit)
+         .execute();
 
       const data = rows.map((row) =>
          PurchaseOrder.create({
@@ -252,19 +276,26 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             proveedor_id: row.proveedor_id,
             proveedor_nombre: row.proveedor_nombre ?? undefined,
             referencia: row.referencia,
-            codigoReferencia: buildCodigoReferencia(row.referencia, new Date(row.fecha)),
+            codigoReferencia: buildCodigoReferencia(
+               row.referencia,
+               new Date(row.fecha)
+            ),
             fecha: new Date(row.fecha),
             estado: row.estado as EstadoOrdenCompra,
             notas: row.notas ?? null,
             total: Number(row.total),
             approved_by: row.approved_by ?? null,
             approved_by_name: row.approved_by_name ?? null,
-            approved_at: row.approved_at ? new Date(row.approved_at) : null,
+            approved_at: row.approved_at
+               ? new Date(row.approved_at)
+               : null,
             items: [],
             created_at: new Date(row.created_at),
             updated_at: new Date(row.updated_at),
             deleted_by: row.deleted_by ?? null,
-            deleted_at: row.deleted_at ? new Date(row.deleted_at) : null,
+            deleted_at: row.deleted_at
+               ? new Date(row.deleted_at)
+               : null,
             deleted_reason: row.deleted_reason ?? null,
          })
       );

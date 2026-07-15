@@ -57,6 +57,8 @@ export default function SupplierDetailPage() {
    const { GetOrdenesCompraBySupplier, PurchaseOrders: ordenes } = usePurchaseOrderStore();
 
    const [supplier, setSupplier] = useState<Supplier | null>(null);
+   const [page, setPage] = useState(1);
+   const limit = 10
    const [loading, setLoading] = useState(true);
    const [actionLoading, setActionLoading] = useState(false);
    const [editOpen, setEditOpen] = useState(false);
@@ -69,7 +71,7 @@ export default function SupplierDetailPage() {
          setLoading(true);
          try {
             const data = await GetSupplierById(supplierId);
-            await GetOrdenesCompraBySupplier(supplierId);
+            await GetOrdenesCompraBySupplier(supplierId, { page, limit });
 
             setSupplier(data);
             if (data)
@@ -221,7 +223,7 @@ export default function SupplierDetailPage() {
                   <MiniStatCard
                      icon={<Receipt className="size-4 text-brand-blue" />}
                      label="Monto total"
-                     value={ordenes.data.reduce((sum, order) => sum + (order.total || 0), 0).toLocaleString("es-DO", { style: "currency", currency: "DOP" })}
+                     value={ordenes.data.filter((o) => o.estado !== "BORRADOR" && o.estado !== "CANCELADA").reduce((sum, order) => sum + (order.total || 0), 0).toLocaleString("es-DO", { style: "currency", currency: "DOP" })}
                      index={1}
                   />
                   <MiniStatCard
@@ -296,7 +298,7 @@ export default function SupplierDetailPage() {
                            value="RD$ 0.00"
                         />
                      </div>
-                     <OrdenesCompraTable ordenes={ordenes} onPageChange={() => { }} onEdit={() => { }} onDelete={() => { }} />
+                     <OrdenesCompraTable ordenes={ordenes} onPageChange={(newPage) => setPage(newPage)} onEdit={() => { }} onDelete={() => { }} />
                      {ordenes.data?.length === 0 && (
                         <EmptyState
                            icon={<ShoppingCart className="size-8 opacity-30" />}

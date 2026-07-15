@@ -25,22 +25,22 @@ export default function ComprasEliminadasPage() {
    const router = useRouter();
    const { PurchaseOrdersDeleted, loading, GetPurchaseOrdersDeleted, RestorePurchaseOrder } = usePurchaseOrderStore();
    const [search, setSearch] = useState("");
-   
+   const [page, setPage] = useState(1);
+   const limit = 10;
+
    const [restoreTarget, setRestoreTarget] = useState<PurchaseOrderDeleted | null>(null);
    const [formLoading, setFormLoading] = useState(false);
 
    useEffect(() => {
-      GetPurchaseOrdersDeleted();
-   }, [GetPurchaseOrdersDeleted]);
+      GetPurchaseOrdersDeleted({
+         page,
+         limit,
+         search,
+      });
+   }, [page, search]);
 
-   const filtered = (PurchaseOrdersDeleted || []).filter((o) => {
-      const q = search.toLowerCase();
-      return (
-         o.id.toLowerCase().includes(q) ||
-         (o.proveedor_nombre ?? "").toLowerCase().includes(q) ||
-         (o.deleted_reason ?? "").toLowerCase().includes(q)
-      );
-   });
+   console.log(PurchaseOrdersDeleted, "deleted orders")
+
 
    async function handleRestore() {
       if (!restoreTarget) return;
@@ -91,11 +91,11 @@ export default function ComprasEliminadasPage() {
          </div>
 
          {/* Área de la Tabla / Estado de Carga */}
-         {loading && PurchaseOrdersDeleted.length === 0 ? (
+         {loading && PurchaseOrdersDeleted.data.length === 0 ? (
             <div className="flex items-center justify-center py-12 text-sm text-gray-500">
                Cargando historial de eliminaciones...
             </div>
-         ) : filtered.length === 0 ? (
+         ) : PurchaseOrdersDeleted.data.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-200 py-12 text-sm text-gray-500 dark:border-gray-800">
                <Trash2 className="size-8 mb-2 opacity-50" />
                <span>No hay órdenes de compra eliminadas que coincidan con la búsqueda.</span>
@@ -114,11 +114,11 @@ export default function ComprasEliminadasPage() {
                      </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                     {filtered.map((order) => (
+                     {PurchaseOrdersDeleted.data.map((order) => (
                         <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
                            <td className="px-4 py-3">
-                              <span className="font-mono text-xs text-gray-500 line-through">
-                                 {order.id.slice(0, 8)}...
+                              <span className="font-mono text-xs text-gray-500 bg-brand-yellow/25 px-1.5 py-0.5 rounded">
+                                 {order.codigoReferencia}
                               </span>
                               <div className="text-xs text-gray-400 mt-0.5">
                                  {formatDate(order.fecha)}
@@ -158,6 +158,29 @@ export default function ComprasEliminadasPage() {
                      ))}
                   </tbody>
                </table>
+               <div className="flex p-5 border-t-2 items-center justify-between mt-4">
+                  <p className="text-sm text-muted-foreground">
+                     Página {PurchaseOrdersDeleted.page} de {PurchaseOrdersDeleted.totalPages}
+                  </p>
+
+                  <div className="flex gap-2">
+                     <Button
+                        variant="outline"
+                        disabled={page === 1}
+                        onClick={() => setPage((p) => p - 1)}
+                     >
+                        Anterior
+                     </Button>
+
+                     <Button
+                        variant="outline"
+                        disabled={page >= PurchaseOrdersDeleted.totalPages}
+                        onClick={() => setPage((p) => p + 1)}
+                     >
+                        Siguiente
+                     </Button>
+                  </div>
+               </div>
             </div>
          )}
 
