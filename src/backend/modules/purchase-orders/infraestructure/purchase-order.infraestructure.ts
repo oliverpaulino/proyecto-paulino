@@ -28,31 +28,47 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
       let qb = this.db
          .selectFrom("orden_compra")
          .leftJoin("proveedor", "proveedor.id", "orden_compra.proveedor_id")
+         .innerJoin("orden_compra_item as oci", "oci.orden_compra_id", "orden_compra.id")
          .select([
-            "orden_compra.id",
-            "orden_compra.referencia",
-            "orden_compra.proveedor_id",
-            "proveedor.nombre as proveedor_nombre",
-            "orden_compra.fecha",
-            "orden_compra.estado",
-            "orden_compra.notas",
-            "orden_compra.total",
-            "orden_compra.approved_by",
-            "orden_compra.approved_by_name",
-            "orden_compra.approved_at",
-            "orden_compra.created_at",
-            "orden_compra.updated_at",
+            "orden_compra.id", "orden_compra.referencia", "orden_compra.proveedor_id",
+            "proveedor.nombre as proveedor_nombre", "orden_compra.fecha", "orden_compra.estado",
+            "orden_compra.notas", "orden_compra.total", "orden_compra.approved_by",
+            "orden_compra.approved_by_name", "orden_compra.approved_at",
+            "orden_compra.created_at", "orden_compra.updated_at",
+            "oci.id as item_id", "oci.cantidad", "oci.precio_unitario",
+            "oci.descripcion", "oci.equipo_id", "oci.subtotal"
          ])
          .where("orden_compra.deleted_at", "is", null);
 
       if (supplierId) {
          qb = qb.where("orden_compra.proveedor_id", "=", supplierId);
       }
-      const rows = await qb
-         .orderBy("orden_compra.created_at", "desc")
-         .execute();
 
-      return rows.map((row) =>
+      const rows = await qb.orderBy("orden_compra.created_at", "desc").execute();
+
+      // 1. Agrupamos las filas por ID de orden
+      const grouped = rows.reduce((acc, row) => {
+         if (!acc[row.id]) {
+            acc[row.id] = { ...row, items: [] };
+         }
+
+         // 2. Agregamos el ítem al array de la orden correspondiente
+         acc[row.id].items.push({
+            id: row.item_id,
+            orden_compra_id: row.id,
+            cantidad: row.cantidad,
+            precio_unitario: Number(row.precio_unitario),
+            descripcion: row.descripcion ?? null,
+            equipo_id: row.equipo_id ?? null,
+            subtotal: Number(row.subtotal),
+         });
+
+         return acc;
+      }, {} as Record<string, any>);
+
+
+      // 3. Mapeamos el resultado agrupado a tu objeto de dominio
+      return Object.values(grouped).map((row) =>
          PurchaseOrder.create({
             id: row.id,
             referencia: row.referencia,
@@ -66,7 +82,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             approved_by: row.approved_by ?? null,
             approved_by_name: row.approved_by_name ?? null,
             approved_at: row.approved_at ? new Date(row.approved_at) : null,
-            items: [],
+            items: row.items, // Aquí ya tienes todos los ítems agrupados correctamente
             created_at: new Date(row.created_at),
             updated_at: new Date(row.updated_at),
             deleted_by: null,
