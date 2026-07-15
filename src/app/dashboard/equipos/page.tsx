@@ -169,6 +169,7 @@ export default function EquiposPage() {
 
             <div className="ml-auto flex gap-2">
                <Button
+                  type="button"
                   variant="outline"
                   onClick={() => setManageOpen(true)}
                   className="font-semibold"
@@ -254,7 +255,11 @@ export default function EquiposPage() {
             loading={formLoading}
          />
 
-         <CategoriaEquipoManager open={manageOpen} onOpenChange={setManageOpen} />
+         <CategoriaEquipoManager
+            open={manageOpen}
+            onOpenChange={setManageOpen}
+         />
+         {/* Mantén el MedidaCobroManager que ya tienes aquí abajo para el botón principal de la página */}
          <MedidaCobroManager open={manageMedidasOpen} onOpenChange={setManageMedidasOpen} />
 
       </div >

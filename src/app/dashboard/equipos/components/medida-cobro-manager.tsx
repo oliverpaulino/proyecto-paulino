@@ -125,8 +125,15 @@ export function MedidaCobroManager({ open, onOpenChange }: MedidaCobroManagerPro
    const affectedCount = deleteTarget ? countCategoriasEqupos(deleteTarget.id) : 0;
 
    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-         <DialogContent className="sm:max-w-xl">
+      <Dialog
+         open={open}
+         onOpenChange={onOpenChange}
+      >
+         <DialogContent
+            className="sm:max-w-xl"
+            onInteractOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={(e) => e.preventDefault()}
+         >
             <DialogHeader>
                <DialogTitle className="flex items-center gap-2">
                   <Tag className="size-5 text-brand-blue" />
@@ -258,6 +265,7 @@ export function MedidaCobroManager({ open, onOpenChange }: MedidaCobroManagerPro
                                        {used} {used === 1 ? "categoría" : "categorías"}
                                     </span>
                                     <button
+                                       type="button"
                                        onClick={() => saveEdit(med.id)}
                                        disabled={busy}
                                        className="rounded-md p-1.5 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30"
@@ -266,6 +274,7 @@ export function MedidaCobroManager({ open, onOpenChange }: MedidaCobroManagerPro
                                        <Check className="size-4" />
                                     </button>
                                     <button
+                                       type="button"
                                        onClick={() => setEditId(null)}
                                        disabled={busy}
                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-muted"
@@ -287,6 +296,7 @@ export function MedidaCobroManager({ open, onOpenChange }: MedidaCobroManagerPro
                                     {used} {used === 1 ? "categoría" : "categorías"}
                                  </span>
                                  <button
+                                    type="button"
                                     onClick={() => startEdit(med)}
                                     className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10"
                                     title="Editar"
@@ -294,6 +304,7 @@ export function MedidaCobroManager({ open, onOpenChange }: MedidaCobroManagerPro
                                     <Pencil className="size-4" />
                                  </button>
                                  <button
+                                    type="button"
                                     onClick={() => setDeleteTarget(med)}
                                     className="rounded-md p-1.5 text-brand-red hover:bg-brand-red/10"
                                     title="Eliminar"
@@ -337,10 +348,11 @@ export function MedidaCobroManager({ open, onOpenChange }: MedidaCobroManagerPro
                   </DialogDescription>
                </DialogHeader>
                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={busy}>
+                  <Button type="button" variant="outline" onClick={() => setDeleteTarget(null)} disabled={busy}>
                      Cancelar
                   </Button>
                   <Button
+                     type="button"
                      variant="destructive"
                      onClick={confirmDelete}
                      disabled={busy || affectedCount > 0}
