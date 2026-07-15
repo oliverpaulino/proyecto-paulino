@@ -94,6 +94,7 @@ export default function EquipoDetailPage() {
    const [editOpen, setEditOpen] = useState(false);
    const [editLoading, setEditLoading] = useState(false);
    const [manageOpen, setManageOpen] = useState(false);
+   const [manageMedidasOpen, setManageMedidasOpen] = useState(false);
 
    async function loadAll(active = { value: true }) {
       try {
@@ -429,7 +430,7 @@ export default function EquipoDetailPage() {
             </DialogContent>
          </Dialog>
 
-         <CategoriaEquipoManager open={manageOpen} onOpenChange={setManageOpen} />
+         <CategoriaEquipoManager open={manageOpen} onOpenChange={setManageOpen} onOpenMedidas={() => { console.log("abrir medidas"); setManageMedidasOpen(true) }} />
       </div>
    );
 }

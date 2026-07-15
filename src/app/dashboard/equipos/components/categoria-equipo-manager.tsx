@@ -38,6 +38,7 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
    const [newPrecioUnitario, setNewPrecioUnitario] = useState("");
    const [newMedidaCobroId, setNewMedidaCobroId] = useState("");
    const [busy, setBusy] = useState(false);
+   const [manageMedidasOpen, setManageMedidasOpen] = useState(false);
    const [error, setError] = useState<string | null>(null);
 
    const [editId, setEditId] = useState<string | null>(null);
@@ -47,7 +48,6 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
    const [editPrecioUnitario, setEditPrecioUnitario] = useState("");
    const [editMedidaCobroId, setEditMedidaCobroId] = useState("");
    const [deleteTarget, setDeleteTarget] = useState<CategoriaEquipo | null>(null);
-   const [manageOpen, setManageOpen] = useState(false);
 
 
    useEffect(() => {
@@ -64,13 +64,14 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
 
    async function handleCreate(e: React.FormEvent) {
       e.preventDefault();
-      if (!newNombre.trim() || !newCobraEn.trim()) return;
+      e.stopPropagation()
+      if (!newNombre.trim() || !newMedidaCobroId.trim()) return;
       setBusy(true);
       setError(null);
       try {
          const result = await CreateCategoriaEquipo({
             nombre: newNombre.trim(),
-            cobra_en: newCobraEn.trim(),
+            cobra_en: MedidaCobros.find(m => m.id === newMedidaCobroId)?.nombre || "",
             cobra_minimo: newCobraMinimo ? Number(newCobraMinimo) : null,
             precio_unitario: newPrecioUnitario ? Number(newPrecioUnitario) : null,
             medida_cobro_id: newMedidaCobroId, // Assuming at least one medida_cobro exists
@@ -138,7 +139,11 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
    return (
       <>
          <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-xl">
+            <DialogContent
+               className="sm:max-w-xl"
+               onInteractOutside={(e) => e.preventDefault()}
+               onEscapeKeyDown={(e) => e.preventDefault()}
+            >
                <DialogHeader>
                   <DialogTitle className="flex items-center gap-2">
                      <Tag className="size-5 text-brand-blue" />
@@ -167,7 +172,8 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                            <Label htmlFor="ef-categoria">Cobra En *</Label>
                            <button
                               type="button"
-                              onClick={() => setManageOpen(true)}
+                              // CAMBIA ESTO:
+                              onClick={() => { setManageMedidasOpen(true) }}
                               className="flex items-center gap-1 text-xs text-brand-blue hover:underline"
                            >
                               <Settings2 className="size-3" />
@@ -176,7 +182,7 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                         </div>
                         <select
                            value={newMedidaCobroId}
-                           onChange={(e) => setNewMedidaCobroId(e.target.value)}
+                           onChange={(e) => { setNewMedidaCobroId(e.target.value); }}
                            className={SELECT_CLASS}
                            required
                         >
@@ -222,8 +228,8 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                      </div>
                      <Button
                         type="submit"
+                        onClick={(e) => e.stopPropagation()}
                         disabled={busy || !newNombre.trim() || !newMedidaCobroId.trim()}
-                        className="shrink-0"
                      >
                         <Plus className="size-4 mr-1" />
                         Agregar
@@ -301,6 +307,7 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                                           disabled={busy}
                                        />
                                        <button
+                                          type="button"
                                           onClick={() => saveEdit(cat.id)}
                                           disabled={busy}
                                           className="rounded-md p-1.5 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30"
@@ -309,6 +316,7 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                                           <Check className="size-4" />
                                        </button>
                                        <button
+                                          type="button"
                                           onClick={() => setEditId(null)}
                                           disabled={busy}
                                           className="rounded-md p-1.5 text-muted-foreground hover:bg-muted"
@@ -335,6 +343,7 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                                        {used} {used === 1 ? "equipo" : "equipos"}
                                     </span>
                                     <button
+                                       type="button"
                                        onClick={() => startEdit(cat)}
                                        className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10"
                                        title="Editar"
@@ -342,6 +351,7 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                                        <Pencil className="size-4" />
                                     </button>
                                     <button
+                                       type="button"
                                        onClick={() => setDeleteTarget(cat)}
                                        className="rounded-md p-1.5 text-brand-red hover:bg-brand-red/10"
                                        title="Eliminar"
@@ -357,7 +367,7 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                </div>
             </DialogContent>
 
-            <MedidaCobroManager open={manageOpen} onOpenChange={setManageOpen} />
+
             {/* Confirmación de eliminación */}
             <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
                <DialogContent className="sm:max-w-md">
@@ -386,10 +396,11 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                      </DialogDescription>
                   </DialogHeader>
                   <div className="flex justify-end gap-2">
-                     <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={busy}>
+                     <Button type="button" variant="outline" onClick={() => setDeleteTarget(null)} disabled={busy}>
                         Cancelar
                      </Button>
                      <Button
+                        type="button"
                         variant="destructive"
                         onClick={confirmDelete}
                         disabled={busy || affectedCount > 0}
@@ -399,7 +410,9 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                   </div>
                </DialogContent>
             </Dialog>
-         </Dialog> *
+         </Dialog>
+         {/* Descomenta esta línea: */}
+         <MedidaCobroManager open={manageMedidasOpen} onOpenChange={(isOpen) => setManageMedidasOpen(isOpen)} />
       </>
    );
 }

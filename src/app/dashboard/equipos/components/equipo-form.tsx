@@ -15,6 +15,7 @@ import { useCategoriaEquipoStore } from "@/stores/useCategoriaEquipoStore";
 import { SelectBuscadorOperator } from "@/components/select-operator";
 import { useEmployeeStore } from "@/stores/useEmployeeStore";
 import { CategoriaEquipoManager } from "./categoria-equipo-manager";
+import { MedidaCobroManager } from "./medida-cobro-manager";
 
 export interface EquipoFormValues {
    nombre: string;
@@ -49,6 +50,7 @@ export function EquipoForm({
    const { CategoriaEquipos, GetCategoriaEquipos } = useCategoriaEquipoStore();
    const { GetOperators } = useEmployeeStore();
    const [manageOpen, setManageOpen] = useState(false);
+   const [manageMedidasOpen, setManageMedidasOpen] = useState(false);
 
 
    const [values, setValues] = useState<EquipoFormValues>({
@@ -215,7 +217,11 @@ export function EquipoForm({
                {loading ? "Guardando…" : submitLabel}
             </Button>
          </div>
-         <CategoriaEquipoManager open={manageOpen} onOpenChange={setManageOpen} />
+         <CategoriaEquipoManager
+            open={manageOpen}
+            onOpenChange={setManageOpen}
+         />
+         {/* BORRA el <MedidaCobroManager ... /> de aquí */}
       </form>
    );
 }
