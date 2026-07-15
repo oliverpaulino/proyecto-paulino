@@ -1,4 +1,4 @@
-import { Kysely } from "kysely";
+import { Kysely, sql } from "kysely";
 import { DB } from "@/backend/database";
 import {
    ApproverRecord,
@@ -23,11 +23,89 @@ function buildCodigoReferencia(referencia: number, fecha: Date): string {
 export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
    constructor(private readonly db: Kysely<DB>) { }
 
-   async findAll(params: { supplierId?: string }): Promise<PurchaseOrder[]> {
-      const { supplierId = "" } = params;
-      let qb = this.db
+   async findAll(params: {
+      supplierId?: string;
+      search?: string;
+      page?: number;
+      limit?: number;
+   }): Promise<{
+      data: PurchaseOrder[];
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+   }> {
+      const { supplierId = "", search = "", page = 1, limit = 10 } = params;
+
+      let baseQuery = this.db
          .selectFrom("orden_compra")
          .leftJoin("proveedor", "proveedor.id", "orden_compra.proveedor_id")
+         .where("orden_compra.deleted_at", "is", null);
+
+      if (supplierId) {
+         baseQuery = baseQuery.where(
+            "orden_compra.proveedor_id",
+            "=",
+            supplierId
+         );
+      }
+
+      if (search) {
+         const cleanSearch = search.trim();
+
+         // Si el usuario solo escribió "oc" u "oc-", ignoramos la búsqueda
+         // porque todas las órdenes son OC y no aporta al filtro.
+         if (cleanSearch.toLowerCase() === "oc" || cleanSearch.toLowerCase() === "oc-") {
+            // No hacemos nada, la consulta base ya trae todas las órdenes
+         } else {
+            const match = cleanSearch.match(/OC-\d{6}-(\d+)/i);
+            const numeroReferencia = match ? parseInt(match[1], 10) : parseInt(cleanSearch, 10);
+            const esNumeroValido = !Number.isNaN(numeroReferencia);
+
+            baseQuery = baseQuery.where((eb) =>
+               eb.or([
+                  ...(esNumeroValido ? [eb("orden_compra.referencia", "=", numeroReferencia)] : []),
+                  eb("proveedor.nombre", "ilike", `%${cleanSearch}%`),
+                  eb("proveedor.rnc", "ilike", `%${cleanSearch}%`),
+                  eb(sql<string>`cast(orden_compra.referencia as text)`, "ilike", `%${cleanSearch}%`),
+                  eb("orden_compra.estado", "ilike", `%${cleanSearch}%`),
+               ])
+            );
+         }
+      }
+
+      // Total de órdenes
+      const totalResult = await baseQuery
+         .select(({ fn }) => fn.count("orden_compra.id").as("count"))
+         .executeTakeFirstOrThrow();
+
+      const total = Number(totalResult.count);
+
+      // IDs de la página
+      const pageOrders = await baseQuery
+         .select("orden_compra.id")
+         .orderBy("orden_compra.created_at", "desc")
+         .offset((page - 1) * limit)
+         .limit(limit)
+         .execute();
+
+      if (pageOrders.length === 0) {
+         return {
+            data: [],
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+         };
+      }
+
+      const ids = pageOrders.map((o) => o.id);
+
+      // Traer todos los datos de esas órdenes
+      const rows = await this.db
+         .selectFrom("orden_compra")
+         .leftJoin("proveedor", "proveedor.id", "orden_compra.proveedor_id")
+         .innerJoin("orden_compra_item as oci", "oci.orden_compra_id", "orden_compra.id")
          .select([
             "orden_compra.id",
             "orden_compra.referencia",
@@ -42,21 +120,47 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             "orden_compra.approved_at",
             "orden_compra.created_at",
             "orden_compra.updated_at",
-         ])
-         .where("orden_compra.deleted_at", "is", null);
 
-      if (supplierId) {
-         qb = qb.where("orden_compra.proveedor_id", "=", supplierId);
-      }
-      const rows = await qb
+            "oci.id as item_id",
+            "oci.cantidad",
+            "oci.precio_unitario",
+            "oci.descripcion",
+            "oci.equipo_id",
+            "oci.subtotal",
+         ])
+         .where("orden_compra.id", "in", ids)
          .orderBy("orden_compra.created_at", "desc")
          .execute();
 
-      return rows.map((row) =>
+      const grouped = rows.reduce((acc, row) => {
+         if (!acc[row.id]) {
+            acc[row.id] = {
+               ...row,
+               items: [],
+            };
+         }
+
+         acc[row.id].items.push({
+            id: row.item_id,
+            orden_compra_id: row.id,
+            cantidad: row.cantidad,
+            precio_unitario: Number(row.precio_unitario),
+            descripcion: row.descripcion ?? null,
+            equipo_id: row.equipo_id ?? null,
+            subtotal: Number(row.subtotal),
+         });
+
+         return acc;
+      }, {} as Record<string, any>);
+
+      const data = Object.values(grouped).map((row) =>
          PurchaseOrder.create({
             id: row.id,
             referencia: row.referencia,
-            codigoReferencia: buildCodigoReferencia(row.referencia, new Date(row.fecha)),
+            codigoReferencia: buildCodigoReferencia(
+               row.referencia,
+               new Date(row.fecha)
+            ),
             proveedor_id: row.proveedor_id,
             proveedor_nombre: row.proveedor_nombre ?? undefined,
             fecha: new Date(row.fecha),
@@ -65,8 +169,10 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             total: Number(row.total),
             approved_by: row.approved_by ?? null,
             approved_by_name: row.approved_by_name ?? null,
-            approved_at: row.approved_at ? new Date(row.approved_at) : null,
-            items: [],
+            approved_at: row.approved_at
+               ? new Date(row.approved_at)
+               : null,
+            items: row.items,
             created_at: new Date(row.created_at),
             updated_at: new Date(row.updated_at),
             deleted_by: null,
@@ -74,10 +180,25 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             deleted_reason: null,
          })
       );
+
+      return {
+         data,
+         total,
+         page,
+         limit,
+         totalPages: Math.ceil(total / limit),
+      };
    }
 
-   async findAllDeleted(): Promise<PurchaseOrder[]> {
-      const rows = await this.db
+   async findAllDeleted(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<{
+      data: PurchaseOrder[];
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+   }> {
+      const { supplierId = "", search = "", page = 1, limit = 10 } = params;
+      let dataQuery = this.db
          .selectFrom("orden_compra")
          .leftJoin("proveedor", "proveedor.id", "orden_compra.proveedor_id")
          .select([
@@ -98,32 +219,110 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             "orden_compra.deleted_at",
             "orden_compra.deleted_reason",
          ])
-         .where("orden_compra.deleted_at", "is not", null)
+         .where("orden_compra.deleted_at", "is not", null);
+      let countQuery = this.db
+         .selectFrom("orden_compra")
+         .leftJoin("proveedor", "proveedor.id", "orden_compra.proveedor_id")
+         .where("orden_compra.deleted_at", "is not", null);
+
+      if (supplierId) {
+         dataQuery = dataQuery.where(
+            "orden_compra.proveedor_id",
+            "=",
+            supplierId
+         );
+
+         countQuery = countQuery.where(
+            "orden_compra.proveedor_id",
+            "=",
+            supplierId
+         );
+      }
+
+      if (search) {
+         const cleanSearch = search.trim();
+
+         // Si el usuario solo escribió "oc" u "oc-", ignoramos la búsqueda
+         if (cleanSearch.toLowerCase() === "oc" || cleanSearch.toLowerCase() === "oc-") {
+            // No hacemos nada, la consulta base ya trae todas las órdenes
+         } else {
+            const match = cleanSearch.match(/OC-\d{6}-(\d+)/i);
+            const numeroReferencia = match ? parseInt(match[1], 10) : parseInt(cleanSearch, 10);
+            const esNumeroValido = !Number.isNaN(numeroReferencia);
+
+            // Aplicamos a la consulta de DATOS
+            dataQuery = dataQuery.where((eb) =>
+               eb.or([
+                  ...(esNumeroValido ? [eb("orden_compra.referencia", "=", numeroReferencia)] : []),
+                  eb("proveedor.nombre", "ilike", `%${cleanSearch}%`),
+                  eb("proveedor.rnc", "ilike", `%${cleanSearch}%`),
+                  eb(sql<string>`cast(orden_compra.referencia as text)`, "ilike", `%${cleanSearch}%`),
+                  eb("orden_compra.estado", "ilike", `%${cleanSearch}%`),
+               ])
+            );
+
+            // Aplicamos exactamente lo mismo a la consulta de CONTEO (TotalPages)
+            countQuery = countQuery.where((eb) =>
+               eb.or([
+                  ...(esNumeroValido ? [eb("orden_compra.referencia", "=", numeroReferencia)] : []),
+                  eb("proveedor.nombre", "ilike", `%${cleanSearch}%`),
+                  eb("proveedor.rnc", "ilike", `%${cleanSearch}%`),
+                  eb(sql<string>`cast(orden_compra.referencia as text)`, "ilike", `%${cleanSearch}%`),
+                  eb("orden_compra.estado", "ilike", `%${cleanSearch}%`),
+               ])
+            );
+         }
+      }
+
+      const totalResult = await countQuery
+         .select(({ fn }) => fn.count("orden_compra.id").as("count"))
+         .executeTakeFirstOrThrow();
+
+      const total = Number(totalResult.count);
+
+      const rows = await dataQuery
          .orderBy("orden_compra.deleted_at", "desc")
+         .offset((page - 1) * limit)
+         .limit(limit)
          .execute();
 
-      return rows.map((row) =>
+      const data = rows.map((row) =>
          PurchaseOrder.create({
             id: row.id,
             proveedor_id: row.proveedor_id,
             proveedor_nombre: row.proveedor_nombre ?? undefined,
             referencia: row.referencia,
-            codigoReferencia: buildCodigoReferencia(row.referencia, new Date(row.fecha)),
+            codigoReferencia: buildCodigoReferencia(
+               row.referencia,
+               new Date(row.fecha)
+            ),
             fecha: new Date(row.fecha),
             estado: row.estado as EstadoOrdenCompra,
             notas: row.notas ?? null,
             total: Number(row.total),
             approved_by: row.approved_by ?? null,
             approved_by_name: row.approved_by_name ?? null,
-            approved_at: row.approved_at ? new Date(row.approved_at) : null,
+            approved_at: row.approved_at
+               ? new Date(row.approved_at)
+               : null,
             items: [],
             created_at: new Date(row.created_at),
             updated_at: new Date(row.updated_at),
             deleted_by: row.deleted_by ?? null,
-            deleted_at: row.deleted_at ? new Date(row.deleted_at) : null,
+            deleted_at: row.deleted_at
+               ? new Date(row.deleted_at)
+               : null,
             deleted_reason: row.deleted_reason ?? null,
          })
       );
+
+      return {
+         data,
+         total,
+         page,
+         limit,
+         totalPages: Math.ceil(total / limit),
+      };
    }
 
    async findById(id: string): Promise<PurchaseOrder | null> {

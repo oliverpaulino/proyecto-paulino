@@ -50,6 +50,7 @@ function formatMoney(value: number): string {
 export function PurchaseOrderTable({
    orders,
    onEdit,
+
    onDelete,
 }: PurchaseOrderTableProps) {
    const router = useRouter();
