@@ -412,6 +412,7 @@ export interface DB {
       proyecto_id: string | null;
       equipo_id: string | null;
       empleado_id: string | null;
+      fecha: Date;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
       deleted_by: string | null;
