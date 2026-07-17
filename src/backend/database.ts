@@ -339,12 +339,10 @@ export interface DB {
 
    proyecto: {
       id: Generated<string>;
-      tipo_proyecto: string;
-      nombre: string;       // 'EXPRESS' | 'NORMAL' | 'GRANDE'
-      // tipo_servicio_snapshot: string | null; // FK se añade cuando exista tipo_servicio
+      tipo_proyecto: string; // 'EXPRESS' | 'NORMAL' | 'GRANDE'
+      nombre: string;
       estado: string;       // 'BORRADOR' | 'COMPLETADO' | 'CANCELADO' | 'EN PROGRESO'
       cliente_id: string;
-      // Servicios (nullable como solicitaste)
       servicio_id: string | null;
       tipo_servicio_snapshot: string | null;
       tipo_servicio_id: string | null;

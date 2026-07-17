@@ -10,32 +10,30 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import type { Proyecto } from "@/dtos/proyecto.dto";
-import { useEffect } from "react";
 import Link from "next/link";
 
 interface Props {
    proyectos: Proyecto[];
 }
 
-export function ProyectoExpressTable({ proyectos }: Props) {
+export function ProyectoTable({ proyectos }: Props) {
    if (proyectos.length === 0) {
       return (
          <div className="flex items-center justify-center h-40 rounded-xl border-2 border-dashed text-muted-foreground text-sm">
-            No hay proyectos express registrados aún.
+            No hay proyectos registrados aún.
          </div>
       );
    }
 
 
-   console.log("Proyectos Express:", proyectos);
 
    return (
       <div className="rounded-xl border overflow-hidden">
          <Table>
             <TableHeader>
                <TableRow className="bg-muted/40">
-                  <TableHead>Cliente</TableHead>
-                  <TableHead className="text-right">Tarifa</TableHead>
+                  <TableHead>Nombre del Proyecto</TableHead>
+                  <TableHead className="text-right"></TableHead>
                   <TableHead className="text-right">Total en Camiones</TableHead>
                   <TableHead className="text-right">Total Cobrable</TableHead>
                   <TableHead className="text-right">Gastos Internos</TableHead>
@@ -51,11 +49,12 @@ export function ProyectoExpressTable({ proyectos }: Props) {
                   const totalCamiones = p.detalle.reduce((acc, item) => acc + item.subtotal, 0);
                   const tarifa = p.tipo_proyecto === "EXPRESS" ? p.tarifa_servicio : 0;
                   const rent = p.rentabilidad;
+                  const nombreProyecto = "nombre" in p ? p.nombre : p.cliente_nombre ?? "Sin nombre";
 
                   return (
                      <TableRow key={p.id}>
-                        <TableCell className="font-medium">
-                           {p.cliente_nombre ?? p.cliente_id.slice(0, 8) + "…"}
+                        <TableCell className="font-medium text-blue-600 text-ellipsis overflow-hidden whitespace-nowrap">
+                           {nombreProyecto}
                         </TableCell>
                         <TableCell className="text-right text-muted-foreground">
                            {tarifa.toLocaleString

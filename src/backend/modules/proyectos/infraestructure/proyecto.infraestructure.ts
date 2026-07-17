@@ -24,6 +24,7 @@ export class KyselyProyectoRepository implements IProyectoRepository {
             "proyecto.tipo_proyecto",
             "proyecto.estado",
             "proyecto.cliente_id",
+            "proyecto.nombre",
             "cliente.nombre as cliente_nombre",
             "proyecto.tipo_servicio_id",
             "proyecto.tarifa_servicio",
@@ -139,21 +140,6 @@ export class KyselyProyectoRepository implements IProyectoRepository {
 
    async createExpress(data: CreateProyectoExpressDTO): Promise<ProyectoProps> {
       return await this.db.transaction().execute(async (trx) => {
-         // 1 — Snapshot del nombre del servicio (si existe en tu BD)
-         let nombreServicio = "Desconocido";
-
-         if (data.servicio_id) {
-            const servicio = await trx
-               .selectFrom("servicios")
-               .select(["nombre"])
-               .where("id", "=", data.servicio_id)
-               .executeTakeFirst();
-            if (servicio) nombreServicio = servicio.nombre;
-         }
-         // const nombreServicio = servicio ? servicio.nombre : "Desconocido";
-
-         // 2 — Cabecera: estado COMPLETADO para Express
-         console.log(data.tarifa_servicio, "TARIFA SERVICIO");
          const header = await trx
             .insertInto("proyecto")
             .values({
@@ -265,6 +251,7 @@ export class KyselyProyectoRepository implements IProyectoRepository {
       const asignacion = proyecto.asignaciones[0];
 
       return {
+         nombre: proyecto.nombre,
          proyecto_id: id,
          cliente_nombre: proyecto.cliente_nombre ?? "",
          tarifa_servicio: proyecto.tipo_proyecto === "EXPRESS" ? proyecto.tarifa_servicio : 0,
@@ -392,6 +379,7 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          id: row.id as string,
          estado: row.estado as ProyectoProps["estado"],
          cliente_id: row.cliente_id as string,
+         nombre: row.nombre as string,
          cliente_nombre: (row.cliente_nombre as string) ?? undefined,
          total_cobrable: Number(row.total_cobrable),
          total_gasto_interno: Number(row.total_gasto_interno),

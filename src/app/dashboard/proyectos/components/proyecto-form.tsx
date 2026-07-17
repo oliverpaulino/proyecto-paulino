@@ -54,7 +54,7 @@ const emptyEquipo = (): EquipoUsarItem => ({
 
 const emptyItem = (): LineItemForm => ({ descripcion: "", cantidad: 1, precio_unitario: 0 });
 
-export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
+export function ProyectoForm({ onSubmit, onCancel, loading }: Props) {
    const { Clients, GetClients } = useClientStore();
    const { Equipos, GetEquipos, GetOperadorByEquipoId } = useEquipoStore();
    const { Employees, GetEmployees } = useEmployeeStore();

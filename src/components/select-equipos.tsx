@@ -9,7 +9,7 @@ import { useEmployeeStore } from "@/stores/useEmployeeStore";
 import type { Employee, OperadorAsignable } from "@/dtos/employee.dto";
 import { useEquipoStore } from "@/stores/useEquipoStore";
 import { Equipo } from "@/dtos/equipo.dto";
-import { EquipoUsarItem } from "@/app/dashboard/proyectos/components/proyecto-express-form";
+import { EquipoUsarItem } from "@/app/dashboard/proyectos/components/proyecto-form";
 
 interface SelectBuscarEquiposProps {
    value?: string | null;

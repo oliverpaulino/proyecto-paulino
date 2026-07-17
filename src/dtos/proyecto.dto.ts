@@ -46,6 +46,7 @@ export const ProyectoDTO = z.discriminatedUnion("tipo_proyecto", [
       tipo_servicio_id: z.string().nullable(),
       tarifa_servicio: z.number(),
       id: z.string(),
+      nombre: z.string(),
       estado: EstadoProyectoSchema,
       cliente_id: z.string(),
       cliente_nombre: z.string().optional(),

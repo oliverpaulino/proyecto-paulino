@@ -5,7 +5,6 @@ export type EstadoProyecto = "BORRADOR" | "COMPLETADO" | "EN PROGRESO" | "CANCEL
 // ─── Discriminated Union por tipo de proyecto ────────────────────────────────
 type ProyectoExpressFields = {
    tipo_proyecto: "EXPRESS";
-   tipo_servicio_id: string | null; // null hasta que exista la tabla tipo_servicio
    tarifa_servicio: number;
 };
 type ProyectoNormalFields = { tipo_proyecto: "NORMAL" };
@@ -44,6 +43,7 @@ export interface ProyectoAsignacionProps {
 export type ProyectoProps = ProyectoTypeFields & {
    id: string;
    estado: EstadoProyecto;
+   nombre: string;
    cliente_id: string;
    cliente_nombre?: string;
    total_cobrable: number;
@@ -114,6 +114,7 @@ export interface CreateProyectoExpressDTO {
 // Consolida datos de facturación y costos internos en una sola estructura.
 export interface LiquidacionExpressFacade {
    proyecto_id: string;
+   nombre: string;
    cliente_nombre: string;
    tarifa_servicio: number;
    cargos_cobrables: ProyectoDetalleProps[];
