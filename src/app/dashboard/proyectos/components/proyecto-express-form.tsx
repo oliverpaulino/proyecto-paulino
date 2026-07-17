@@ -22,6 +22,7 @@ import { SelectBuscarEquipos } from "@/components/select-equipos";
 import { Equipo } from "@/dtos/equipo.dto";
 import { X } from "lucide-react";
 import { SelectBuscadorOperator } from "@/components/select-operator";
+import { fechaRD } from "@/lib/utils";
 
 interface Props {
    onSubmit: (data: CreateProyectoExpressForm) => Promise<void>;
@@ -67,6 +68,7 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
    }, [GetClients, GetEquipos, GetEmployees, GetCategoriaEquipos]);
 
    const [clienteId, setClienteId] = useState("");
+   const [nombreProyecto, setNombreProyecto] = useState("");
    const [tarifaServicio, setTarifaServicio] = useState(0);
    const [notas, setNotas] = useState("");
 
@@ -155,6 +157,10 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
       }
    }
 
+   const handleClickCompleteNombreProyecto = () => {
+      setNombreProyecto(`Proyecto a ${Clients.find((c) => c.id === clienteId)?.nombre ?? "cliente"} ${fechaRD("day")}/${fechaRD("month")}/${fechaRD("year")}`);
+   }
+
    const subtotalCobrables = cobrables.reduce((s, i) => s + i.cantidad * i.precio_unitario, 0);
    const subtotalEquipos = equiposUsar
       .filter((i) => i.es_cobrable)
@@ -169,6 +175,12 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
          setError("El cliente es requerido");
          return;
       }
+
+      if (!nombreProyecto.trim()) {
+         setError("El nombre del proyecto es requerido");
+         return;
+      }
+
       if (equiposUsar.length === 0 || !equiposUsar[0].equipo_id || !equiposUsar[0].operador_id) {
          setError("Se requiere al menos un equipo con operador");
          return;
@@ -205,7 +217,7 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
       const payload = {
          cliente_id: clienteId,
          servicio_id: null,
-         nombre: "Proyecto Express",
+         nombre: nombreProyecto,
 
          tarifas: Object.values(
             equiposUsar.reduce((acc, e) => {
@@ -272,6 +284,24 @@ export function ProyectoExpressForm({ onSubmit, onCancel, loading }: Props) {
                   value={tarifaServicio}
                   onChange={(e) => setTarifaServicio(Number(e.target.value))}
                   placeholder="0.00"
+                  required
+               />
+            </div>
+         </div>
+         <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5 col-span-2">
+               <div className="flex items-center justify-between">
+                  <Label htmlFor="tarifa">Nombre del Proyecto *</Label>
+                  <button type="button" className="text-sm text-blue-500 hover:underline" onClick={handleClickCompleteNombreProyecto}>
+                     Autocompletar nombre del proyecto
+                  </button>
+               </div>
+               <Input
+                  id="tarifa"
+                  type="text"
+                  value={nombreProyecto}
+                  onChange={(e) => setNombreProyecto(e.target.value)}
+                  placeholder={`Proyecto a ${Clients.find((c) => c.id === clienteId)?.nombre ?? "cliente"} ${fechaRD("day")}/${fechaRD("month")}/${fechaRD("year")}`}
                   required
                />
             </div>
