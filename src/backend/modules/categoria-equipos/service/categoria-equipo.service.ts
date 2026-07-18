@@ -47,6 +47,8 @@ export class CategoriaEquipoService {
          payload.tarifas = data.tarifas;
       }
 
+      console.log("update payload", payload);
+
       const item = await this.repo.update(id, payload);
       return item ? item.toJSON() : null;
    }

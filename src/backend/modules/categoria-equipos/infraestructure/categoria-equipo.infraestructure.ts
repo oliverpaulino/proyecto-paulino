@@ -39,6 +39,7 @@ export class KyselyCategoriaEquipoRepository implements ICategoriaEquipoReposito
 
       if (!row) return null;
 
+
       return CategoriaEquipo.create({
          id: row.id,
          nombre: row.nombre,
@@ -62,6 +63,7 @@ export class KyselyCategoriaEquipoRepository implements ICategoriaEquipoReposito
                fn.agg<any>("json_agg", [
                   sql`json_build_object(
                      'id', cet.id,
+                     'nombre', cet.nombre,
                      'medida_cobro_id', cet.medida_cobro_id,
                      'precio_unitario', cet.precio_unitario,
                      'cobra_minimo', cet.cobra_minimo
@@ -132,6 +134,8 @@ export class KyselyCategoriaEquipoRepository implements ICategoriaEquipoReposito
 
    async update(id: string, data: UpdateCategoriaEquipoDTO): Promise<CategoriaEquipo | null> {
       try {
+
+         console.log("update data", data);
          return await this.db.transaction().execute(async (trx) => {
             // 1. Actualizamos los datos base de la categoría si vienen en el payload
             if (data.nombre !== undefined) {

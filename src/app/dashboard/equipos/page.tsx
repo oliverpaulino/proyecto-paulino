@@ -257,7 +257,14 @@ export default function EquiposPage() {
 
          <CategoriaEquipoManager
             open={manageOpen}
-            onOpenChange={setManageOpen}
+            onOpenChange={async (open) => {
+               setManageOpen(open);
+               if (!open) {
+                  // Al cerrar, forzamos la recarga de datos en los stores
+                  await GetCategoriaEquipos({ force: true });
+                  await GetEquipos({ force: true });
+               }
+            }}
          />
          {/* Mantén el MedidaCobroManager que ya tienes aquí abajo para el botón principal de la página */}
          <MedidaCobroManager open={manageMedidasOpen} onOpenChange={setManageMedidasOpen} />

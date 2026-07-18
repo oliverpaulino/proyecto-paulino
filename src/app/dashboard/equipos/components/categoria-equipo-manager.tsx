@@ -70,7 +70,15 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
    async function handleCreate(e: React.FormEvent) {
       e.preventDefault();
       e.stopPropagation();
-      if (!newNombre.trim() || newTarifas.length === 0) return;
+      // Validación robusta
+      if (!newNombre.trim()) {
+         setError("El nombre de la categoría es obligatorio");
+         return;
+      }
+      if (newTarifas.some(t => !t.nombre.trim() || !t.medida_cobro_id)) {
+         setError("Todas las tarifas deben tener nombre y unidad de medida");
+         return;
+      }
 
       setBusy(true);
       setError(null);
@@ -95,9 +103,17 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
    // --- FUNCIONES PARA EDICIÓN ---
    function startEdit(cat: CategoriaEquipo) {
       setEditId(cat.id);
-      setEditNombre(cat.nombre);
-      // Clonamos las tarifas para no mutar el estado global directamente
-      setEditTarifas(cat.tarifas && cat.tarifas.length > 0 ? [...cat.tarifas] : []);
+      setEditNombre(cat.nombre || ""); // Aseguramos cadena vacía nunca null
+
+      // Normalizamos las tarifas para evitar campos undefined
+      const normalizedTarifas = (cat.tarifas || []).map(t => ({
+         ...t,
+         nombre: t.nombre || "",
+         medida_cobro_id: t.medida_cobro_id || "",
+         precio_unitario: t.precio_unitario ?? 0,
+         cobra_minimo: t.cobra_minimo ?? null
+      }));
+      setEditTarifas(normalizedTarifas);
       setError(null);
    }
 
@@ -123,6 +139,8 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
 
       setBusy(true);
       setError(null);
+
+      console.log("Guardando edición para categoría:", id, editNombre, editTarifas);
 
       try {
          const result = await UpdateCategoriaEquipo(id, {
@@ -197,12 +215,12 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                      </button>
                   </div>
 
-                  {newTarifas.map((tarifa, index) => (
+                  {newTarifas.map((tarifa: TarifaCategoria, index: number) => (
                      <div key={index} className="grid grid-cols-12 gap-2 p-2 bg-background border rounded-md relative items-end">
                         <div className="col-span-12 sm:col-span-3 flex flex-col gap-1">
                            <Label className="text-[10px]">Nombre (Ej. Bote)</Label>
                            <Input
-                              value={tarifa.nombre}
+                              value={tarifa.nombre ?? ""}
                               onChange={(e) => updateTarifa(index, "nombre", e.target.value)}
                               placeholder="Ej. Bote"
                               disabled={busy}
@@ -212,7 +230,7 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                         <div className="col-span-12 sm:col-span-3 flex flex-col gap-1">
                            <Label className="text-[10px]">Unidad</Label>
                            <select
-                              value={tarifa.medida_cobro_id}
+                              value={tarifa.medida_cobro_id ?? ""}
                               onChange={(e) => updateTarifa(index, "medida_cobro_id", e.target.value)}
                               className={SELECT_CLASS}
                               required
@@ -229,7 +247,7 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                               type="number"
                               min="0"
                               step="0.01"
-                              value={tarifa.precio_unitario || ""}
+                              value={tarifa.precio_unitario || 0}
                               onChange={(e) => updateTarifa(index, "precio_unitario", Number(e.target.value))}
                               placeholder="0.00"
                               disabled={busy}
@@ -242,7 +260,7 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                               type="number"
                               min="0"
                               step="0.01"
-                              value={tarifa.cobra_minimo || ""}
+                              value={tarifa.cobra_minimo || 0}
                               onChange={(e) => updateTarifa(index, "cobra_minimo", e.target.value ? Number(e.target.value) : null)}
                               placeholder="0.00"
                               disabled={busy}
@@ -284,6 +302,7 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                         const used = countEquipos(cat.id);
                         const isEditing = editId === cat.id;
 
+
                         if (isEditing) {
                            return (
                               <div key={cat.id} className="flex flex-col gap-3 p-3 bg-muted/20 rounded-md border-b border-border w-full">
@@ -324,7 +343,7 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                                     {editTarifas.map((tarifa, index) => (
                                        <div key={index} className="flex flex-wrap sm:flex-nowrap items-center gap-2">
                                           <Input
-                                             value={tarifa.nombre}
+                                             value={tarifa.nombre ?? ""}
                                              onChange={(e) => updateEditTarifa(index, "nombre", e.target.value)}
                                              className="h-8 w-full sm:w-24 text-xs"
                                              placeholder="Ej. Bote"
@@ -345,7 +364,7 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                                              type="number"
                                              min="0"
                                              step="0.01"
-                                             value={tarifa.precio_unitario || ""}
+                                             value={tarifa.precio_unitario || 0}
                                              onChange={(e) => updateEditTarifa(index, "precio_unitario", Number(e.target.value))}
                                              className="h-8 w-full sm:w-24 text-xs"
                                              placeholder="Precio"
@@ -355,7 +374,7 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                                              type="number"
                                              min="0"
                                              step="0.01"
-                                             value={tarifa.cobra_minimo || ""}
+                                             value={tarifa.cobra_minimo || 0}
                                              onChange={(e) => updateEditTarifa(index, "cobra_minimo", e.target.value ? Number(e.target.value) : null)}
                                              className="h-8 w-full sm:w-20 text-xs"
                                              placeholder="Mínimo"
@@ -398,7 +417,7 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                                  <p className="text-sm font-bold truncate">{cat.nombre}</p>
                                  <div className="mt-1 flex flex-wrap gap-1">
                                     {cat.tarifas?.map((t, idx) => (
-                                       <span key={idx} className="inline-flex items-center rounded-md bg-brand-blue/10 px-2 py-0.5 text-[10px] font-medium text-brand-blue">
+                                       <span key={idx} className="inline-flex capitalize items-center rounded-md bg-brand-blue/10 px-2 py-0.5 text-[10px] font-medium text-brand-blue">
                                           {t.nombre}: ${t.precio_unitario}
                                           {t.cobra_minimo ? ` (min. ${t.cobra_minimo})` : ""}
                                        </span>
