@@ -20,14 +20,13 @@ export class CategoriaEquipoService {
 
    async create(data: CreateCategoriaEquipoDTO): Promise<CategoriaEquipoProps> {
       if (!data.nombre?.trim()) throw new Error("Nombre es requerido");
-      if (!data.cobra_en?.trim()) throw new Error("El campo 'cobra en' es requerido");
+      if (!data.tarifas || data.tarifas.length === 0) {
+         throw new Error("Debe agregar al menos una tarifa");
+      }
 
       const item = await this.repo.create({
          nombre: data.nombre.trim(),
-         cobra_en: data.cobra_en.trim(),
-         cobra_minimo: data.cobra_minimo ?? null,
-         precio_unitario: data.precio_unitario ?? null,
-         medida_cobro_id: data.medida_cobro_id,
+         tarifas: data.tarifas,
       });
       return item.toJSON();
    }
@@ -36,19 +35,17 @@ export class CategoriaEquipoService {
       if (data.nombre !== undefined && !data.nombre.trim()) {
          throw new Error("Nombre es requerido");
       }
-      if (data.cobra_en !== undefined && !data.cobra_en.trim()) {
-         throw new Error("El campo 'cobra en' es requerido");
-      }
-      if (data.medida_cobro_id !== undefined && !data.medida_cobro_id.trim()) {
-         throw new Error("El campo 'medida de cobro' es requerido");
-      }
 
       const payload: UpdateCategoriaEquipoDTO = {};
+
       if (data.nombre !== undefined) payload.nombre = data.nombre.trim();
-      if (data.cobra_en !== undefined) payload.cobra_en = data.cobra_en.trim();
-      if (data.cobra_minimo !== undefined) payload.cobra_minimo = data.cobra_minimo;
-      if (data.precio_unitario !== undefined) payload.precio_unitario = data.precio_unitario ?? null;
-      if (data.medida_cobro_id !== undefined) payload.medida_cobro_id = data.medida_cobro_id;
+
+      if (data.tarifas !== undefined) {
+         if (data.tarifas.length === 0) {
+            throw new Error("La categoría debe tener al menos una tarifa");
+         }
+         payload.tarifas = data.tarifas;
+      }
 
       const item = await this.repo.update(id, payload);
       return item ? item.toJSON() : null;
