@@ -56,6 +56,10 @@ app.route("/notifications", notificationsRoute);
 app.route("/units", unitsRoute);
 app.route("/user-employee-links", userEmployeeLinksRoute);
 
+app.route("/api/conduces", conducesRoute);
+app.route("/api/tipo-carga", tipoCargaRoute);
+app.route("/api/proyecto-tarifas", proyectoTarifasRoute);
+
 app.get("/dgii/:rnc", async (c) => {
    const rnc = c.req.param("rnc");
 

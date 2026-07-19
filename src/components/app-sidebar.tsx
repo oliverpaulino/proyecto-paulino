@@ -108,13 +108,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     },
     {
       id: "flota",
-      title: "Maquinaria e Inventario",
+      title: "Maquinaria",
       url: "#",
       icon: Truck,
       items: [
         { id: "flota-equipos", title: "Equipos", url: "/dashboard/equipos" },
         { id: "flota-mantenimientos", title: "Mantenimientos", url: "/dashboard/mantenimientos" },
-        { id: "flota-inventario", title: "Inventario", url: "/dashboard/inventario" },
+        { id: "flota-conduces", title: "Conduces", url: "/dashboard/conduces" },
       ],
     },
     {

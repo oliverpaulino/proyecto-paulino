@@ -10,6 +10,49 @@ export interface ServicioTable {
    updated_at: Generated<Date>;
 }
 
+export interface ConduceTable {
+   id: Generated<string>;
+   tipo_conduce: string; // 'CAMION' | 'EQUIPO_PESADO'
+   numero_referencia: string; // folio físico que digita la oficina
+   fecha: Date;
+
+   proyecto_id: string | null;
+   cliente_id: string;
+   cliente_telefono: string | null;
+
+   equipo_id: string;
+   categoria_equipo_id: string; // snapshot
+
+   es_cobrable: boolean;
+   observaciones: string | null;
+
+   precio_unitario: number;
+   subtotal: Generated<number>;
+
+   // Exclusivos de CAMION
+   tipo_carga_id: string | null;
+   procedencia: string | null;
+   destino: string | null;
+   cantidad: number | null; // "metros": viajes o m3, según tipo_carga
+   firma_chofer: Generated<boolean>;
+   firma_recibido: Generated<boolean>;
+
+   // Exclusivos de EQUIPO_PESADO
+   horario_manana_inicio: string | null; // "HH:mm"
+   horario_manana_fin: string | null;
+   horario_tarde_inicio: string | null;
+   horario_tarde_fin: string | null;
+   total_horas: number | null;
+   combustible_pagado_cliente: boolean | null;
+   firma_observante: Generated<boolean>;
+   firma_camionero: Generated<boolean>;
+
+   created_by: string | null;
+   created_by_name: string | null;
+   created_at: Generated<Date>;
+   updated_at: Generated<Date>;
+}
+
 export interface ServicioTarifaTable {
    id: Generated<string>;
    servicio_id: string;
@@ -395,6 +438,7 @@ export interface DB {
    servicio_tarifas: ServicioTarifaTable;
    proyecto_tarifas: ProyectoTarifaTable;
    proyecto_equipos: ProyectoEquipoTable;
+   conduce: ConduceTable; // ← NUEVO
 }
 
 const db = new Kysely<DB>({
