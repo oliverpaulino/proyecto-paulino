@@ -26,6 +26,7 @@ export class CategoriaEquipoService {
 
       const item = await this.repo.create({
          nombre: data.nombre.trim(),
+         metraje: data.metraje ?? null,
          tarifas: data.tarifas,
       });
       return item.toJSON();
@@ -39,7 +40,7 @@ export class CategoriaEquipoService {
       const payload: UpdateCategoriaEquipoDTO = {};
 
       if (data.nombre !== undefined) payload.nombre = data.nombre.trim();
-
+      if (data.metraje !== undefined) payload.metraje = data.metraje ?? null;
       if (data.tarifas !== undefined) {
          if (data.tarifas.length === 0) {
             throw new Error("La categoría debe tener al menos una tarifa");
@@ -47,7 +48,6 @@ export class CategoriaEquipoService {
          payload.tarifas = data.tarifas;
       }
 
-      console.log("update payload", payload);
 
       const item = await this.repo.update(id, payload);
       return item ? item.toJSON() : null;

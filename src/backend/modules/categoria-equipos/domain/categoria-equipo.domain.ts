@@ -9,6 +9,7 @@ export interface TarifaCategoriaProps {
 export interface CategoriaEquipoProps {
    id: string;
    nombre: string;
+   metraje: number | null;
    tarifas: TarifaCategoriaProps[]; // Relación uno a muchos
    created_at: Date;
    updated_at: Date;
@@ -23,6 +24,7 @@ export class CategoriaEquipo {
 
    get id(): string { return this.props.id; }
    get nombre(): string { return this.props.nombre; }
+   get metraje(): number | null { return this.props.metraje; }
    get tarifas(): TarifaCategoriaProps[] { return this.props.tarifas; }
    get created_at(): Date { return this.props.created_at; }
    get updated_at(): Date { return this.props.updated_at; }
@@ -34,11 +36,13 @@ export class CategoriaEquipo {
 
 export interface CreateCategoriaEquipoDTO {
    nombre: string;
+   metraje: number | null;
    tarifas: TarifaCategoriaProps[]; // Se envían las tarifas al crear
 }
 
 export interface UpdateCategoriaEquipoDTO {
    nombre?: string;
+   metraje?: number | null;
    tarifas?: TarifaCategoriaProps[];
 }
 
