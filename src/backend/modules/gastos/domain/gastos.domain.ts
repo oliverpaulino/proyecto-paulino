@@ -1,5 +1,3 @@
-export type EntidadResponsable = "CLIENTE" | "EMPLEADO" | "EMPRESA";
-
 export interface GastoProps {
    id: string;
    referencia: number;
@@ -7,7 +5,6 @@ export interface GastoProps {
    monto_total: number;
    concepto: string;
    ncf: string;
-   entidad_responsable: EntidadResponsable;
    categoria_gasto_id: string;
    
    //join categoria
@@ -17,7 +14,6 @@ export interface GastoProps {
    orden_compra_id: string | null;
    proyecto_id: string | null;
    equipo_id: string | null;
-   empleado_id: string | null;
    fecha: Date;
    created_at: Date;
    updated_at: Date;
@@ -40,14 +36,12 @@ export class Gasto {
    get monto_total() { return this.props.monto_total; }
    get concepto() { return this.props.concepto; }
    get ncf() { return this.props.ncf; }
-   get entidadResponsable() { return this.props.entidad_responsable; }
    get categoria_gasto_id() { return this.props.categoria_gasto_id; }
    get categoria_gasto_nombre() { return this.props.categoria_gasto_nombre; }
    get categoria_gasto_grupo() { return this.props.categoria_gasto_grupo; }
    get orden_compra_id() { return this.props.orden_compra_id; }
    get proyecto_id() { return this.props.proyecto_id; }
    get equipo_id() { return this.props.equipo_id; }
-   get empleado_id() { return this.props.empleado_id; }
    get fecha() { return this.props.fecha }
    get created_at() { return this.props.created_at; }
    get updated_at() { return this.props.updated_at; }
@@ -66,12 +60,10 @@ export interface CreateGastoDTO {
    concepto: string;
    ncf: string;
    fecha: Date;
-   entidad_responsable: EntidadResponsable;
    categoria_gasto_id: string;
    orden_compra_id?: string | null;
    proyecto_id?: string | null;
    equipo_id?: string | null;
-   empleado_id?: string | null;
 }
 
 export type UpdateGastoDTO = Partial<CreateGastoDTO>;
@@ -90,11 +82,9 @@ export interface IGastoRepository {
                      end?: Date; 
                      categoria?: string; 
                      grupo?: string;
-                     responsable?: EntidadResponsable; 
                      orden_compra_id?: string | null;
                      proyecto_id?: string | null;
-                     equipo_id?: string | null;
-                     empleado_id?: string | null; }): Promise<Gasto[]>;
+                     equipo_id?: string | null; }): Promise<Gasto[]>;
 
    findAllDeleted( params?: { page?: number; 
                      limit?: number; 
@@ -103,11 +93,9 @@ export interface IGastoRepository {
                      end?: Date; 
                      categoria?: string; 
                      grupo?: string;
-                     responsable?: EntidadResponsable; 
                      orden_compra_id?: string | null;
                      proyecto_id?: string | null;
-                     equipo_id?: string | null;
-                     empleado_id?: string | null; }): Promise<Gasto[]>;
+                     equipo_id?: string | null; }): Promise<Gasto[]>;
 
    findById(id: string): Promise<Gasto | null>;
    create(data: CreateGastoDTO): Promise<Gasto>;

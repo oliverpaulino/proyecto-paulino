@@ -4,7 +4,6 @@ import type {
    CreateGastoForm,
    UpdateGastoForm,
    DeleteGastoForm,
-   EntidadResponsable,
 } from "@/dtos/gastos.dto";
 
 type GastosFilters = {
@@ -13,11 +12,9 @@ type GastosFilters = {
    end?: string;
    categoria?: string;
    grupo?: string;
-   responsable?: EntidadResponsable;
    orden_compra_id?: string;
    proyecto_id?: string;
    equipo_id?: string;
-   empleado_id?: string;
 };
 
 type GastoStore = {

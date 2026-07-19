@@ -3,7 +3,6 @@ import { DB } from "@/backend/database";
 import {
    CreateGastoDTO,
    DeleteGastoDTO,
-   EntidadResponsable,
    Gasto,
    IGastoRepository,
    UpdateGastoDTO,
@@ -21,7 +20,6 @@ export class KyselyGastoRepository implements IGastoRepository {
       return Gasto.create({
          ...row,
          codigoReferencia: this.buildCodigoReferencia(row.referencia), 
-         entidad_responsable: row.entidad_responsable as EntidadResponsable,
          monto_total: Number(row.monto_total),
          fecha: new Date(row.fecha),
          created_at: new Date(row.created_at),
@@ -83,11 +81,9 @@ export class KyselyGastoRepository implements IGastoRepository {
       if (params?.end) query = query.where("gasto.fecha", "<=", params.end);
       if (params?.categoria) query = query.where("gasto.categoria_gasto_id", "=", params.categoria);
       if (params?.grupo) query = query.where("categoria_gasto.grupo", "=", params.grupo);
-      if (params?.responsable) query = query.where("gasto.entidad_responsable", "=", params.responsable);
       if (params?.orden_compra_id) query = query.where("gasto.orden_compra_id", "=", params.orden_compra_id);
       if (params?.proyecto_id) query = query.where("gasto.proyecto_id", "=", params.proyecto_id);
       if (params?.equipo_id) query = query.where("gasto.equipo_id", "=", params.equipo_id);
-      if (params?.empleado_id) query = query.where("gasto.empleado_id", "=", params.empleado_id);
 
       return query;
    }
@@ -138,12 +134,10 @@ export class KyselyGastoRepository implements IGastoRepository {
             monto_total: data.monto_total,
             concepto: data.concepto,
             ncf: data.ncf,
-            entidad_responsable: data.entidad_responsable,
             categoria_gasto_id: data.categoria_gasto_id,
             orden_compra_id: data.orden_compra_id ?? null,
             proyecto_id: data.proyecto_id ?? null,
             equipo_id: data.equipo_id ?? null,
-            empleado_id: data.empleado_id ?? null,
             fecha: data.fecha ?? new Date(),
             created_at: new Date(),
             updated_at: new Date(),

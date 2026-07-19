@@ -406,12 +406,10 @@ export interface DB {
       monto_total: number;
       concepto: string;
       ncf: string;
-      entidad_responsable: string;
       categoria_gasto_id: string;
       orden_compra_id: string | null;
       proyecto_id: string | null;
       equipo_id: string | null;
-      empleado_id: string | null;
       fecha: Date;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
