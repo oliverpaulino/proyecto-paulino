@@ -164,6 +164,7 @@ export interface DB {
    categoria_equipo: {
       id: Generated<string>;
       nombre: string;
+      metraje: number | null;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
