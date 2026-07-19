@@ -1,10 +1,15 @@
+export interface TarifaCategoriaProps {
+   id?: string;
+   nombre: string;
+   medida_cobro_id: string;
+   precio_unitario: number;
+   cobra_minimo: number | null;
+}
+
 export interface CategoriaEquipoProps {
    id: string;
    nombre: string;
-   cobra_en: string;
-   cobra_minimo: number | null;
-   precio_unitario: number | null;
-   medida_cobro_id: string;
+   tarifas: TarifaCategoriaProps[]; // Relación uno a muchos
    created_at: Date;
    updated_at: Date;
 }
@@ -18,10 +23,7 @@ export class CategoriaEquipo {
 
    get id(): string { return this.props.id; }
    get nombre(): string { return this.props.nombre; }
-   get cobra_en(): string { return this.props.cobra_en; }
-   get cobra_minimo(): number | null { return this.props.cobra_minimo; }
-   get precio_unitario(): number | null { return this.props.precio_unitario; }
-   get medida_cobro_id(): string { return this.props.medida_cobro_id; }
+   get tarifas(): TarifaCategoriaProps[] { return this.props.tarifas; }
    get created_at(): Date { return this.props.created_at; }
    get updated_at(): Date { return this.props.updated_at; }
 
@@ -32,18 +34,12 @@ export class CategoriaEquipo {
 
 export interface CreateCategoriaEquipoDTO {
    nombre: string;
-   cobra_en: string;
-   cobra_minimo?: number | null;
-   medida_cobro_id: string;
-   precio_unitario?: number | null;
+   tarifas: TarifaCategoriaProps[]; // Se envían las tarifas al crear
 }
 
 export interface UpdateCategoriaEquipoDTO {
    nombre?: string;
-   cobra_en?: string;
-   cobra_minimo?: number | null;
-   medida_cobro_id?: string;
-   precio_unitario?: number | null;
+   tarifas?: TarifaCategoriaProps[];
 }
 
 export interface ICategoriaEquipoRepository {

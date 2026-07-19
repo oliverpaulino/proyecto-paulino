@@ -15,6 +15,7 @@ import type {
 
 type EmployeeStore = {
    Employees: Employee[];
+   UnlinkedEmployees: Employee[];
    Operators: OperadorAsignable[];
    Contacts: ContactEmployee[];
    selectedEmployee: EmployeeDetails | null;
@@ -63,6 +64,7 @@ type EmployeeStore = {
 
 export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
    Employees: [],
+   UnlinkedEmployees: [],
    Operators: [],
    Contacts: [],
    selectedEmployee: null,
@@ -154,7 +156,7 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
          const start = (page - 1) * limit;
 
          set((state) => ({
-            Employees: filtered.slice(start, start + limit),
+            UnlinkedEmployees: filtered.slice(start, start + limit),
             pagination: {
                page,
                limit,
@@ -404,6 +406,7 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
          return error as Error;
       }
    },
+   
    GetContacts: async () => {
       try {
          const res = await fetch(`/api/employees/contacts`);

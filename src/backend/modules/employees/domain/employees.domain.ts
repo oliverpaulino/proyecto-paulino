@@ -4,6 +4,8 @@ export type TipoIdentificacion = "CEDULA" | "RNC" | "PASAPORTE";
 export type TipoRolEmpleado = "OPERADOR" | "INGENIERO" | "MECANICO" | "CONTABLE" | "MENSAJERO";
 export interface EmployeeProps {
    id: string;
+   referencia: number;
+   codigoReferencia: string;
    nombre: string;
    identificacion: string;
    tipo_identificacion: TipoIdentificacion;
@@ -22,6 +24,9 @@ export class Employee {
    }
 
    get id() { return this.props.id; }
+   get referencia() { return this.props.referencia; }
+   get codigoReferencia() { const ref = String(this.props.referencia).padStart(3, "0");
+                            return `EMP-${ref}`; }
    get nombre() { return this.props.nombre; }
    get identificacion() { return this.props.identificacion; }
    get tipo_identificacion() { return this.props.tipo_identificacion; }

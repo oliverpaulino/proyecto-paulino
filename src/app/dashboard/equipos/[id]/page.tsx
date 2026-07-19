@@ -94,6 +94,7 @@ export default function EquipoDetailPage() {
    const [editOpen, setEditOpen] = useState(false);
    const [editLoading, setEditLoading] = useState(false);
    const [manageOpen, setManageOpen] = useState(false);
+   const [manageMedidasOpen, setManageMedidasOpen] = useState(false);
 
    async function loadAll(active = { value: true }) {
       try {
@@ -274,8 +275,14 @@ export default function EquipoDetailPage() {
             <CardContent>
                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <InfoField label="Categoría" value={equipo.categoria_nombre} />
-                  <InfoField label="Cobra en" value={`${`${categoria?.cobra_en} minimo ${categoria?.cobra_minimo}`}`} />
-                  <InfoField label="Precio Unitario" value={`$${categoria?.precio_unitario ?? "No tiene asignado"}`} />
+                  <InfoField
+                     label="Tarifas Aplicables"
+                     value={
+                        categoria?.tarifas?.length
+                           ? categoria.tarifas.map(t => `${t.nombre}: $${t.precio_unitario}`).join(" | ")
+                           : "Sin tarifas asignadas"
+                     }
+                  />
                   <InfoField label="Placa" value={equipo.placa ?? "—"} />
                   <InfoField label="Modelo" value={equipo.modelo ?? "—"} />
                   <InfoField label="Año" value={equipo.ano != null ? String(equipo.ano) : "—"} />

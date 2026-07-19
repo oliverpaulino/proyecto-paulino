@@ -140,7 +140,7 @@ export default function ProveedoresPage() {
          {/* Stat cards */}
          <div className="grid grid-cols-1 gap-4 sm:grid-cols-1 lg:grid-cols-3">
             <StatCard label="Total Proveedores" value={total} accent="blue" />
-            <StatCard label="SUB_CONTRATISTAs" value={SUB_CONTRATISTAs} accent="yellow" />
+            <StatCard label="Subcontratistas" value={SUB_CONTRATISTAs} accent="yellow" />
             <StatCard label="Suplidores" value={suplidor} accent="red" />
          </div>
 

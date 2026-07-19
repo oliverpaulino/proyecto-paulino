@@ -10,6 +10,8 @@ export type EstadoEquipo = (typeof ESTADOS_EQUIPO)[number];
 
 const EquipoDTO = z.object({
    id: z.string(),
+   referencia: z.number(),
+   codigoReferencia: z.string(),
    nombre: z.string(),
    operador_id: z.string().nullable(),
    operador_nombre: z.string().nullable(),

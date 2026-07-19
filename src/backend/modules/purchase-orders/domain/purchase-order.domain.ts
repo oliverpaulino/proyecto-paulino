@@ -29,7 +29,7 @@ export interface PurchaseOrderItemInput {
 export interface PurchaseOrderProps {
    id: string;
    proveedor_id: string;
-   referencia: string;
+   referencia: number;
    codigoReferencia: string;
    proveedor_nombre?: string;
    fecha: Date;
@@ -45,6 +45,14 @@ export interface PurchaseOrderProps {
    deleted_by: string | null;
    deleted_at: Date | null;
    deleted_reason: string | null;
+}
+
+export interface PurchaseOrderPaginatedResult {
+   data: PurchaseOrder[];
+   total: number;
+   page: number;
+   limit: number;
+   totalPages: number;
 }
 
 const TRANSITIONS: Record<EstadoOrdenCompra, EstadoOrdenCompra[]> = {
@@ -74,7 +82,7 @@ export class PurchaseOrder {
    }
 
    get id(): string { return this.props.id; }
-   get referencia(): string { return this.props.referencia }
+   get referencia(): number { return this.props.referencia }
    get proveedor_id(): string { return this.props.proveedor_id; }
    get proveedor_nombre(): string | undefined { return this.props.proveedor_nombre; }
    get fecha(): Date { return this.props.fecha; }
@@ -131,8 +139,9 @@ export interface ApproverRecord {
 }
 
 export interface IPurchaseOrderRepository {
-   findAll(params: { supplierId?: string }): Promise<PurchaseOrder[]>;
-   findAllDeleted(): Promise<PurchaseOrder[]>;
+   findAll(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<PurchaseOrderPaginatedResult>;
+   findAllDeleted(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<PurchaseOrderPaginatedResult>
+   findAllDeleted(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<PurchaseOrderPaginatedResult>
    findById(id: string): Promise<PurchaseOrder | null>;
    restore(id: string): Promise<PurchaseOrder | null>;
    create(data: CreatePurchaseOrderDTO): Promise<PurchaseOrder>;

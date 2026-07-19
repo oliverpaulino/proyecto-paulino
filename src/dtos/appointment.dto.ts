@@ -16,6 +16,8 @@ const EstadoCitaSchema = z.enum(
 
 export const AppointmentDTO = z.object({
    id: z.uuid(),
+   referencia: z.number(),
+   codigoReferencia: z.string(),
    cliente_id: z.uuid().nullable(),
    employee_id: z.uuid().nullable(),
    fecha: z.coerce.date(),

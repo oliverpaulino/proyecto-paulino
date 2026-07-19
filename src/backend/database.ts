@@ -43,6 +43,7 @@ export interface ProyectoEquipoTable {
 export interface DB {
    cliente: {
       id: Generated<string>;
+      referencia: Generated<number>;
       nombre: string;
       identificacion: string;
       tipo_identificacion: string;
@@ -67,6 +68,7 @@ export interface DB {
 
    empleado: {
       id: Generated<string>;
+      referencia: Generated<number>;
       nombre: string;
       identificacion: string;
       tipo_identificacion: string;
@@ -109,6 +111,7 @@ export interface DB {
 
    proveedor: {
       id: Generated<string>;
+      referencia: Generated<number>;
       nombre: string;
       tipo: string;
       rnc: string;
@@ -161,16 +164,23 @@ export interface DB {
    categoria_equipo: {
       id: Generated<string>;
       nombre: string;
-      cobra_en: string;
-      cobra_minimo: number | null;
-      medida_cobro_id: string;
-      precio_unitario: number | null;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
 
+   categoria_equipo_tarifa: {
+      id: Generated<string>;
+      nombre: string;
+      categoria_equipo_id: string;
+      medida_cobro_id: string;      // Enlaza con 'Bote' o 'Viaje'
+      precio_unitario: number;
+      cobra_minimo: number | null;
+      created_at: Generated<Date>;
+   }
+
    equipo: {
       id: Generated<string>;
+      referencia: Generated<number>;
       nombre: string;
       operador_id: string | null;
       operador_nombre: string | null;
@@ -186,7 +196,7 @@ export interface DB {
 
    orden_compra: {
       id: Generated<string>;
-      referencia: Generated<string>;
+      referencia: Generated<number>;
       proveedor_id: string;
       fecha: Date;
       estado: Generated<string>;
@@ -327,6 +337,7 @@ export interface DB {
 
    cita: {
       id: Generated<string>;
+      referencia: Generated<number>;
       cliente_id: string | null;
       employee_id: string | null;
       fecha: Date;

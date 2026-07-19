@@ -2,6 +2,8 @@ export type TipoProveedor = "SUPLIDOR" | "SUB_CONTRATISTA";
 
 export interface SupplierProps {
    id: string;
+   referencia: number;
+   codigoReferencia: string;
    nombre: string;
    tipo: TipoProveedor;
    rnc: string;
@@ -20,6 +22,9 @@ export class Supplier {
    }
 
    get id(): string { return this.props.id; }
+   get referencia() { return this.props.referencia; }
+   get codigoReferencia() { const ref = String(this.props.referencia).padStart(3, "0");
+                            return `PRO-${ref}`; }
    get nombre(): string { return this.props.nombre; }
    get tipo(): TipoProveedor { return this.props.tipo; }
    get rnc(): string { return this.props.rnc; }
