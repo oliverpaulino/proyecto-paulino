@@ -169,6 +169,7 @@ export default function EquiposPage() {
 
             <div className="ml-auto flex gap-2">
                <Button
+                  type="button"
                   variant="outline"
                   onClick={() => setManageOpen(true)}
                   className="font-semibold"
@@ -254,7 +255,18 @@ export default function EquiposPage() {
             loading={formLoading}
          />
 
-         <CategoriaEquipoManager open={manageOpen} onOpenChange={setManageOpen} />
+         <CategoriaEquipoManager
+            open={manageOpen}
+            onOpenChange={async (open) => {
+               setManageOpen(open);
+               if (!open) {
+                  // Al cerrar, forzamos la recarga de datos en los stores
+                  await GetCategoriaEquipos({ force: true });
+                  await GetEquipos({ force: true });
+               }
+            }}
+         />
+         {/* Mantén el MedidaCobroManager que ya tienes aquí abajo para el botón principal de la página */}
          <MedidaCobroManager open={manageMedidasOpen} onOpenChange={setManageMedidasOpen} />
 
       </div >

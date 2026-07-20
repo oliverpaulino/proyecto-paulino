@@ -47,6 +47,14 @@ export interface PurchaseOrderProps {
    deleted_reason: string | null;
 }
 
+export interface PurchaseOrderPaginatedResult {
+   data: PurchaseOrder[];
+   total: number;
+   page: number;
+   limit: number;
+   totalPages: number;
+}
+
 const TRANSITIONS: Record<EstadoOrdenCompra, EstadoOrdenCompra[]> = {
    BORRADOR: ["PENDIENTE", "CANCELADA"],
    PENDIENTE: ["APROBADA", "BORRADOR", "CANCELADA"],
@@ -131,8 +139,9 @@ export interface ApproverRecord {
 }
 
 export interface IPurchaseOrderRepository {
-   findAll(params: { supplierId?: string }): Promise<PurchaseOrder[]>;
-   findAllDeleted(): Promise<PurchaseOrder[]>;
+   findAll(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<PurchaseOrderPaginatedResult>;
+   findAllDeleted(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<PurchaseOrderPaginatedResult>
+   findAllDeleted(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<PurchaseOrderPaginatedResult>
    findById(id: string): Promise<PurchaseOrder | null>;
    restore(id: string): Promise<PurchaseOrder | null>;
    create(data: CreatePurchaseOrderDTO): Promise<PurchaseOrder>;

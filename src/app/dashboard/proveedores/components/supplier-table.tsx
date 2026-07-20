@@ -22,7 +22,7 @@ const TIPO_BADGE: Record<string, string> = {
 
 const TIPO_LABEL: Record<string, string> = {
    SUPLIDOR: "SUPLIDOR",
-   SUB_CONTRATISTA: "SUB_CONTRATISTA",
+   SUB_CONTRATISTA: "SUBCONTRATISTA",
 };
 
 export function SupplierTable({ suppliers, onEdit, onDelete }: SupplierTableProps) {
@@ -54,14 +54,13 @@ export function SupplierTable({ suppliers, onEdit, onDelete }: SupplierTableProp
                {suppliers.map((supplier) => (
                   <tr
                      key={supplier.id}
-                     className="border-t border-border hover:bg-brand-blue/5 transition-colors"
+                     onClick={() => router.push(`/dashboard/proveedores/${supplier.id}`)}
+                     className="border-t border-border hover:bg-brand-blue/10 transition-colors cursor-pointer"
                   >
                      <td className="px-4 py-3">
-                        <Link href={`/dashboard/proveedores/${supplier.id}`} className="hover:bg-brand-yellow/50 transition">
-                           <span className="inline-block rounded bg-brand-yellow/25 px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-black dark:text-brand-yellow">
-                              {supplier.rnc}
-                           </span>
-                        </Link>
+                        <span className="inline-block rounded bg-brand-yellow/25 px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-black dark:text-brand-yellow">
+                           {supplier.rnc}
+                        </span>
                      </td>
                      <td className="px-4 py-3">
                         <div className="font-semibold text-brand-blue dark:text-white">{supplier.nombre}</div>
@@ -97,14 +96,14 @@ export function SupplierTable({ suppliers, onEdit, onDelete }: SupplierTableProp
                      <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                            <button
-                              onClick={() => onEdit(supplier)}
+                              onClick={(e) => { e.stopPropagation(); onEdit(supplier) }}
                               className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10 transition-colors"
                               title="Editar"
                            >
                               <Pencil className="size-4" />
                            </button>
                            <button
-                              onClick={() => onDelete(supplier)}
+                              onClick={(e) => { e.stopPropagation(); onDelete(supplier) }}
                               className="rounded-md p-1.5 text-brand-red hover:bg-brand-red/10 transition-colors"
                               title="Eliminar"
                            >
@@ -113,14 +112,14 @@ export function SupplierTable({ suppliers, onEdit, onDelete }: SupplierTableProp
 
                            <DropdownMenu modal={false}>
                               <DropdownMenuTrigger asChild>
-                                 <Button variant="ghost" className="h-8 w-8 p-0">
+                                 <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
                                     <MoreHorizontal className="h-4 w-4" />
                                  </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md">
                                  <DropdownMenuItem
                                     className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground"
-                                    onClick={() => router.push(`/dashboard/proveedores/${supplier.id}`)}
+                                    onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/proveedores/${supplier.id}`) }}
                                  >
                                     <Eye className="w-4 h-4 mr-2" />
                                     Ver en detalle

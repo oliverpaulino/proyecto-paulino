@@ -15,6 +15,7 @@ import { useCategoriaEquipoStore } from "@/stores/useCategoriaEquipoStore";
 import { SelectBuscadorOperator } from "@/components/select-operator";
 import { useEmployeeStore } from "@/stores/useEmployeeStore";
 import { CategoriaEquipoManager } from "./categoria-equipo-manager";
+import { MedidaCobroManager } from "./medida-cobro-manager";
 
 export interface EquipoFormValues {
    nombre: string;
@@ -49,6 +50,7 @@ export function EquipoForm({
    const { CategoriaEquipos, GetCategoriaEquipos } = useCategoriaEquipoStore();
    const { GetOperators } = useEmployeeStore();
    const [manageOpen, setManageOpen] = useState(false);
+   const [manageMedidasOpen, setManageMedidasOpen] = useState(false);
 
 
    const [values, setValues] = useState<EquipoFormValues>({
@@ -134,13 +136,17 @@ export function EquipoForm({
                   ))
                )}
             </select>
-            {selectedCat && (
-               <p className="text-xs text-muted-foreground">
-                  Se cobra en: <span className="font-medium">{selectedCat.cobra_en}</span>
-                  {selectedCat.cobra_minimo != null && (
-                     <span className="ml-1">(mín. {selectedCat.cobra_minimo})</span>
-                  )}
-               </p>
+            {selectedCat && selectedCat.tarifas && (
+               <div className="text-xs text-muted-foreground">
+                  <span className="font-semibold block mb-1">Tarifas disponibles:</span>
+                  <ul className="flex flex-wrap gap-2">
+                     {selectedCat.tarifas.map((t, i) => (
+                        <li key={i} className="bg-brand-blue/10 text-brand-blue px-2 py-0.5 rounded-md">
+                           {t.nombre}: ${t.precio_unitario} {t.cobra_minimo != null && `(mín. ${t.cobra_minimo})`}
+                        </li>
+                     ))}
+                  </ul>
+               </div>
             )}
          </div>
 
@@ -215,7 +221,11 @@ export function EquipoForm({
                {loading ? "Guardando…" : submitLabel}
             </Button>
          </div>
-         <CategoriaEquipoManager open={manageOpen} onOpenChange={setManageOpen} />
+         <CategoriaEquipoManager
+            open={manageOpen}
+            onOpenChange={setManageOpen}
+         />
+         {/* BORRA el <MedidaCobroManager ... /> de aquí */}
       </form>
    );
 }

@@ -66,7 +66,6 @@ export default function AprobadoresPage() {
       setUsersError(null);
       try {
          const res = await authClient.admin.listUsers({ query: { limit: 200 } });
-         // console.log(res)
          if (res.data?.users) {
             setUsers(
                res.data.users.map((u) => ({

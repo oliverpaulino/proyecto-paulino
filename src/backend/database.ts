@@ -164,13 +164,20 @@ export interface DB {
    categoria_equipo: {
       id: Generated<string>;
       nombre: string;
-      cobra_en: string;
-      cobra_minimo: number | null;
-      medida_cobro_id: string;
-      precio_unitario: number | null;
+      metraje: number | null;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
+
+   categoria_equipo_tarifa: {
+      id: Generated<string>;
+      nombre: string;
+      categoria_equipo_id: string;
+      medida_cobro_id: string;      // Enlaza con 'Bote' o 'Viaje'
+      precio_unitario: number;
+      cobra_minimo: number | null;
+      created_at: Generated<Date>;
+   }
 
    equipo: {
       id: Generated<string>;

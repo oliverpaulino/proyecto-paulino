@@ -75,8 +75,8 @@ export const useCategoriaEquipoStore = create<CategoriaEquipoStore>((set, get) =
          const responseData = await res.json();
          if (!res.ok) throw new Error(responseData.error || responseData.message || "Error al actualizar categoría");
 
-         get().invalidateCache();
-         await get().GetCategoriaEquipos();
+         get().invalidateCache(); // Limpia la caché
+         await get().GetCategoriaEquipos({ force: true });
       } catch (error) {
          return error as Error;
       }
