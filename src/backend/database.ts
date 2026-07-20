@@ -398,6 +398,32 @@ export interface DB {
    servicio_tarifas: ServicioTarifaTable;
    proyecto_tarifas: ProyectoTarifaTable;
    proyecto_equipos: ProyectoEquipoTable;
+
+   categoria_gasto: {
+      id: Generated<string>;
+      nombre: string;
+      grupo: string;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   }
+   
+   gasto: {
+      id: Generated<string>;
+      referencia: Generated<number>;
+      monto_total: number;
+      concepto: string;
+      ncf: string;
+      categoria_gasto_id: string;
+      orden_compra_id: string | null;
+      proyecto_id: string | null;
+      equipo_id: string | null;
+      fecha: Date;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+      deleted_by: string | null;
+      deleted_at: Date | null;
+      deleted_reason: string | null;
+   };
 }
 
 const db = new Kysely<DB>({

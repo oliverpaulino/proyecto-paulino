@@ -128,6 +128,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         ...(isAdmin ? [{ id: "fin-aprobadores", title: "Firmantes de Compras", url: "/dashboard/compras/aprobadores" }] : []),
         { id: "fin-compras-eliminadas", title: "Compras eliminadas", url: "/dashboard/compras/eliminadas" },
         { id: "fin-gastos", title: "Gastos", url: "/dashboard/gastos" },
+        { id: "fin-gastos-anulados", title: "Gastos anulados", url: "/dashboard/gastos/anulados" },
+        { id: "fin-categorias-gastos", title: "Categorías de Gastos", url: "/dashboard/categorias-gastos" },
         { id: "fin-pagos", title: "Pagos", url: "/dashboard/pagos" },
       ],
     },
