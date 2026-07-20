@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Trash2, RefreshCw } from "lucide-react";
+import { ArrowLeft, Trash2, RefreshCw, RotateCcw } from "lucide-react";
 import { usePurchaseOrderStore } from "@/stores/usePurchaseOrderStore";
 import type { PurchaseOrderDeleted } from "@/dtos/purchase-order.dto";
 import { RestorePurchaseOrderDialog } from "../components/restore-purchase-order-dialog";
@@ -86,7 +86,7 @@ export default function ComprasEliminadasPage() {
                placeholder="Buscar por ID, proveedor o motivo..."
                value={search}
                onChange={(e) => setSearch(e.target.value)}
-               className="h-9 w-full max-w-sm rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+               className="h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
             />
          </div>
 
@@ -105,11 +105,10 @@ export default function ComprasEliminadasPage() {
                <table className="w-full text-sm">
                   <thead>
                      <tr className="bg-brand-blue">
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Nº / Fecha</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Referencia</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Proveedor</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Eliminado Por</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Motivo</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Total</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-blue-200">Total</th>
                         <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-blue-200">Acciones</th>
                      </tr>
                   </thead>
@@ -117,26 +116,20 @@ export default function ComprasEliminadasPage() {
                      {filtered.map((order) => (
                         <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
                            <td className="px-4 py-3">
-                              <span className="font-mono text-xs text-gray-500 line-through">
-                                 {order.id.slice(0, 8)}...
+                              <span className="inline-block rounded bg-brand-yellow/25 px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-black dark:text-brand-yellow">
+                                 {order.codigoReferencia}
                               </span>
-                              <div className="text-xs text-gray-400 mt-0.5">
-                                 {formatDate(order.fecha)}
-                              </div>
                            </td>
                            <td className="px-4 py-3 font-medium">
                               {order.proveedor_nombre ?? order.proveedor_id}
                            </td>
                            <td className="px-4 py-3 text-xs">
                               <div className="font-medium">
-                                 {order.deleted_by ?? "Sistema"}
+                                 {order.deleted_by ?? "No encontrado"}
                               </div>
                               <div className="text-gray-400 mt-0.5">
                                  {formatDate(order.deleted_at)}
                               </div>
-                           </td>
-                           <td className="px-4 py-3 text-xs text-red-500 italic truncate max-w-[200px]">
-                              {order.deleted_reason ?? "Sin motivo"}
                            </td>
                            <td className="px-4 py-3 text-right font-medium text-gray-400 line-through">
                               {formatMoney(order.total)}
@@ -147,11 +140,10 @@ export default function ComprasEliminadasPage() {
                                  size="sm"
                                  onClick={() => setRestoreTarget(order)}
                                  disabled={loading || formLoading}
-                                 className="h-8 text-brand-blue hover:bg-brand-blue/10 dark:text-blue-400 transition-colors"
+                                 className="h-8 text-amber-600 hover:bg-amber-500/10 dark:text-amber-400 transition-colors"
                                  title="Restaurar Orden"
                               >
-                                 <RefreshCw className="size-4 mr-1" />
-                                 Restaurar
+                                 <RotateCcw className="size-4"/>
                               </Button>
                            </td>
                         </tr>
