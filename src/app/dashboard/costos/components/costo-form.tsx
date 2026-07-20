@@ -84,15 +84,26 @@ export function CostoForm({ initialData, predefinedValues, onSubmit, onCancel, l
 
    return (
       <form onSubmit={handleSubmit} className="flex flex-col gap-5 py-2 px-3 overflow-y-auto">
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
+            <div className="grid grid-cols-1 gap-4">
+               <div className="flex flex-col gap-1.5">
                     <Label>Proyecto Asociado *</Label>
                     <SelectBuscadorProyecto 
                         value={values.proyecto_id}
                         initialLabel={initialData?.proyecto_codigo_referencia ?? ""} 
                         onChange={(id) => set("proyecto_id", id)} 
                         disabled={isDisabled("proyecto_id")} 
+                    />
+                </div>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Orden de Compra (Opcional)</Label>
+                    <SelectBuscadorOrdenCompra 
+                        value={values.orden_compra_id} 
+                        initialLabel={initialData?.orden_compra_codigo_referencia ?? ""} 
+                        onChange={(id) => set("orden_compra_id", id)} 
+                        disabled={isDisabled("orden_compra_id")} 
                     />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -103,7 +114,7 @@ export function CostoForm({ initialData, predefinedValues, onSubmit, onCancel, l
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
-                    <Label>NCF *</Label>
+                    <Label>Número de comprobante fiscal *</Label>
                     <Input value={values.ncf} onChange={(e) => set("ncf", e.target.value)} required disabled={isDisabled("ncf")} className={INPUT_CLASS} placeholder="B01..." />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -115,19 +126,6 @@ export function CostoForm({ initialData, predefinedValues, onSubmit, onCancel, l
                         required 
                         disabled={isDisabled("fecha")} 
                         className={INPUT_CLASS} 
-                    />
-                </div>
-            </div>
-
-
-            <div className="grid grid-cols-1 gap-4">
-                <div className="flex flex-col gap-1.5">
-                    <Label>Orden de Compra (Opcional)</Label>
-                    <SelectBuscadorOrdenCompra 
-                        value={values.orden_compra_id} 
-                        initialLabel={initialData?.orden_compra_codigo_referencia ?? ""} 
-                        onChange={(id) => set("orden_compra_id", id)} 
-                        disabled={isDisabled("orden_compra_id")} 
                     />
                 </div>
             </div>
