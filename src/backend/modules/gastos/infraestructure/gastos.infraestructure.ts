@@ -11,15 +11,22 @@ import {
 export class KyselyGastoRepository implements IGastoRepository {
    constructor(private readonly db: Kysely<DB>) { }
 
-    private buildCodigoReferencia(referencia: number): string {
+    private buildCodigoReferencia(prefix: string, referencia: number): string {
       const ref = String(referencia).padStart(3, "0");
-      return `GAS-${ref}`;
+      return `${prefix}-${ref}`;
     }
 
    private mapToEntity(row: any): Gasto {
       return Gasto.create({
          ...row,
-         codigoReferencia: this.buildCodigoReferencia(row.referencia), 
+         codigoReferencia: this.buildCodigoReferencia("GAS", row.referencia),
+         orden_compra_codigo_referencia: row.orden_compra_codigo_referencia 
+            ? this.buildCodigoReferencia("OC", row.orden_compra_codigo_referencia) 
+            : null,
+         proyecto_codigo_referencia: row.proyecto_codigo_referencia || null,
+         equipo_codigo_referencia: row.equipo_codigo_referencia 
+            ? this.buildCodigoReferencia("EQU", row.equipo_codigo_referencia) 
+            : null,
          monto_total: Number(row.monto_total),
          fecha: new Date(row.fecha),
          created_at: new Date(row.created_at),
@@ -46,10 +53,16 @@ export class KyselyGastoRepository implements IGastoRepository {
       let query = this.db
          .selectFrom("gasto")
          .innerJoin("categoria_gasto", "categoria_gasto.id", "gasto.categoria_gasto_id")
+         .leftJoin("orden_compra", "orden_compra.id", "gasto.orden_compra_id")
+         .leftJoin("proyecto", "proyecto.id", "gasto.proyecto_id")
+         .leftJoin("equipo", "equipo.id", "gasto.equipo_id")
          .selectAll("gasto")
          .select([
             "categoria_gasto.nombre as categoria_gasto_nombre",
             "categoria_gasto.grupo as categoria_gasto_grupo",
+            "orden_compra.referencia as orden_compra_codigo_referencia",
+            "proyecto.id as proyecto_codigo_referencia",
+            "equipo.referencia as equipo_codigo_referencia",
          ]);
 
       if (isDeleted) {
@@ -103,6 +116,7 @@ export class KyselyGastoRepository implements IGastoRepository {
       const { page = 1, limit = 20 } = params || {};
       const rows = await this.buildBaseQuery(true, params)
          .orderBy("gasto.deleted_at", "desc")
+         .orderBy("gasto.fecha", "desc")
          .offset((page - 1) * limit)
          .limit(limit)
          .execute();
@@ -114,13 +128,42 @@ export class KyselyGastoRepository implements IGastoRepository {
       const row = await this.db
          .selectFrom("gasto")
          .innerJoin("categoria_gasto", "categoria_gasto.id", "gasto.categoria_gasto_id")
+         .leftJoin("orden_compra", "orden_compra.id", "gasto.orden_compra_id")
+         .leftJoin("proyecto", "proyecto.id", "gasto.proyecto_id")
+         .leftJoin("equipo", "equipo.id", "gasto.equipo_id")
          .selectAll("gasto")
          .select([
             "categoria_gasto.nombre as categoria_gasto_nombre",
             "categoria_gasto.grupo as categoria_gasto_grupo",
+            "orden_compra.referencia as orden_compra_codigo_referencia",
+            "proyecto.id as proyecto_codigo_referencia",
+            "equipo.referencia as equipo_codigo_referencia",
          ])
          .where("gasto.id", "=", id)
          .where("gasto.deleted_at", "is", null)
+         .executeTakeFirst();
+
+      if (!row) return null;
+      return this.mapToEntity(row);
+   }
+
+   async findDeletedById(id: string): Promise<Gasto | null> {
+      const row = await this.db
+         .selectFrom("gasto")
+         .innerJoin("categoria_gasto", "categoria_gasto.id", "gasto.categoria_gasto_id")
+         .leftJoin("orden_compra", "orden_compra.id", "gasto.orden_compra_id")
+         .leftJoin("proyecto", "proyecto.id", "gasto.proyecto_id")
+         .leftJoin("equipo", "equipo.id", "gasto.equipo_id")
+         .selectAll("gasto")
+         .select([
+            "categoria_gasto.nombre as categoria_gasto_nombre",
+            "categoria_gasto.grupo as categoria_gasto_grupo",
+            "orden_compra.referencia as orden_compra_codigo_referencia",
+            "proyecto.id as proyecto_codigo_referencia",
+            "equipo.referencia as equipo_codigo_referencia",
+         ])
+         .where("gasto.id", "=", id)
+         .where("gasto.deleted_at", "is not", null)
          .executeTakeFirst();
 
       if (!row) return null;
@@ -145,7 +188,6 @@ export class KyselyGastoRepository implements IGastoRepository {
          .returningAll()
          .executeTakeFirstOrThrow();
 
-      // Recuperar el registro completo con el join de categoría
       return this.findById(row.id) as Promise<Gasto>;
    }
 
@@ -173,5 +215,20 @@ export class KyselyGastoRepository implements IGastoRepository {
          .executeTakeFirst();
 
       return Number(result.numUpdatedRows) > 0;
+   }
+
+   async restore(id: string): Promise<Gasto | null> {
+      const result = await this.db
+         .updateTable("gasto")
+         .set({
+            deleted_at: null,
+            deleted_by: null,
+            deleted_reason: null,
+         })
+         .where("id", "=", id)
+         .where("deleted_at", "is not", null)
+         .executeTakeFirst();
+
+      return this.findById(id);
    }
 }

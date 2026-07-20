@@ -18,11 +18,9 @@ function extractParams(c: any) {
       end: c.req.query("end") ? new Date(`${c.req.query("end")}T23:59:59.999`) : undefined,
       categoria: c.req.query("categoria"),
       grupo: c.req.query("grupo"),
-      responsable: c.req.query("responsable"),
       orden_compra_id: c.req.query("orden_compra_id"),
       proyecto_id: c.req.query("proyecto_id"),
       equipo_id: c.req.query("equipo_id"),
-      empleado_id: c.req.query("empleado_id"),
    };
 }
 
@@ -45,8 +43,12 @@ gastosRoute.get("/deleted", async (c) => {
 });
 
 gastosRoute.get("/:id", async (c) => {
-   const gasto = await service.getById(c.req.param("id"));
-   if (!gasto) return c.json({ error: "Gasto no encontrado" }, 404);
+   const id = c.req.param("id");
+   let gasto = await service.getById(id);
+   if (!gasto) {
+      gasto = await service.getDeletedById(id);
+      if (!gasto) return c.json({ error: "Gasto no encontrado" }, 404);
+   }
    return c.json(gasto);
 });
 
@@ -80,6 +82,24 @@ gastosRoute.patch("/:id", async (c) => {
       return c.json(gasto);
    } catch (err: unknown) {
       return c.json({ error: err instanceof Error ? err.message : "Error desconocido" }, 400);
+   }
+});
+
+// PATCH /api/purchase-orders/:id/restore
+gastosRoute.patch("/:id/restore", async (c) => {
+   try {
+      const order = await service.restore(c.req.param("id"));
+      
+      if (!order) {
+         return c.json({ error: "Orden no encontrada" }, 404);
+      }
+
+      return c.json(order);
+   } catch (err: unknown) {
+      return c.json(
+         { error: err instanceof Error ? err.message : "Error desconocido" },
+         400
+      );
    }
 });
 

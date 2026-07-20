@@ -5,15 +5,24 @@ export interface GastoProps {
    monto_total: number;
    concepto: string;
    ncf: string;
-   categoria_gasto_id: string;
    
+   categoria_gasto_id: string;
    //join categoria
    categoria_gasto_nombre: string;
    categoria_gasto_grupo: string;
    
    orden_compra_id: string | null;
+   //join oc
+   orden_compra_codigo_referencia: string | null;
+
    proyecto_id: string | null;
+   //join proyecto
+   proyecto_codigo_referencia: string | null;
+
    equipo_id: string | null;
+   //join equipo
+   equipo_codigo_referencia: string | null;
+
    fecha: Date;
    created_at: Date;
    updated_at: Date;
@@ -40,8 +49,11 @@ export class Gasto {
    get categoria_gasto_nombre() { return this.props.categoria_gasto_nombre; }
    get categoria_gasto_grupo() { return this.props.categoria_gasto_grupo; }
    get orden_compra_id() { return this.props.orden_compra_id; }
+   get orden_compra_codigo_referencia() { return this.props.orden_compra_codigo_referencia; }
    get proyecto_id() { return this.props.proyecto_id; }
+   get proyecto_codigo_referencia() { return this.props.proyecto_codigo_referencia; }
    get equipo_id() { return this.props.equipo_id; }
+   get equipo_codigo_referencia() { return this.props.equipo_codigo_referencia; }
    get fecha() { return this.props.fecha }
    get created_at() { return this.props.created_at; }
    get updated_at() { return this.props.updated_at; }
@@ -98,7 +110,9 @@ export interface IGastoRepository {
                      equipo_id?: string | null; }): Promise<Gasto[]>;
 
    findById(id: string): Promise<Gasto | null>;
+   findDeletedById(id: string): Promise<Gasto | null>;
    create(data: CreateGastoDTO): Promise<Gasto>;
    update(id: string, data: UpdateGastoDTO): Promise<Gasto | null>;
    delete(id: string, data: DeleteGastoDTO): Promise<boolean>;
+   restore(id: string): Promise<Gasto | null>;
 }
