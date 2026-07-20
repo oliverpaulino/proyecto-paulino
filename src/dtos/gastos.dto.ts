@@ -7,15 +7,24 @@ export const GastoDTO = z.object({
    monto_total: z.number(),
    concepto: z.string(),
    ncf: z.string(),
-   categoria_gasto_id: z.uuid(),
 
+   categoria_gasto_id: z.uuid(),
    //join categoria
    categoria_gasto_nombre: z.string(),
    categoria_gasto_grupo: z.string(),
 
    orden_compra_id: z.uuid().nullable(),
+   //join oc
+   orden_compra_codigo_referencia: z.string().nullable(),
+
    proyecto_id: z.uuid().nullable(),
+   //join proyecto
+   proyecto_codigo_referencia: z.string().nullable(),
+
    equipo_id: z.uuid().nullable(),
+   //join equipo
+   equipo_codigo_referencia: z.string().nullable(),
+   
    fecha: z.coerce.date(),
    created_at: z.coerce.date(),
    updated_at: z.coerce.date(),

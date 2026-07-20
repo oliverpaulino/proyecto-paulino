@@ -42,6 +42,7 @@ type GastoStore = {
    CreateGasto: (form: CreateGastoForm) => Promise<Gasto | Error>;
    UpdateGasto: (id: string, data: UpdateGastoForm) => Promise<void | Error>;
    DeleteGasto: (id: string, data: DeleteGastoForm) => Promise<void | Error>;
+   RestoreGasto: (id: string) => Promise<void | Error>;
 
    NextPage: () => Promise<void>;
    PrevPage: () => Promise<void>;
@@ -112,8 +113,40 @@ export const useGastoStore = create<GastoStore>((set, get) => ({
    },
 
    GetDeletedGastos: async (params = {}) => {
-      // Implementación similar a GetGastos, pero atacando BASE_URL/deleted
-      // [...] (Omitido para brevedad, sigue la misma estructura que GetGastos apuntando a `/deleted`)
+      const { page = 1, limit = 20, force = false, ...filters } = params;
+      const appliedFilters = { ...get().currentFilters, ...filters };
+      
+      set({ currentFilters: appliedFilters });
+
+      const query = new URLSearchParams({ page: String(page), limit: String(limit) });
+      Object.entries(appliedFilters).forEach(([key, val]) => {
+         if (val) query.append(key, val);
+      });
+
+      const cacheKey = query.toString();
+      if (!force && get()._fetchedDeletedLists.has(cacheKey)) return;
+
+      set({ loading: true });
+      try {
+         const res = await fetch(`${BASE_URL}/deleted?${query.toString()}`);
+         if (!res.ok) throw new Error("Error al cargar gastos eliminados");
+
+         const items: Gasto[] = await res.json();
+         const totalPages = Math.max(1, Math.ceil(items.length / limit));
+
+         set((s) => ({
+            DeletedGastos: items,
+            pagination: {
+               page, limit, total: items.length, totalPages,
+               hasNext: page < totalPages, hasPrev: page > 1,
+            },
+            _fetchedDeletedLists: new Set(s._fetchedDeletedLists).add(cacheKey),
+         }));
+      } catch (error) {
+         console.error(error);
+      } finally {
+         set({ loading: false });
+      }
    },
 
    CreateGasto: async (form) => {
@@ -161,14 +194,32 @@ export const useGastoStore = create<GastoStore>((set, get) => ({
       }
    },
 
+   RestoreGasto: async (id) => {
+      try {
+         const res = await fetch(`${BASE_URL}/${id}/restore`, { 
+            method: "PATCH" 
+         });
+         if (!res.ok) throw new Error((await res.json()).error || "Error al restaurar");
+
+         get().invalidateCache();
+         // Refrescamos ambas listas por si el usuario está en la vista de eliminados o en la normal
+         await get().GetGastos({ force: true });
+         await get().GetDeletedGastos({ force: true });
+      } catch (error) {
+         return error as Error;
+      }
+   },
+
    NextPage: async () => {
       const { pagination } = get();
       if (pagination.hasNext) await get().GetGastos({ page: pagination.page + 1, limit: pagination.limit });
    },
+   
    PrevPage: async () => {
       const { pagination } = get();
       if (pagination.hasPrev) await get().GetGastos({ page: pagination.page - 1, limit: pagination.limit });
    },
+   
    GoToPage: async (page) => {
       const { pagination } = get();
       if (page >= 1 && page <= pagination.totalPages) await get().GetGastos({ page, limit: pagination.limit });

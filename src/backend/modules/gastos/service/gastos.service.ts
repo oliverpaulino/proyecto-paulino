@@ -23,6 +23,11 @@ export class GastoService {
       const item = await this.repo.findById(id);
       return item ? item.toJSON() : null;
    }
+   
+   async getDeletedById(id: string): Promise<GastoProps | null> {
+      const item = await this.repo.findDeletedById(id);
+      return item ? item.toJSON() : null;
+   }
 
    async create(data: CreateGastoDTO): Promise<GastoProps> {
       if (data.monto_total <= 0) throw new Error("El monto debe ser mayor a 0");
@@ -45,5 +50,12 @@ export class GastoService {
          throw new Error("Debe proporcionar un motivo de eliminación");
       }
       return this.repo.delete(id, data);
+   }
+
+   async restore(id: string): Promise<GastoProps | null>{
+      if (!id) {
+         throw new Error("Debe proporcionar el id para restaurar el gasto");
+      }
+      return this.repo.restore(id);
    }
 }
