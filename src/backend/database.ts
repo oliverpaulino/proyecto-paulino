@@ -324,8 +324,6 @@ export interface DB {
       created_at: Generated<Date>;
    };
 
-
-
    unidades: {
       id: Generated<string>;
       nombre: string;
@@ -417,6 +415,22 @@ export interface DB {
       orden_compra_id: string | null;
       proyecto_id: string | null;
       equipo_id: string | null;
+      fecha: Date;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+      deleted_by: string | null;
+      deleted_at: Date | null;
+      deleted_reason: string | null;
+   };
+
+   costo: {
+      id: Generated<string>;
+      proyecto_id: string,
+      monto_total: number,
+      concepto: string,
+      ncf: string;
+      orden_compra_id: string | null;
+      referencia: Generated<number>;
       fecha: Date;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
