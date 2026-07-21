@@ -23,6 +23,7 @@ import userEmployeeLinksRoute from "./modules/user-employee-link/routes/user-emp
 import categoriaGastosRoute from "./modules/categoria-gastos/routes/categoria-gastos.routes";
 import gastosRoute from "./modules/gastos/routes/gastos.routes";
 import costosRoute from "./modules/costos/routes/costos.routes";
+import deduccionesRoute from "./modules/deducciones/routes/deducciones.routes";
 
 const app = new Hono().basePath("/api");
 
@@ -55,6 +56,7 @@ app.route("/equipos", equiposRoute);
 app.route("/categoria-equipos", categoriaEquiposRoute);
 app.route("/gastos", gastosRoute);
 app.route("/costos", costosRoute);
+app.route("/deducciones", deduccionesRoute);
 app.route("/categoria-gastos", categoriaGastosRoute);
 app.route("/tipo-items", tipoItemsRoute);
 app.route("/items", itemsRoute);
