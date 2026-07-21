@@ -438,6 +438,22 @@ export interface DB {
       deleted_at: Date | null;
       deleted_reason: string | null;
    };
+
+   deduccion: {
+      id: Generated<string>;
+      empleado_id: string;
+      equipo_id: string | null;
+      monto_total: number;
+      concepto: string;
+      balance_pendiente: number | null;
+      referencia: Generated<number>;
+      fecha: Date;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+      deleted_by: string | null;
+      deleted_at: Date | null;
+      deleted_reason: string | null;
+   };
 }
 
 const db = new Kysely<DB>({
