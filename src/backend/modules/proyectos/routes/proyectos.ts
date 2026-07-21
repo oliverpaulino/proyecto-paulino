@@ -2,13 +2,15 @@ import { Hono } from "hono";
 import db from "@/backend/database";
 import { KyselyProyectoRepository } from "../infraestructure/proyecto.infraestructure";
 import { ProyectoService } from "../service/proyecto.service";
-import type { TipoProyecto, CreateProyectoExpressDTO } from "../domain/proyecto.domain";
+import type { TipoProyecto } from "../domain/proyecto.domain";
 import { CreateProyectoExpressDTOSchema } from "@/dtos/proyecto.dto";
 import { auth } from "@/lib/auth";
+import { KyselyConduceRepository } from "../../conduce/infraestructure/conduce.infraestructure";
 
 const proyectosRoute = new Hono();
 const repo = new KyselyProyectoRepository(db);
-const service = new ProyectoService(repo);
+const conduceRepo = new KyselyConduceRepository(db); // ← NUEVO: ProyectoService ahora lo necesita para combinar conduces en getById()/getLiquidacion()
+const service = new ProyectoService(repo, conduceRepo);
 
 // GET /api/proyectos?tipo=EXPRESS|NORMAL|GRANDE
 proyectosRoute.get("/", async (c) => {
@@ -43,52 +45,36 @@ proyectosRoute.get("/:id/liquidacion", async (c) => {
    }
 });
 
-// POST /api/proyectos/express — transacción atómica Express
+// POST /api/proyectos/express
 proyectosRoute.post("/express", async (c) => {
    try {
-      // 1. Verificamos sesión
       const session = await auth.api.getSession({ headers: c.req.raw.headers });
       if (!session?.user) return c.json({ error: "No autenticado" }, 401);
 
-      // 2. Obtenemos el body crudo que mandó el Frontend
       const rawBody = await c.req.json();
-      console.log("rawBody recibido en route:", rawBody);
-      // 3. VALIDACIÓN NORMAL Y MANUAL CON ZOD
       const validation = CreateProyectoExpressDTOSchema.safeParse(rawBody);
-      console.log("validation result:", validation);
 
-      // 4. Si la validación falla, controlamos el error manualmente
       if (!validation.success) {
          return c.json(
-            {
-               error: "Datos incompletos o incorrectos",
-               // Esto te devuelve un objeto exacto de qué campo falló (útil para debugear)
-               detalles: validation.error.format()
-            },
+            { error: "Datos incompletos o incorrectos", detalles: validation.error.format() },
             400
          );
       }
 
-      // 5. Si todo está bien, extraemos los datos ya validados y tipados
       const body = validation.data;
 
-      // 6. Ejecutamos la lógica de negocio
       try {
-         const proyecto = service.createExpress({
-            ...body, // Aquí ya vienen 'tarifas' y 'equipos' validados por Zod
-            servicio_id: body.servicio_id ?? null, // Aseguramos que sea null si no viene
+         const proyecto = await service.createExpress({
+            ...body,
+            servicio_id: body.servicio_id ?? null,
             fecha_inicio: body.fecha_inicio ? new Date(body.fecha_inicio) : new Date(),
             cargos_cobrables: body.cargos_cobrables ?? [],
             gastos_internos: body.gastos_internos ?? [],
          });
          return c.json(proyecto, 201);
-
       } catch (error: any) {
-         console.error("Error creando proyecto Express:", error);
          return c.json({ error: error.message }, 400);
       }
-
-
    } catch (err: unknown) {
       return c.json(
          { error: err instanceof Error ? err.message : "Error al registrar proyecto express" },

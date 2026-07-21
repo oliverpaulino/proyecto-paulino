@@ -1,3 +1,5 @@
+import { ConduceProps } from "../../conduce/domain/conduce.domain";
+
 // ─── Tipos base ──────────────────────────────────────────────────────────────
 export type TipoProyecto = "EXPRESS" | "NORMAL" | "GRANDE";
 export type EstadoProyecto = "BORRADOR" | "COMPLETADO" | "EN PROGRESO" | "CANCELADO";
@@ -15,7 +17,7 @@ type ProyectoTypeFields =
    | ProyectoNormalFields
    | ProyectoGrandeFields;
 
-// ─── Ítem de detalle ─────────────────────────────────────────────────────────
+// ─── Ítem de detalle (cargos/gastos manuales, no ligados a equipos) ─────────
 export interface ProyectoDetalleProps {
    id: string;
    proyecto_id: string;
@@ -28,18 +30,10 @@ export interface ProyectoDetalleProps {
    updated_at: Date;
 }
 
-// ─── Asignación empleado + equipo ────────────────────────────────────────────
-export interface ProyectoAsignacionProps {
-   id: string;
-   proyecto_id: string;
-   operador_id: string;
-   operador_nombre?: string;
-   equipo_id: string;
-   equipo_nombre?: string;
-   horas_trabajadas: number;
-}
-
 // ─── Proyecto (cabecera) ─────────────────────────────────────────────────────
+// NOTA: `asignaciones` (proyecto_asignacion) se removió de aquí — esa tabla
+// nunca se llenaba en el flujo actual (createExpress no la insertaba), así
+// que era código muerto. Si la necesitas para otra cosa, dímelo y la regreso.
 export type ProyectoProps = ProyectoTypeFields & {
    id: string;
    estado: EstadoProyecto;
@@ -48,56 +42,28 @@ export type ProyectoProps = ProyectoTypeFields & {
    cliente_nombre?: string;
    total_cobrable: number;
    total_gasto_interno: number;
+   total_equipos: number; // ← NUEVO: suma cacheada de conduces (para el historial)
    rentabilidad: number;
    notas: string | null;
    fecha_inicio: Date;
    fecha_fin: Date | null;
    detalle: ProyectoDetalleProps[];
-   asignaciones: ProyectoAsignacionProps[];
-   equiposDetalle: ProyectoEquipoDetalleProps[]; // ← nuevo
+   conduces: ConduceProps[]; // ← reemplaza a equiposDetalle
    created_at: Date;
    updated_at: Date;
 };
-export interface ProyectoEquipoDetalleProps {
-   id: string;
-   equipo_id: string;
-   equipo_nombre?: string;
-   operador_id: string | null;
-   operador_nombre?: string;
-   categoria_equipo_id: string;
-   categoria_nombre?: string;
-   cantidad: number;
-   precio_acordado: number;
-   cobra_en_snapshot: string | null;
-   subtotal: number;
-   es_cobrable: boolean;
-}
-
-
 
 // ─── DTO de creación — Proyecto Express ──────────────────────────────────────
+// `tarifas` y `equipos` se eliminaron: el equipo ya no se registra al crear
+// el proyecto, se registra después vía conduces uno por uno.
 export interface CreateProyectoExpressDTO {
-   nombre: string;         // <-- Corregido de 'any' a 'string'
-   servicio_id: string | null;    // <-- Corregido de 'any' a 'string'
+   nombre: string;
+   servicio_id: string | null;
    cliente_id: string;
    notas?: string | null;
    fecha_inicio?: Date;
-   tarifa_servicio?: number; // <-- Corregido de 'any' a 'number'
+   tarifa_servicio?: number;
 
-
-   tarifas: Array<{
-      categoria_equipo_id: string;
-      precio_acordado: number;
-      cobra_en_snapshot: string;
-      cobra_minimo_snapshot: number;
-   }>;
-   equipos?: Array<{
-      operador_id?: string;
-      categoria_equipo_id: string;
-      equipo_id: string;
-      cantidad: number;
-      es_cobrable: boolean;
-   }>;
    cargos_cobrables: Array<{
       descripcion: string;
       cantidad: number;
@@ -110,8 +76,17 @@ export interface CreateProyectoExpressDTO {
    }>;
 }
 
+// ─── Totales recalculados (usado por ConduceService tras cada mutación) ─────
+export interface ProyectoTotales {
+   total_cobrable: number;
+   total_gasto_interno: number;
+   total_equipos: number;
+   rentabilidad: number;
+}
+
 // ─── Facade de liquidación (para el PDF) ─────────────────────────────────────
-// Consolida datos de facturación y costos internos en una sola estructura.
+// Antes tenía operador_nombre/equipo_nombre/horas_trabajadas (un solo equipo
+// asumido). Ahora puede haber muchos conduces, así que se expone la lista.
 export interface LiquidacionExpressFacade {
    proyecto_id: string;
    nombre: string;
@@ -119,12 +94,10 @@ export interface LiquidacionExpressFacade {
    tarifa_servicio: number;
    cargos_cobrables: ProyectoDetalleProps[];
    gastos_internos: ProyectoDetalleProps[];
+   conduces: ConduceProps[];
    total_cobrable: number;
    total_gasto_interno: number;
    rentabilidad: number;
-   operador_nombre: string;
-   equipo_nombre: string;
-   horas_trabajadas: number;
    fecha: Date;
 }
 
@@ -134,5 +107,8 @@ export interface IProyectoRepository {
    findById(id: string): Promise<ProyectoProps | null>;
    createExpress(data: CreateProyectoExpressDTO): Promise<ProyectoProps>;
    getLiquidacion(id: string): Promise<LiquidacionExpressFacade | null>;
-   // createExpressTransaction(data: CreateProyectoExpressDTO): Promise<ProyectoProps>;
+   // ← NUEVO: recalcula y persiste los totales de un proyecto a partir de
+   // proyecto_detalle + conduce. Lo llama ConduceService tras crear/editar/
+   // borrar un conduce, y también se puede llamar tras editar detalle.
+   recalcularTotales(proyectoId: string): Promise<ProyectoTotales>;
 }
