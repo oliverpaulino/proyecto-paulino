@@ -7,10 +7,23 @@ import {
    Card, CardContent, CardDescription, CardHeader, CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Loader2, FileText, Receipt } from "lucide-react";
+import {
+   Dialog,
+   DialogContent,
+   DialogDescription,
+   DialogHeader,
+   DialogTitle,
+   DialogTrigger,
+} from "@/components/ui/dialog";
+import { ArrowLeft, Loader2, FileText, Receipt, Plus } from "lucide-react";
 import type { Proyecto, ProyectoExpressDTO } from "@/dtos/proyecto.dto";
+import type { CreateConduceForm } from "@/dtos/conduce.dto";
 import { generateProyectoInternoPDF } from "@/lib/pdf/proyecto-interno-pdf";
 import { generateProyectoFacturaPDF } from "@/lib/pdf/proyecto-factura-pdf";
+import { useConduceStore } from "@/stores/useConduceStores";
+import { ConduceForm } from "../../conduces/components/conduce-form";
+import { ConduceTable } from "../../conduces/components/conduce-table";
+import { ProyectoTarifasCard } from "./components/proyecto-tarifa-card";
 
 function formatMoney(value: number): string {
    return new Intl.NumberFormat("es-DO", {
@@ -30,24 +43,36 @@ export default function ProyectoDetailPage() {
    const router = useRouter();
    const proyectoId = params.id as string;
 
+   const { conduces, loading: conducesLoading, GetConducesByProyecto, CreateConduce, DeleteConduce } = useConduceStore();
+
    const [proyecto, setProyecto] = useState<ProyectoExpressDTO | null>(null);
    const [loading, setLoading] = useState(true);
    const [pdfLoading, setPdfLoading] = useState<"interno" | "factura" | null>(null);
+   const [conduceDialogOpen, setConduceDialogOpen] = useState(false);
+   const [conduceLoading, setConduceLoading] = useState(false);
+   const [deletingConduceId, setDeletingConduceId] = useState<string | null>(null);
+
+   // Se refresca la cabecera del proyecto tras cada mutación de conduces,
+   // porque los totales se recalculan en el backend.
+   async function loadProyecto() {
+      const res = await fetch(`/api/proyectos/${proyectoId}`);
+      if (res.ok) {
+         const data: Proyecto = await res.json();
+         if (data.tipo_proyecto === "EXPRESS") setProyecto(data);
+      }
+   }
 
    useEffect(() => {
       async function load() {
          setLoading(true);
          try {
-            const res = await fetch(`/api/proyectos/${proyectoId}`);
-            if (res.ok) {
-               const data: Proyecto = await res.json();
-               if (data.tipo_proyecto === "EXPRESS") setProyecto(data);
-            }
+            await Promise.all([loadProyecto(), GetConducesByProyecto(proyectoId)]);
          } finally {
             setLoading(false);
          }
       }
       load();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
    }, [proyectoId]);
 
    async function handleGenerarPDF(tipo: "interno" | "factura") {
@@ -58,6 +83,29 @@ export default function ProyectoDetailPage() {
          else await generateProyectoFacturaPDF(proyecto);
       } finally {
          setPdfLoading(null);
+      }
+   }
+
+   async function handleCreateConduce(data: CreateConduceForm) {
+      setConduceLoading(true);
+      try {
+         const result = await CreateConduce(data);
+         if (result instanceof Error) throw result;
+         await loadProyecto();
+      } finally {
+         setConduceLoading(false);
+      }
+   }
+
+   async function handleDeleteConduce(id: string) {
+      if (!confirm("¿Eliminar este conduce? Esta acción no se puede deshacer.")) return;
+      setDeletingConduceId(id);
+      try {
+         const result = await DeleteConduce(id);
+         if (result instanceof Error) throw result;
+         await loadProyecto();
+      } finally {
+         setDeletingConduceId(null);
       }
    }
 
@@ -82,8 +130,8 @@ export default function ProyectoDetailPage() {
 
    const cargosCobrables = proyecto.detalle.filter((d) => d.es_cobrable);
    const gastosInternos = proyecto.detalle.filter((d) => !d.es_cobrable);
-   const equiposCobrables = proyecto.equiposDetalle?.filter((e) => e.es_cobrable);
-   const equiposNoCobrables = proyecto.equiposDetalle?.filter((e) => !e.es_cobrable);
+   const conducesCobrables = conduces.filter((c) => c.es_cobrable);
+   const conducesInternos = conduces.filter((c) => !c.es_cobrable);
 
    return (
       <div className="flex flex-col gap-6 p-6">
@@ -148,16 +196,65 @@ export default function ProyectoDetailPage() {
             />
          </div>
 
-         {/* Equipos usados */}
+         {/* Tarifas propias del proyecto */}
          <Card>
             <CardHeader>
-               <CardTitle>Equipos utilizados</CardTitle>
+               <CardTitle>Tarifas del Proyecto</CardTitle>
                <CardDescription>
-                  {equiposCobrables?.length} cobrables · {equiposNoCobrables?.length} solo historial
+                  Precios negociados para este proyecto. Tienen prioridad sobre el precio global al registrar un conduce.
                </CardDescription>
             </CardHeader>
+            <CardContent>
+               <ProyectoTarifasCard proyectoId={proyectoId} />
+            </CardContent>
+         </Card>
+
+         {/* Conduces */}
+         <Card>
+            <CardHeader className="flex flex-row items-start justify-between gap-4">
+               <div>
+                  <CardTitle>Conduces</CardTitle>
+                  <CardDescription>
+                     {conducesCobrables.length} cobrables · {conducesInternos.length} solo historial
+                  </CardDescription>
+               </div>
+
+               <Dialog open={conduceDialogOpen} onOpenChange={setConduceDialogOpen}>
+                  <DialogTrigger asChild>
+                     <Button size="sm" className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold border-0">
+                        <Plus className="size-4 mr-2" />
+                        Registrar Conduce
+                     </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                     <DialogHeader>
+                        <DialogTitle>Registrar Conduce</DialogTitle>
+                        <DialogDescription>
+                           Queda asignado directamente a este proyecto.
+                        </DialogDescription>
+                     </DialogHeader>
+                     <ConduceForm
+                        fixedProyectoId={proyectoId}
+                        onSubmit={handleCreateConduce}
+                        onCancel={() => setConduceDialogOpen(false)}
+                        loading={conduceLoading}
+                     />
+                  </DialogContent>
+               </Dialog>
+            </CardHeader>
             <CardContent className="p-0">
-               <EquiposTable rows={proyecto.equiposDetalle} />
+               {conducesLoading ? (
+                  <div className="flex items-center justify-center p-8 text-sm text-muted-foreground">
+                     <Loader2 className="mr-2 size-4 animate-spin" /> Cargando conduces...
+                  </div>
+               ) : (
+                  <ConduceTable
+                     conduces={conduces}
+                     onDelete={handleDeleteConduce}
+                     deletingId={deletingConduceId}
+                     ocultarProyecto
+                  />
+               )}
             </CardContent>
          </Card>
 
@@ -202,46 +299,6 @@ function StatBox({ label, value, accent }: { label: string; value: string; accen
       <div className="rounded-lg border bg-muted/20 p-4">
          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
          <p className={`mt-1 text-lg font-semibold ${accent ?? ""}`}>{value}</p>
-      </div>
-   );
-}
-
-function EquiposTable({ rows }: { rows: ProyectoExpressDTO["equiposDetalle"] }) {
-   if (!rows || rows.length === 0) {
-      return <div className="flex items-center justify-center p-8 text-sm text-muted-foreground">Sin equipos registrados.</div>;
-   }
-   return (
-      <div className="overflow-x-auto">
-         <table className="w-full text-sm">
-            <thead>
-               <tr className="border-b border-border bg-muted/40">
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Equipo</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Operador</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-muted-foreground">Cantidad</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-muted-foreground">P. Unit.</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-muted-foreground">Subtotal</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase text-muted-foreground">Cobrable</th>
-               </tr>
-            </thead>
-            <tbody>
-               {rows.map((r) => (
-                  <tr key={r.id} className="border-t border-border hover:bg-muted/20">
-                     <td className="px-4 py-3 font-medium">{r.equipo_nombre ?? "—"}</td>
-                     <td className="px-4 py-3 text-muted-foreground">{r.operador_nombre ?? "—"}</td>
-                     <td className="px-4 py-3 text-right">{r.cantidad} {r.cobra_en_snapshot ?? ""}</td>
-                     <td className="px-4 py-3 text-right">{formatMoney(r.precio_acordado)}</td>
-                     <td className="px-4 py-3 text-right font-semibold">{formatMoney(r.subtotal)}</td>
-                     <td className="px-4 py-3 text-center">
-                        {r.es_cobrable ? (
-                           <Badge className="border-0 bg-green-100 text-green-800 text-xs">Sí</Badge>
-                        ) : (
-                           <Badge className="border-0 bg-gray-100 text-gray-600 text-xs">No</Badge>
-                        )}
-                     </td>
-                  </tr>
-               ))}
-            </tbody>
-         </table>
       </div>
    );
 }

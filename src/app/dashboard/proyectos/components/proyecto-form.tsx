@@ -14,14 +14,8 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useClientStore } from "@/stores/useClientStore";
-import { useEquipoStore } from "@/stores/useEquipoStore";
-import { useEmployeeStore } from "@/stores/useEmployeeStore";
-import { useCategoriaEquipoStore } from "@/stores/useCategoriaEquipoStore";
 import type { CreateProyectoExpressForm, LineItemForm } from "@/dtos/proyecto.dto";
-import { SelectBuscarEquipos } from "@/components/select-equipos";
-import { Equipo } from "@/dtos/equipo.dto";
 import { X } from "lucide-react";
-import { SelectBuscadorOperator } from "@/components/select-operator";
 import { fechaRD } from "@/lib/utils";
 
 interface Props {
@@ -30,63 +24,30 @@ interface Props {
    loading: boolean;
 }
 
-export interface EquipoUsarItem {
-   categoria_equipo_id: any;
-   equipo_id: string;
-   operador_id: string;   // = empleado_id (para que matchee el <Select> de operadores)
-   cantidad: number;
-   unidad_medida: string; // categoria.cobra_en
-   precio_unitario: number; // categoria.precio_unitario — solo lectura
-   cobro_minimo_snapshot: number; // snapshot de la categoría al momento de crear el proyecto
-   es_cobrable: boolean;    // si se incluye en el cobro al cliente
-}
-
-const emptyEquipo = (): EquipoUsarItem => ({
-   equipo_id: "",
-   operador_id: "",
-   cantidad: 0,
-   unidad_medida: "",
-   precio_unitario: 0,
-   categoria_equipo_id: "",
-   cobro_minimo_snapshot: 0,
-   es_cobrable: true,
-});
-
 const emptyItem = (): LineItemForm => ({ descripcion: "", cantidad: 1, precio_unitario: 0 });
 
+// NOTA: la sección "Equipo en campo" que existía aquí se eliminó. El equipo,
+// operador y precio ya no se registran al crear el proyecto — se agregan
+// después, uno por uno, como Conduces desde la página de detalle del
+// proyecto (ver components/conduce-form.tsx).
 export function ProyectoForm({ onSubmit, onCancel, loading }: Props) {
    const { Clients, GetClients } = useClientStore();
-   const { Equipos, GetEquipos, GetOperadorByEquipoId } = useEquipoStore();
-   const { Employees, GetEmployees } = useEmployeeStore();
-   const { CategoriaEquipos, GetCategoriaEquipos } = useCategoriaEquipoStore();
 
    useEffect(() => {
       GetClients();
-      GetEquipos();
-      GetEmployees();
-      GetCategoriaEquipos();
-   }, [GetClients, GetEquipos, GetEmployees, GetCategoriaEquipos]);
+   }, [GetClients]);
 
    const [clienteId, setClienteId] = useState("");
    const [nombreProyecto, setNombreProyecto] = useState("");
    const [tarifaServicio, setTarifaServicio] = useState(0);
    const [notas, setNotas] = useState("");
 
-   const [equiposUsar, setEquiposUsar] = useState<EquipoUsarItem[]>([]);
    const [cobrables, setCobrables] = useState<LineItemForm[]>([]);
    const [internos, setInternos] = useState<LineItemForm[]>([]);
    const [error, setError] = useState<string | null>(null);
-   // idx que está resolviendo el operador (para mostrar loader puntual en esa fila)
-   const [resolvingOperador, setResolvingOperador] = useState<number | null>(null);
-
-   const operadores = Employees.filter((e) => e.rol === "OPERADOR");
 
    function addItem(setter: React.Dispatch<React.SetStateAction<LineItemForm[]>>) {
       setter((prev) => [...prev, emptyItem()]);
-   }
-
-   function addEquipo() {
-      setEquiposUsar((prev) => [...prev, emptyEquipo()]);
    }
 
    function updateItem(
@@ -98,62 +59,8 @@ export function ProyectoForm({ onSubmit, onCancel, loading }: Props) {
       setter((prev) => prev.map((item, i) => (i === idx ? { ...item, [field]: value } : item)));
    }
 
-   function updateEquipo(idx: number, field: keyof EquipoUsarItem, value: string | number | boolean) {
-      setEquiposUsar((prev) => prev.map((item, i) => (i === idx ? { ...item, [field]: value } : item)));
-   }
-
-   function updateEquipoFields(idx: number, fields: Partial<EquipoUsarItem>) {
-      setEquiposUsar((prev) => prev.map((item, i) => (i === idx ? { ...item, ...fields } : item)));
-   }
-
    function removeItem<T>(setter: React.Dispatch<React.SetStateAction<T[]>>, idx: number) {
       setter((prev) => prev.filter((_, i) => i !== idx));
-   }
-
-   // ── Selección de equipo: autocompleta operador, categoría, unidad y precio ──
-   async function handleSelectEquipo(idx: number, id: string | number | null, equipo: Equipo | null) {
-      if (!equipo) {
-         updateEquipoFields(idx, {
-            equipo_id: "",
-            operador_id: "",
-            categoria_equipo_id: "",
-            unidad_medida: "",
-            precio_unitario: 0,
-         });
-         return;
-      }
-
-
-      const categoria = CategoriaEquipos.find((c) => c.id === equipo.categoria_id);
-
-      // Precarga inmediata de lo que sí tenemos, sin esperar la llamada de red
-      updateEquipoFields(idx, {
-         equipo_id: String(id ?? ""),
-         categoria_equipo_id: equipo.categoria_id,
-         unidad_medida: categoria?.cobra_en ?? "",
-         precio_unitario: categoria?.precio_unitario ?? 0,
-         cantidad: categoria?.cobra_minimo ?? 0,
-      });
-
-      if (!equipo.operador_id) {
-         updateEquipo(idx, "operador_id", "");
-         return;
-      }
-
-      setResolvingOperador(idx);
-      try {
-         const operadorAsignable = await GetOperadorByEquipoId(equipo.id);
-         // OperadorAsignable.id === empleado_id, matchea directo con el <Select> de operadores
-         if (operadorAsignable && !(operadorAsignable instanceof Error)) {
-            updateEquipo(idx, "operador_id", operadorAsignable.id);
-         } else {
-            updateEquipo(idx, "operador_id", "");
-         }
-      } catch {
-         updateEquipo(idx, "operador_id", "");
-      } finally {
-         setResolvingOperador(null);
-      }
    }
 
    const handleClickCompleteNombreProyecto = () => {
@@ -161,10 +68,7 @@ export function ProyectoForm({ onSubmit, onCancel, loading }: Props) {
    }
 
    const subtotalCobrables = cobrables.reduce((s, i) => s + i.cantidad * i.precio_unitario, 0);
-   const subtotalEquipos = equiposUsar
-      .filter((i) => i.es_cobrable)
-      .reduce((s, i) => s + (i.cantidad || 0) * (i.precio_unitario || 0), 0);
-   const totalCobrable = tarifaServicio + subtotalCobrables + subtotalEquipos;
+   const totalCobrable = tarifaServicio + subtotalCobrables;
    const totalInterno = internos.reduce((s, i) => s + i.cantidad * i.precio_unitario, 0);
    const rentabilidad = totalCobrable - totalInterno;
 
@@ -174,30 +78,12 @@ export function ProyectoForm({ onSubmit, onCancel, loading }: Props) {
          setError("El cliente es requerido");
          return;
       }
-
       if (!nombreProyecto.trim()) {
          setError("El nombre del proyecto es requerido");
          return;
       }
-
-      if (equiposUsar.length === 0 || !equiposUsar[0].equipo_id || !equiposUsar[0].operador_id) {
-         setError("Se requiere al menos un equipo con operador");
-         return;
-      }
       if (tarifaServicio < 0) {
          setError("La tarifa del servicio debe ser mayor o igual a 0");
-         return;
-      }
-      if (operadores.length === 0) {
-         setError("No hay operadores disponibles para asignar al proyecto");
-         return;
-      }
-      if (equiposUsar.some((eq) => eq.cantidad < 0)) {
-         setError("La cantidad trabajada por equipo debe ser mayor o igual a 0");
-         return;
-      }
-      if (equiposUsar.some((eq) => eq.precio_unitario < 0)) {
-         setError("El precio unitario de los equipos debe ser mayor o igual a 0");
          return;
       }
       if (cobrables.some((c) => c.cantidad <= 0 || c.precio_unitario < 0)) {
@@ -208,50 +94,23 @@ export function ProyectoForm({ onSubmit, onCancel, loading }: Props) {
          setError("Los gastos internos deben tener cantidad > 0 y precio unitario >= 0");
          return;
       }
-      if (rentabilidad < 0) {
-         const confirm = window.confirm("La rentabilidad es negativa. ¿Desea continuar con la liquidación?");
-         if (!confirm) return;
-      }
 
-      const payload = {
+      setError(null);
+
+      const payload: CreateProyectoExpressForm = {
          cliente_id: clienteId,
          servicio_id: null,
          nombre: nombreProyecto,
-
-         tarifas: Object.values(
-            equiposUsar.reduce((acc, e) => {
-               if (!acc[e.categoria_equipo_id]) {
-                  acc[e.categoria_equipo_id] = {
-                     categoria_equipo_id: e.categoria_equipo_id,
-                     precio_acordado: e.precio_unitario > 0 ? e.precio_unitario : 0.01,
-                     cobra_en_snapshot: e.unidad_medida || "no tiene",
-                     cobra_minimo_snapshot: e.cobro_minimo_snapshot || 0,
-                  };
-               }
-               return acc;
-            }, {} as Record<string, any>)
-         ),
-
-         // Se manda SIEMPRE todo el equipo usado (cobrable o no) para conservar
-         // el historial de trabajo por equipo/operador. `es_cobrable` decide
-         // si entra en el total facturado (ver notas de backend).
-         equipos: equiposUsar.map((eq) => ({
-            equipo_id: eq.equipo_id,
-            categoria_equipo_id: eq.categoria_equipo_id,
-            operador_id: eq.operador_id,
-            cantidad: eq.cantidad,
-            es_cobrable: eq.es_cobrable,
-         })),
-
+         tarifa_servicio: tarifaServicio,
          cargos_cobrables: cobrables,
          gastos_internos: internos,
-         tarifa_servicio: tarifaServicio,
+         notas: notas || null,
       };
 
-      await onSubmit(payload as any);
+      await onSubmit(payload);
    }
 
-   const isFormValid = clienteId && equiposUsar.length > 0 && equiposUsar[0].equipo_id && equiposUsar[0].operador_id;
+   const isFormValid = Boolean(clienteId && nombreProyecto.trim());
 
    return (
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -274,123 +133,43 @@ export function ProyectoForm({ onSubmit, onCancel, loading }: Props) {
             </div>
 
             <div className="space-y-1.5">
-               <Label htmlFor="tarifa">Tarifa del Servicio *</Label>
+               <Label htmlFor="tarifa-servicio">Tarifa del Servicio</Label>
                <Input
-                  id="tarifa"
+                  id="tarifa-servicio"
                   type="number"
                   min={0}
                   step="0.01"
                   value={tarifaServicio}
                   onChange={(e) => setTarifaServicio(Number(e.target.value))}
                   placeholder="0.00"
-                  required
-               />
-            </div>
-         </div>
-         <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5 col-span-2">
-               <div className="flex items-center justify-between">
-                  <Label htmlFor="tarifa">Nombre del Proyecto *</Label>
-                  <button type="button" className="text-sm text-blue-500 hover:underline" onClick={handleClickCompleteNombreProyecto}>
-                     Autocompletar nombre del proyecto
-                  </button>
-               </div>
-               <Input
-                  id="tarifa"
-                  type="text"
-                  value={nombreProyecto}
-                  onChange={(e) => setNombreProyecto(e.target.value)}
-                  placeholder={`Proyecto a ${Clients.find((c) => c.id === clienteId)?.nombre ?? "cliente"} ${fechaRD("day")}/${fechaRD("month")}/${fechaRD("year")}`}
-                  required
                />
             </div>
          </div>
 
-         <Separator />
-
-         {/* ── Equipo trabajado ── */}
-         <div className="space-y-2">
-            <h3 className="text-sm font-semibold">Equipo en campo</h3>
-
-            {equiposUsar.map((item, idx) => (
-               <div
-                  key={idx}
-                  className="grid grid-cols-[28px_1.2fr_1fr_90px_100px_28px] gap-2 items-center mt-4"
+         <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+               <Label htmlFor="nombre-proyecto">Nombre del Proyecto *</Label>
+               <button
+                  type="button"
+                  className="text-sm text-blue-500 hover:underline"
+                  onClick={handleClickCompleteNombreProyecto}
                >
-                  <input
-                     type="checkbox"
-                     checked={item.es_cobrable}
-                     onChange={(e) => updateEquipo(idx, "es_cobrable", e.target.checked)}
-                     title="Incluir en el cobro al cliente (si se destilda, solo queda en el historial)"
-                     className="size-4 justify-self-center accent-brand-blue"
-                  />
-                  <div className="space-y-1.5">
-                     <SelectBuscarEquipos
-                        value={item.equipo_id ?? null}
-                        onChange={(id, equipo) => handleSelectEquipo(idx, id, equipo)}
-                        exclude={equiposUsar}
-                     />
-                  </div>
-                  <div className="space-y-1.5">
-                     <SelectBuscadorOperator
-                        value={item.operador_id ?? null}
-                        onChange={(id) => updateEquipo(idx, "operador_id", id ?? "")} />
-
-                  </div>
-
-                  <div className="relative">
-                     <span className="absolute -top-4 left-1 text-[10px] font-semibold text-muted-foreground">
-                        {item.unidad_medida || "Unidad"}
-                     </span>
-
-                     <Input
-                        type="number"
-                        placeholder={item.unidad_medida || "Cant."}
-                        className="w-full bg-muted/50 text-muted-foreground "
-                        min={0}
-                        step="0.5"
-                        value={item.cantidad + item.cobro_minimo_snapshot || 0}
-                        onChange={(e) => updateEquipo(idx, "cantidad", Number(e.target.value))}
-                     />
-                  </div>
-
-                  <div className="space-y-1.5">
-                     <Input
-                        type="number"
-                        placeholder="P. Unit."
-                        className="w-full bg-muted/50 text-muted-foreground "
-                        min={0}
-                        step="0.01"
-                        value={item.precio_unitario || 0}
-                        onChange={(e) => updateEquipo(idx, "precio_unitario", Number(e.target.value))}
-                        // readOnly
-                        // disabled
-                        title="Precio definido por la categoría del equipo"
-                     />
-                  </div>
-
-
-
-                  <Button
-                     type="button"
-                     variant="ghost"
-                     size="icon"
-                     className="size-7 text-muted-foreground hover:text-destructive"
-                     onClick={() => removeItem(setEquiposUsar, idx)}
-                  >
-                     <X className="h-4 w-4" />
-                  </Button>
-               </div>
-            ))}
-
-            <div className="flex items-center gap-3">
-               <Button type="button" variant="outline" size="sm" onClick={addEquipo}>
-                  + Agregar cargo Equipo
-               </Button>
-               <p className="text-xs text-muted-foreground">
-                  Desmarca la casilla para registrar el trabajo del equipo sin incluirlo en el cobro al cliente.
-               </p>
+                  Autocompletar nombre del proyecto
+               </button>
             </div>
+            <Input
+               id="nombre-proyecto"
+               type="text"
+               value={nombreProyecto}
+               onChange={(e) => setNombreProyecto(e.target.value)}
+               placeholder={`Proyecto a ${Clients.find((c) => c.id === clienteId)?.nombre ?? "cliente"} ${fechaRD("day")}/${fechaRD("month")}/${fechaRD("year")}`}
+               required
+            />
+         </div>
+
+         <div className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+            El equipo utilizado se registra después, uno por uno, como <strong>Conduces</strong> desde
+            la página de detalle de este proyecto.
          </div>
 
          <Separator />
@@ -482,7 +261,7 @@ export function ProyectoForm({ onSubmit, onCancel, loading }: Props) {
                      className="size-7 text-muted-foreground hover:text-destructive"
                      onClick={() => removeItem(setInternos, idx)}
                   >
-                     ×
+                     <X className="h-4 w-4" />
                   </Button>
                </div>
             ))}
@@ -493,22 +272,18 @@ export function ProyectoForm({ onSubmit, onCancel, loading }: Props) {
 
          <Separator />
 
-         {/* ── Resumen financiero ── */}
+         {/* ── Resumen financiero (estimado — no incluye equipos, se agregan después) ── */}
          <div className="rounded-lg border bg-muted/30 p-4 space-y-1.5 text-sm">
             <div className="flex justify-between">
                <span className="text-muted-foreground">Tarifa del servicio</span>
                <span>RD$ {tarifaServicio.toLocaleString("es-DO")}</span>
             </div>
             <div className="flex justify-between">
-               <span className="text-muted-foreground">Subtotal equipos (cobrables)</span>
-               <span>RD$ {subtotalEquipos.toLocaleString("es-DO")}</span>
-            </div>
-            <div className="flex justify-between">
                <span className="text-muted-foreground">Cargos cobrables</span>
                <span>RD$ {subtotalCobrables.toLocaleString("es-DO")}</span>
             </div>
             <div className="flex justify-between font-medium border-t pt-1.5">
-               <span>Total cobrable al cliente</span>
+               <span>Total cobrable (sin equipos aún)</span>
                <span className="text-green-600">RD$ {totalCobrable.toLocaleString("es-DO")}</span>
             </div>
             <div className="flex justify-between text-muted-foreground">
@@ -516,7 +291,7 @@ export function ProyectoForm({ onSubmit, onCancel, loading }: Props) {
                <span className="text-red-500">− RD$ {totalInterno.toLocaleString("es-DO")}</span>
             </div>
             <div className="flex justify-between font-bold border-t pt-1.5">
-               <span>Rentabilidad</span>
+               <span>Rentabilidad estimada</span>
                <span className={rentabilidad >= 0 ? "text-green-700" : "text-red-600"}>
                   RD$ {rentabilidad.toLocaleString("es-DO")}
                </span>
@@ -541,7 +316,7 @@ export function ProyectoForm({ onSubmit, onCancel, loading }: Props) {
                disabled={loading || !isFormValid}
                className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold border-0"
             >
-               {loading ? "Registrando…" : "Liquidar Proyecto Express"}
+               {loading ? "Registrando…" : "Registrar Proyecto"}
             </Button>
          </div>
       </form>
