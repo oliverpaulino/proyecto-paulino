@@ -8,6 +8,7 @@ export const TarifaCategoriaDTO = z.object({
    cobra_minimo: z.coerce.number().min(0).nullable().optional(),
 });
 
+
 const CategoriaEquipoDTO = z.object({
    id: z.string(),
    nombre: z.string(),

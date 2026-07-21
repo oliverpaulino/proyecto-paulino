@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 export const TIPO_CONDUCE = ["CAMION", "EQUIPO_PESADO"] as const;
-export const MODALIDAD_COBRO_CARGA = ["VIAJE", "BOTE"] as const;
 
 const camposComunes = {
    numero_referencia: z.string().min(1, "El número de referencia es requerido"),
@@ -10,6 +9,7 @@ const camposComunes = {
    cliente_id: z.string().min(1, "El cliente es requerido"),
    cliente_telefono: z.string().nullable().optional(),
    equipo_id: z.string().min(1, "El equipo es requerido"),
+   categoria_equipo_tarifa_id: z.string().min(1, "La tarifa aplicable es requerida"),
    es_cobrable: z.boolean(),
    observaciones: z.string().nullable().optional(),
    precio_unitario: z.number().min(0),
@@ -18,7 +18,6 @@ const camposComunes = {
 export const CreateConduceCamionSchema = z.object({
    tipo_conduce: z.literal("CAMION"),
    ...camposComunes,
-   tipo_carga_id: z.string().min(1, "El tipo de carga es requerido"),
    procedencia: z.string().min(1, "La procedencia es requerida"),
    destino: z.string().min(1, "El destino es requerido"),
    cantidad: z.number().positive("Debe ser mayor a 0"),
@@ -61,7 +60,10 @@ interface ConduceBaseDTO {
    equipo_id: string;
    equipo_nombre?: string;
    categoria_equipo_id: string;
-   categoria_nombre?: string;
+   categoria_equipo_nombre?: string;
+   categoria_equipo_tarifa_id: string | null;
+   categoria_equipo_tarifa_nombre: string;
+   medida_cobro_nombre: string;
    es_cobrable: boolean;
    observaciones: string | null;
    precio_unitario: number;
@@ -73,9 +75,6 @@ interface ConduceBaseDTO {
 
 export type ConduceCamionDTO = ConduceBaseDTO & {
    tipo_conduce: "CAMION";
-   tipo_carga_id: string;
-   tipo_carga_nombre?: string;
-   modalidad_cobro: "VIAJE" | "BOTE";
    procedencia: string;
    destino: string;
    cantidad: number;
@@ -96,11 +95,12 @@ export type ConduceEquipoPesadoDTO = ConduceBaseDTO & {
 };
 
 export type ConduceDTO = ConduceCamionDTO | ConduceEquipoPesadoDTO;
+export type TipoConduce = ConduceDTO["tipo_conduce"];
 
 export interface ConduceFiltros {
    proyecto_id?: string;
    cliente_id?: string;
-   tipo_conduce?: "CAMION" | "EQUIPO_PESADO";
+   tipo_conduce?: TipoConduce;
    es_cobrable?: boolean;
    fecha_desde?: string;
    fecha_hasta?: string;

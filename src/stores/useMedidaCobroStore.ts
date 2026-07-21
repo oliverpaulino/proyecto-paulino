@@ -8,6 +8,7 @@ type MedidaCobroStore = {
    _fetchedLists: Set<string>;
 
    GetMedidaCobros: (params?: { force?: boolean }) => Promise<void>;
+   getNombre: (id: string) => string | undefined;
    CreateMedidaCobro: (form: CreateMedidaCobroForm) => Promise<MedidaCobro | Error>;
    UpdateMedidaCobro: (id: string, data: Partial<UpdateMedidaCobroForm>) => Promise<void | Error>;
    DeleteMedidaCobro: (id: string) => Promise<void | Error>;
@@ -98,4 +99,5 @@ export const useMedidaCobroStore = create<MedidaCobroStore>((set, get) => ({
          return error as Error;
       }
    },
+   getNombre: (id) => get().MedidaCobros.find((m) => m.id === id)?.nombre,
 }));

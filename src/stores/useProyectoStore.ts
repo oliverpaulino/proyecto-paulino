@@ -49,7 +49,6 @@ export const useProyectoStore = create<ProyectoStore>((set, get) => ({
 
    CreateExpressProyecto: async (form) => {
       try {
-
          const res = await fetch("/api/proyectos/express", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
