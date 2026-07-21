@@ -11,11 +11,11 @@ import {
    DialogTitle,
    DialogTrigger,
 } from "@/components/ui/dialog";
-import { useConduceStore } from "@/stores/useConduceStore";
-import { ConduceForm } from "@/components/conduce-form";
-import { ConduceTable } from "@/components/conduce-table";
-import { ConduceFiltrosBar } from "@/components/conduce-filtros";
 import type { ConduceFiltros, CreateConduceForm } from "@/dtos/conduce.dto";
+import { useConduceStore } from "@/stores/useConduceStores";
+import { ConduceForm } from "./components/conduce-form";
+import { ConduceFiltrosBar } from "./components/conduce-filtro";
+import { ConduceTable } from "./components/conduce-table";
 
 export default function ConducesPage() {
    const {

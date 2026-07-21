@@ -84,7 +84,7 @@ export function ConduceTable({ conduces, onDelete, deletingId, ocultarProyecto }
                      <td className="px-3 py-3 text-xs text-muted-foreground max-w-[220px]">
                         {c.tipo_conduce === "CAMION" ? (
                            <span>
-                              {c.tipo_carga_nombre ?? "—"} · {c.procedencia} → {c.destino}
+                              {c.categoria_equipo_tarifa_nombre ?? "—"} · {c.procedencia} → {c.destino}
                            </span>
                         ) : (
                            <span>
@@ -101,7 +101,7 @@ export function ConduceTable({ conduces, onDelete, deletingId, ocultarProyecto }
                      </td>
                      <td className="px-3 py-3 text-right whitespace-nowrap">
                         {c.tipo_conduce === "CAMION"
-                           ? `${c.cantidad} ${c.modalidad_cobro === "BOTE" ? "m³" : "viaje(s)"}`
+                           ? `${c.cantidad} ${c.medida_cobro_nombre ?? ""}`
                            : `${c.total_horas.toFixed(2)} h`}
                      </td>
                      <td className="px-3 py-3 text-right font-semibold whitespace-nowrap">
