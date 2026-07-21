@@ -9,9 +9,6 @@ import type {
    ConduceListResult,
 } from "../domain/conduce.domain";
 
-// Columnas comunes seleccionadas siempre, más las de ambos subtipos (las que
-// no aplican al tipo de la fila simplemente vienen NULL). Se resuelven a un
-// discriminated union en #mapRow.
 const SELECT_COLUMNS = [
    "conduce.id",
    "conduce.tipo_conduce",
@@ -25,7 +22,12 @@ const SELECT_COLUMNS = [
    "conduce.equipo_id",
    "equipo.nombre as equipo_nombre",
    "conduce.categoria_equipo_id",
-   "categoria_equipo.nombre as categoria_nombre",
+   "categoria_equipo.nombre as categoria_equipo_nombre",
+   // Snapshots — NO dependen de un join vivo a categoria_equipo_tarifa
+   // (esa tabla se regenera en cada edición de categoría, ver database.ts).
+   "conduce.categoria_equipo_tarifa_id",
+   "conduce.categoria_equipo_tarifa_nombre",
+   "conduce.medida_cobro_nombre",
    "conduce.es_cobrable",
    "conduce.observaciones",
    "conduce.precio_unitario",
@@ -35,9 +37,6 @@ const SELECT_COLUMNS = [
    "conduce.created_at",
    "conduce.updated_at",
    // CAMION
-   "conduce.tipo_carga_id",
-   "tipo_carga.nombre as tipo_carga_nombre",
-   "tipo_carga.modalidad_cobro as modalidad_cobro",
    "conduce.procedencia",
    "conduce.destino",
    "conduce.cantidad",
@@ -64,7 +63,6 @@ export class KyselyConduceRepository implements IConduceRepository {
          .leftJoin("cliente", "cliente.id", "conduce.cliente_id")
          .leftJoin("equipo", "equipo.id", "conduce.equipo_id")
          .leftJoin("categoria_equipo", "categoria_equipo.id", "conduce.categoria_equipo_id")
-         .leftJoin("tipo_carga", "tipo_carga.id", "conduce.tipo_carga_id")
          .select(SELECT_COLUMNS);
    }
 
@@ -102,10 +100,7 @@ export class KyselyConduceRepository implements IConduceRepository {
             .select(sql<number>`count(*)`.as("count"))
       );
 
-      const [rows, countRow] = await Promise.all([
-         query.execute(),
-         countQuery.executeTakeFirst(),
-      ]);
+      const [rows, countRow] = await Promise.all([query.execute(), countQuery.executeTakeFirst()]);
 
       return {
          data: rows.map((r) => this.#mapRow(r)),
@@ -136,6 +131,18 @@ export class KyselyConduceRepository implements IConduceRepository {
          .executeTakeFirst();
       if (!equipo) throw new Error("Equipo no encontrado");
 
+      // Snapshot: se resuelve el nombre de la tarifa + medida de cobro UNA
+      // VEZ, al momento de registrar. De aquí en adelante el conduce ya no
+      // depende de que categoria_equipo_tarifa.id siga existiendo (tu
+      // update() de categoria-equipo la regenera en cada edición).
+      const tarifa = await this.db
+         .selectFrom("categoria_equipo_tarifa")
+         .leftJoin("medida_cobro", "medida_cobro.id", "categoria_equipo_tarifa.medida_cobro_id")
+         .select(["categoria_equipo_tarifa.nombre", "medida_cobro.nombre as medida_cobro_nombre"])
+         .where("categoria_equipo_tarifa.id", "=", data.categoria_equipo_tarifa_id)
+         .executeTakeFirst();
+      if (!tarifa) throw new Error("La tarifa seleccionada no existe");
+
       const common = {
          tipo_conduce: data.tipo_conduce,
          numero_referencia: data.numero_referencia,
@@ -145,6 +152,9 @@ export class KyselyConduceRepository implements IConduceRepository {
          cliente_telefono: data.cliente_telefono ?? null,
          equipo_id: data.equipo_id,
          categoria_equipo_id: equipo.categoria_id,
+         categoria_equipo_tarifa_id: data.categoria_equipo_tarifa_id,
+         categoria_equipo_tarifa_nombre: tarifa.nombre,
+         medida_cobro_nombre: tarifa.medida_cobro_nombre ?? "unidad",
          es_cobrable: data.es_cobrable,
          observaciones: data.observaciones ?? null,
          precio_unitario: data.precio_unitario,
@@ -156,7 +166,6 @@ export class KyselyConduceRepository implements IConduceRepository {
       if (data.tipo_conduce === "CAMION") {
          subtotal = data.cantidad * data.precio_unitario;
          specific = {
-            tipo_carga_id: data.tipo_carga_id,
             procedencia: data.procedencia,
             destino: data.destino,
             cantidad: data.cantidad,
@@ -191,27 +200,39 @@ export class KyselyConduceRepository implements IConduceRepository {
       const current = await this.findById(id);
       if (!current) throw new Error("Conduce no encontrado");
 
-      const cantidadONull = "cantidad" in data ? data.cantidad : undefined;
-      const horasONull = "total_horas" in data ? data.total_horas : undefined;
+      const cantidadNueva = "cantidad" in data ? data.cantidad : undefined;
+      const horasNuevas = "total_horas" in data ? data.total_horas : undefined;
       const precio = data.precio_unitario ?? current.precio_unitario;
 
       let subtotal: number;
       if (current.tipo_conduce === "CAMION") {
-         const cantidad = cantidadONull ?? current.cantidad;
+         const cantidad = cantidadNueva ?? current.cantidad;
          subtotal = (cantidad ?? 0) * precio;
       } else {
-         const horas = horasONull ?? current.total_horas;
+         const horas = horasNuevas ?? current.total_horas;
          subtotal = (horas ?? 0) * precio;
+      }
+
+      // Si cambia la tarifa aplicada, re-snapshotea el nombre/medida_cobro.
+      let refrescoTarifa: Record<string, unknown> = {};
+      if (data.categoria_equipo_tarifa_id && data.categoria_equipo_tarifa_id !== current.categoria_equipo_tarifa_id) {
+         const tarifa = await this.db
+            .selectFrom("categoria_equipo_tarifa")
+            .leftJoin("medida_cobro", "medida_cobro.id", "categoria_equipo_tarifa.medida_cobro_id")
+            .select(["categoria_equipo_tarifa.nombre", "medida_cobro.nombre as medida_cobro_nombre"])
+            .where("categoria_equipo_tarifa.id", "=", data.categoria_equipo_tarifa_id)
+            .executeTakeFirst();
+         if (tarifa) {
+            refrescoTarifa = {
+               categoria_equipo_tarifa_nombre: tarifa.nombre,
+               medida_cobro_nombre: tarifa.medida_cobro_nombre ?? "unidad",
+            };
+         }
       }
 
       await this.db
          .updateTable("conduce")
-         .set({
-            ...data,
-            precio_unitario: precio,
-            subtotal,
-            updated_at: new Date(),
-         } as any)
+         .set({ ...data, ...refrescoTarifa, precio_unitario: precio, subtotal, updated_at: new Date() } as any)
          .where("id", "=", id)
          .execute();
 
@@ -236,7 +257,10 @@ export class KyselyConduceRepository implements IConduceRepository {
          equipo_id: r.equipo_id as string,
          equipo_nombre: (r.equipo_nombre as string) ?? undefined,
          categoria_equipo_id: r.categoria_equipo_id as string,
-         categoria_nombre: (r.categoria_nombre as string) ?? undefined,
+         categoria_equipo_nombre: (r.categoria_equipo_nombre as string) ?? undefined,
+         categoria_equipo_tarifa_id: r.categoria_equipo_tarifa_id as string | null,
+         categoria_equipo_tarifa_nombre: r.categoria_equipo_tarifa_nombre as string,
+         medida_cobro_nombre: r.medida_cobro_nombre as string,
          es_cobrable: r.es_cobrable as boolean,
          observaciones: r.observaciones as string | null,
          precio_unitario: Number(r.precio_unitario),
@@ -251,9 +275,6 @@ export class KyselyConduceRepository implements IConduceRepository {
          return {
             ...base,
             tipo_conduce: "CAMION",
-            tipo_carga_id: r.tipo_carga_id as string,
-            tipo_carga_nombre: (r.tipo_carga_nombre as string) ?? undefined,
-            modalidad_cobro: (r.modalidad_cobro as "VIAJE" | "BOTE") ?? "VIAJE",
             procedencia: (r.procedencia as string) ?? "",
             destino: (r.destino as string) ?? "",
             cantidad: Number(r.cantidad ?? 0),

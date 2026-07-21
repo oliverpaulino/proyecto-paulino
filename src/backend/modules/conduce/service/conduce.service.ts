@@ -1,3 +1,4 @@
+import { IProyectoRepository } from "../../proyectos/domain/proyecto.domain";
 import type {
    IConduceRepository,
    CreateConduceDTO,
@@ -6,7 +7,6 @@ import type {
    ConduceFiltros,
    ConduceListResult,
 } from "../domain/conduce.domain";
-import type { IProyectoRepository } from "../domain/proyecto.domain";
 
 export class ConduceService {
    constructor(
@@ -61,12 +61,12 @@ export class ConduceService {
    #validate(data: CreateConduceDTO): void {
       if (!data.cliente_id) throw new Error("El cliente es requerido");
       if (!data.equipo_id) throw new Error("El equipo es requerido");
+      if (!data.categoria_equipo_tarifa_id) throw new Error("La tarifa aplicable es requerida");
       if (!data.numero_referencia?.trim()) throw new Error("El número de referencia es requerido");
       if (!data.fecha) throw new Error("La fecha del conduce es requerida");
       if (data.precio_unitario < 0) throw new Error("El precio unitario debe ser mayor o igual a 0");
 
       if (data.tipo_conduce === "CAMION") {
-         if (!data.tipo_carga_id) throw new Error("El tipo de carga es requerido");
          if (!data.procedencia?.trim()) throw new Error("La procedencia es requerida");
          if (!data.destino?.trim()) throw new Error("El destino es requerido");
          if (data.cantidad <= 0) throw new Error("Los metros/viajes deben ser mayor a 0");

@@ -1,11 +1,11 @@
 import { Hono } from "hono";
 import db from "@/backend/database";
 import { KyselyConduceRepository } from "../infraestructure/conduce.infraestructure";
-import { KyselyProyectoRepository } from "../infraestructure/proyecto.infraestructure";
 import { ConduceService } from "../service/conduce.service";
 import { CreateConduceDTOSchema } from "@/dtos/conduce.dto";
 import { auth } from "@/lib/auth";
 import type { ConduceFiltros } from "../domain/conduce.domain";
+import { KyselyProyectoRepository } from "../../proyectos/infraestructure/proyecto.infraestructure";
 
 const conducesRoute = new Hono();
 const repo = new KyselyConduceRepository(db);

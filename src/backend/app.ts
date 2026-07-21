@@ -20,6 +20,7 @@ import { dgiiProvider } from "./providers/dgii.provider";
 import medidaCobroRoute from "./modules/categoria-equipos/routes/medida-cobro";
 import unitsRoute from "./modules/units/routes/units.routes";
 import userEmployeeLinksRoute from "./modules/user-employee-link/routes/user-employee-link.routes";
+import conducesRoute from "./modules/conduce/routes/conduce";
 
 const app = new Hono().basePath("/api");
 
@@ -56,9 +57,7 @@ app.route("/notifications", notificationsRoute);
 app.route("/units", unitsRoute);
 app.route("/user-employee-links", userEmployeeLinksRoute);
 
-app.route("/api/conduces", conducesRoute);
-app.route("/api/tipo-carga", tipoCargaRoute);
-app.route("/api/proyecto-tarifas", proyectoTarifasRoute);
+app.route("/conduces", conducesRoute);
 
 app.get("/dgii/:rnc", async (c) => {
    const rnc = c.req.param("rnc");
