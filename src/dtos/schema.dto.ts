@@ -14,7 +14,7 @@ const validarLuhn = (cedula: string): boolean => {
 
   const mod = sum % 10;
   const checkDigit = mod === 0 ? 0 : 10 - mod;
-  
+
   return checkDigit === parseInt(cedula[10]);
 };
 
@@ -28,7 +28,7 @@ const validarRncModulo11 = (rnc: string): boolean => {
 
   const mod = sum % 11;
   let checkDigit = 11 - mod;
-  
+
   if (mod === 0) checkDigit = 2;
   if (mod === 1) checkDigit = 1;
 

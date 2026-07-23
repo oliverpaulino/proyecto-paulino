@@ -12,6 +12,8 @@ interface SelectBuscadorClientProps {
    onChange: (clientId: string | null) => void;
    placeholder?: string;
    disabled?: boolean;
+   // Nueva propiedad para disparar la creación
+   onCreateNew?: (inputValue: string) => void;
 }
 
 export function SelectBuscadorClient({
@@ -20,6 +22,7 @@ export function SelectBuscadorClient({
    onChange,
    placeholder = "Buscar cliente por nombre, email o ID...",
    disabled = false,
+   onCreateNew,
 }: SelectBuscadorClientProps) {
    const { Clients, loading, GetClients } = useClientStore();
    const [isOpen, setIsOpen] = useState(false);
@@ -48,11 +51,7 @@ export function SelectBuscadorClient({
       if (!isOpen) return;
 
       if (!hasTyped) {
-         GetClients({
-            search: "",
-            limit: 20,
-            force: true,
-         });
+         GetClients({ search: "", limit: 20, force: true });
          return;
       }
 
@@ -107,24 +106,39 @@ export function SelectBuscadorClient({
          </div>
 
          {isOpen && (
-            <div className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-md p-1">
-               {loading && Clients.length === 0 ? (
-                  <div className="p-4 text-center text-sm text-muted-foreground">Buscando...</div>
-               ) : Clients.length > 0 ? (
-                  Clients.map((client) => (
-                     <div
-                        key={client.id}
-                        onClick={() => handleSelect(client)}
-                        className="flex cursor-pointer flex-col rounded-sm px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
-                     >
-                        <span className="font-medium">{client.nombre}</span>
-                        <span className="text-xs text-muted-foreground truncate">
-                           {client.email || "Sin email"} • {client.identificacion || "Sin ID"}
-                        </span>
-                     </div>
-                  ))
-               ) : (
-                  <div className="p-4 text-center text-sm text-muted-foreground">No se encontraron clientes.</div>
+            <div className="absolute z-50 mt-1 max-h-72 w-full flex flex-col overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md">
+               <div className="overflow-y-auto max-h-60 p-1">
+                  {loading && Clients.length === 0 ? (
+                     <div className="p-4 text-center text-sm text-muted-foreground">Buscando...</div>
+                  ) : Clients.length > 0 ? (
+                     Clients.map((client) => (
+                        <div
+                           key={client.id}
+                           onClick={() => handleSelect(client)}
+                           className="flex cursor-pointer flex-col rounded-sm px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                        >
+                           <span className="font-medium">{client.nombre}</span>
+                           <span className="text-xs text-muted-foreground truncate">
+                              {client.email || "Sin email"} • {client.identificacion || "Sin ID"}
+                           </span>
+                        </div>
+                     ))
+                  ) : (
+                     <div className="p-4 text-center text-sm text-muted-foreground">No se encontraron clientes.</div>
+                  )}
+               </div>
+
+               {/* Botón para crear nuevo cliente */}
+               {onCreateNew && (
+                  <div
+                     onClick={() => {
+                        onCreateNew(inputValue);
+                        setIsOpen(false);
+                     }}
+                     className="border-t border-border bg-muted/30 p-2 text-center text-sm font-medium text-blue-600 hover:bg-accent hover:text-blue-700 cursor-pointer transition-colors"
+                  >
+                     + Crear nuevo cliente
+                  </div>
                )}
             </div>
          )}

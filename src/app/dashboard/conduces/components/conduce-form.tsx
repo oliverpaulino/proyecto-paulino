@@ -12,6 +12,8 @@ import {
    SelectTrigger,
    SelectValue,
 } from "@/components/ui/select";
+// Importar componentes del Dialog
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Truck, HardHat } from "lucide-react";
 import { useClientStore } from "@/stores/useClientStore";
@@ -25,13 +27,15 @@ import type { Equipo } from "@/dtos/equipo.dto";
 import type { CreateConduceForm, TipoConduce } from "@/dtos/conduce.dto";
 import { fechaRD } from "@/lib/utils";
 import { TarifaCategoriaDTO } from "@/dtos/categoria-equipo.dto";
+import { SelectBuscadorClient } from "@/components/shared/selectBuscadorClient";
+import { ClientForm } from "../../clientes/components/client-form";
+
+// AÑADIR ESTA IMPORTACIÓN (Ajusta la ruta según tu proyecto)
 
 interface Props {
    onSubmit: (data: CreateConduceForm) => Promise<void>;
    onCancel: () => void;
    loading: boolean;
-   /** Si se pasa (ej. desde la página de detalle de un proyecto), se fija el
-    * proyecto y se oculta el selector — el registro general no lo pasa. */
    fixedProyectoId?: string;
 }
 
@@ -48,28 +52,36 @@ function calcularHoras(inicio?: string, fin?: string): number {
 }
 
 export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Props) {
-   const { Clients, GetClients } = useClientStore();
+   const { Clients, GetClients, CreateClient } = useClientStore();
    const { GetEquipos } = useEquipoStore();
    const { CategoriaEquipos, GetCategoriaEquipos } = useCategoriaEquipoStore();
    const { GetMedidaCobros, getNombre: getNombreMedidaCobro } = useMedidaCobroStore();
-   const { proyectos, GetProyectos } = useProyectoStore();
+   const { proyectos, GetProyectos, GetProyectosByClientId } = useProyectoStore();
    const { GetTarifas, getTarifa } = useProyectoTarifaStore();
+
+   // ── Estados para el Modal de Crear Cliente ──
+   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+   const [newClientInitialName, setNewClientInitialName] = useState("");
+   const [isCreatingClient, setIsCreatingClient] = useState(false);
+   const [clienteId, setClienteId] = useState("");
+   const [clienteNombre, setClienteNombre] = useState("");
 
    useEffect(() => {
       GetClients();
       GetEquipos();
       GetCategoriaEquipos();
       GetMedidaCobros();
+      if (clienteId) GetProyectosByClientId(clienteId);
       if (!fixedProyectoId) GetProyectos();
-   }, [GetClients, GetEquipos, GetCategoriaEquipos, GetMedidaCobros, GetProyectos, fixedProyectoId]);
+   }, [GetClients, GetEquipos, GetCategoriaEquipos, GetMedidaCobros, GetProyectos, GetProyectosByClientId, fixedProyectoId, clienteId]);
 
    const [tipoConduce, setTipoConduce] = useState<TipoConduce>("CAMION");
+
 
    // ── Comunes ──
    const [numeroReferencia, setNumeroReferencia] = useState("");
    const [fecha, setFecha] = useState(hoyISO());
    const [proyectoId, setProyectoId] = useState(fixedProyectoId ?? "");
-   const [clienteId, setClienteId] = useState("");
    const [clienteTelefono, setClienteTelefono] = useState("");
    const [equipoId, setEquipoId] = useState("");
    const [categoriaEquipoId, setCategoriaEquipoId] = useState("");
@@ -100,10 +112,6 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
       if (proyectoId) GetTarifas(proyectoId);
    }, [proyectoId, GetTarifas]);
 
-   // Las tarifas ya vienen anidadas dentro de la categoría — no hace falta
-   // pedirlas aparte. Solo les resolvemos el nombre de la medida_cobro.
-   // Dejar que TypeScript infiera el tipo aquí para evitar errores cuando
-   // `TarifaCategoriaDTO` es un valor en tiempo de ejecución en vez de un tipo.
    const opcionesTarifa = useMemo(() => {
       const categoria = CategoriaEquipos.find((c) => c.id === categoriaEquipoId);
       return (categoria?.tarifas ?? [])
@@ -113,10 +121,6 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
 
    const tarifaSeleccionada = opcionesTarifa.find((t) => t.id === categoriaEquipoTarifaId);
 
-   // Resuelve el precio por defecto con prioridad:
-   //   1) tarifa propia del proyecto (si existe para esta categoria_equipo_tarifa)
-   //   2) precio global de categoria_equipo_tarifa
-   // Siempre queda editable después.
    function resolverPrecio(tarifaId: string): number {
       if (proyectoId) {
          const tarifaProyecto = getTarifa(proyectoId, tarifaId);
@@ -158,8 +162,9 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
 
    function handleClienteChange(id: string) {
       setClienteId(id);
-      const cliente = Clients.find((c) => c.id === id) as { telefono?: string | null } | undefined;
+      const cliente = Clients.find((c) => c.id === id) as { telefono?: string | null; nombre?: string | null } | undefined;
       setClienteTelefono(cliente?.telefono ?? "");
+      setClienteNombre(cliente?.nombre ?? "");
    }
 
    function handleSelectEquipo(id: string | number | null, equipo: Equipo | null) {
@@ -232,9 +237,6 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
       };
    }
 
-   // Para volumen alto: guarda y deja el formulario listo para el siguiente
-   // conduce, conservando tipo/proyecto/cliente (lo que normalmente se repite
-   // en varios conduces seguidos) y limpiando solo lo que cambia por viaje.
    async function handleSubmit(e: React.FormEvent, seguirRegistrando: boolean) {
       e.preventDefault();
       setError(null);
@@ -266,7 +268,6 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
 
    const subtotal = tipoConduce === "CAMION" ? cantidad * precioUnitario : totalHoras * precioUnitario;
 
-   // Común a ambos tipos: se muestra justo después de elegir el equipo.
    const selectorTarifa = (
       <div className="space-y-1.5">
          <Label>Tarifa Aplicable *</Label>
@@ -289,131 +290,199 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
    );
 
    return (
-      <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-4">
-         {/* ── Selector de tipo ── */}
-         <div className="grid grid-cols-2 gap-2">
-            <button
-               type="button"
-               onClick={() => handleCambiarTipo("CAMION")}
-               className={`flex items-center justify-center gap-2 rounded-lg border-2 p-2.5 text-sm font-semibold transition-colors ${tipoConduce === "CAMION"
-                  ? "border-brand-blue bg-brand-blue/5 text-brand-blue"
-                  : "border-muted text-muted-foreground"
-                  }`}
-            >
-               <Truck className="size-4" /> Camión
-            </button>
-            <button
-               type="button"
-               onClick={() => handleCambiarTipo("EQUIPO_PESADO")}
-               className={`flex items-center justify-center gap-2 rounded-lg border-2 p-2.5 text-sm font-semibold transition-colors ${tipoConduce === "EQUIPO_PESADO"
-                  ? "border-brand-blue bg-brand-blue/5 text-brand-blue"
-                  : "border-muted text-muted-foreground"
-                  }`}
-            >
-               <HardHat className="size-4" /> Equipo Pesado
-            </button>
-         </div>
-
-         {/* ── Comunes ── */}
-         <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-               <Label htmlFor="numero-referencia">Número de Referencia *</Label>
-               <Input
-                  id="numero-referencia"
-                  autoFocus
-                  value={numeroReferencia}
-                  onChange={(e) => setNumeroReferencia(e.target.value)}
-                  placeholder="Ej. 00234"
-               />
+      <>
+         <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-4">
+            {/* ── Selector de tipo ── */}
+            <div className="grid grid-cols-2 gap-2">
+               <button
+                  type="button"
+                  onClick={() => handleCambiarTipo("CAMION")}
+                  className={`flex items-center justify-center gap-2 rounded-lg border-2 p-2.5 text-sm font-semibold transition-colors ${tipoConduce === "CAMION"
+                     ? "border-brand-blue bg-brand-blue/5 text-brand-blue"
+                     : "border-muted text-muted-foreground"
+                     }`}
+               >
+                  <Truck className="size-4" /> Camión
+               </button>
+               <button
+                  type="button"
+                  onClick={() => handleCambiarTipo("EQUIPO_PESADO")}
+                  className={`flex items-center justify-center gap-2 rounded-lg border-2 p-2.5 text-sm font-semibold transition-colors ${tipoConduce === "EQUIPO_PESADO"
+                     ? "border-brand-blue bg-brand-blue/5 text-brand-blue"
+                     : "border-muted text-muted-foreground"
+                     }`}
+               >
+                  <HardHat className="size-4" /> Equipo Pesado
+               </button>
             </div>
-            <div className="space-y-1.5">
-               <Label htmlFor="fecha">Fecha *</Label>
-               <Input id="fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
-            </div>
-         </div>
 
-         <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-               <Label>Cliente *</Label>
-               <Select value={clienteId} onValueChange={handleClienteChange}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar cliente…" /></SelectTrigger>
-                  <SelectContent>
-                     {Clients.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>
-                     ))}
-                  </SelectContent>
-               </Select>
-            </div>
-            <div className="space-y-1.5">
-               <Label htmlFor="telefono">Teléfono</Label>
-               <Input
-                  id="telefono"
-                  value={clienteTelefono}
-                  onChange={(e) => setClienteTelefono(e.target.value)}
-                  placeholder="Opcional"
-               />
-            </div>
-         </div>
-
-         {!fixedProyectoId && (
-            <div className="space-y-1.5">
-               <Label>Proyecto (opcional)</Label>
-               <Select value={proyectoId || "none"} onValueChange={(v) => setProyectoId(v === "none" ? "" : v)}>
-                  <SelectTrigger><SelectValue placeholder="Sin asignar" /></SelectTrigger>
-                  <SelectContent>
-                     <SelectItem value="none">Sin asignar (asignar después)</SelectItem>
-                     {proyectos.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
-                     ))}
-                  </SelectContent>
-               </Select>
-            </div>
-         )}
-
-         <Separator />
-
-         {tipoConduce === "CAMION" ? (
-            <div className="space-y-4">
-               <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                     <Label>Placa / Equipo *</Label>
-                     <SelectBuscarEquipos value={equipoId || null} onChange={(id, equipo) => handleSelectEquipo(id, equipo)} />
-                  </div>
-                  {selectorTarifa}
+            {/* ── Comunes ── */}
+            <div className="grid grid-cols-2 gap-4">
+               <div className="space-y-1.5">
+                  <Label htmlFor="numero-referencia">Número de Referencia *</Label>
+                  <Input
+                     id="numero-referencia"
+                     autoFocus
+                     value={numeroReferencia}
+                     onChange={(e) => setNumeroReferencia(e.target.value)}
+                     placeholder="Ej. 00234"
+                  />
                </div>
+               <div className="space-y-1.5">
+                  <Label htmlFor="fecha">Fecha *</Label>
+                  <Input id="fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+               </div>
+            </div>
 
-               <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                     <Label htmlFor="procedencia">Procedencia *</Label>
-                     <Input id="procedencia" value={procedencia} onChange={(e) => setProcedencia(e.target.value)} placeholder="Origen del material" />
+            <div className="grid grid-cols-2 gap-4">
+               <div className="space-y-1.5">
+                  <Label>Cliente *</Label>
+                  <SelectBuscadorClient
+                     value={clienteId}
+                     onChange={(e) => handleClienteChange(e || "")}
+                     initialLabel={clienteNombre}
+                     onCreateNew={(term) => {
+                        setNewClientInitialName(term);
+                        setIsClientModalOpen(true);
+                     }}
+                  />
+               </div>
+               <div className="space-y-1.5">
+                  <Label htmlFor="telefono">Teléfono</Label>
+                  <Input
+                     id="telefono"
+                     value={clienteTelefono}
+                     onChange={(e) => setClienteTelefono(e.target.value)}
+                     placeholder="Opcional"
+                  />
+               </div>
+            </div>
+
+            {!fixedProyectoId && (
+               <div className="space-y-1.5">
+                  <Label>Proyecto (opcional)</Label>
+                  <Select value={proyectoId || "none"} onValueChange={(v) => setProyectoId(v === "none" ? "" : v)}>
+                     <SelectTrigger><SelectValue placeholder="Sin asignar" /></SelectTrigger>
+                     <SelectContent>
+                        <SelectItem value="none">Sin asignar (asignar después)</SelectItem>
+                        {proyectos.map((p) => (
+                           <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
+                        ))}
+                     </SelectContent>
+                  </Select>
+               </div>
+            )}
+
+            <Separator />
+
+            {tipoConduce === "CAMION" ? (
+               <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                     <div className="space-y-1.5">
+                        <Label>Placa / Equipo *</Label>
+                        <SelectBuscarEquipos value={equipoId || null} onChange={(id, equipo) => handleSelectEquipo(id, equipo)} />
+                     </div>
+                     {selectorTarifa}
                   </div>
-                  <div className="space-y-1.5">
-                     <Label htmlFor="destino">Destino *</Label>
-                     <Input id="destino" value={destino} onChange={(e) => setDestino(e.target.value)} placeholder="Destino de entrega" />
+
+                  <div className="grid grid-cols-2 gap-4">
+                     <div className="space-y-1.5">
+                        <Label htmlFor="procedencia">Procedencia *</Label>
+                        <Input id="procedencia" value={procedencia} onChange={(e) => setProcedencia(e.target.value)} placeholder="Origen del material" />
+                     </div>
+                     <div className="space-y-1.5">
+                        <Label htmlFor="destino">Destino *</Label>
+                        <Input id="destino" value={destino} onChange={(e) => setDestino(e.target.value)} placeholder="Destino de entrega" />
+                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                     <div className="space-y-1.5">
+                        <Label htmlFor="cantidad">{tarifaSeleccionada?.medida_cobro_nombre ?? "Cantidad"} *</Label>
+                        <Input
+                           id="cantidad"
+                           type="number"
+                           min={0}
+                           step="0.5"
+                           value={cantidad}
+                           onChange={(e) => setCantidad(Number(e.target.value))}
+                        />
+                     </div>
+                     <div className="space-y-1.5">
+                        <Label htmlFor="precio-camion">
+                           Precio Unitario{" "}
+                           <span className="text-xs text-muted-foreground">
+                              ({proyectoId && getTarifa(proyectoId, categoriaEquipoTarifaId) ? "tarifa de este proyecto" : "por defecto: tarifa de la categoría"})
+                           </span>
+                        </Label>
+                        <Input
+                           id="precio-camion"
+                           type="number"
+                           min={0}
+                           step="0.01"
+                           value={precioUnitario}
+                           onChange={(e) => setPrecioUnitario(Number(e.target.value))}
+                        />
+                     </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-6">
+                     <CheckboxField id="firma-chofer" label="Firma del chofer" checked={firmaChofer} onChange={setFirmaChofer} />
+                     <CheckboxField id="firma-recibido" label="Firma de recibido" checked={firmaRecibido} onChange={setFirmaRecibido} />
                   </div>
                </div>
-
-               <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                     <Label htmlFor="cantidad">{tarifaSeleccionada?.medida_cobro_nombre ?? "Cantidad"} *</Label>
-                     <Input
-                        id="cantidad"
-                        type="number"
-                        min={0}
-                        step="0.5"
-                        value={cantidad}
-                        onChange={(e) => setCantidad(Number(e.target.value))}
-                     />
+            ) : (
+               <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                     <div className="space-y-1.5">
+                        <Label>Equipo *</Label>
+                        <SelectBuscarEquipos value={equipoId || null} onChange={(id, equipo) => handleSelectEquipo(id, equipo)} />
+                     </div>
+                     {selectorTarifa}
                   </div>
+
+                  <div className="rounded-lg border p-3 space-y-3">
+                     <p className="text-xs font-semibold uppercase text-muted-foreground">Horario de Mañana</p>
+                     <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                           <Label htmlFor="am-inicio">Desde</Label>
+                           <Input id="am-inicio" type="time" value={horarioMananaInicio} onChange={(e) => setHorarioMananaInicio(e.target.value)} />
+                        </div>
+                        <div className="space-y-1.5">
+                           <Label htmlFor="am-fin">Hasta</Label>
+                           <Input id="am-fin" type="time" value={horarioMananaFin} onChange={(e) => setHorarioMananaFin(e.target.value)} />
+                        </div>
+                     </div>
+
+                     <p className="text-xs font-semibold uppercase text-muted-foreground pt-2">Horario de Tarde</p>
+                     <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                           <Label htmlFor="pm-inicio">Desde</Label>
+                           <Input id="pm-inicio" type="time" value={horarioTardeInicio} onChange={(e) => setHorarioTardeInicio(e.target.value)} />
+                        </div>
+                        <div className="space-y-1.5">
+                           <Label htmlFor="pm-fin">Hasta</Label>
+                           <Input id="pm-fin" type="time" value={horarioTardeFin} onChange={(e) => setHorarioTardeFin(e.target.value)} />
+                        </div>
+                     </div>
+
+                     <div className="flex justify-between text-sm pt-1 border-t">
+                        <span className="text-muted-foreground">Total de horas (calculado)</span>
+                        <span className="font-semibold">{totalHoras.toFixed(2)} h</span>
+                     </div>
+                  </div>
+
                   <div className="space-y-1.5">
-                     <Label htmlFor="precio-camion">
-                        Precio Unitario{" "}
-                        <span className="text-xs text-muted-foreground">
-                           ({proyectoId && getTarifa(proyectoId, categoriaEquipoTarifaId) ? "tarifa de este proyecto" : "por defecto: tarifa de la categoría"})
+                     <Label htmlFor="precio-equipo">
+                        Precio {tarifaSeleccionada?.medida_cobro_nombre ? `por ${tarifaSeleccionada.medida_cobro_nombre}` : ""} (RD$)
+                        <span className="ml-1 text-xs text-muted-foreground">
+                           {proyectoId && getTarifa(proyectoId, categoriaEquipoTarifaId)
+                              ? "tarifa de este proyecto"
+                              : "normalmente se acuerda con el cliente — puede dejarse en 0"}
                         </span>
                      </Label>
                      <Input
-                        id="precio-camion"
+                        id="precio-equipo"
                         type="number"
                         min={0}
                         step="0.01"
@@ -421,125 +490,107 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
                         onChange={(e) => setPrecioUnitario(Number(e.target.value))}
                      />
                   </div>
-               </div>
 
-               <div className="flex flex-wrap gap-6">
-                  <CheckboxField id="firma-chofer" label="Firma del chofer" checked={firmaChofer} onChange={setFirmaChofer} />
-                  <CheckboxField id="firma-recibido" label="Firma de recibido" checked={firmaRecibido} onChange={setFirmaRecibido} />
+                  <div className="flex flex-wrap gap-6">
+                     <CheckboxField id="combustible" label="Combustible pagado por el cliente" checked={combustibleCliente} onChange={setCombustibleCliente} />
+                     <CheckboxField id="firma-observante" label="Firma del observante/cliente" checked={firmaObservante} onChange={setFirmaObservante} />
+                     <CheckboxField id="firma-camionero" label="Firma del camionero" checked={firmaCamionero} onChange={setFirmaCamionero} />
+                  </div>
                </div>
+            )}
+
+            <Separator />
+
+            <CheckboxField
+               id="es-cobrable"
+               label="Cobrable (si se destilda, solo queda en el historial y no entra al total facturado)"
+               checked={esCobrable}
+               onChange={setEsCobrable}
+            />
+
+            <Textarea
+               placeholder="Observaciones (opcional)"
+               value={observaciones}
+               onChange={(e) => setObservaciones(e.target.value)}
+               rows={2}
+            />
+
+            <div className="rounded-lg border bg-muted/30 p-3 flex justify-between text-sm">
+               <span className="text-muted-foreground">Subtotal de este conduce</span>
+               <span className="font-semibold">RD$ {subtotal.toLocaleString("es-DO")}</span>
             </div>
-         ) : (
-            <div className="space-y-4">
-               <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                     <Label>Equipo *</Label>
-                     <SelectBuscarEquipos value={equipoId || null} onChange={(id, equipo) => handleSelectEquipo(id, equipo)} />
-                  </div>
-                  {selectorTarifa}
-               </div>
 
-               <div className="rounded-lg border p-3 space-y-3">
-                  <p className="text-xs font-semibold uppercase text-muted-foreground">Horario de Mañana</p>
-                  <div className="grid grid-cols-2 gap-4">
-                     <div className="space-y-1.5">
-                        <Label htmlFor="am-inicio">Desde</Label>
-                        <Input id="am-inicio" type="time" value={horarioMananaInicio} onChange={(e) => setHorarioMananaInicio(e.target.value)} />
-                     </div>
-                     <div className="space-y-1.5">
-                        <Label htmlFor="am-fin">Hasta</Label>
-                        <Input id="am-fin" type="time" value={horarioMananaFin} onChange={(e) => setHorarioMananaFin(e.target.value)} />
-                     </div>
-                  </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
 
-                  <p className="text-xs font-semibold uppercase text-muted-foreground pt-2">Horario de Tarde</p>
-                  <div className="grid grid-cols-2 gap-4">
-                     <div className="space-y-1.5">
-                        <Label htmlFor="pm-inicio">Desde</Label>
-                        <Input id="pm-inicio" type="time" value={horarioTardeInicio} onChange={(e) => setHorarioTardeInicio(e.target.value)} />
-                     </div>
-                     <div className="space-y-1.5">
-                        <Label htmlFor="pm-fin">Hasta</Label>
-                        <Input id="pm-fin" type="time" value={horarioTardeFin} onChange={(e) => setHorarioTardeFin(e.target.value)} />
-                     </div>
-                  </div>
-
-                  <div className="flex justify-between text-sm pt-1 border-t">
-                     <span className="text-muted-foreground">Total de horas (calculado)</span>
-                     <span className="font-semibold">{totalHoras.toFixed(2)} h</span>
-                  </div>
-               </div>
-
-               <div className="space-y-1.5">
-                  <Label htmlFor="precio-equipo">
-                     Precio {tarifaSeleccionada?.medida_cobro_nombre ? `por ${tarifaSeleccionada.medida_cobro_nombre}` : ""} (RD$)
-                     <span className="ml-1 text-xs text-muted-foreground">
-                        {proyectoId && getTarifa(proyectoId, categoriaEquipoTarifaId)
-                           ? "tarifa de este proyecto"
-                           : "normalmente se acuerda con el cliente — puede dejarse en 0"}
-                     </span>
-                  </Label>
-                  <Input
-                     id="precio-equipo"
-                     type="number"
-                     min={0}
-                     step="0.01"
-                     value={precioUnitario}
-                     onChange={(e) => setPrecioUnitario(Number(e.target.value))}
-                  />
-               </div>
-
-               <div className="flex flex-wrap gap-6">
-                  <CheckboxField id="combustible" label="Combustible pagado por el cliente" checked={combustibleCliente} onChange={setCombustibleCliente} />
-                  <CheckboxField id="firma-observante" label="Firma del observante/cliente" checked={firmaObservante} onChange={setFirmaObservante} />
-                  <CheckboxField id="firma-camionero" label="Firma del camionero" checked={firmaCamionero} onChange={setFirmaCamionero} />
-               </div>
+            <div className="flex flex-wrap justify-end gap-2 pt-1">
+               <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
+                  Cancelar
+               </Button>
+               <Button
+                  type="button"
+                  variant="outline"
+                  disabled={loading}
+                  onClick={(e) => handleSubmit(e, true)}
+               >
+                  {loading ? "Guardando…" : "Guardar y Registrar Otro"}
+               </Button>
+               <Button
+                  type="submit"
+                  disabled={loading}
+                  className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold border-0"
+               >
+                  {loading ? "Guardando…" : "Guardar y Cerrar"}
+               </Button>
             </div>
-         )}
+         </form>
 
-         <Separator />
+         {/* ── Modal de Creación de Cliente ── */}
+         {/* ── Modal de Creación de Cliente ── */}
+         <Dialog open={isClientModalOpen} onOpenChange={setIsClientModalOpen}>
+            <DialogContent className="max-w-xl">
+               <DialogHeader>
+                  <DialogTitle>Crear Nuevo Cliente</DialogTitle>
+               </DialogHeader>
+               <ClientForm
+                  initialData={{ nombre: newClientInitialName }}
+                  loading={isCreatingClient}
+                  onSubmit={async (data) => {
+                     setIsCreatingClient(true);
+                     try {
+                        const result = await CreateClient({
+                           ...data,
+                           email: data.email || null,
+                           telefono: data.telefono || null,
+                           direccion: data.direccion || null,
+                        });
 
-         <CheckboxField
-            id="es-cobrable"
-            label="Cobrable (si se destilda, solo queda en el historial y no entra al total facturado)"
-            checked={esCobrable}
-            onChange={setEsCobrable}
-         />
+                        if (result instanceof Error) throw result;
 
-         <Textarea
-            placeholder="Observaciones (opcional)"
-            value={observaciones}
-            onChange={(e) => setObservaciones(e.target.value)}
-            rows={2}
-         />
+                        // 1. Auto-seleccionar el cliente recién creado
+                        // Asumimos que result devuelve el objeto del cliente con su id y nombre
+                        if (result && result.id) {
+                           setClienteId(result.id);
+                           setClienteTelefono(result.telefono || "");
+                           setClienteNombre(result.nombre || data.nombre); // Fuerza visualmente el nombre
 
-         <div className="rounded-lg border bg-muted/30 p-3 flex justify-between text-sm">
-            <span className="text-muted-foreground">Subtotal de este conduce</span>
-            <span className="font-semibold">RD$ {subtotal.toLocaleString("es-DO")}</span>
-         </div>
+                           // Refrescar la caché del store para que aparezca en futuras búsquedas
+                           GetClients();
+                        }
 
-         {error && <p className="text-sm text-destructive">{error}</p>}
+                        // 2. Cerrar el modal
+                        setIsClientModalOpen(false);
 
-         <div className="flex flex-wrap justify-end gap-2 pt-1">
-            <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
-               Cancelar
-            </Button>
-            <Button
-               type="button"
-               variant="outline"
-               disabled={loading}
-               onClick={(e) => handleSubmit(e, true)}
-            >
-               {loading ? "Guardando…" : "Guardar y Registrar Otro"}
-            </Button>
-            <Button
-               type="submit"
-               disabled={loading}
-               className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold border-0"
-            >
-               {loading ? "Guardando…" : "Guardar y Cerrar"}
-            </Button>
-         </div>
-      </form>
+                     } catch (error) {
+                        console.error("Error al crear cliente", error);
+                     } finally {
+                        setIsCreatingClient(false);
+                     }
+                  }}
+                  onCancel={() => setIsClientModalOpen(false)}
+               />
+            </DialogContent>
+         </Dialog>
+      </>
    );
 }
 
