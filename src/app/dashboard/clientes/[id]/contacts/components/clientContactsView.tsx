@@ -263,7 +263,7 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
    };
 
    return (
-      <PermissionGuard resource="client" action="read">
+      <PermissionGuard resource="client" action="read" mode="page">
       <div className="space-y-4 sm:space-y-6">
          {/* Header */}
          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

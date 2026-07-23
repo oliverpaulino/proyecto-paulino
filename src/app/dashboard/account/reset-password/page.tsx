@@ -131,7 +131,7 @@ export default function DashboardResetPasswordPage() {
   };
 
   return (
-    <PermissionGuard resource="features" action="read">
+    <PermissionGuard resource="features" action="read" mode="page">
         <div className="flex flex-1 flex-col w-full max-w-md mx-auto px-4 py-6 sm:px-6">
 
           {/* header */}

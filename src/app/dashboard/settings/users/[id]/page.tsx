@@ -220,7 +220,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
   const initials = user.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 
   return (
-    <PermissionGuard resource="user" action="read">
+    <PermissionGuard resource="user" action="read" mode="page">
     <SidebarProvider>
       <SidebarInset>
         <div className="flex flex-1 flex-col w-full max-w-xl mx-auto px-4 py-6 sm:px-6 gap-0">

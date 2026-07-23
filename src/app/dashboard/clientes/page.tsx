@@ -136,7 +136,7 @@ export default function ClientsPage() {
    }
 
    return (
-      <PermissionGuard resource="client" action="read">
+      <PermissionGuard resource="client" action="read" mode="page">
       <div className="flex flex-col gap-6 p-6">
 
          {/* Header */}

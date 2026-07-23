@@ -137,7 +137,7 @@ export default function ComprasPage() {
    }
 
    return (
-      <PermissionGuard resource="material_request" action="read">
+      <PermissionGuard resource="material_request" action="read" mode="page">
       <div className="flex flex-col gap-6 p-6">
 
          {/* Header */}

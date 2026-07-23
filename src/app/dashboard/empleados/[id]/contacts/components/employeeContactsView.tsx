@@ -244,7 +244,7 @@ export function EmployeeContactsView({ empleadoId }: EmployeeContactsViewProps) 
    };
 
    return (
-      <PermissionGuard resource="users" action="read">
+      <PermissionGuard resource="users" action="read" mode="page">
       <div className="space-y-4 sm:space-y-6">
          {/* Header */}
          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

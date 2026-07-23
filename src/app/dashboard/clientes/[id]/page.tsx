@@ -307,7 +307,7 @@ export default function ClientDetailPage() {
    const safeTipoId = (client.tipo_identificacion?.toUpperCase() || "CEDULA") as keyof typeof TipoIdentificacion;
 
    return (
-      <PermissionGuard resource="client" action="read">
+      <PermissionGuard resource="client" action="read" mode="page">
       <div className="flex flex-col gap-6 p-6">
          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex items-start gap-4">

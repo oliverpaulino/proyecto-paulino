@@ -129,7 +129,7 @@ export default function ServiciosPage() {
    }
 
    return (
-      <PermissionGuard resource="service" action="read">
+      <PermissionGuard resource="service" action="read" mode="page">
       <div className="flex flex-col gap-6 p-6">
 
          {/* Header */}

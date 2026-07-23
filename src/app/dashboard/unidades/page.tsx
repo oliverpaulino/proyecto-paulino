@@ -97,7 +97,7 @@ export default function UnidadesPage() {
    }
 
    return (
-      <PermissionGuard resource="category" action="read">
+      <PermissionGuard resource="category" action="read" mode="page">
       <div className="flex flex-col gap-6 p-6">
          {/* Header */}
          <div>

@@ -47,7 +47,7 @@ export default function NotificacionesPage() {
    }, [fetchNotifications]);
 
    return (
-      <PermissionGuard resource="features" action="read">
+      <PermissionGuard resource="features" action="read" mode="page">
          <div className="flex flex-col gap-6 p-6">
             {/* Header */}
             <div>

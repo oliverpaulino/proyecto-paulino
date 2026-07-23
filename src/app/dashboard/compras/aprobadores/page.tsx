@@ -186,7 +186,7 @@ export default function AprobadoresPage() {
    const isSelfApprover = currentUser && approverIds.has(currentUser.id);
 
    return (
-      <PermissionGuard resource="material_request" action="read">
+      <PermissionGuard resource="material_request" action="read" mode="page">
       <div className="flex flex-col gap-6 p-6">
          {/* Header */}
          <div>

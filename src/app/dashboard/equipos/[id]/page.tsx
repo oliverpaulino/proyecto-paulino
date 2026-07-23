@@ -175,7 +175,7 @@ export default function EquipoDetailPage() {
    }
 
    return (
-      <PermissionGuard resource="machinery" action="read">
+      <PermissionGuard resource="machinery" action="read" mode="page">
       <div className="flex flex-col gap-6 p-6">
          {/* Header */}
          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">

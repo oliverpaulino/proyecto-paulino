@@ -120,7 +120,7 @@ export default function ProveedoresPage() {
    }
 
    return (
-      <PermissionGuard resource="supplier" action="read">
+      <PermissionGuard resource="supplier" action="read" mode="page">
       <div className="flex flex-col gap-6 p-6">
 
          {/* Header */}

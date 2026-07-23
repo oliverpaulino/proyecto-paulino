@@ -129,7 +129,7 @@ export default function EquiposPage() {
    }
 
    return (
-      <PermissionGuard resource="machinery" action="read">
+      <PermissionGuard resource="machinery" action="read" mode="page">
       <div className="flex flex-col gap-6 p-6">
 
          {/* Header */}

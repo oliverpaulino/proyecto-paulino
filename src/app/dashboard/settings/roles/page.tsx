@@ -121,7 +121,7 @@ export default function RolesSettingsPage() {
   };
 
   return (
-    <PermissionGuard resource="ac" action="read">
+    <PermissionGuard resource="ac" action="read" mode="page">
       <header className="flex h-16 shrink-0 items-center gap-2">
         <div className="flex items-center gap-2 px-4">
           <SidebarTrigger className="-ml-1" />

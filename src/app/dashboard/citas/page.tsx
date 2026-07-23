@@ -32,7 +32,7 @@ export default function CitasPageWrapper() {
    }
 
    return (
-      <PermissionGuard resource="appointment" action="read">
+      <PermissionGuard resource="appointment" action="read" mode="page">
       <div className="flex flex-col flex-1 min-w-0 h-[calc(100dvh-3rem)] p-4 md:p-6 gap-6">
          <div className="shrink-0">
             <div className="flex items-center gap-3">

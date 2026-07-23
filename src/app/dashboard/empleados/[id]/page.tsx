@@ -123,7 +123,7 @@ export default function EmployeeDetailPage() {
 
 
    return (
-      <PermissionGuard resource="users" action="read">
+      <PermissionGuard resource="users" action="read" mode="page">
       <div className="flex flex-col gap-6 p-6">
          {/* Header */}
          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">

@@ -92,7 +92,7 @@ export default function AccountPage() {
   }, [user?.id]);
 
   return (
-    <PermissionGuard resource="features" action="read">
+    <PermissionGuard resource="features" action="read" mode="page">
       <div className="flex flex-1 flex-col gap-0 w-full max-w-2xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
         {/* ── identity card ── */}
         <div className="mb-8 flex flex-wrap items-center gap-4">

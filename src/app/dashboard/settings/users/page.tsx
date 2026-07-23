@@ -104,7 +104,7 @@ export default function UsersPage() {
   };
 
   return (
-    <PermissionGuard resource="user" action="read">
+    <PermissionGuard resource="user" action="read" mode="page">
     <div className="flex flex-1 flex-col gap-4 w-full max-w-5xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
       <div className="flex items-center justify-between">
         <div>

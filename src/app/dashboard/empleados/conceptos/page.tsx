@@ -105,7 +105,7 @@ export default function ConceptosNominaPage() {
    }
 
    return (
-      <PermissionGuard resource="users" action="read">
+      <PermissionGuard resource="users" action="read" mode="page">
       <div className="flex flex-col gap-6 p-6">
 
          {/* Header */}
