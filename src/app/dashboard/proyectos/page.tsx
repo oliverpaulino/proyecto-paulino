@@ -12,7 +12,7 @@ import {
    DialogTrigger,
 } from "@/components/ui/dialog";
 import { useProyectoStore } from "@/stores/useProyectoStore";
-import type { CreateProyectoExpressForm } from "@/dtos/proyecto.dto";
+import type { CreateProyectoForm } from "@/dtos/proyecto.dto";
 import { ProyectoTable } from "./components/proyecto-table";
 import { ProyectoForm } from "./components/proyecto-form";
 
@@ -42,7 +42,7 @@ export default function ProyectosPage() {
       proyectos,
       loading,
       GetProyectos,
-      CreateExpressProyecto,
+      CreateProyecto,
    } = useProyectoStore();
 
    const [formLoading, setFormLoading] = useState(false);
@@ -62,11 +62,18 @@ export default function ProyectosPage() {
       0
    );
 
-   async function handleCreate(data: CreateProyectoExpressForm) {
+   async function handleCreate(data: CreateProyectoForm) {
       setFormLoading(true);
 
       try {
-         const result = await CreateExpressProyecto(data);
+         // Convert date strings to Date objects to satisfy CreateProyecto DTO
+         const payload = {
+            ...data,
+            fecha_inicio: data.fecha_inicio ? new Date(data.fecha_inicio) : undefined,
+            fecha_fin: data.fecha_fin ? new Date(data.fecha_fin) : undefined,
+         } as any;
+
+         const result = await CreateProyecto(payload);
 
          if (result instanceof Error) throw result;
 

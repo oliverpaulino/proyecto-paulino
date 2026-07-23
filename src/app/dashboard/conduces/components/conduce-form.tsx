@@ -29,6 +29,7 @@ import { fechaRD } from "@/lib/utils";
 import { SelectBuscadorClient } from "@/components/shared/selectBuscadorClient";
 import { ClientForm } from "../../clientes/components/client-form";
 import { SelectBuscadorProyecto } from "@/components/shared/selectBuscadorProyecto";
+import { ProyectoForm } from "../../proyectos/components/proyecto-form";
 
 // AÑADIR ESTA IMPORTACIÓN (Ajusta la ruta según tu proyecto)
 
@@ -56,13 +57,16 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
    const { GetEquipos } = useEquipoStore();
    const { CategoriaEquipos, GetCategoriaEquipos } = useCategoriaEquipoStore();
    const { GetMedidaCobros, getNombre: getNombreMedidaCobro } = useMedidaCobroStore();
-   const { proyectos } = useProyectoStore();
+   const { proyectos, CreateProyecto } = useProyectoStore();
    const { GetTarifas, getTarifa } = useProyectoTarifaStore();
 
    // ── Estados para el Modal de Crear Cliente ──
    const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+   const [isProyectoModalOpen, setIsProyectoModalOpen] = useState(false);
    const [newClientInitialName, setNewClientInitialName] = useState("");
+   const [newProyectoInitialName, setNewProyectoInitialName] = useState("");
    const [isCreatingClient, setIsCreatingClient] = useState(false);
+   const [isCreatingProyecto, setIsCreatingProyecto] = useState(false);
    const [clienteId, setClienteId] = useState("");
    const [clienteNombre, setClienteNombre] = useState("");
 
@@ -373,6 +377,10 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
                      value={proyectoId}
                      initialLabel={proyectoNombre}
                      clienteId={clienteId} // <-- Pasa el clienteId para que filtre internamente
+                     onCreateNew={(term) => {
+                        setNewProyectoInitialName(term);
+                        setIsProyectoModalOpen(true);
+                     }}
                      onChange={(id) => {
                         setProyectoId(id || "");
                         if (id) {
@@ -558,7 +566,6 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
          </form>
 
          {/* ── Modal de Creación de Cliente ── */}
-         {/* ── Modal de Creación de Cliente ── */}
          <Dialog open={isClientModalOpen} onOpenChange={setIsClientModalOpen}>
             <DialogContent className="max-w-xl">
                <DialogHeader>
@@ -600,6 +607,52 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
                      }
                   }}
                   onCancel={() => setIsClientModalOpen(false)}
+               />
+            </DialogContent>
+         </Dialog>
+         {/* ── Modal de Creación de Proyecto ── */}
+
+         {/* ── Modal de Creación de Proyecto ── */}
+         <Dialog open={isProyectoModalOpen} onOpenChange={setIsProyectoModalOpen}
+
+         >
+            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+               <DialogHeader>
+                  <DialogTitle>Crear Nuevo Proyecto</DialogTitle>
+               </DialogHeader>
+               <ProyectoForm
+                  initialData={{ nombre: newProyectoInitialName, cliente_id: clienteId }}
+                  loading={isCreatingProyecto}
+                  onSubmit={async (data) => {
+                     setIsCreatingProyecto(true);
+                     try {
+                        const result = await CreateProyecto({
+                           ...data,
+                           cliente_id: clienteId || data.cliente_id,
+                           fecha_inicio: data.fecha_inicio ? new Date(data.fecha_inicio) : undefined,
+                           fecha_fin: data.fecha_fin ? new Date(data.fecha_fin) : undefined,
+                           cargos_cobrables: data.cargos_cobrables ?? [],
+                           gastos_internos: data.gastos_internos ?? [],
+                        });
+
+                        if (result instanceof Error) throw result;
+
+                        // 1. Auto-seleccionar el proyecto recién creado
+                        if (result && result.id) {
+                           setProyectoId(result.id);
+                           setProyectoNombre(result.nombre || data.nombre);
+                        }
+
+                        // 2. Cerrar el modal de proyecto correctamente
+                        setIsProyectoModalOpen(false);
+
+                     } catch (error) {
+                        console.error("Error al crear proyecto", error);
+                     } finally {
+                        setIsCreatingProyecto(false);
+                     }
+                  }}
+                  onCancel={() => setIsProyectoModalOpen(false)}
                />
             </DialogContent>
          </Dialog>

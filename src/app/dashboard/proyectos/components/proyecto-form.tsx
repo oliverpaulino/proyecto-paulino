@@ -14,12 +14,13 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useClientStore } from "@/stores/useClientStore";
-import type { CreateProyectoExpressForm, LineItemForm } from "@/dtos/proyecto.dto";
+import type { CreateProyectoForm, LineItemForm } from "@/dtos/proyecto.dto";
 import { X } from "lucide-react";
 import { fechaRD } from "@/lib/utils";
 
 interface Props {
-   onSubmit: (data: CreateProyectoExpressForm) => Promise<void>;
+   initialData?: Partial<CreateProyectoForm>; // Permite pasar datos iniciales al formulario
+   onSubmit: (data: CreateProyectoForm) => Promise<void>;
    onCancel: () => void;
    loading: boolean;
 }
@@ -30,15 +31,24 @@ const emptyItem = (): LineItemForm => ({ descripcion: "", cantidad: 1, precio_un
 // operador y precio ya no se registran al crear el proyecto — se agregan
 // después, uno por uno, como Conduces desde la página de detalle del
 // proyecto (ver components/conduce-form.tsx).
-export function ProyectoForm({ onSubmit, onCancel, loading }: Props) {
+export function ProyectoForm({ initialData, onSubmit, onCancel, loading }: Props) {
    const { Clients, GetClients } = useClientStore();
 
    useEffect(() => {
       GetClients();
    }, [GetClients]);
 
-   const [clienteId, setClienteId] = useState("");
-   const [nombreProyecto, setNombreProyecto] = useState("");
+   useEffect(() => {
+      if (initialData) {
+         setClienteId(initialData.cliente_id || "");
+         setNombreProyecto(initialData.nombre || "");
+         setTarifaServicio(initialData.tarifa_servicio || 0);
+         setNotas(initialData.notas || "");
+      }
+   }, [initialData]);
+
+   const [clienteId, setClienteId] = useState(initialData?.cliente_id || "");
+   const [nombreProyecto, setNombreProyecto] = useState(initialData?.nombre || "");
    const [tarifaServicio, setTarifaServicio] = useState(0);
    const [notas, setNotas] = useState("");
 
@@ -97,9 +107,8 @@ export function ProyectoForm({ onSubmit, onCancel, loading }: Props) {
 
       setError(null);
 
-      const payload: CreateProyectoExpressForm = {
+      const payload: CreateProyectoForm = {
          cliente_id: clienteId,
-         servicio_id: null,
          nombre: nombreProyecto,
          tarifa_servicio: tarifaServicio,
          cargos_cobrables: cobrables,
@@ -113,7 +122,7 @@ export function ProyectoForm({ onSubmit, onCancel, loading }: Props) {
    const isFormValid = Boolean(clienteId && nombreProyecto.trim());
 
    return (
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} className="space-y-5 ">
          {/* ── Cliente + Tarifa ── */}
          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
