@@ -120,8 +120,12 @@ export default function RolesSettingsPage() {
     }
   };
 
+  // Guarded on `user`, matching the `requireResourcePermission("user")` the
+  // /api/roles endpoints sit behind. The previous `ac` resource is not a
+  // declared statement, so it fell through to the accounts-payable
+  // permissions and let `contable` open the role editor.
   return (
-    <PermissionGuard resource="ac" action="read" mode="page">
+    <PermissionGuard resource="user" action="read" mode="page">
       <header className="flex h-16 shrink-0 items-center gap-2">
         <div className="flex items-center gap-2 px-4">
           <SidebarTrigger className="-ml-1" />
