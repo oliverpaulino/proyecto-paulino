@@ -23,6 +23,7 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
    const { CategoriaEquipos, GetCategoriaEquipos, CreateCategoriaEquipo, UpdateCategoriaEquipo, DeleteCategoriaEquipo } = useCategoriaEquipoStore();
    const { Equipos, GetEquipos } = useEquipoStore();
    const { MedidaCobros, GetMedidaCobros } = useMedidaCobroStore();
+   const [newMetraje, setNewMetraje] = useState<number | null>(null);
 
    // Estados generales y de creación
    const [newNombre, setNewNombre] = useState("");
@@ -34,6 +35,7 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
    const [editId, setEditId] = useState<string | null>(null);
    const [editNombre, setEditNombre] = useState("");
    const [editTarifas, setEditTarifas] = useState<TarifaCategoria[]>([]);
+   const [editMetraje, setEditMetraje] = useState<number | null>(null);
 
    const [busy, setBusy] = useState(false);
    const [manageMedidasOpen, setManageMedidasOpen] = useState(false);
@@ -85,6 +87,7 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
       try {
          const result = await CreateCategoriaEquipo({
             nombre: newNombre.trim(),
+            metraje: newMetraje ?? null,
             tarifas: newTarifas,
          });
 
@@ -104,7 +107,7 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
    function startEdit(cat: CategoriaEquipo) {
       setEditId(cat.id);
       setEditNombre(cat.nombre || ""); // Aseguramos cadena vacía nunca null
-
+      setEditMetraje(cat.metraje);
       // Normalizamos las tarifas para evitar campos undefined
       const normalizedTarifas = (cat.tarifas || []).map(t => ({
          ...t,
@@ -137,6 +140,11 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
          return;
       }
 
+      if (editMetraje !== null && editMetraje < 0) {
+         setError("El metraje no puede ser negativo.");
+         return;
+      }
+
       setBusy(true);
       setError(null);
 
@@ -145,6 +153,7 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
       try {
          const result = await UpdateCategoriaEquipo(id, {
             nombre: editNombre.trim(),
+            metraje: editMetraje ?? null,
             tarifas: editTarifas,
          });
 
@@ -200,6 +209,18 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                         placeholder="Ej: Camión 15m3"
                         disabled={busy}
                         required
+                     />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                     <Label className="text-xs font-bold">Metraje *</Label>
+                     <Input
+                        value={newMetraje ?? ""}
+                        onChange={(e) => setNewMetraje(e.target.value ? Number(e.target.value) : null)}
+                        placeholder="Ej: 15"
+                        disabled={busy}
+                        type="number"
+                        min="0"
                      />
                   </div>
 
@@ -316,6 +337,15 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                                        autoFocus
                                        disabled={busy}
                                     />
+                                    <Input
+                                       type="number"
+                                       min="0"
+                                       value={editMetraje ?? ""}
+                                       onChange={(e) => setEditMetraje(e.target.value ? Number(e.target.value) : null)}
+                                       className="h-8 w-24"
+                                       placeholder="Metraje"
+                                       disabled={busy}
+                                    />
                                     <div className="flex items-center gap-1">
                                        <button
                                           type="button"
@@ -414,7 +444,7 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                         return (
                            <div key={cat.id} className="p-3 flex items-start gap-2">
                               <div className="flex-1 min-w-0">
-                                 <p className="text-sm font-bold truncate">{cat.nombre}</p>
+                                 <p className="text-sm font-bold truncate">{cat.nombre} {cat.metraje !== null ? `(${cat.metraje})` : ""}</p>
                                  <div className="mt-1 flex flex-wrap gap-1">
                                     {cat.tarifas?.map((t, idx) => (
                                        <span key={idx} className="inline-flex capitalize items-center rounded-md bg-brand-blue/10 px-2 py-0.5 text-[10px] font-medium text-brand-blue">

@@ -213,6 +213,7 @@ export interface DB {
    categoria_equipo: {
       id: Generated<string>;
       nombre: string;
+      metraje: number | null;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
@@ -446,6 +447,64 @@ export interface DB {
    proyecto_tarifa: ProyectoTarifaTable; // ← NUEVO (tarifas propias del proyecto)
    // El viejo proyecto_tarifas (ligado a proyecto_equipos) y proyecto_equipos
    // se ELIMINARON — reemplazados por `conduce` + este `proyecto_tarifa`.
+
+   categoria_gasto: {
+      id: Generated<string>;
+      nombre: string;
+      grupo: string;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   }
+
+   gasto: {
+      id: Generated<string>;
+      referencia: Generated<number>;
+      monto_total: number;
+      concepto: string;
+      ncf: string;
+      categoria_gasto_id: string;
+      orden_compra_id: string | null;
+      proyecto_id: string | null;
+      equipo_id: string | null;
+      fecha: Date;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+      deleted_by: string | null;
+      deleted_at: Date | null;
+      deleted_reason: string | null;
+   };
+
+   costo: {
+      id: Generated<string>;
+      proyecto_id: string,
+      monto_total: number,
+      concepto: string,
+      ncf: string;
+      orden_compra_id: string | null;
+      referencia: Generated<number>;
+      fecha: Date;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+      deleted_by: string | null;
+      deleted_at: Date | null;
+      deleted_reason: string | null;
+   };
+
+   deduccion: {
+      id: Generated<string>;
+      empleado_id: string;
+      equipo_id: string | null;
+      monto_total: number;
+      concepto: string;
+      balance_pendiente: number | null;
+      referencia: Generated<number>;
+      fecha: Date;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+      deleted_by: string | null;
+      deleted_at: Date | null;
+      deleted_reason: string | null;
+   };
 }
 
 const db = new Kysely<DB>({

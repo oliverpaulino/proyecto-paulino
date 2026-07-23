@@ -34,6 +34,7 @@ export class KyselyCategoriaEquipoRepository implements ICategoriaEquipoReposito
          .select(({ fn }) => [
             "ce.id",
             "ce.nombre",
+            "ce.metraje",
             "ce.created_at",
             "ce.updated_at",
             fn.coalesce(
@@ -58,6 +59,7 @@ export class KyselyCategoriaEquipoRepository implements ICategoriaEquipoReposito
       return CategoriaEquipo.create({
          id: row.id,
          nombre: row.nombre,
+         metraje: row.metraje,
          tarifas: row.tarifas,
          created_at: new Date(row.created_at),
          updated_at: new Date(row.updated_at),
@@ -71,6 +73,7 @@ export class KyselyCategoriaEquipoRepository implements ICategoriaEquipoReposito
          .select(({ fn }) => [
             "ce.id",
             "ce.nombre",
+            "ce.metraje",
             "ce.created_at",
             "ce.updated_at",
             fn.coalesce(
@@ -93,6 +96,7 @@ export class KyselyCategoriaEquipoRepository implements ICategoriaEquipoReposito
       return rows.map((row: any) => CategoriaEquipo.create({
          id: row.id,
          nombre: row.nombre,
+         metraje: row.metraje,
          tarifas: row.tarifas,
          created_at: new Date(row.created_at),
          updated_at: new Date(row.updated_at),
@@ -106,6 +110,7 @@ export class KyselyCategoriaEquipoRepository implements ICategoriaEquipoReposito
                .insertInto("categoria_equipo")
                .values({
                   nombre: data.nombre,
+                  metraje: data.metraje ?? null,
                   created_at: new Date(),
                   updated_at: new Date(),
                })
@@ -131,6 +136,7 @@ export class KyselyCategoriaEquipoRepository implements ICategoriaEquipoReposito
             return CategoriaEquipo.create({
                id: cat.id,
                nombre: cat.nombre,
+               metraje: cat.metraje,
                tarifas: data.tarifas,
                created_at: new Date(cat.created_at),
                updated_at: new Date(cat.updated_at),
@@ -153,11 +159,12 @@ export class KyselyCategoriaEquipoRepository implements ICategoriaEquipoReposito
    // quedan exactamente iguales.
    async update(id: string, data: UpdateCategoriaEquipoDTO): Promise<CategoriaEquipo | null> {
       try {
+
          return await this.db.transaction().execute(async (trx) => {
             if (data.nombre !== undefined) {
                await trx
                   .updateTable("categoria_equipo")
-                  .set({ nombre: data.nombre, updated_at: new Date() })
+                  .set({ nombre: data.nombre, updated_at: new Date(), metraje: data.metraje ?? null })
                   .where("id", "=", id)
                   .execute();
             }
@@ -223,6 +230,7 @@ export class KyselyCategoriaEquipoRepository implements ICategoriaEquipoReposito
                .select(({ fn }) => [
                   "ce.id",
                   "ce.nombre",
+                  "ce.metraje",
                   "ce.created_at",
                   "ce.updated_at",
                   fn.coalesce(
@@ -247,6 +255,7 @@ export class KyselyCategoriaEquipoRepository implements ICategoriaEquipoReposito
             return CategoriaEquipo.create({
                id: row.id,
                nombre: row.nombre,
+               metraje: row.metraje,
                tarifas: row.tarifas,
                created_at: new Date(row.created_at),
                updated_at: new Date(row.updated_at),

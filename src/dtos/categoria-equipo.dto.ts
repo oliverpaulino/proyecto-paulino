@@ -12,6 +12,7 @@ export const TarifaCategoriaDTO = z.object({
 const CategoriaEquipoDTO = z.object({
    id: z.string(),
    nombre: z.string(),
+   metraje: z.number().nullable(),
    tarifas: z.array(TarifaCategoriaDTO),
    created_at: z.coerce.date(),
    updated_at: z.coerce.date(),
@@ -19,6 +20,7 @@ const CategoriaEquipoDTO = z.object({
 
 const CreateCategoriaEquipoDTO = z.object({
    nombre: z.string().min(1, "El nombre es requerido"),
+   metraje: z.number().nullable(),
    tarifas: z.array(TarifaCategoriaDTO).min(1, "Debe agregar al menos una tarifa"),
 });
 
