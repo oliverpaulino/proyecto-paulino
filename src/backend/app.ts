@@ -20,14 +20,11 @@ import { dgiiProvider } from "./providers/dgii.provider";
 import medidaCobroRoute from "./modules/categoria-equipos/routes/medida-cobro";
 import unitsRoute from "./modules/units/routes/units.routes";
 import userEmployeeLinksRoute from "./modules/user-employee-link/routes/user-employee-link.routes";
-<<<<<<< HEAD
 import conducesRoute from "./modules/conduce/routes/conduce";
-=======
 import categoriaGastosRoute from "./modules/categoria-gastos/routes/categoria-gastos.routes";
 import gastosRoute from "./modules/gastos/routes/gastos.routes";
 import costosRoute from "./modules/costos/routes/costos.routes";
 import deduccionesRoute from "./modules/deducciones/routes/deducciones.routes";
->>>>>>> 6be687c9f2359589acaf0d274683ae5de42a1ec9
 
 const app = new Hono().basePath("/api");
 

@@ -9,12 +9,12 @@ import { useEmployeeStore } from "@/stores/useEmployeeStore";
 import type { Employee, OperadorAsignable } from "@/dtos/employee.dto";
 import { useEquipoStore } from "@/stores/useEquipoStore";
 import { Equipo } from "@/dtos/equipo.dto";
-import { EquipoUsarItem } from "@/app/dashboard/proyectos/components/proyecto-form";
+import { useCategoriaEquipoStore } from "@/stores/useCategoriaEquipoStore";
 
 interface SelectBuscarEquiposProps {
+   tipo: "CAMION" | "EQUIPO";
    value?: string | null;
    initialLabel?: string;
-   exclude?: EquipoUsarItem[];
    onChange: (equipoId: string | number | null, equipo: Equipo | null) => void;
    placeholder?: string;
    disabled?: boolean;
@@ -24,11 +24,12 @@ export function SelectBuscarEquipos({
    value,
    initialLabel = "",
    onChange,
-   exclude = [],
    placeholder = "Buscar equipo por nombre o ID...",
    disabled = false,
+   tipo,
 }: SelectBuscarEquiposProps) {
    const { Equipos, loading, GetEquipos, GetOperadorByEquipoId } = useEquipoStore();
+   const { GetCategoriaEquipos, CategoriaEquipos } = useCategoriaEquipoStore()
    const [operator, setOperator] = useState<OperadorAsignable | null>(null);
    const [isOpen, setIsOpen] = useState(false);
    const [inputValue, setInputValue] = useState(initialLabel);
@@ -63,6 +64,12 @@ export function SelectBuscarEquipos({
       loadOperator();
 
    }, [value, GetOperadorByEquipoId]);
+
+   useEffect(() => {
+      if (tipo) {
+         GetCategoriaEquipos();
+      }
+   }, [GetCategoriaEquipos]);
 
    useEffect(() => {
       setInputValue(initialLabel);
@@ -112,7 +119,22 @@ export function SelectBuscarEquipos({
       setIsOpen(false);
    };
 
-   const equiposFiltrados = Equipos.filter((eq) => !exclude.some((ex) => ex.equipo_id === eq.id))
+   // ── FILTRADO SEGÚN EL TIPO Y LA CATEGORÍA ──
+   const equiposFiltrados = Equipos.filter((eq) => {
+      const categoria = CategoriaEquipos.find((c) => c.id === eq.categoria_id);
+      if (!categoria) return false;
+
+      // 2. Evaluamos si la categoría tiene metraje. 
+      const categoriaTieneMetraje = Boolean(categoria.metraje);
+
+      if (tipo === "CAMION") {
+         // Si es tipo CAMION, solo mostramos los que SU CATEGORÍA SÍ tiene metraje
+         return categoriaTieneMetraje === true;
+      } else {
+         // Si es tipo EQUIPO (Pesado), solo mostramos los que SU CATEGORÍA NO tiene metraje
+         return categoriaTieneMetraje === false;
+      }
+   });
 
    return (
       <div className="relative w-full" ref={containerRef}>

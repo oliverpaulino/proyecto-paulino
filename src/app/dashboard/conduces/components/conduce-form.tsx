@@ -100,17 +100,17 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
    const [procedencia, setProcedencia] = useState("");
    const [destino, setDestino] = useState("");
    const [cantidad, setCantidad] = useState(0);
-   const [firmaChofer, setFirmaChofer] = useState(false);
-   const [firmaRecibido, setFirmaRecibido] = useState(false);
+   const [firmaChofer, setFirmaChofer] = useState(true);
+   const [firmaRecibido, setFirmaRecibido] = useState(true);
 
    // ── Equipo Pesado ──
    const [horarioMananaInicio, setHorarioMananaInicio] = useState("");
    const [horarioMananaFin, setHorarioMananaFin] = useState("");
    const [horarioTardeInicio, setHorarioTardeInicio] = useState("");
    const [horarioTardeFin, setHorarioTardeFin] = useState("");
-   const [combustibleCliente, setCombustibleCliente] = useState(false);
-   const [firmaObservante, setFirmaObservante] = useState(false);
-   const [firmaCamionero, setFirmaCamionero] = useState(false);
+   const [combustibleCliente, setCombustibleCliente] = useState(true);
+   const [firmaObservante, setFirmaObservante] = useState(true);
+   const [firmaCamionero, setFirmaCamionero] = useState(true);
 
    const [error, setError] = useState<string | null>(null);
 
@@ -200,7 +200,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
    function buildPayload(): CreateConduceForm | null {
       if (!clienteId) { setError("El cliente es requerido"); return null; }
       if (!equipoId) { setError(tipoConduce === "CAMION" ? "El equipo (placa) es requerido" : "El equipo es requerido"); return null; }
-      if (!categoriaEquipoTarifaId) { setError("Seleccione la tarifa aplicable"); return null; }
+      // if (!categoriaEquipoTarifaId) { setError("Seleccione la tarifa aplicable"); return null; }
       if (!numeroReferencia.trim()) { setError("El número de referencia (folio) es requerido"); return null; }
       if (!fecha) { setError("La fecha es requerida"); return null; }
 
@@ -284,6 +284,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
       <div className="space-y-1.5">
          <Label>Tarifa Aplicable *</Label>
          <Select value={categoriaEquipoTarifaId} onValueChange={handleTarifaChange} disabled={!categoriaEquipoId}>
+
             <SelectTrigger><SelectValue placeholder={categoriaEquipoId ? "Seleccionar…" : "Elige un equipo primero"} /></SelectTrigger>
             <SelectContent>
                {opcionesTarifa.map((t) => (
@@ -292,9 +293,9 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
                   </SelectItem>
                ))}
                {categoriaEquipoId && opcionesTarifa.length === 0 && (
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                  <SelectItem value={""} disabled>
                      Esta categoría no tiene tarifas configuradas todavía.
-                  </div>
+                  </SelectItem>
                )}
             </SelectContent>
          </Select>
@@ -401,7 +402,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
                   <div className="grid grid-cols-2 gap-4">
                      <div className="space-y-1.5">
                         <Label>Placa / Equipo *</Label>
-                        <SelectBuscarEquipos value={equipoId || null} onChange={(id, equipo) => handleSelectEquipo(id, equipo)} />
+                        <SelectBuscarEquipos tipo="CAMION" value={equipoId || null} onChange={(id, equipo) => handleSelectEquipo(id, equipo)} />
                      </div>
                      {selectorTarifa}
                   </div>
@@ -457,7 +458,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
                   <div className="grid grid-cols-2 gap-4">
                      <div className="space-y-1.5">
                         <Label>Equipo *</Label>
-                        <SelectBuscarEquipos value={equipoId || null} onChange={(id, equipo) => handleSelectEquipo(id, equipo)} />
+                        <SelectBuscarEquipos tipo="EQUIPO" value={equipoId || null} onChange={(id, equipo) => handleSelectEquipo(id, equipo)} />
                      </div>
                      {selectorTarifa}
                   </div>
@@ -610,7 +611,6 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
                />
             </DialogContent>
          </Dialog>
-         {/* ── Modal de Creación de Proyecto ── */}
 
          {/* ── Modal de Creación de Proyecto ── */}
          <Dialog open={isProyectoModalOpen} onOpenChange={setIsProyectoModalOpen}
