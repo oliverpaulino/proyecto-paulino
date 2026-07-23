@@ -402,13 +402,9 @@ export interface DB {
 
    proyecto: {
       id: Generated<string>;
-      tipo_proyecto: string; // 'EXPRESS' | 'NORMAL' | 'GRANDE'
       nombre: string;
       estado: string;       // 'BORRADOR' | 'COMPLETADO' | 'CANCELADO' | 'EN PROGRESO'
       cliente_id: string;
-      servicio_id: string | null;
-      tipo_servicio_snapshot: string | null;
-      tipo_servicio_id: string | null;
       tarifa_servicio: number | null;
 
       total_cobrable: Generated<number>;

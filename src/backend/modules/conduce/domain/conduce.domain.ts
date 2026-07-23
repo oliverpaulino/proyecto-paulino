@@ -141,7 +141,7 @@ export interface ConduceListResult {
 
 export interface IConduceRepository {
    findAll(filtros: ConduceFiltros): Promise<ConduceListResult>;
-   findByProyectoId(proyectoId: string): Promise<ConduceProps[]>;
+   findByProyectoId(proyectoId: string, search?: string, pagination?: { page: number, limit: number }): Promise<ConduceProps[]>;
    findById(id: string): Promise<ConduceProps | null>;
    create(data: CreateConduceDTO): Promise<ConduceProps>;
    update(id: string, data: UpdateConduceDTO): Promise<ConduceProps>;

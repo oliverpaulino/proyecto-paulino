@@ -1,11 +1,8 @@
 import { IConduceRepository } from "../../conduce/domain/conduce.domain";
 import type {
-   IProyectoRepository,
-   CreateProyectoExpressDTO,
-   ProyectoProps,
-   TipoProyecto,
-   LiquidacionExpressFacade,
-   ProyectoTotales,
+   IProyectoRepository, ProyectoProps, ProyectoTotales,
+   CreateProyectoDTO,
+   LiquidacionFacade
 } from "../domain/proyecto.domain";
 
 export class ProyectoService {
@@ -14,10 +11,10 @@ export class ProyectoService {
       private readonly conduceRepo: IConduceRepository
    ) { }
 
-   async getAll(tipo?: TipoProyecto): Promise<ProyectoProps[]> {
+   async getAll(search?: string, pagination?: { page: number, limit: number }): Promise<ProyectoProps[]> {
       // El historial no necesita el detalle de conduces por fila, solo los
       // totales ya cacheados (total_cobrable/total_gasto_interno/total_equipos).
-      return this.repo.findAll(tipo);
+      return this.repo.findAll(search, pagination);
    }
 
    async getById(id: string): Promise<ProyectoProps | null> {
@@ -28,28 +25,28 @@ export class ProyectoService {
       return { ...proyecto, conduces };
    }
 
-   async getByClientId(clienteId: string): Promise<ProyectoProps[]> {
-      const proyectos = await this.repo.findByClientId(clienteId);
+   async getByClientId(clienteId: string, search?: string, pagination?: { page: number, limit: number }): Promise<ProyectoProps[]> {
+      const proyectos = await this.repo.findByClientId(clienteId, search, pagination);
       if (!proyectos || proyectos.length === 0) return [];
       return Promise.all(
          proyectos.map(async (proyecto) => {
-            const conduces = await this.conduceRepo.findByProyectoId(proyecto.id);
+            const conduces = await this.conduceRepo.findByProyectoId(proyecto.id, search, pagination);
             return { ...proyecto, conduces };
          })
       );
    }
 
-   async createExpress(data: CreateProyectoExpressDTO): Promise<ProyectoProps> {
+   async create(data: CreateProyectoDTO): Promise<ProyectoProps> {
       if (!data.cliente_id?.trim()) throw new Error("El cliente es requerido");
-
+      if (!data.nombre?.trim()) throw new Error("El nombre es requerido");
       this.#validateItems(data.cargos_cobrables || [], "cargo cobrable");
       this.#validateItems(data.gastos_internos || [], "gasto interno");
 
-      const proyecto = await this.repo.createExpress(data);
+      const proyecto = await this.repo.create(data);
       return { ...proyecto, conduces: [] }; // recién creado, aún no tiene conduces
    }
 
-   async getLiquidacion(id: string): Promise<LiquidacionExpressFacade | null> {
+   async getLiquidacion(id: string): Promise<LiquidacionFacade | null> {
       const liquidacion = await this.repo.getLiquidacion(id);
       if (!liquidacion) return null;
 
@@ -65,6 +62,7 @@ export class ProyectoService {
    }
 
    #validateItems(
+
       items: Array<{ descripcion: string; cantidad: number; precio_unitario: number }>,
       tipo: string
    ): void {

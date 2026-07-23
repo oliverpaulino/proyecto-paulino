@@ -2,21 +2,23 @@ import { Hono } from "hono";
 import db from "@/backend/database";
 import { KyselyProyectoRepository } from "../infraestructure/proyecto.infraestructure";
 import { ProyectoService } from "../service/proyecto.service";
-import type { TipoProyecto } from "../domain/proyecto.domain";
-import { CreateProyectoExpressDTOSchema } from "@/dtos/proyecto.dto";
 import { auth } from "@/lib/auth";
 import { KyselyConduceRepository } from "../../conduce/infraestructure/conduce.infraestructure";
+import { CreateProyectoDTOSchema } from "@/dtos/proyecto.dto";
 
 const proyectosRoute = new Hono();
 const repo = new KyselyProyectoRepository(db);
 const conduceRepo = new KyselyConduceRepository(db); // ← NUEVO: ProyectoService ahora lo necesita para combinar conduces en getById()/getLiquidacion()
 const service = new ProyectoService(repo, conduceRepo);
 
-// GET /api/proyectos?tipo=EXPRESS|NORMAL|GRANDE
+// GET /api/proyectos?search=...&page=1&limit=10
 proyectosRoute.get("/", async (c) => {
    try {
-      const tipo = c.req.query("tipo") as TipoProyecto | undefined;
-      const proyectos = await service.getAll(tipo);
+      const searchQuery = c.req.query("search") || "";
+      const page = parseInt(c.req.query("page") || "1");
+      const limit = parseInt(c.req.query("limit") || "10");
+      const pagination = { page, limit };
+      const proyectos = await service.getAll(searchQuery, pagination);
       return c.json(proyectos);
    } catch (err: unknown) {
       return c.json({ error: err instanceof Error ? err.message : "Error al obtener proyectos" }, 500);
@@ -38,7 +40,10 @@ proyectosRoute.get("/:id", async (c) => {
 proyectosRoute.get("/cliente/:clientid", async (c) => {
    try {
       const clientId = c.req.param("clientid");
-      const proyectos = await service.getByClientId(clientId); // Obtener todos los proyectos
+      const page = parseInt(c.req.query("page") || "1");
+      const limit = parseInt(c.req.query("limit") || "10");
+      const searchQuery = c.req.query("search") || "";
+      const proyectos = await service.getByClientId(clientId, searchQuery, { page, limit }); // Obtener todos los proyectos
       return c.json(proyectos);
    } catch (err: unknown) {
       return c.json({ error: err instanceof Error ? err.message : "Error" }, 500);
@@ -56,14 +61,15 @@ proyectosRoute.get("/:id/liquidacion", async (c) => {
    }
 });
 
-// POST /api/proyectos/express
-proyectosRoute.post("/express", async (c) => {
+
+// POST /api/proyectos
+proyectosRoute.post("/", async (c) => {
    try {
       const session = await auth.api.getSession({ headers: c.req.raw.headers });
       if (!session?.user) return c.json({ error: "No autenticado" }, 401);
 
       const rawBody = await c.req.json();
-      const validation = CreateProyectoExpressDTOSchema.safeParse(rawBody);
+      const validation = CreateProyectoDTOSchema.safeParse(rawBody);
 
       if (!validation.success) {
          return c.json(
@@ -75,10 +81,10 @@ proyectosRoute.post("/express", async (c) => {
       const body = validation.data;
 
       try {
-         const proyecto = await service.createExpress({
+         const proyecto = await service.create({
             ...body,
-            servicio_id: body.servicio_id ?? null,
             fecha_inicio: body.fecha_inicio ? new Date(body.fecha_inicio) : new Date(),
+            fecha_fin: body.fecha_fin ? new Date(body.fecha_fin) : undefined,
             cargos_cobrables: body.cargos_cobrables ?? [],
             gastos_internos: body.gastos_internos ?? [],
          });

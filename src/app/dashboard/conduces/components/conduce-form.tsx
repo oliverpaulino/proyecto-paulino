@@ -26,9 +26,9 @@ import { SelectBuscarEquipos } from "@/components/select-equipos";
 import type { Equipo } from "@/dtos/equipo.dto";
 import type { CreateConduceForm, TipoConduce } from "@/dtos/conduce.dto";
 import { fechaRD } from "@/lib/utils";
-import { TarifaCategoriaDTO } from "@/dtos/categoria-equipo.dto";
 import { SelectBuscadorClient } from "@/components/shared/selectBuscadorClient";
 import { ClientForm } from "../../clientes/components/client-form";
+import { SelectBuscadorProyecto } from "@/components/shared/selectBuscadorProyecto";
 
 // AÑADIR ESTA IMPORTACIÓN (Ajusta la ruta según tu proyecto)
 
@@ -56,7 +56,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
    const { GetEquipos } = useEquipoStore();
    const { CategoriaEquipos, GetCategoriaEquipos } = useCategoriaEquipoStore();
    const { GetMedidaCobros, getNombre: getNombreMedidaCobro } = useMedidaCobroStore();
-   const { proyectos, GetProyectos, GetProyectosByClientId } = useProyectoStore();
+   const { proyectos } = useProyectoStore();
    const { GetTarifas, getTarifa } = useProyectoTarifaStore();
 
    // ── Estados para el Modal de Crear Cliente ──
@@ -74,19 +74,8 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
       GetMedidaCobros();
 
       // (Opcional) Si quieres que al inicio salgan TODOS los proyectos si no hay cliente:
-      if (!fixedProyectoId) GetProyectos();
-   }, [GetClients, GetEquipos, GetCategoriaEquipos, GetMedidaCobros, GetProyectos, fixedProyectoId]);
+   }, [GetClients, GetEquipos, GetCategoriaEquipos, GetMedidaCobros]);
 
-   // 2. Efecto reactivo: Se dispara SOLO cuando cambia el cliente
-   useEffect(() => {
-      if (clienteId) {
-         GetProyectosByClientId(clienteId, { force: true });
-      } else if (!fixedProyectoId) {
-         // Si el usuario borra el cliente, volvemos a traer todos los proyectos 
-         // (O puedes vaciar la lista dependiendo de cómo funcione tu store)
-         GetProyectos();
-      }
-   }, [clienteId, GetProyectosByClientId, GetProyectos, fixedProyectoId]);
    const [tipoConduce, setTipoConduce] = useState<TipoConduce>("CAMION");
 
 
@@ -94,6 +83,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
    const [numeroReferencia, setNumeroReferencia] = useState("");
    const [fecha, setFecha] = useState(hoyISO());
    const [proyectoId, setProyectoId] = useState(fixedProyectoId ?? "");
+   const [proyectoNombre, setProyectoNombre] = useState("");
    const [clienteTelefono, setClienteTelefono] = useState("");
    const [equipoId, setEquipoId] = useState("");
    const [categoriaEquipoId, setCategoriaEquipoId] = useState("");
@@ -181,6 +171,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
       // NUEVO: Resetea el proyecto seleccionado si se cambia de cliente
       if (!fixedProyectoId) {
          setProyectoId("");
+         setProyectoNombre("")
       }
    }
 
@@ -378,15 +369,20 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
             {!fixedProyectoId && (
                <div className="space-y-1.5">
                   <Label>Proyecto (opcional)</Label>
-                  <Select value={proyectoId || "none"} onValueChange={(v) => setProyectoId(v === "none" ? "" : v)}>
-                     <SelectTrigger><SelectValue placeholder="Sin asignar" /></SelectTrigger>
-                     <SelectContent>
-                        <SelectItem value="none">Sin asignar (asignar después)</SelectItem>
-                        {proyectos.map((p) => (
-                           <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
-                        ))}
-                     </SelectContent>
-                  </Select>
+                  <SelectBuscadorProyecto
+                     value={proyectoId}
+                     initialLabel={proyectoNombre}
+                     clienteId={clienteId} // <-- Pasa el clienteId para que filtre internamente
+                     onChange={(id) => {
+                        setProyectoId(id || "");
+                        if (id) {
+                           const proy = proyectos.find((p) => p.id === id);
+                           setProyectoNombre(proy?.nombre || "");
+                        } else {
+                           setProyectoNombre("");
+                        }
+                     }}
+                  />
                </div>
             )}
 

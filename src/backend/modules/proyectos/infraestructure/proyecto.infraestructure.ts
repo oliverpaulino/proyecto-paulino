@@ -2,12 +2,11 @@ import { Kysely } from "kysely";
 import type { DB } from "@/backend/database";
 import type {
    IProyectoRepository,
-   CreateProyectoExpressDTO,
    ProyectoProps,
    ProyectoDetalleProps,
-   TipoProyecto,
-   LiquidacionExpressFacade,
    ProyectoTotales,
+   LiquidacionFacade,
+   CreateProyectoDTO,
 } from "../domain/proyecto.domain";
 import { ConduceProps } from "../../conduce/domain/conduce.domain";
 
@@ -15,18 +14,16 @@ export class KyselyProyectoRepository implements IProyectoRepository {
 
    constructor(private readonly db: Kysely<DB>) { }
 
-   async findAll(tipo?: TipoProyecto): Promise<ProyectoProps[]> {
+   async findAll(search?: string, pagination?: { page: number, limit: number }): Promise<ProyectoProps[]> {
       let query = this.db
          .selectFrom("proyecto")
          .leftJoin("cliente", "cliente.id", "proyecto.cliente_id")
          .select([
             "proyecto.id",
-            "proyecto.tipo_proyecto",
             "proyecto.estado",
             "proyecto.cliente_id",
             "proyecto.nombre",
             "cliente.nombre as cliente_nombre",
-            "proyecto.tipo_servicio_id",
             "proyecto.tarifa_servicio",
             "proyecto.total_cobrable",
             "proyecto.total_gasto_interno",
@@ -40,8 +37,14 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          ])
          .orderBy("proyecto.created_at", "desc");
 
-      if (tipo) {
-         query = query.where("proyecto.tipo_proyecto", "=", tipo);
+
+      if (search) {
+         query = query.where("proyecto.nombre", "ilike", `%${search}%`);
+      }
+
+      if (pagination) {
+         const { page, limit } = pagination;
+         query = query.offset((page - 1) * limit).limit(limit);
       }
 
       const rows = await query.execute();
@@ -57,12 +60,10 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          .leftJoin("cliente", "cliente.id", "proyecto.cliente_id")
          .select([
             "proyecto.id",
-            "proyecto.tipo_proyecto",
             "proyecto.estado",
             "proyecto.cliente_id",
             "proyecto.nombre",
             "cliente.nombre as cliente_nombre",
-            "proyecto.tipo_servicio_id",
             "proyecto.tarifa_servicio",
             "proyecto.total_cobrable",
             "proyecto.total_gasto_interno",
@@ -91,18 +92,16 @@ export class KyselyProyectoRepository implements IProyectoRepository {
       return this.#mapRow(row, detalle, []);
    }
 
-   async findByClientId(clienteId: string): Promise<ProyectoProps[]> {
-      const rows = await this.db
+   async findByClientId(clienteId: string, search?: string, pagination?: { page: number, limit: number }): Promise<ProyectoProps[]> {
+      let query = this.db
          .selectFrom("proyecto")
          .leftJoin("cliente", "cliente.id", "proyecto.cliente_id")
          .select([
             "proyecto.id",
-            "proyecto.tipo_proyecto",
             "proyecto.estado",
             "proyecto.cliente_id",
             "proyecto.nombre",
             "cliente.nombre as cliente_nombre",
-            "proyecto.tipo_servicio_id",
             "proyecto.tarifa_servicio",
             "proyecto.total_cobrable",
             "proyecto.total_gasto_interno",
@@ -116,30 +115,34 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          ])
          .where("proyecto.cliente_id", "=", clienteId)
          .orderBy("proyecto.created_at", "desc")
-         .execute();
+      if (search) {
+         query = query.where("proyecto.nombre", "ilike", `%${search}%`);
+      }
+      if (pagination) {
+         const { page, limit } = pagination;
+         query = query.offset((page - 1) * limit).limit(limit);
+      }
 
-      console.log("Proyectos encontrados para cliente", clienteId, ":", rows.length);
+      const rows = await query.execute();
 
       return rows.map((r) => this.#mapRow(r, [], []));
    }
 
    // ── Creación: SOLO cabecera + cargos/gastos manuales. El equipo ya no se ──
    // ── registra aquí: se agrega después vía conduces (ver conduce.service). ──
-   async createExpress(data: CreateProyectoExpressDTO): Promise<ProyectoProps> {
+   async create(data: CreateProyectoDTO): Promise<ProyectoProps> {
       const header = await this.db.transaction().execute(async (trx) => {
          const inserted = await trx
             .insertInto("proyecto")
             .values({
                nombre: data.nombre,
-               tipo_proyecto: "EXPRESS",
                estado: "BORRADOR", // antes era COMPLETADO fijo; ahora el proyecto vive en el tiempo mientras se agregan conduces
                cliente_id: data.cliente_id,
-               servicio_id: data.servicio_id ?? null,
-               tipo_servicio_id: data.servicio_id ?? null,
                tarifa_servicio: data.tarifa_servicio ?? 0,
                notas: data.notas ?? null,
                fecha_inicio: data.fecha_inicio ?? new Date(),
                fecha_fin: null,
+
             })
             .returningAll()
             .executeTakeFirstOrThrow();
@@ -177,9 +180,9 @@ export class KyselyProyectoRepository implements IProyectoRepository {
       return proyecto!;
    }
 
-   async getLiquidacion(id: string): Promise<LiquidacionExpressFacade | null> {
+   async getLiquidacion(id: string): Promise<LiquidacionFacade | null> {
       const proyecto = await this.findById(id);
-      if (!proyecto || proyecto.tipo_proyecto !== "EXPRESS") return null;
+      if (!proyecto) return null;
 
       return {
          nombre: proyecto.nombre,
@@ -260,7 +263,6 @@ export class KyselyProyectoRepository implements IProyectoRepository {
       detalle: Array<Record<string, unknown>>,
       conduces: ConduceProps[] = []
    ): ProyectoProps {
-      const tipo = row.tipo_proyecto as string;
 
       const mappedDetalle: ProyectoDetalleProps[] = detalle.map((d) => ({
          id: d.id as string,
@@ -278,6 +280,7 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          id: row.id as string,
          estado: row.estado as ProyectoProps["estado"],
          cliente_id: row.cliente_id as string,
+         tarifa_servicio: Number(row.tarifa_servicio),
          nombre: row.nombre as string,
          cliente_nombre: (row.cliente_nombre as string) ?? undefined,
          total_cobrable: Number(row.total_cobrable),
@@ -293,14 +296,7 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          conduces,
       };
 
-      if (tipo === "EXPRESS") {
-         return {
-            ...base,
-            tipo_proyecto: "EXPRESS",
-            tarifa_servicio: Number(row.tarifa_servicio ?? 0),
-         };
-      }
-      if (tipo === "GRANDE") return { ...base, tipo_proyecto: "GRANDE" };
-      return { ...base, tipo_proyecto: "NORMAL" };
+
+      return { ...base };
    }
 }

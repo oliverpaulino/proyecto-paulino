@@ -1,19 +1,13 @@
-// ⚠️ RECONSTRUCCIÓN: no tenía tu `dtos/proyecto.dto.ts` original (no estaba
-// entre los archivos subidos), así que armé este a partir de cómo lo usan
-// page.tsx, proyecto-table.tsx, proyecto-form.tsx y proyectos.ts (route).
-// Compáralo campo por campo contra tu archivo real antes de reemplazarlo —
-// seguro tiene mensajes de validación / campos que no pude inferir.
-
 import { z } from "zod";
 import type { ConduceDTO } from "./conduce.dto";
 
 // ─── Creación (formulario simplificado: ya NO incluye tarifas ni equipos) ───
-export const CreateProyectoExpressDTOSchema = z.object({
+export const CreateProyectoDTOSchema = z.object({
    nombre: z.string().min(1, "El nombre del proyecto es requerido"),
    cliente_id: z.string().min(1, "El cliente es requerido"),
-   servicio_id: z.string().nullable().optional(),
    notas: z.string().nullable().optional(),
    fecha_inicio: z.string().optional(),
+   fecha_fin: z.string().nullable().optional(),
    tarifa_servicio: z.number().min(0).optional(),
    cargos_cobrables: z
       .array(
@@ -35,11 +29,10 @@ export const CreateProyectoExpressDTOSchema = z.object({
       .optional(),
 });
 
-export type CreateProyectoExpressForm = z.infer<typeof CreateProyectoExpressDTOSchema>;
+export type CreateProyectoForm = z.infer<typeof CreateProyectoDTOSchema>;
 export type LineItemForm = { descripcion: string; cantidad: number; precio_unitario: number };
 
 // ─── Lectura ─────────────────────────────────────────────────────────────
-export type TipoProyecto = "EXPRESS" | "NORMAL" | "GRANDE";
 export type EstadoProyecto = "BORRADOR" | "COMPLETADO" | "EN PROGRESO" | "CANCELADO";
 
 export interface ProyectoDetalle {
@@ -59,6 +52,7 @@ interface ProyectoBase {
    estado: EstadoProyecto;
    nombre: string;
    cliente_id: string;
+   tarifa_servicio: number;
    cliente_nombre?: string;
    total_cobrable: number;
    total_gasto_interno: number;
@@ -73,14 +67,10 @@ interface ProyectoBase {
    updated_at: string;
 }
 
-export type ProyectoExpressDTO = ProyectoBase & {
-   tipo_proyecto: "EXPRESS";
-   tarifa_servicio: number;
-};
-export type ProyectoNormalDTO = ProyectoBase & { tipo_proyecto: "NORMAL" };
-export type ProyectoGrandeDTO = ProyectoBase & { tipo_proyecto: "GRANDE" };
 
-export type Proyecto = ProyectoExpressDTO | ProyectoNormalDTO | ProyectoGrandeDTO;
+
+
+export type Proyecto = ProyectoBase;
 
 // ─── Facade de liquidación (para el PDF) ────────────────────────────────
 export interface LiquidacionExpress {
