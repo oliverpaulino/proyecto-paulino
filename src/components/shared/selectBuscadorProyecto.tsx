@@ -28,10 +28,11 @@ export function SelectBuscadorProyecto({
    const [isOpen, setIsOpen] = useState(false);
    const [inputValue, setInputValue] = useState(initialLabel);
 
-   // NUEVOS ESTADOS PARA PAGINACIÓN
+   // ESTADOS DE PAGINACIÓN Y CONTROL DE ESCRITURA
    const [page, setPage] = useState(1);
    const [hasMore, setHasMore] = useState(true);
    const [localProyectos, setLocalProyectos] = useState<any[]>([]);
+   const [hasTyped, setHasTyped] = useState(false); // NUEVO ESTADO
 
    const containerRef = useRef<HTMLDivElement>(null);
    const observerRef = useRef<IntersectionObserver | null>(null);
@@ -55,23 +56,28 @@ export function SelectBuscadorProyecto({
       return () => document.removeEventListener("mousedown", handleClickOutside);
    }, [value]);
 
-   // Resetear la paginación cada vez que cambie la búsqueda o el cliente
+   // Resetear la paginación y el control de tipeo cada vez que cambie el cliente
    useEffect(() => {
       setPage(1);
       setHasMore(true);
-   }, [debouncedSearch, clienteId]);
+      setHasTyped(false); // Al cambiar de cliente, requerimos una nueva acción o carga limpia
+   }, [clienteId]);
 
-   // Efecto para hacer el fetch acumulativo
+   // Resetear la paginación cuando cambie la búsqueda con debounce
+   useEffect(() => {
+      setPage(1);
+      setHasMore(true);
+   }, [debouncedSearch]);
+
+   // Efecto para hacer el fetch acumulativo controlando hasTyped
    useEffect(() => {
       if (!isOpen) return;
 
       const fetchMoreData = async () => {
-         const searchParam = debouncedSearch.trim();
+         const searchParam = hasTyped ? debouncedSearch.trim() : "";
          const limit = 10;
 
-         let data: any[] = [];
          if (clienteId) {
-            // Nota: Asegúrate de que tu store devuelva los datos o usa el store directamente
             await GetProyectosByClientId(clienteId, { force: true, search: searchParam, page, limit });
          } else {
             await GetProyectos({ force: true, search: searchParam, page, limit });
@@ -79,7 +85,7 @@ export function SelectBuscadorProyecto({
       };
 
       fetchMoreData();
-   }, [debouncedSearch, isOpen, clienteId, page, GetProyectos, GetProyectosByClientId]);
+   }, [debouncedSearch, isOpen, clienteId, page, hasTyped, GetProyectos, GetProyectosByClientId]);
 
    // Sincronizar los proyectos del store con los locales acumulados
    useEffect(() => {
@@ -87,12 +93,10 @@ export function SelectBuscadorProyecto({
          setLocalProyectos(proyectos);
       } else {
          setLocalProyectos((prev) => {
-            // Evitar duplicados combinando por ID
             const newItems = proyectos.filter((p) => !prev.some((existing) => existing.id === p.id));
             return [...prev, ...newItems];
          });
       }
-      // Si la API devuelve menos de lo límite, asumimos que ya no hay más páginas
       if (proyectos.length < 10) {
          setHasMore(false);
       }
@@ -117,6 +121,7 @@ export function SelectBuscadorProyecto({
 
    const handleSelect = (proyecto: any) => {
       setInputValue(proyecto.nombre);
+      setHasTyped(false);
       onChange(proyecto.id);
       setIsOpen(false);
    };
@@ -124,6 +129,7 @@ export function SelectBuscadorProyecto({
    const handleClear = (e: React.MouseEvent) => {
       e.stopPropagation();
       setInputValue("");
+      setHasTyped(false);
       onChange(null);
       setIsOpen(false);
    };
@@ -137,10 +143,14 @@ export function SelectBuscadorProyecto({
                value={inputValue}
                onChange={(e) => {
                   setInputValue(e.target.value);
+                  setHasTyped(true); // Marcamos que el usuario empezó a escribir
                   if (e.target.value === "") onChange(null);
                   if (!isOpen) setIsOpen(true);
                }}
-               onFocus={() => setIsOpen(true)}
+               onFocus={() => {
+                  setHasTyped(false); // Al hacer foco no disparamos búsqueda filtrada de inmediato
+                  setIsOpen(true);
+               }}
                disabled={disabled}
                placeholder={placeholder}
                className="h-10 w-full rounded-md border border-input bg-input/30 pl-9 pr-9 py-2 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
@@ -161,7 +171,6 @@ export function SelectBuscadorProyecto({
                <div className="overflow-y-auto max-h-60 p-1">
                   {localProyectos.length > 0 ? (
                      localProyectos.map((proyecto, index) => {
-                        // Asignamos la referencia al último elemento de la lista
                         const isLast = index === localProyectos.length - 1;
                         return (
                            <div
@@ -183,7 +192,6 @@ export function SelectBuscadorProyecto({
                      </div>
                   ) : null}
 
-                  {/* Indicador de carga inferior al hacer scroll */}
                   {loading && page > 1 && (
                      <div className="py-2 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
                         <Loader2 className="h-3 w-3 animate-spin" /> Cargando más...

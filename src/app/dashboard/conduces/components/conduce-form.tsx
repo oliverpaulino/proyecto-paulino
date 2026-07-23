@@ -402,7 +402,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
                   <div className="grid grid-cols-2 gap-4">
                      <div className="space-y-1.5">
                         <Label>Placa / Equipo *</Label>
-                        <SelectBuscarEquipos tipo="CAMION" value={equipoId || null} onChange={(id, equipo) => handleSelectEquipo(id, equipo)} />
+                        <SelectBuscarEquipos key={tipoConduce} tipo="CAMION" value={equipoId || null} onChange={(id, equipo) => handleSelectEquipo(id, equipo)} />
                      </div>
                      {selectorTarifa}
                   </div>
@@ -458,7 +458,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
                   <div className="grid grid-cols-2 gap-4">
                      <div className="space-y-1.5">
                         <Label>Equipo *</Label>
-                        <SelectBuscarEquipos tipo="EQUIPO" value={equipoId || null} onChange={(id, equipo) => handleSelectEquipo(id, equipo)} />
+                        <SelectBuscarEquipos key={tipoConduce} tipo="EQUIPO" value={equipoId || null} onChange={(id, equipo) => handleSelectEquipo(id, equipo)} />
                      </div>
                      {selectorTarifa}
                   </div>

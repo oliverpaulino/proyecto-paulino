@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,8 +12,9 @@ import {
 } from "@/components/ui/select";
 import { X } from "lucide-react";
 import { useClientStore } from "@/stores/useClientStore";
-import { useProyectoStore } from "@/stores/useProyectoStore";
 import type { ConduceFiltros } from "@/dtos/conduce.dto";
+import { SelectBuscadorClient } from "@/components/shared/selectBuscadorClient";
+import { SelectBuscadorProyecto } from "@/components/shared/selectBuscadorProyecto";
 
 interface Props {
    filtros: ConduceFiltros;
@@ -22,12 +23,24 @@ interface Props {
 
 export function ConduceFiltrosBar({ filtros, onChange }: Props) {
    const { Clients, GetClients } = useClientStore();
-   const { proyectos, GetProyectos } = useProyectoStore();
+
+   // Estados locales para los nombres seleccionados (para los initialLabel de los buscadores)
+   const [clienteNombre, setClienteNombre] = useState("");
+   const [proyectoNombre, setProyectoNombre] = useState("");
 
    useEffect(() => {
       GetClients();
-      GetProyectos();
-   }, [GetClients, GetProyectos]);
+   }, [GetClients]);
+
+   // Sincronizar nombres si los filtros cambian externamente o se limpian
+   useEffect(() => {
+      if (!filtros.cliente_id) {
+         setClienteNombre("");
+      } else {
+         const cliente = Clients.find((c) => c.id === filtros.cliente_id);
+         if (cliente) setClienteNombre(cliente.nombre);
+      }
+   }, [filtros.cliente_id, Clients]);
 
    function set<K extends keyof ConduceFiltros>(key: K, value: ConduceFiltros[K]) {
       onChange({ ...filtros, [key]: value, page: 1 });
@@ -48,30 +61,34 @@ export function ConduceFiltrosBar({ filtros, onChange }: Props) {
             />
          </div>
 
-         <div className="w-44 space-y-1">
+         {/* Buscador de Cliente */}
+         <div className="w-56 space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Cliente</label>
-            <Select value={filtros.cliente_id ?? "all"} onValueChange={(v) => set("cliente_id", v === "all" ? undefined : v)}>
-               <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
-               <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {Clients.map((c) => (
-                     <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>
-                  ))}
-               </SelectContent>
-            </Select>
+            <SelectBuscadorClient
+               value={filtros.cliente_id}
+               initialLabel={clienteNombre}
+               placeholder="Todos los clientes..."
+               onChange={(id) => {
+                  set("cliente_id", id || undefined);
+                  // Si cambia o limpia el cliente, limpiamos también el proyecto seleccionado por coherencia
+                  set("proyecto_id", undefined);
+                  setProyectoNombre("");
+               }}
+            />
          </div>
 
-         <div className="w-44 space-y-1">
+         {/* Buscador de Proyecto (Filtra automáticamente por cliente_id si está seleccionado) */}
+         <div className="w-56 space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Proyecto</label>
-            <Select value={filtros.proyecto_id ?? "all"} onValueChange={(v) => set("proyecto_id", v === "all" ? undefined : v)}>
-               <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
-               <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {proyectos.map((p) => (
-                     <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
-                  ))}
-               </SelectContent>
-            </Select>
+            <SelectBuscadorProyecto
+               value={filtros.proyecto_id}
+               initialLabel={proyectoNombre}
+               clienteId={filtros.cliente_id}
+               placeholder="Todos los proyectos..."
+               onChange={(id) => {
+                  set("proyecto_id", id || undefined);
+               }}
+            />
          </div>
 
          <div className="w-40 space-y-1">
@@ -114,7 +131,16 @@ export function ConduceFiltrosBar({ filtros, onChange }: Props) {
          </div>
 
          {hayFiltrosActivos && (
-            <Button type="button" variant="ghost" size="sm" onClick={() => onChange({ page: 1, pageSize: filtros.pageSize })}>
+            <Button
+               type="button"
+               variant="ghost"
+               size="sm"
+               onClick={() => {
+                  setClienteNombre("");
+                  setProyectoNombre("");
+                  onChange({ page: 1, pageSize: filtros.pageSize });
+               }}
+            >
                <X className="size-4 mr-1" /> Limpiar filtros
             </Button>
          )}
