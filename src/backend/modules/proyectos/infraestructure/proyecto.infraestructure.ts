@@ -91,6 +91,36 @@ export class KyselyProyectoRepository implements IProyectoRepository {
       return this.#mapRow(row, detalle, []);
    }
 
+   async findByClientId(clienteId: string): Promise<ProyectoProps[]> {
+      const rows = await this.db
+         .selectFrom("proyecto")
+         .leftJoin("cliente", "cliente.id", "proyecto.cliente_id")
+         .select([
+            "proyecto.id",
+            "proyecto.tipo_proyecto",
+            "proyecto.estado",
+            "proyecto.cliente_id",
+            "proyecto.nombre",
+            "cliente.nombre as cliente_nombre",
+            "proyecto.tipo_servicio_id",
+            "proyecto.tarifa_servicio",
+            "proyecto.total_cobrable",
+            "proyecto.total_gasto_interno",
+            "proyecto.total_equipos",
+            "proyecto.rentabilidad",
+            "proyecto.notas",
+            "proyecto.fecha_inicio",
+            "proyecto.fecha_fin",
+            "proyecto.created_at",
+            "proyecto.updated_at",
+         ])
+         .where("proyecto.cliente_id", "=", clienteId)
+         .orderBy("proyecto.created_at", "desc")
+         .execute();
+
+      return rows.map((r) => this.#mapRow(r, [], []));
+   }
+
    // ── Creación: SOLO cabecera + cargos/gastos manuales. El equipo ya no se ──
    // ── registra aquí: se agrega después vía conduces (ver conduce.service). ──
    async createExpress(data: CreateProyectoExpressDTO): Promise<ProyectoProps> {

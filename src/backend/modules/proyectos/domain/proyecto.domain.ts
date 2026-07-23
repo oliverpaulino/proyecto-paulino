@@ -105,6 +105,7 @@ export interface LiquidacionExpressFacade {
 export interface IProyectoRepository {
    findAll(tipo?: TipoProyecto): Promise<ProyectoProps[]>;
    findById(id: string): Promise<ProyectoProps | null>;
+   findByClientId(clienteId: string): Promise<ProyectoProps[]>;
    createExpress(data: CreateProyectoExpressDTO): Promise<ProyectoProps>;
    getLiquidacion(id: string): Promise<LiquidacionExpressFacade | null>;
    // ← NUEVO: recalcula y persiste los totales de un proyecto a partir de

@@ -34,6 +34,17 @@ proyectosRoute.get("/:id", async (c) => {
    }
 });
 
+// GET /api/proyectos/:clientid
+proyectosRoute.get("/cliente/:clientid", async (c) => {
+   try {
+      const clientId = c.req.param("clientid");
+      const proyectos = await service.getByClientId(clientId); // Obtener todos los proyectos
+      return c.json(proyectos);
+   } catch (err: unknown) {
+      return c.json({ error: err instanceof Error ? err.message : "Error" }, 500);
+   }
+});
+
 // GET /api/proyectos/:id/liquidacion — datos consolidados para el PDF (Facade)
 proyectosRoute.get("/:id/liquidacion", async (c) => {
    try {

@@ -12,6 +12,7 @@ type ProyectoStore = {
    _fetchedLists: Set<string>;
 
    GetProyectos: (tipo?: TipoProyecto, opts?: { force?: boolean }) => Promise<void>;
+   GetProyectosByClientId: (clienteId: string, opts?: { force?: boolean }) => Promise<void>;
    CreateExpressProyecto: (form: CreateProyectoExpressForm) => Promise<Proyecto | Error>;
    GetLiquidacion: (id: string) => Promise<LiquidacionExpress | Error>;
    invalidateCache: () => void;
@@ -41,6 +42,26 @@ export const useProyectoStore = create<ProyectoStore>((set, get) => ({
          }));
       } catch (error) {
          console.error("Error fetching proyectos:", error);
+         throw error;
+      } finally {
+         set({ loading: false });
+      }
+   },
+
+   GetProyectosByClientId: async (clienteId, { force = false } = {}) => {
+      const cacheKey = `client-${clienteId}`;
+      if (!force && get()._fetchedLists.has(cacheKey)) return;
+      set({ loading: true });
+      try {
+         const res = await fetch(`/api/proyectos?cliente_id=${clienteId}`);
+         if (!res.ok) throw new Error("Error al cargar proyectos por cliente");
+         const data: Proyecto[] = await res.json();
+         set((s) => ({
+            proyectos: data,
+            _fetchedLists: new Set(s._fetchedLists).add(cacheKey),
+         }));
+      } catch (error) {
+         console.error("Error fetching proyectos by client:", error);
          throw error;
       } finally {
          set({ loading: false });
