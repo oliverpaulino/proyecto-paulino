@@ -53,7 +53,7 @@ export const useProyectoStore = create<ProyectoStore>((set, get) => ({
       if (!force && get()._fetchedLists.has(cacheKey)) return;
       set({ loading: true });
       try {
-         const res = await fetch(`/api/proyectos?cliente_id=${clienteId}`);
+         const res = await fetch(`/api/proyectos/cliente/${clienteId}`);
          if (!res.ok) throw new Error("Error al cargar proyectos por cliente");
          const data: Proyecto[] = await res.json();
          set((s) => ({

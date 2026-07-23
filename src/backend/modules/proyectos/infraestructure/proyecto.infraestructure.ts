@@ -118,6 +118,8 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          .orderBy("proyecto.created_at", "desc")
          .execute();
 
+      console.log("Proyectos encontrados para cliente", clienteId, ":", rows.length);
+
       return rows.map((r) => this.#mapRow(r, [], []));
    }
 

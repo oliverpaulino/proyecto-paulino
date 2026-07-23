@@ -34,7 +34,7 @@ proyectosRoute.get("/:id", async (c) => {
    }
 });
 
-// GET /api/proyectos/:clientid
+// GET /api/proyectos/cliente/:clientid
 proyectosRoute.get("/cliente/:clientid", async (c) => {
    try {
       const clientId = c.req.param("clientid");

@@ -66,15 +66,27 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
    const [clienteId, setClienteId] = useState("");
    const [clienteNombre, setClienteNombre] = useState("");
 
+   // 1. Carga inicial (Solo se ejecuta al cargar el componente)
    useEffect(() => {
       GetClients();
       GetEquipos();
       GetCategoriaEquipos();
       GetMedidaCobros();
-      if (clienteId) GetProyectosByClientId(clienteId);
-      if (!fixedProyectoId) GetProyectos();
-   }, [GetClients, GetEquipos, GetCategoriaEquipos, GetMedidaCobros, GetProyectos, GetProyectosByClientId, fixedProyectoId, clienteId]);
 
+      // (Opcional) Si quieres que al inicio salgan TODOS los proyectos si no hay cliente:
+      if (!fixedProyectoId) GetProyectos();
+   }, [GetClients, GetEquipos, GetCategoriaEquipos, GetMedidaCobros, GetProyectos, fixedProyectoId]);
+
+   // 2. Efecto reactivo: Se dispara SOLO cuando cambia el cliente
+   useEffect(() => {
+      if (clienteId) {
+         GetProyectosByClientId(clienteId, { force: true });
+      } else if (!fixedProyectoId) {
+         // Si el usuario borra el cliente, volvemos a traer todos los proyectos 
+         // (O puedes vaciar la lista dependiendo de cómo funcione tu store)
+         GetProyectos();
+      }
+   }, [clienteId, GetProyectosByClientId, GetProyectos, fixedProyectoId]);
    const [tipoConduce, setTipoConduce] = useState<TipoConduce>("CAMION");
 
 
@@ -165,6 +177,11 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
       const cliente = Clients.find((c) => c.id === id) as { telefono?: string | null; nombre?: string | null } | undefined;
       setClienteTelefono(cliente?.telefono ?? "");
       setClienteNombre(cliente?.nombre ?? "");
+
+      // NUEVO: Resetea el proyecto seleccionado si se cambia de cliente
+      if (!fixedProyectoId) {
+         setProyectoId("");
+      }
    }
 
    function handleSelectEquipo(id: string | number | null, equipo: Equipo | null) {
