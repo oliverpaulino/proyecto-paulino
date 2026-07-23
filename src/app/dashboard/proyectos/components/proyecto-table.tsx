@@ -46,7 +46,7 @@ export function ProyectoTable({ proyectos }: Props) {
                   // total_equipos ahora viene cacheado desde el backend (suma
                   // de conduces), ya no se calcula aquí — antes `p.detalle`
                   // venía vacío en el historial y esta columna siempre daba 0.
-                  const tarifa = p.tipo_proyecto === "EXPRESS" ? p.tarifa_servicio : 0;
+                  const tarifa = p.tarifa_servicio !== undefined ? p.tarifa_servicio : 0;
                   const rent = p.rentabilidad;
 
                   return (

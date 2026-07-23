@@ -16,7 +16,7 @@ import {
    DialogTrigger,
 } from "@/components/ui/dialog";
 import { ArrowLeft, Loader2, FileText, Receipt, Plus } from "lucide-react";
-import type { Proyecto, ProyectoExpressDTO } from "@/dtos/proyecto.dto";
+import type { Proyecto } from "@/dtos/proyecto.dto";
 import type { CreateConduceForm } from "@/dtos/conduce.dto";
 import { generateProyectoInternoPDF } from "@/lib/pdf/proyecto-interno-pdf";
 import { generateProyectoFacturaPDF } from "@/lib/pdf/proyecto-factura-pdf";
@@ -45,7 +45,7 @@ export default function ProyectoDetailPage() {
 
    const { conduces, loading: conducesLoading, GetConducesByProyecto, CreateConduce, DeleteConduce } = useConduceStore();
 
-   const [proyecto, setProyecto] = useState<ProyectoExpressDTO | null>(null);
+   const [proyecto, setProyecto] = useState<Proyecto | null>(null);
    const [loading, setLoading] = useState(true);
    const [pdfLoading, setPdfLoading] = useState<"interno" | "factura" | null>(null);
    const [conduceDialogOpen, setConduceDialogOpen] = useState(false);
@@ -58,7 +58,7 @@ export default function ProyectoDetailPage() {
       const res = await fetch(`/api/proyectos/${proyectoId}`);
       if (res.ok) {
          const data: Proyecto = await res.json();
-         if (data.tipo_proyecto === "EXPRESS") setProyecto(data);
+         setProyecto(data);
       }
    }
 
@@ -151,7 +151,7 @@ export default function ProyectoDetailPage() {
                      </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                     Proyecto Express · {new Date(proyecto.fecha_inicio).toLocaleDateString("es-DO")}
+                     Proyecto · {new Date(proyecto.fecha_inicio).toLocaleDateString("es-DO")}
                   </p>
                </div>
             </div>
@@ -303,7 +303,7 @@ function StatBox({ label, value, accent }: { label: string; value: string; accen
    );
 }
 
-function DetalleTable({ rows }: { rows: ProyectoExpressDTO["detalle"] }) {
+function DetalleTable({ rows }: { rows: Proyecto["detalle"] }) {
    if (rows.length === 0) {
       return <div className="flex items-center justify-center p-8 text-sm text-muted-foreground">Sin registros.</div>;
    }

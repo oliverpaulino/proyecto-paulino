@@ -94,7 +94,7 @@ proyectosRoute.post("/", async (c) => {
       }
    } catch (err: unknown) {
       return c.json(
-         { error: err instanceof Error ? err.message : "Error al registrar proyecto express" },
+         { error: err instanceof Error ? err.message : "Error al registrar proyecto" },
          500
       );
    }

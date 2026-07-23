@@ -41,9 +41,6 @@ export type ProyectoProps = {
    updated_at: Date;
 };
 
-// ─── DTO de creación — Proyecto Express ──────────────────────────────────────
-// `tarifas` y `equipos` se eliminaron: el equipo ya no se registra al crear
-// el proyecto, se registra después vía conduces uno por uno.
 export interface CreateProyectoDTO {
    nombre: string;
    cliente_id: string;
