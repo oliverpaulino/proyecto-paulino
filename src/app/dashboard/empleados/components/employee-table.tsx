@@ -68,15 +68,16 @@ export function EmployeeTable({ employees, onEdit, onDelete }: EmployeeTableProp
                {employees.map((employee) => (
                   <tr
                      key={employee.id}
-                     className="border-t border-border hover:bg-brand-blue/5 transition-colors"
+                     className="border-t border-border hover:bg-brand-yellow/5 transition-colors cursor-pointer"
+                     onClick={() => router.push(`/dashboard/empleados/${employee.id}`)}
                   >
-                     <td className="px-4 py-3 hover:bg-brand-yellow/25 transition-colors">
-                        <Link href={`/dashboard/empleados/${employee.id}`} className="" >
-                           <div className="text-xs text-muted-foreground">{employee.tipo_identificacion}</div>
-                           <span className="inline-block rounded bg-brand-yellow/25  px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-black dark:text-brand-yellow">
-                              {employee.identificacion}
-                           </span>
-                        </Link>
+                     <td className="px-4 py-3  transition-colors">
+                        {/* <Link href={`/dashboard/empleados/${employee.id}`} className="" > */}
+                        <div className="text-xs text-muted-foreground">{employee.tipo_identificacion}</div>
+                        <span className="inline-block rounded bg-brand-yellow/25  px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-black dark:text-brand-yellow">
+                           {employee.identificacion}
+                        </span>
+                        {/* </Link> */}
                      </td>
                      <td className="px-4 py-3">
                         <div className="font-semibold text-brand-blue dark:text-white">{employee.nombre}</div>
@@ -122,12 +123,12 @@ export function EmployeeTable({ employees, onEdit, onDelete }: EmployeeTableProp
                            </button>
 
                            <DropdownMenu modal={false}>
-                              <DropdownMenuTrigger asChild>
-                                 <Button variant="ghost" className="h-8 w-8 p-0">
+                              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                 <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-brand-blue/10">
                                     <MoreHorizontal className="h-4 w-4" />
                                  </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
+                              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                                  <DropdownMenuItem
                                     onClick={() => router.push(`/dashboard/empleados/${employee.id}`)}
                                  >

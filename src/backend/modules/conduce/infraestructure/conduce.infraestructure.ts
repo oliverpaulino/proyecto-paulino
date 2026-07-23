@@ -74,6 +74,7 @@ export class KyselyConduceRepository implements IConduceRepository {
          qb
             .$if(!!filtros.proyecto_id, (q: any) => q.where("conduce.proyecto_id", "=", filtros.proyecto_id))
             .$if(!!filtros.cliente_id, (q: any) => q.where("conduce.cliente_id", "=", filtros.cliente_id))
+            .$if(!!filtros.empleado_id, (q: any) => q.where("conduce.empleado_id", "=", filtros.empleado_id))
             .$if(!!filtros.tipo_conduce, (q: any) => q.where("conduce.tipo_conduce", "=", filtros.tipo_conduce))
             .$if(filtros.es_cobrable !== undefined, (q: any) => q.where("conduce.es_cobrable", "=", filtros.es_cobrable))
             .$if(!!filtros.fecha_desde, (q: any) => q.where("conduce.fecha", ">=", filtros.fecha_desde))
@@ -86,6 +87,8 @@ export class KyselyConduceRepository implements IConduceRepository {
                   ])
                )
             );
+
+      console.log("Filtros aplicados:", filtros);
 
       const query = aplicarFiltros(this.#baseQuery())
          .orderBy("conduce.fecha", "desc")
@@ -131,6 +134,9 @@ export class KyselyConduceRepository implements IConduceRepository {
          .executeTakeFirst();
       if (!equipo) throw new Error("Equipo no encontrado");
 
+      const categoria = await this.db.selectFrom("categoria_equipo").selectAll().where("id", "=", equipo.categoria_id).executeTakeFirst();
+      if (!categoria) throw new Error("Categoría de equipo no encontrada");
+
       // Snapshot: se resuelve el nombre de la tarifa + medida de cobro UNA
       // VEZ, al momento de registrar. De aquí en adelante el conduce ya no
       // depende de que categoria_equipo_tarifa.id siga existiendo (tu
@@ -164,7 +170,7 @@ export class KyselyConduceRepository implements IConduceRepository {
       let subtotal: number;
 
       if (data.tipo_conduce === "CAMION") {
-         subtotal = data.cantidad * data.precio_unitario;
+         subtotal = data.cantidad * (categoria.metraje ?? 1) * data.precio_unitario;
          specific = {
             procedencia: data.procedencia,
             destino: data.destino,
@@ -198,6 +204,9 @@ export class KyselyConduceRepository implements IConduceRepository {
 
    async update(id: string, data: UpdateConduceDTO): Promise<ConduceProps> {
       const current = await this.findById(id);
+      const equipo = await this.db.selectFrom("equipo").selectAll().where("id", "=", (current?.equipo_id || "")).executeTakeFirst();
+      if (!equipo) throw new Error("Equipo no encontrado");
+      const categoria = await this.db.selectFrom("categoria_equipo").selectAll().where("id", "=", equipo.categoria_id).executeTakeFirst();
       if (!current) throw new Error("Conduce no encontrado");
 
       const cantidadNueva = "cantidad" in data ? data.cantidad : undefined;
@@ -207,7 +216,7 @@ export class KyselyConduceRepository implements IConduceRepository {
       let subtotal: number;
       if (current.tipo_conduce === "CAMION") {
          const cantidad = cantidadNueva ?? current.cantidad;
-         subtotal = (cantidad ?? 0) * precio;
+         subtotal = (cantidad ?? 0) * (categoria?.metraje ?? 1) * precio;
       } else {
          const horas = horasNuevas ?? current.total_horas;
          subtotal = (horas ?? 0) * precio;

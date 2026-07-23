@@ -41,6 +41,7 @@ import { EmployeeForm, type OperadorFormData } from "../../components/employee-f
 import { DeleteEmployeeDialog } from "../../components/delete-employee-dialog";
 import StatCard from "./StatCard";
 import { EmployeeConceptsWidget } from "../../conceptos/components/concept-employee-widget";
+import { EmployeeConduces } from "./employee-conduces";
 
 const ROL_LABEL: Record<string, string> = {
    OPERADOR: "Operador",
@@ -175,9 +176,11 @@ export default function EmployeeDetailView() {
                <TabsTrigger value="resumen" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
                   Resumen
                </TabsTrigger>
-               <TabsTrigger value="conceptos" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
-                  Conceptos
-               </TabsTrigger>
+               {empleado.rol === "OPERADOR" && (
+                  <TabsTrigger value="conduces" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                     Conduces
+                  </TabsTrigger>
+               )}
             </TabsList>
 
             {/* ── RESUMEN ── */}
@@ -294,22 +297,20 @@ export default function EmployeeDetailView() {
             </TabsContent>
 
             {/* ── CONCEPTOS ── */}
-            <TabsContent value="conceptos" className="space-y-4">
-               <Card>
-                  <CardHeader>
-                     <CardTitle>Conceptos</CardTitle>
-                     <CardDescription>Bonos, descuentos, amonestaciones y otros conceptos aplicados al empleado.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                     <div className="grid gap-4 md:grid-cols-3">
-                        <MiniStat label="Bonos" value="0" />
-                        <MiniStat label="Descuentos" value="0" />
-                        <MiniStat label="Amonestaciones" value="0" />
-                     </div>
-                     <EmployeeConceptsWidget employeeId={empleadoId} />
-                  </CardContent>
-               </Card>
-            </TabsContent>
+            {empleado.rol === "OPERADOR" && (
+
+               <TabsContent value="conduces" className="space-y-4">
+                  <Card>
+                     <CardHeader>
+                        <CardTitle>Conduces</CardTitle>
+                        <CardDescription>Información sobre los conduces del empleado.</CardDescription>
+                     </CardHeader>
+                     <CardContent>
+                        <EmployeeConduces empleadoId={empleadoId} />
+                     </CardContent>
+                  </Card>
+               </TabsContent>
+            )}
          </Tabs>
 
          {/* Edit Dialog */}

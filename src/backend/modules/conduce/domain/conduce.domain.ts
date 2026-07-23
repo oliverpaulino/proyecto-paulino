@@ -122,6 +122,7 @@ export type UpdateConduceDTO = Partial<Omit<CreateConduceCamionDTO, "tipo_conduc
 // ─── Filtros de búsqueda (registro general con grandes volúmenes) ───────
 export interface ConduceFiltros {
    proyecto_id?: string;
+   empleado_id?: string;
    cliente_id?: string;
    tipo_conduce?: TipoConduce;
    es_cobrable?: boolean;

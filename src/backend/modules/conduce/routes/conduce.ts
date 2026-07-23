@@ -18,6 +18,7 @@ conducesRoute.get("/", async (c) => {
       const q = c.req.query();
       const filtros: ConduceFiltros = {
          proyecto_id: q.proyecto_id || undefined,
+         empleado_id: q.empleado_id || undefined,
          cliente_id: q.cliente_id || undefined,
          tipo_conduce: (q.tipo_conduce as ConduceFiltros["tipo_conduce"]) || undefined,
          es_cobrable: q.es_cobrable === "true" ? true : q.es_cobrable === "false" ? false : undefined,

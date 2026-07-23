@@ -99,6 +99,7 @@ export type TipoConduce = ConduceDTO["tipo_conduce"];
 
 export interface ConduceFiltros {
    proyecto_id?: string;
+   empleado_id?: string;
    cliente_id?: string;
    tipo_conduce?: TipoConduce;
    es_cobrable?: boolean;

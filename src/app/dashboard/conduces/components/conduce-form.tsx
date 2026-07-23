@@ -108,7 +108,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
    const [horarioMananaFin, setHorarioMananaFin] = useState("");
    const [horarioTardeInicio, setHorarioTardeInicio] = useState("");
    const [horarioTardeFin, setHorarioTardeFin] = useState("");
-   const [combustibleCliente, setCombustibleCliente] = useState(true);
+   const [combustibleCliente, setCombustibleCliente] = useState(false);
    const [firmaObservante, setFirmaObservante] = useState(true);
    const [firmaCamionero, setFirmaCamionero] = useState(true);
 
@@ -146,15 +146,15 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
       setProcedencia("");
       setDestino("");
       setCantidad(0);
-      setFirmaChofer(false);
-      setFirmaRecibido(false);
+      setFirmaChofer(true);
+      setFirmaRecibido(true);
       setHorarioMananaInicio("");
       setHorarioMananaFin("");
       setHorarioTardeInicio("");
       setHorarioTardeFin("");
-      setCombustibleCliente(false);
-      setFirmaObservante(false);
-      setFirmaCamionero(false);
+      setCombustibleCliente(true);
+      setFirmaObservante(true);
+      setFirmaCamionero(true);
    }
 
    function handleCambiarTipo(tipo: TipoConduce) {
@@ -255,9 +255,9 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
       const payload = buildPayload();
       if (!payload) return;
 
-      await onSubmit(payload);
-
       if (seguirRegistrando) {
+         // 1. LIMPIEZA INMEDIATA (Optimista)
+         // Reseteamos los campos al instante para que el usuario pueda escribir el siguiente conduce sin esperar
          setNumeroReferencia("");
          setEquipoId("");
          setCategoriaEquipoId("");
@@ -275,6 +275,18 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
             setFirmaObservante(false);
             setFirmaCamionero(false);
          }
+      } else {
+         // Si es "Guardar y Cerrar", cerramos el modal de inmediato
+         onCancel();
+      }
+
+      // 2. PETICIÓN EN SEGUNDO PLANO (Background Mutation)
+      // Disparamos la acción sin bloquear la pantalla con un "loading" global
+      try {
+         await onSubmit(payload);
+      } catch (error) {
+         // Si falla, aquí puedes disparar una alerta tipo Toast (ej: sonner o shadcn toast)
+         console.error("Error al guardar el conduce en segundo plano:", error);
       }
    }
 
@@ -420,15 +432,20 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
 
                   <div className="grid grid-cols-2 gap-4">
                      <div className="space-y-1.5">
-                        <Label htmlFor="cantidad">{tarifaSeleccionada?.medida_cobro_nombre ?? "Cantidad"} *</Label>
+                        <Label htmlFor="cantidad">
+                           {tarifaSeleccionada?.medida_cobro_nombre?.toLowerCase().includes("viaje")
+                              ? "Cantidad de Viajes *"
+                              : "Cantidad / Viajes *"}
+                        </Label>
                         <Input
                            id="cantidad"
                            type="number"
                            min={0}
-                           step="0.5"
+                           step="1" // Usualmente los viajes son números enteros (1, 2, 3...)
                            value={cantidad}
                            onChange={(e) => setCantidad(Number(e.target.value))}
                         />
+
                      </div>
                      <div className="space-y-1.5">
                         <Label htmlFor="precio-camion">
