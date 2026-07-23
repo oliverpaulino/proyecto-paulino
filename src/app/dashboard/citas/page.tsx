@@ -11,6 +11,7 @@ import { type CreateAppointmentForm } from "@/dtos/appointment.dto";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AppointmentForm } from "./components/appointment-form";
 import { AppointmentFilters } from "./components/appointment-filters";
+import { PermissionGuard } from "@/components/permission-guard";
 
 export default function CitasPageWrapper() {
    const [formLoading, setFormLoading] = useState(false);
@@ -31,7 +32,8 @@ export default function CitasPageWrapper() {
    }
 
    return (
-      <div className="flex flex-col flex-1 min-w-0 h-[calc(100dvh-3rem)] p-4 md:p-6 gap-6">                  
+      <PermissionGuard resource="appointment" action="read">
+      <div className="flex flex-col flex-1 min-w-0 h-[calc(100dvh-3rem)] p-4 md:p-6 gap-6">
          <div className="shrink-0">
             <div className="flex items-center gap-3">
                <div className="h-9 w-1.5 rounded-full bg-brand-yellow" />
@@ -54,9 +56,11 @@ export default function CitasPageWrapper() {
                   </TabsTrigger>
                </TabsList>
             
-               <Button className="w-full sm:w-auto" onClick={() => setCreateOpen(true)}>
-                  <Plus className="size-4 mr-2" /> Agendar Cita
-               </Button>
+               <PermissionGuard resource="appointment" action="create">
+                  <Button className="w-full sm:w-auto" onClick={() => setCreateOpen(true)}>
+                     <Plus className="size-4 mr-2" /> Agendar Cita
+                  </Button>
+               </PermissionGuard>
             </div>
 
             <AppointmentFilters viewLimit={activeTab === "lista" ? 20 : 100} />
@@ -83,5 +87,6 @@ export default function CitasPageWrapper() {
             </DialogContent>
          </Dialog>
       </div>
+      </PermissionGuard>
    );
 }

@@ -41,6 +41,7 @@ import { EmployeeForm, type OperadorFormData } from "../components/employee-form
 import { DeleteEmployeeDialog } from "../components/delete-employee-dialog";
 import StatCard from "./components/StatCard";
 import { EmployeeConceptsWidget } from "../conceptos/components/concept-employee-widget";
+import { PermissionGuard } from "@/components/permission-guard";
 
 const ROL_LABEL: Record<string, string> = {
    OPERADOR: "Operador",
@@ -122,6 +123,7 @@ export default function EmployeeDetailPage() {
 
 
    return (
+      <PermissionGuard resource="users" action="read">
       <div className="flex flex-col gap-6 p-6">
          {/* Header */}
          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -159,14 +161,18 @@ export default function EmployeeDetailPage() {
                   <Contact className="mr-2 size-4" />
                   Contactos
                </Button>
+               <PermissionGuard resource="users" action="update">
                <Button variant="outline" onClick={() => setEditOpen(true)}>
                   <Pencil className="mr-2 size-4" />
                   Editar
                </Button>
+               </PermissionGuard>
+               <PermissionGuard resource="users" action="delete">
                <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
                   <Trash2 className="mr-2 size-4" />
                   Eliminar
                </Button>
+               </PermissionGuard>
             </div>
          </div>
 
@@ -339,6 +345,7 @@ export default function EmployeeDetailPage() {
             loading={actionLoading}
          />
       </div>
+      </PermissionGuard>
    );
 }
 

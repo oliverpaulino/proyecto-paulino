@@ -35,6 +35,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { PermissionGuard } from "@/components/permission-guard";
 
 const ROLES = ["usuario", "asistente", "coordinador", "contable", "administrador"] as const;
 type Role = (typeof ROLES)[number];
@@ -103,6 +104,7 @@ export default function UsersPage() {
   };
 
   return (
+    <PermissionGuard resource="user" action="read">
     <div className="flex flex-1 flex-col gap-4 w-full max-w-5xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
       <div className="flex items-center justify-between">
         <div>
@@ -110,6 +112,7 @@ export default function UsersPage() {
           <p className="text-muted-foreground text-sm">Gestiona los usuarios y sus roles</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
+          <PermissionGuard resource="user" action="create">
           <DialogTrigger>
             <Button asChild>
               <span>
@@ -118,6 +121,7 @@ export default function UsersPage() {
               </span>
             </Button>
           </DialogTrigger>
+          </PermissionGuard>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Crear usuario</DialogTitle>
@@ -222,10 +226,12 @@ export default function UsersPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <PermissionGuard resource="user" action="update">
                         <DropdownMenuItem onClick={() => router.push(`/dashboard/settings/users/${user.id}`)}>
                           <Pencil className="mr-2 h-4 w-4" />
                           Editar
                         </DropdownMenuItem>
+                        </PermissionGuard>
                         {ROLES.map((r) => (
                           <DropdownMenuItem
                             key={r}
@@ -236,6 +242,7 @@ export default function UsersPage() {
                             Asignar: {r}
                           </DropdownMenuItem>
                         ))}
+                        <PermissionGuard resource="user" action="delete">
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
                           onClick={() => handleDelete(user.id)}
@@ -243,6 +250,7 @@ export default function UsersPage() {
                           <Trash2 className="mr-2 h-4 w-4" />
                           Eliminar
                         </DropdownMenuItem>
+                        </PermissionGuard>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </td>
@@ -253,5 +261,6 @@ export default function UsersPage() {
         </table>
       </div>
     </div>
+    </PermissionGuard>
   );
 }

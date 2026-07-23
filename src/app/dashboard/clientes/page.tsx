@@ -18,6 +18,7 @@ import { ClientForm } from "./components/client-form";
 import { ClientTable } from "./components/client-table";
 import { DeleteClientDialog } from "./components/delete-client-dialog";
 import { TableSearch } from "@/components/table-search";
+import { PermissionGuard } from "@/components/permission-guard";
 
 import { TipoIdentificacion } from "@/dtos/schema.dto";
 import { TipoCliente } from "@/dtos/client.dto";
@@ -135,6 +136,7 @@ export default function ClientsPage() {
    }
 
    return (
+      <PermissionGuard resource="client" action="read">
       <div className="flex flex-col gap-6 p-6">
 
          {/* Header */}
@@ -173,12 +175,14 @@ export default function ClientsPage() {
 
             <div className="ml-auto">
                <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+                  <PermissionGuard resource="client" action="create">
                   <DialogTrigger asChild>
                      <Button className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold shadow-md shadow-brand-yellow/30 border-0">
                         <Plus className="size-4 mr-2" />
                         Nuevo Cliente
                      </Button>
                   </DialogTrigger>
+                  </PermissionGuard>
                   <DialogContent className="sm:max-w-md">
                      <DialogHeader>
                         <DialogTitle>Nuevo Cliente</DialogTitle>
@@ -258,6 +262,7 @@ export default function ClientsPage() {
             loading={formLoading}
          />
       </div>
+      </PermissionGuard>
    );
 }
 

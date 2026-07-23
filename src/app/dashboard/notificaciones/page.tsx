@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useNotificationStore, type Notification } from "@/stores/useNotificationStore";
 import { cn } from "@/lib/utils";
+import { PermissionGuard } from "@/components/permission-guard";
 
 const TYPE_LABELS: Record<string, string> = {
    PURCHASE_ORDER_REVIEW: "Orden de Compra",
@@ -46,9 +47,10 @@ export default function NotificacionesPage() {
    }, [fetchNotifications]);
 
    return (
-      <div className="flex flex-col gap-6 p-6">
-         {/* Header */}
-         <div>
+      <PermissionGuard resource="features" action="read">
+         <div className="flex flex-col gap-6 p-6">
+            {/* Header */}
+            <div>
             <div className="flex items-center justify-between">
                <div className="flex items-center gap-3">
                   <div className="h-9 w-1.5 rounded-full bg-brand-yellow" />
@@ -107,7 +109,8 @@ export default function NotificacionesPage() {
                ))}
             </div>
          )}
-      </div>
+         </div>
+      </PermissionGuard>
    );
 }
 

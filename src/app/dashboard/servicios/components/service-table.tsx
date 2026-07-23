@@ -3,6 +3,7 @@
 import { Pencil, Trash2 } from "lucide-react";
 import type { Servicio } from "@/dtos/service.dto";
 import { TipoServicio } from "@/dtos/service.dto";
+import { PermissionGuard } from "@/components/permission-guard";
 
 interface ServiceTableProps {
    services: Servicio[];
@@ -82,6 +83,7 @@ export function ServiceTable({ services, onEdit, onDelete }: ServiceTableProps) 
                      </td>
                      <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
+                           <PermissionGuard resource="service" action="update">
                            <button
                               onClick={() => onEdit(service)}
                               className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10 transition-colors"
@@ -89,6 +91,8 @@ export function ServiceTable({ services, onEdit, onDelete }: ServiceTableProps) 
                            >
                               <Pencil className="size-4" />
                            </button>
+                           </PermissionGuard>
+                           <PermissionGuard resource="service" action="delete">
                            <button
                               onClick={() => onDelete(service)}
                               className="rounded-md p-1.5 text-brand-red hover:bg-brand-red/10 transition-colors"
@@ -96,6 +100,7 @@ export function ServiceTable({ services, onEdit, onDelete }: ServiceTableProps) 
                            >
                               <Trash2 className="size-4" />
                            </button>
+                           </PermissionGuard>
                         </div>
                      </td>
                   </tr>

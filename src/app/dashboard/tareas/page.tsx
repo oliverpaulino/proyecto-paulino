@@ -23,6 +23,7 @@ import { SIN_PROYECTO } from "@/dtos/tarea.dto";
 import { TareaKanban } from "./components/tarea-kanban";
 import { TareaTable } from "./components/tarea-table";
 import { TareaForm } from "./components/tarea-form";
+import { PermissionGuard } from "@/components/permission-guard";
 
 type Vista = "kanban" | "lista";
 const TODOS = "__all__";
@@ -45,7 +46,8 @@ export default function TareasPage() {
       proyectoFiltro === TODOS || proyectoFiltro === SIN_PROYECTO ? undefined : proyectoFiltro;
 
    return (
-      <div className="flex flex-col flex-1 min-w-0 h-[calc(100dvh-3rem)] overflow-hidden p-4 md:p-6 gap-6">         
+      <PermissionGuard resource="task" action="read">
+      <div className="flex flex-col flex-1 min-w-0 h-[calc(100dvh-3rem)] overflow-hidden p-4 md:p-6 gap-6">
          <div className="shrink-0">
             <div className="flex items-center gap-3">
                <div className="h-9 w-1.5 rounded-full bg-brand-yellow" />
@@ -93,10 +95,12 @@ export default function TareasPage() {
                      </SelectContent>
                   </Select>
 
-                  <Button className="w-full sm:w-auto shrink-0" onClick={() => setCreateOpen(true)}>
-                     <Plus className="mr-1 size-4" />
-                     Nueva tarea
-                  </Button>
+                  <PermissionGuard resource="task" action="create">
+                     <Button className="w-full sm:w-auto shrink-0" onClick={() => setCreateOpen(true)}>
+                        <Plus className="mr-1 size-4" />
+                        Nueva tarea
+                     </Button>
+                  </PermissionGuard>
                </div>
             </div>
 
@@ -137,5 +141,6 @@ export default function TareasPage() {
             </DialogContent>
          </Dialog>
       </div>
+      </PermissionGuard>
    );
 }

@@ -10,6 +10,7 @@ import {
 } from "@radix-ui/react-dropdown-menu";
 import { Contact, Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { PermissionGuard } from "@/components/permission-guard";
 
 import { TipoIdentificacion } from "@/dtos/schema.dto"; 
 import { TipoCliente } from "@/dtos/client.dto";
@@ -115,6 +116,7 @@ export function ClientTable({ clients, onEdit, onDelete }: ClientTableProps) {
                         </td>
                         <td className="px-4 py-3 text-right">
                            <div className="flex items-center justify-end gap-1">
+                              <PermissionGuard resource="client" action="update">
                               <button
                                  onClick={() => onEdit({
                                     ...client,
@@ -126,6 +128,8 @@ export function ClientTable({ clients, onEdit, onDelete }: ClientTableProps) {
                               >
                                  <Pencil className="size-4" />
                               </button>
+                              </PermissionGuard>
+                              <PermissionGuard resource="client" action="delete">
                               <button
                                  onClick={() => onDelete(client)}
                                  className="rounded-md p-1.5 text-brand-red hover:bg-brand-red/10 transition-colors"
@@ -133,6 +137,7 @@ export function ClientTable({ clients, onEdit, onDelete }: ClientTableProps) {
                               >
                                  <Trash2 className="size-4" />
                               </button>
+                              </PermissionGuard>
 
                               <DropdownMenu modal={false}>
                                  <DropdownMenuTrigger asChild>

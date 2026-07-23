@@ -5,6 +5,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { Item } from "@/dtos/item.dto";
+import { PermissionGuard } from "@/components/permission-guard";
 
 interface ItemTableProps {
    items: Item[];
@@ -75,6 +76,7 @@ export function ItemTable({ items, onEdit, onDelete }: ItemTableProps) {
                         </td>
                         <td className="px-4 py-3 text-right">
                            <div className="flex items-center justify-end gap-1">
+                              <PermissionGuard resource="material_request" action="update">
                               <button
                                  onClick={() => onEdit(item)}
                                  className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10 transition-colors"
@@ -82,6 +84,8 @@ export function ItemTable({ items, onEdit, onDelete }: ItemTableProps) {
                               >
                                  <Pencil className="size-4" />
                               </button>
+                              </PermissionGuard>
+                              <PermissionGuard resource="material_request" action="delete">
                               <button
                                  onClick={() => onDelete(item)}
                                  className="rounded-md p-1.5 text-brand-red hover:bg-brand-red/10 transition-colors"
@@ -89,6 +93,7 @@ export function ItemTable({ items, onEdit, onDelete }: ItemTableProps) {
                               >
                                  <Trash2 className="size-4" />
                               </button>
+                              </PermissionGuard>
 
                               <DropdownMenu modal={false}>
                                  <DropdownMenuTrigger asChild>

@@ -4,6 +4,7 @@ import { useState, useMemo, Fragment } from "react";
 import { Pencil, Trash2, Star, ChevronDown, ChevronRight } from "lucide-react";
 import type { Unit } from "@/dtos/unit.dto";
 import { TipoUnidadEnum } from "@/dtos/unit.dto";
+import { PermissionGuard } from "@/components/permission-guard";
 
 interface UnitTableProps {
    units: Unit[];
@@ -159,6 +160,7 @@ export function UnitTable({ units, onEdit, onDelete }: UnitTableProps) {
                                     </td>
                                     <td className="px-4 py-3 text-right">
                                        <div className="flex items-center justify-end gap-1">
+                                          <PermissionGuard resource="category" action="update">
                                           <button
                                              onClick={() => onEdit(unit)}
                                              className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10 transition-colors"
@@ -166,6 +168,8 @@ export function UnitTable({ units, onEdit, onDelete }: UnitTableProps) {
                                           >
                                              <Pencil className="size-4" />
                                           </button>
+                                          </PermissionGuard>
+                                          <PermissionGuard resource="category" action="delete">
                                           <button
                                              onClick={() => !isBaseUnit && onDelete(unit)}
                                              disabled={isBaseUnit}
@@ -178,6 +182,7 @@ export function UnitTable({ units, onEdit, onDelete }: UnitTableProps) {
                                           >
                                              <Trash2 className="size-4" />
                                           </button>
+                                          </PermissionGuard>
                                        </div>
                                     </td>
                                  </tr>

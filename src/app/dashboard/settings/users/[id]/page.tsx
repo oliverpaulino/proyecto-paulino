@@ -34,6 +34,7 @@ import {
 import { useUserEmployeeLinkStore } from "@/stores/useUserEmployeeLinkStore";
 import { useEmployeeStore } from "@/stores/useEmployeeStore";
 import { SelectBuscadorEmployee } from "@/components/shared/selectBuscadorEmployee";
+import { PermissionGuard } from "@/components/permission-guard";
 import type { UserEmployeeLink } from "@/dtos/user-employee-link.dto";
 import type { Employee } from "@/dtos/employee.dto";
 
@@ -219,6 +220,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
   const initials = user.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 
   return (
+    <PermissionGuard resource="user" action="read">
     <SidebarProvider>
       <SidebarInset>
         <div className="flex flex-1 flex-col w-full max-w-xl mx-auto px-4 py-6 sm:px-6 gap-0">
@@ -343,10 +345,12 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
 
           <div className="flex items-center justify-between">
             <SectionHeader icon={Link2} title="Empleados Vinculados" />
+            <PermissionGuard resource="user" action="create">
             <Button variant="outline" size="sm" onClick={() => setLinkDialogOpen(true)}>
               <Plus className="mr-1.5 h-3.5 w-3.5" />
               Vincular
             </Button>
+            </PermissionGuard>
           </div>
 
           <div className="mt-4 grid gap-2">
@@ -401,9 +405,11 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
                 <p className="text-sm font-medium text-destructive">Eliminar usuario</p>
                 <p className="text-xs text-muted-foreground">Acción permanente. No se puede deshacer.</p>
               </div>
+              <PermissionGuard resource="user" action="delete">
               <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
                 <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Eliminar
               </Button>
+              </PermissionGuard>
             </div>
           </div>
 
@@ -486,6 +492,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
         </DialogContent>
       </Dialog>
     </SidebarProvider>
+    </PermissionGuard>
   );
 }
 
@@ -535,14 +542,16 @@ function LinkedEmployeeItem({
           )}
         </div>
       </div>
-      <Button 
-        variant="ghost" 
-        size="icon" 
-        onClick={() => onDelete(link.id, empName)} 
+      <PermissionGuard resource="user" action="delete">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => onDelete(link.id, empName)}
         className="text-destructive hover:bg-destructive/10 hover:text-destructive"
       >
         <Trash2 className="h-4 w-4" />
       </Button>
+      </PermissionGuard>
     </div>
   );
 }

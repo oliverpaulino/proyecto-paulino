@@ -16,6 +16,7 @@ import { EmployeeForm, type OperadorFormData } from "./components/employee-form"
 import { EmployeeTable } from "./components/employee-table";
 import { DeleteEmployeeDialog } from "./components/delete-employee-dialog";
 import { TableSearch } from "@/components/table-search";
+import { PermissionGuard } from "@/components/permission-guard";
 
 const STAT_STYLES = {
    blue: {
@@ -112,6 +113,7 @@ async function handleCreate(data: Parameters<typeof CreateEmployee>[0], operador
    }
 
    return (
+      <PermissionGuard resource="users" action="read">
       <div className="flex flex-col gap-6 p-6">
          {/* Header */}
          <div>
@@ -146,6 +148,7 @@ async function handleCreate(data: Parameters<typeof CreateEmployee>[0], operador
                className="w-full max-w-sm"
             />
             <div className="ml-auto">
+               <PermissionGuard resource="users" action="create">
                <Button
                   className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold shadow-md shadow-brand-yellow/30 border-0"
                   onClick={() => setCreateOpen(true)}
@@ -153,6 +156,7 @@ async function handleCreate(data: Parameters<typeof CreateEmployee>[0], operador
                   <Plus className="size-4 mr-2" />
                   Nuevo Empleado
                </Button>
+               </PermissionGuard>
             </div>
          </div>
 
@@ -215,6 +219,7 @@ async function handleCreate(data: Parameters<typeof CreateEmployee>[0], operador
             loading={formLoading}
          />
       </div>
+      </PermissionGuard>
    );
 }
 

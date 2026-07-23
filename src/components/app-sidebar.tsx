@@ -73,6 +73,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     { id: "settings-general", title: "General", url: "/dashboard/settings" },
     { id: "settings-unidades", title: "Unidades", url: "/dashboard/unidades" },
     ...(isAdmin ? [{ id: "settings-usuarios", title: "Usuarios", url: "/dashboard/settings/users" }] : []),
+    ...(isAdmin ? [{ id: "settings-roles", title: "Roles y Permisos", url: "/dashboard/settings/roles" }] : []),
   ]
 
   const navMain = [

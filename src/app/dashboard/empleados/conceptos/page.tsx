@@ -17,6 +17,7 @@ import { ConceptTable } from "./components/concept-table";
 import { ConceptForm } from "./components/concept-form";
 import { DeactivateConceptDialog } from "./components/deactivate-concept-dialog";
 import { TableSearch } from "@/components/table-search";
+import { PermissionGuard } from "@/components/permission-guard";
 
 const STAT_STYLES = {
    blue: {
@@ -104,6 +105,7 @@ export default function ConceptosNominaPage() {
    }
 
    return (
+      <PermissionGuard resource="users" action="read">
       <div className="flex flex-col gap-6 p-6">
 
          {/* Header */}
@@ -158,12 +160,14 @@ export default function ConceptosNominaPage() {
 
             <div className="ml-auto">
                <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+                  <PermissionGuard resource="users" action="create">
                   <DialogTrigger asChild>
                      <Button className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold shadow-md shadow-brand-yellow/30 border-0">
                         <Plus className="size-4 mr-2" />
                         Nuevo Concepto
                      </Button>
                   </DialogTrigger>
+                  </PermissionGuard>
                   <DialogContent className="sm:max-w-md">
                      <DialogHeader>
                         <DialogTitle>Nuevo Concepto de Nómina</DialogTitle>
@@ -201,6 +205,7 @@ export default function ConceptosNominaPage() {
             loading={formLoading}
          />
       </div>
+      </PermissionGuard>
    );
 }
 

@@ -17,6 +17,8 @@ import itemsRoute from "./modules/items/routes/items";
 import notificationsRoute from "./modules/notifications/routes/notifications";
 import unitsRoute from "./modules/units/routes/units.routes";
 import userEmployeeLinksRoute from "./modules/user-employee-link/routes/user-employee-link.routes";
+import rolesRoute from "./modules/roles/routes/roles.routes";
+import { requireResourcePermission } from "./shared/require-permission";
 
 const app = new Hono().basePath("/api");
 
@@ -36,6 +38,24 @@ app.get("/hello", (c) => {
 
 app.all("/auth/*", (c) => auth.handler(c.req.raw));
 
+// Server-side permission enforcement. Applied as path middleware rather than
+// inside each module so a new route cannot ship unguarded by omission. The
+// resource is the physical statement key from `src/lib/permission.ts`; the HTTP
+// verb selects the action (GET -> read, POST -> create, ...).
+app.use("/clients/*", requireResourcePermission("client"));
+app.use("/employees/*", requireResourcePermission("employee"));
+app.use("/suppliers/*", requireResourcePermission("supplier"));
+app.use("/purchase-orders/*", requireResourcePermission("purchase_order"));
+app.use("/appointments/*", requireResourcePermission("appointment"));
+app.use("/services/*", requireResourcePermission("service"));
+app.use("/tareas/*", requireResourcePermission("task"));
+app.use("/equipos/*", requireResourcePermission("machinery"));
+app.use("/categoria-equipos/*", requireResourcePermission("machinery"));
+app.use("/tipo-items/*", requireResourcePermission("inventory"));
+app.use("/items/*", requireResourcePermission("inventory"));
+app.use("/units/*", requireResourcePermission("inventory"));
+app.use("/roles/*", requireResourcePermission("user"));
+
 app.route("/clients", clientsRoute);
 app.route("/employees", employeesRoute);
 app.route("/suppliers", suppliersRoute);
@@ -50,5 +70,6 @@ app.route("/items", itemsRoute);
 app.route("/notifications", notificationsRoute);
 app.route("/units", unitsRoute);
 app.route("/user-employee-links", userEmployeeLinksRoute);
+app.route("/roles", rolesRoute);
 
 export default app;

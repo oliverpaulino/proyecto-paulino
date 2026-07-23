@@ -28,6 +28,7 @@ import type { UserEmployeeLink } from "@/dtos/user-employee-link.dto";
 import type { Employee } from "@/dtos/employee.dto";
 import { useEmployeeStore } from "@/stores/useEmployeeStore";
 import { useUserEmployeeLinkStore } from "@/stores/useUserEmployeeLinkStore";
+import { PermissionGuard } from "@/components/permission-guard";
 
 
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {
@@ -91,7 +92,7 @@ export default function AccountPage() {
   }, [user?.id]);
 
   return (
-    <>
+    <PermissionGuard resource="features" action="read">
       <div className="flex flex-1 flex-col gap-0 w-full max-w-2xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
         {/* ── identity card ── */}
         <div className="mb-8 flex flex-wrap items-center gap-4">
@@ -203,7 +204,7 @@ export default function AccountPage() {
           </Link>
         </Section>
       </div>
-    </>
+    </PermissionGuard>
   )
 }
 

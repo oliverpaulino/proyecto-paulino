@@ -7,6 +7,7 @@ import { ArrowLeft, Trash2, RefreshCw } from "lucide-react";
 import { usePurchaseOrderStore } from "@/stores/usePurchaseOrderStore";
 import type { PurchaseOrderDeleted } from "@/dtos/purchase-order.dto";
 import { RestorePurchaseOrderDialog } from "../components/restore-purchase-order-dialog";
+import { PermissionGuard } from "@/components/permission-guard";
 
 function formatMoney(value: number): string {
    return new Intl.NumberFormat("es-DO", {
@@ -58,6 +59,7 @@ export default function ComprasEliminadasPage() {
    }
 
    return (
+      <PermissionGuard resource="material_request" action="read">
       <div className="flex flex-col gap-6 p-6">
          {/* Encabezado */}
          <div>
@@ -168,5 +170,6 @@ export default function ComprasEliminadasPage() {
             loading={formLoading}
          />
       </div>
+      </PermissionGuard>
    );
 }

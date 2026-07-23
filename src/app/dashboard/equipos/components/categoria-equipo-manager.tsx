@@ -15,6 +15,7 @@ import { AlertTriangle, Check, Pencil, Plus, Tag, Trash2, X } from "lucide-react
 import { useCategoriaEquipoStore } from "@/stores/useCategoriaEquipoStore";
 import { useEquipoStore } from "@/stores/useEquipoStore";
 import type { CategoriaEquipo } from "@/dtos/categoria-equipo.dto";
+import { PermissionGuard } from "@/components/permission-guard";
 
 interface CategoriaEquipoManagerProps {
    open: boolean;
@@ -164,14 +165,16 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                         disabled={busy}
                      />
                   </div>
-                  <Button
-                     type="submit"
-                     disabled={busy || !newNombre.trim() || !newCobraEn.trim()}
-                     className="shrink-0"
-                  >
-                     <Plus className="size-4 mr-1" />
-                     Agregar
-                  </Button>
+                  <PermissionGuard resource="machinery" action="create">
+                     <Button
+                        type="submit"
+                        disabled={busy || !newNombre.trim() || !newCobraEn.trim()}
+                        className="shrink-0"
+                     >
+                        <Plus className="size-4 mr-1" />
+                        Agregar
+                     </Button>
+                  </PermissionGuard>
                </div>
             </form>
 
@@ -253,20 +256,24 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
                                  <span className="text-xs text-muted-foreground shrink-0">
                                     {used} {used === 1 ? "equipo" : "equipos"}
                                  </span>
-                                 <button
-                                    onClick={() => startEdit(cat)}
-                                    className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10"
-                                    title="Editar"
-                                 >
-                                    <Pencil className="size-4" />
-                                 </button>
-                                 <button
-                                    onClick={() => setDeleteTarget(cat)}
-                                    className="rounded-md p-1.5 text-brand-red hover:bg-brand-red/10"
-                                    title="Eliminar"
-                                 >
-                                    <Trash2 className="size-4" />
-                                 </button>
+                                 <PermissionGuard resource="machinery" action="update">
+                                    <button
+                                       onClick={() => startEdit(cat)}
+                                       className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10"
+                                       title="Editar"
+                                    >
+                                       <Pencil className="size-4" />
+                                    </button>
+                                 </PermissionGuard>
+                                 <PermissionGuard resource="machinery" action="delete">
+                                    <button
+                                       onClick={() => setDeleteTarget(cat)}
+                                       className="rounded-md p-1.5 text-brand-red hover:bg-brand-red/10"
+                                       title="Eliminar"
+                                    >
+                                       <Trash2 className="size-4" />
+                                    </button>
+                                 </PermissionGuard>
                               </div>
                            )}
                         </div>

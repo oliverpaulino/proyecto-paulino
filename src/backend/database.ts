@@ -107,6 +107,8 @@ export interface DB {
       // numeric(12,2): the pg driver returns this as a string at runtime; the
       // repository normalizes it to a number. DB has a default of 0 (not generated).
       precio_base: number;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
    };
    
    categoria_equipo: {
@@ -283,6 +285,33 @@ export interface DB {
       motivo: string | null;
       estado: string;
       notas: string | null;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   }
+
+   /**
+    * Owned and migrated by Better Auth — declared here only so role
+    * management can check which users hold a given role. Treat as read-only;
+    * writes go through the Better Auth admin API.
+    */
+   user: {
+      id: string;
+      email: string;
+      name: string;
+      role: string | null;
+   }
+
+   /**
+    * Runtime-editable roles. `permissions` is the `{ resource: action[] }`
+    * map consumed by `ac.newRole()` — see `src/lib/permissions/resolve.ts`.
+    */
+   app_role: {
+      key: string;
+      label: string;
+      description: string | null;
+      permissions: Record<string, string[]>;
+      is_builtin: Generated<boolean>;
+      is_admin: Generated<boolean>;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    }

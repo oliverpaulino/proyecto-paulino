@@ -17,6 +17,7 @@ import { PurchaseOrderForm } from "./components/purchase-order-form";
 import { PurchaseOrderTable } from "./components/purchase-order-table";
 import { DeletePurchaseOrderDialog } from "./components/delete-purchase-order-dialog";
 import { TableSearch } from "@/components/table-search";
+import { PermissionGuard } from "@/components/permission-guard";
 
 const STAT_STYLES = {
    blue: {
@@ -136,6 +137,7 @@ export default function ComprasPage() {
    }
 
    return (
+      <PermissionGuard resource="material_request" action="read">
       <div className="flex flex-col gap-6 p-6">
 
          {/* Header */}
@@ -172,6 +174,7 @@ export default function ComprasPage() {
             />
 
             <div className="ml-auto">
+               <PermissionGuard resource="material_request" action="create">
                <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                   <DialogTrigger asChild>
                      <Button className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold shadow-md shadow-brand-yellow/30 border-0">
@@ -193,6 +196,7 @@ export default function ComprasPage() {
                      />
                   </DialogContent>
                </Dialog>
+               </PermissionGuard>
             </div>
          </div>
 
@@ -241,6 +245,7 @@ export default function ComprasPage() {
             loading={formLoading}
          />
       </div>
+      </PermissionGuard>
    );
 }
 

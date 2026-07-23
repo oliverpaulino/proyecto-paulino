@@ -25,6 +25,7 @@ import type { Tarea, EstadoTarea } from "@/dtos/tarea.dto";
 import { useTareaStore } from "@/stores/useTareaStore";
 import { ESTADO_CONFIG, KANBAN_COLUMNS } from "./tarea-config";
 import { TareaForm } from "./tarea-form";
+import { PermissionGuard } from "@/components/permission-guard";
 
 export function TareaTable({ tareas }: { tareas: Tarea[] }) {
    const { proyectos, MoveTarea, DeleteTarea } = useTareaStore();
@@ -185,13 +186,15 @@ export function TareaTable({ tareas }: { tareas: Tarea[] }) {
                                  </td>
                                  <td className="px-4 py-3 text-right">
                                     <div className="flex items-center justify-end gap-1">
-                                       <button
-                                          onClick={() => setEditing(tarea)}
-                                          className="rounded-md p-1.5 text-brand-blue transition-colors hover:bg-brand-blue/10"
-                                          title="Editar"
-                                       >
-                                          <Pencil className="size-4" />
-                                       </button>
+                                       <PermissionGuard resource="task" action="update">
+                                          <button
+                                             onClick={() => setEditing(tarea)}
+                                             className="rounded-md p-1.5 text-brand-blue transition-colors hover:bg-brand-blue/10"
+                                             title="Editar"
+                                          >
+                                             <Pencil className="size-4" />
+                                          </button>
+                                       </PermissionGuard>
                                        <DropdownMenu modal={false}>
                                           <DropdownMenuTrigger asChild>
                                              <Button variant="ghost" className="h-8 w-8 p-0">
@@ -199,18 +202,22 @@ export function TareaTable({ tareas }: { tareas: Tarea[] }) {
                                              </Button>
                                           </DropdownMenuTrigger>
                                           <DropdownMenuContent align="end">
-                                             <DropdownMenuItem onClick={() => setEditing(tarea)}>
-                                                <Pencil className="mr-2 size-4" />
-                                                Editar
-                                             </DropdownMenuItem>
+                                             <PermissionGuard resource="task" action="update">
+                                                <DropdownMenuItem onClick={() => setEditing(tarea)}>
+                                                   <Pencil className="mr-2 size-4" />
+                                                   Editar
+                                                </DropdownMenuItem>
+                                             </PermissionGuard>
                                              <DropdownMenuSeparator />
-                                             <DropdownMenuItem
-                                                className="text-brand-red focus:text-brand-red"
-                                                onClick={() => handleDelete(tarea)}
-                                             >
-                                                <Trash2 className="mr-2 size-4" />
-                                                Eliminar
-                                             </DropdownMenuItem>
+                                             <PermissionGuard resource="task" action="delete">
+                                                <DropdownMenuItem
+                                                   className="text-brand-red focus:text-brand-red"
+                                                   onClick={() => handleDelete(tarea)}
+                                                >
+                                                   <Trash2 className="mr-2 size-4" />
+                                                   Eliminar
+                                                </DropdownMenuItem>
+                                             </PermissionGuard>
                                           </DropdownMenuContent>
                                        </DropdownMenu>
                                     </div>

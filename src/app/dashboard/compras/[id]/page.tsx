@@ -30,6 +30,7 @@ import { usePurchaseOrderStore } from "@/stores/usePurchaseOrderStore";
 import { DeletePurchaseOrderDialog } from "../components/delete-purchase-order-dialog";
 import { PurchaseOrderForm } from "../components/purchase-order-form";
 import { generatePurchaseOrderPDF } from "./components/purchase-order-pdf";
+import { PermissionGuard } from "@/components/permission-guard";
 
 const ESTADO_BADGE: Record<string, string> = {
    BORRADOR:
@@ -215,6 +216,7 @@ export default function PurchaseOrderDetailPage() {
    );
 
    return (
+      <PermissionGuard resource="material_request" action="read">
       <div className="flex flex-col gap-6 p-6">
 
          {/* Header */}
@@ -279,6 +281,7 @@ export default function PurchaseOrderDetailPage() {
                   </p>
                )}
 
+               <PermissionGuard resource="material_request" action="update">
                <Button
                   variant="outline"
                   onClick={() => setEditOpen(true)}
@@ -289,6 +292,8 @@ export default function PurchaseOrderDetailPage() {
                   <Pencil className="mr-2 size-4" />
                   Editar
                </Button>
+               </PermissionGuard>
+               <PermissionGuard resource="material_request" action="delete">
                <Button
                   variant="destructive"
                   onClick={() => setDeleteOpen(true)}
@@ -296,6 +301,7 @@ export default function PurchaseOrderDetailPage() {
                   <Trash2 className="mr-2 size-4" />
                   Eliminar
                </Button>
+               </PermissionGuard>
             </div>
          </div>
 
@@ -454,6 +460,7 @@ export default function PurchaseOrderDetailPage() {
             loading={actionLoading}
          />
       </div>
+      </PermissionGuard>
    );
 }
 
