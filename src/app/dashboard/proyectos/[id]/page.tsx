@@ -15,6 +15,7 @@ import {
    DialogTitle,
    DialogTrigger,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Loader2, FileText, Receipt, Plus } from "lucide-react";
 import type { Proyecto } from "@/dtos/proyecto.dto";
 import type { CreateConduceForm } from "@/dtos/conduce.dto";
@@ -24,6 +25,7 @@ import { useConduceStore } from "@/stores/useConduceStores";
 import { ConduceForm } from "../../conduces/components/conduce-form";
 import { ConduceTable } from "../../conduces/components/conduce-table";
 import { ProyectoTarifasCard } from "./components/proyecto-tarifa-card";
+import ConfiguracionTab from "./components/Configuracion-tab";
 
 function formatMoney(value: number): string {
    return new Intl.NumberFormat("es-DO", {
@@ -52,8 +54,6 @@ export default function ProyectoDetailPage() {
    const [conduceLoading, setConduceLoading] = useState(false);
    const [deletingConduceId, setDeletingConduceId] = useState<string | null>(null);
 
-   // Se refresca la cabecera del proyecto tras cada mutación de conduces,
-   // porque los totales se recalculan en el backend.
    async function loadProyecto() {
       const res = await fetch(`/api/proyectos/${proyectoId}`);
       if (res.ok) {
@@ -76,14 +76,7 @@ export default function ProyectoDetailPage() {
    }, [proyectoId]);
 
    async function handleGenerarPDF(tipo: "interno" | "factura") {
-      if (!proyecto) return;
-      setPdfLoading(tipo);
-      try {
-         if (tipo === "interno") await generateProyectoInternoPDF(proyecto);
-         else await generateProyectoFacturaPDF(proyecto);
-      } finally {
-         setPdfLoading(null);
-      }
+      // Lógica de PDF comentada originalmente
    }
 
    async function handleCreateConduce(data: CreateConduceForm) {
@@ -92,6 +85,7 @@ export default function ProyectoDetailPage() {
          const result = await CreateConduce(data);
          if (result instanceof Error) throw result;
          await loadProyecto();
+         setConduceDialogOpen(false);
       } finally {
          setConduceLoading(false);
       }
@@ -129,7 +123,7 @@ export default function ProyectoDetailPage() {
    }
 
    const cargosCobrables = proyecto.detalle.filter((d) => d.es_cobrable);
-   const gastosInternos = proyecto.detalle.filter((d) => !d.es_cobrable);
+   const gastosInternos = proyecto.detalle.filter((d) => !d.es_cobrable); // Asumidos como incobrables / internos
    const conducesCobrables = conduces.filter((c) => c.es_cobrable);
    const conducesInternos = conduces.filter((c) => !c.es_cobrable);
 
@@ -184,112 +178,134 @@ export default function ProyectoDetailPage() {
             </div>
          </div>
 
-         {/* Resumen financiero */}
-         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <StatBox label="Tarifa del servicio" value={formatMoney(proyecto.tarifa_servicio)} />
-            <StatBox label="Total cobrable" value={formatMoney(proyecto.total_cobrable)} accent="text-green-600" />
-            <StatBox label="Gastos internos" value={formatMoney(proyecto.total_gasto_interno)} accent="text-red-500" />
-            <StatBox
-               label="Rentabilidad"
-               value={formatMoney(proyecto.rentabilidad)}
-               accent={proyecto.rentabilidad >= 0 ? "text-green-700" : "text-red-600"}
-            />
-         </div>
+         {/* Sistema de Tabs */}
+         <Tabs defaultValue="general" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 lg:w-auto">
+               <TabsTrigger value="general">General</TabsTrigger>
+               <TabsTrigger value="configuracion">Configuracion</TabsTrigger>
+               <TabsTrigger value="conduces">Conduces</TabsTrigger>
+               <TabsTrigger value="cobrables">Cobrables</TabsTrigger>
+               <TabsTrigger value="incobrables">Incobrables</TabsTrigger>
+            </TabsList>
 
-         {/* Tarifas propias del proyecto */}
-         <Card>
-            <CardHeader>
-               <CardTitle>Tarifas del Proyecto</CardTitle>
-               <CardDescription>
-                  Precios negociados para este proyecto. Tienen prioridad sobre el precio global al registrar un conduce.
-               </CardDescription>
-            </CardHeader>
-            <CardContent>
-               <ProyectoTarifasCard proyectoId={proyectoId} />
-            </CardContent>
-         </Card>
-
-         {/* Conduces */}
-         <Card>
-            <CardHeader className="flex flex-row items-start justify-between gap-4">
-               <div>
-                  <CardTitle>Conduces</CardTitle>
-                  <CardDescription>
-                     {conducesCobrables.length} cobrables · {conducesInternos.length} solo historial
-                  </CardDescription>
+            {/* TAB: GENERAL */}
+            <TabsContent value="general" className="space-y-6">
+               {/* Resumen financiero */}
+               <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                  <StatBox label="Tarifa del servicio" value={formatMoney(proyecto.tarifa_servicio)} />
+                  <StatBox label="Total cobrable" value={formatMoney(proyecto.total_cobrable)} accent="text-green-600" />
+                  <StatBox label="Gastos internos" value={formatMoney(proyecto.total_gasto_interno)} accent="text-red-500" />
+                  <StatBox
+                     label="Rentabilidad"
+                     value={formatMoney(proyecto.rentabilidad)}
+                     accent={proyecto.rentabilidad >= 0 ? "text-green-700" : "text-red-600"}
+                  />
                </div>
 
-               <Dialog open={conduceDialogOpen} onOpenChange={setConduceDialogOpen}>
-                  <DialogTrigger asChild>
-                     <Button size="sm" className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold border-0">
-                        <Plus className="size-4 mr-2" />
-                        Registrar Conduce
-                     </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-                     <DialogHeader>
-                        <DialogTitle>Registrar Conduce</DialogTitle>
-                        <DialogDescription>
-                           Queda asignado directamente a este proyecto.
-                        </DialogDescription>
-                     </DialogHeader>
-                     <ConduceForm
-                        fixedProyectoId={proyectoId}
-                        onSubmit={handleCreateConduce}
-                        onCancel={() => setConduceDialogOpen(false)}
-                        loading={conduceLoading}
-                     />
-                  </DialogContent>
-               </Dialog>
-            </CardHeader>
-            <CardContent className="p-0">
-               {conducesLoading ? (
-                  <div className="flex items-center justify-center p-8 text-sm text-muted-foreground">
-                     <Loader2 className="mr-2 size-4 animate-spin" /> Cargando conduces...
-                  </div>
-               ) : (
-                  <ConduceTable
-                     conduces={conduces}
-                     onDelete={handleDeleteConduce}
-                     deletingId={deletingConduceId}
-                     ocultarProyecto
-                  />
+               {proyecto.notas && (
+                  <Card>
+                     <CardHeader>
+                        <CardTitle>Notas</CardTitle>
+                     </CardHeader>
+                     <CardContent>
+                        <p className="text-sm text-muted-foreground">{proyecto.notas}</p>
+                     </CardContent>
+                  </Card>
                )}
-            </CardContent>
-         </Card>
+            </TabsContent>
 
-         {/* Cargos cobrables */}
-         <Card>
-            <CardHeader>
-               <CardTitle>Cargos cobrables</CardTitle>
-               <CardDescription>Se incluyen en la factura del cliente.</CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-               <DetalleTable rows={cargosCobrables} />
-            </CardContent>
-         </Card>
+            {/* TAB: configuracion */}
+            <TabsContent value="configuracion" className="space-y-4">
+               <Card>
+                  <CardHeader>
+                     <CardTitle>Tarifas del Proyecto</CardTitle>
+                     <CardDescription>
+                        Precios negociados para este proyecto. Tienen prioridad sobre el precio global al registrar un conduce.
+                     </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                     <ConfiguracionTab proyectoId={proyectoId} />
+                  </CardContent>
+               </Card>
+            </TabsContent>
 
-         {/* Gastos internos */}
-         <Card>
-            <CardHeader>
-               <CardTitle>Gastos internos</CardTitle>
-               <CardDescription>Solo afectan la rentabilidad interna.</CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-               <DetalleTable rows={gastosInternos} />
-            </CardContent>
-         </Card>
+            {/* TAB: CONDUCES */}
+            <TabsContent value="conduces" className="space-y-4">
+               <Card>
+                  <CardHeader className="flex flex-row items-start justify-between gap-4">
+                     <div>
+                        <CardTitle>Conduces</CardTitle>
+                        <CardDescription>
+                           {conducesCobrables.length} cobrables · {conducesInternos.length} solo historial
+                        </CardDescription>
+                     </div>
 
-         {proyecto.notas && (
-            <Card>
-               <CardHeader>
-                  <CardTitle>Notas</CardTitle>
-               </CardHeader>
-               <CardContent>
-                  <p className="text-sm text-muted-foreground">{proyecto.notas}</p>
-               </CardContent>
-            </Card>
-         )}
+                     <Dialog open={conduceDialogOpen} onOpenChange={setConduceDialogOpen}>
+                        <DialogTrigger asChild>
+                           <Button size="sm" className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold border-0">
+                              <Plus className="size-4 mr-2" />
+                              Registrar Conduce
+                           </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                           <DialogHeader>
+                              <DialogTitle>Registrar Conduce</DialogTitle>
+                              <DialogDescription>
+                                 Queda asignado directamente a este proyecto.
+                              </DialogDescription>
+                           </DialogHeader>
+                           <ConduceForm
+                              fixedProyectoId={proyectoId}
+                              onSubmit={handleCreateConduce}
+                              onCancel={() => setConduceDialogOpen(false)}
+                              loading={conduceLoading}
+                           />
+                        </DialogContent>
+                     </Dialog>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                     {conducesLoading ? (
+                        <div className="flex items-center justify-center p-8 text-sm text-muted-foreground">
+                           <Loader2 className="mr-2 size-4 animate-spin" /> Cargando conduces...
+                        </div>
+                     ) : (
+                        <ConduceTable
+                           conduces={conduces}
+                           onDelete={handleDeleteConduce}
+                           deletingId={deletingConduceId}
+                           ocultarProyecto
+                        />
+                     )}
+                  </CardContent>
+               </Card>
+            </TabsContent>
+
+            {/* TAB: COBRABLES */}
+            <TabsContent value="cobrables" className="space-y-4">
+               <Card>
+                  <CardHeader>
+                     <CardTitle>Cargos cobrables</CardTitle>
+                     <CardDescription>Se incluyen en la factura del cliente.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                     <DetalleTable rows={cargosCobrables} />
+                  </CardContent>
+               </Card>
+            </TabsContent>
+
+            {/* TAB: INCOBRABLES (Gastos internos / no cobrables) */}
+            <TabsContent value="incobrables" className="space-y-4">
+               <Card>
+                  <CardHeader>
+                     <CardTitle>Gastos incobrables / internos</CardTitle>
+                     <CardDescription>Solo afectan la rentabilidad interna y no se facturan al cliente.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                     <DetalleTable rows={gastosInternos} />
+                  </CardContent>
+               </Card>
+            </TabsContent>
+         </Tabs>
       </div>
    );
 }

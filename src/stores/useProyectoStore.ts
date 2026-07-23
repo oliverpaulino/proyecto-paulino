@@ -6,10 +6,12 @@ import { CreateProyectoDTO, LiquidacionFacade } from "@/backend/modules/proyecto
 
 type ProyectoStore = {
    proyectos: Proyecto[];
+   proyecto: Proyecto | null;
    loading: boolean;
    _fetchedLists: Set<string>;
 
    GetProyectos: (opts?: { force?: boolean, search?: string, page?: number, limit?: number }) => Promise<void>;
+   GetProyectoById: (id: string) => Promise<Proyecto | null>;
    GetProyectosByClientId: (clienteId: string, opts?: { force?: boolean, search?: string, page?: number, limit?: number }) => Promise<void>;
    CreateProyecto: (form: CreateProyectoDTO) => Promise<Proyecto | Error>;
    GetLiquidacion: (id: string) => Promise<LiquidacionFacade | Error>;
@@ -18,6 +20,7 @@ type ProyectoStore = {
 
 export const useProyectoStore = create<ProyectoStore>((set, get) => ({
    proyectos: [],
+   proyecto: null,
    loading: false,
    _fetchedLists: new Set<string>(),
 
@@ -40,6 +43,22 @@ export const useProyectoStore = create<ProyectoStore>((set, get) => ({
          }));
       } catch (error) {
          console.error("Error fetching proyectos:", error);
+         throw error;
+      } finally {
+         set({ loading: false });
+      }
+   },
+
+   GetProyectoById: async (id) => {
+      set({ loading: true });
+      try {
+         const res = await fetch(`/api/proyectos/${id}`);
+         if (!res.ok) throw new Error("Error al cargar proyecto");
+         const data: Proyecto = await res.json();
+         set({ proyecto: data });
+         return data;
+      } catch (error) {
+         console.error("Error fetching proyecto by id:", error);
          throw error;
       } finally {
          set({ loading: false });
