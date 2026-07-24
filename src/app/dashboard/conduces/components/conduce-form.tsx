@@ -30,6 +30,7 @@ import { SelectBuscadorClient } from "@/components/shared/selectBuscadorClient";
 import { ClientForm } from "../../clientes/components/client-form";
 import { SelectBuscadorProyecto } from "@/components/shared/selectBuscadorProyecto";
 import { ProyectoForm } from "../../proyectos/components/proyecto-form";
+import { SelectBuscadorOperator } from "@/components/select-operator";
 
 // AÑADIR ESTA IMPORTACIÓN (Ajusta la ruta según tu proyecto)
 
@@ -99,8 +100,10 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
    const [proyectoNombre, setProyectoNombre] = useState("");
    const [clienteTelefono, setClienteTelefono] = useState("");
    const [equipoId, setEquipoId] = useState("");
+   const [operadorId, setOperadorId] = useState(""); // NUEVO ESTADO
    const [categoriaEquipoId, setCategoriaEquipoId] = useState("");
    const [categoriaEquipoTarifaId, setCategoriaEquipoTarifaId] = useState("");
+   const [categoriaEquipoTarifaNombre, setCategoriaEquipoTarifaNombre] = useState("");
    const [precioUnitario, setPrecioUnitario] = useState(0);
    const [esCobrable, setEsCobrable] = useState(true);
    const [observaciones, setObservaciones] = useState("");
@@ -163,7 +166,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
       setHorarioTardeInicio("");
       setHorarioTardeFin("");
       setMedidaCobroId("");
-      setCombustibleCliente(true);
+      setCombustibleCliente(false);
       setFirmaObservante(true);
       setFirmaCamionero(true);
    }
@@ -171,6 +174,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
    function handleCambiarTipo(tipo: TipoConduce) {
       setTipoConduce(tipo);
       setEquipoId("");
+      setOperadorId("")
       setCategoriaEquipoId("");
       setCategoriaEquipoTarifaId("");
       setMedidaCobroId("");
@@ -195,29 +199,39 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
       setCategoriaEquipoTarifaId("");
       setPrecioUnitario(0);
       setMedidaCobroId("");
+      setCategoriaEquipoTarifaNombre("");
 
       if (!equipo) {
          setEquipoId("");
          setCategoriaEquipoId("");
+         setOperadorId("")
          return;
       }
       setEquipoId(String(id ?? ""));
       setCategoriaEquipoId(equipo.categoria_id);
+
+      if (equipo.operador_id) {
+         setOperadorId(String(equipo.operador_id));
+      } else {
+         setOperadorId("");
+      }
    }
 
    function handleTarifaChange(id: string) {
+      setCategoriaEquipoTarifaId(id);
       if (id === "manual") {
          setCategoriaEquipoTarifaId("");
          setPrecioUnitario(0);
+         setCategoriaEquipoTarifaNombre("Manual");
          // Dejamos la medida de cobro intacta para que la elija manualmente
          return;
       }
 
-      setCategoriaEquipoTarifaId(id);
+      const tarifa = opcionesTarifa.find((t) => t.id === id);
+      setCategoriaEquipoTarifaNombre(tarifa?.nombre ?? "");
       setPrecioUnitario(resolverPrecio(id));
 
       // Auto-completar la medida de cobro según la tarifa elegida
-      const tarifa = opcionesTarifa.find((t) => t.id === id);
       if (tarifa && tarifa.medida_cobro_id) {
          setMedidaCobroId(tarifa.medida_cobro_id);
       }
@@ -236,10 +250,12 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
          proyecto_id: proyectoId || null,
          cliente_id: clienteId,
          cliente_telefono: clienteTelefono || null,
+         operador_id: operadorId,
          equipo_id: equipoId,
          categoria_equipo_tarifa_id: categoriaEquipoTarifaId,
          medida_cobro_id: medidaCobroId,
          medida_cobro_nombre: getNombreMedidaCobro(medidaCobroId) || null,
+         categoria_equipo_tarifa_nombre: categoriaEquipoTarifaNombre || null,
          es_cobrable: esCobrable,
          observaciones: observaciones || null,
          precio_unitario: precioUnitario,
@@ -288,6 +304,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
          // Reseteamos los campos al instante para que el usuario pueda escribir el siguiente conduce sin esperar
          setNumeroReferencia("");
          setEquipoId("");
+         setOperadorId("")
          setCategoriaEquipoId("");
          setCategoriaEquipoTarifaId("");
          setMedidaCobroId("");
@@ -327,7 +344,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
    const selectorTarifa = (
       <div className="space-y-2">
          <div className="space-y-1.5">
-            <Label>Tarifa Aplicable</Label>
+            <Label>Tipo de Tarifa Aplicable</Label>
             <Select value={categoriaEquipoTarifaId || "manual"} onValueChange={handleTarifaChange} disabled={!categoriaEquipoId}>
                <SelectTrigger>
                   <SelectValue placeholder={categoriaEquipoId ? "Seleccionar..." : "Elige un equipo"} />
@@ -349,7 +366,12 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
                <Label className="text-[11px] font-semibold uppercase text-muted-foreground">
                   Unidad de Medida (Manual) *
                </Label>
-               <Select value={medidaCobroId} onValueChange={setMedidaCobroId}>
+               <Select
+                  value={medidaCobroId}
+                  onValueChange={(value) => {
+                     setMedidaCobroId(value);
+                  }}
+               >
                   <SelectTrigger className="h-8 text-xs">
                      <SelectValue placeholder="Selecciona una medida..." />
                   </SelectTrigger>
@@ -361,6 +383,25 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
                      ))}
                   </SelectContent>
                </Select>
+               {tipoConduce === "CAMION" && (
+                  <>
+                     <Label className="text-[11px] font-semibold uppercase text-muted-foreground">
+                        Tipo de trabajo (Manual) *
+                     </Label><Select value={categoriaEquipoTarifaNombre} onValueChange={setCategoriaEquipoTarifaNombre}>
+                        <SelectTrigger className="h-8 text-xs">
+                           <SelectValue placeholder="Selecciona una medida..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                           <SelectItem value={"Viaje"} className="text-xs">
+                              Viaje
+                           </SelectItem>
+                           <SelectItem value={"Bote"} className="text-xs">
+                              Bote
+                           </SelectItem>
+                        </SelectContent>
+                     </Select>
+                  </>
+               )}
             </div>
          )}
       </div>
@@ -468,6 +509,10 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
                         <Label>Placa / Equipo *</Label>
                         <SelectBuscarEquipos key={tipoConduce} tipo="CAMION" value={equipoId || null} onChange={(id, equipo) => handleSelectEquipo(id, equipo)} />
                      </div>
+                     <div className="space-y-1.5">
+                        <Label>Operador *</Label>
+                        <SelectBuscadorOperator value={operadorId || null} onChange={(id) => setOperadorId(id || "")} />
+                     </div>
                      {selectorTarifa}
                   </div>
 
@@ -528,6 +573,10 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
                      <div className="space-y-1.5">
                         <Label>Equipo *</Label>
                         <SelectBuscarEquipos key={tipoConduce} tipo="EQUIPO" value={equipoId || null} onChange={(id, equipo) => handleSelectEquipo(id, equipo)} />
+                     </div>
+                     <div className="space-y-1.5">
+                        <Label>Operador *</Label>
+                        <SelectBuscadorOperator value={operadorId || null} onChange={(id) => setOperadorId(id || "")} />
                      </div>
                      {selectorTarifa}
                   </div>

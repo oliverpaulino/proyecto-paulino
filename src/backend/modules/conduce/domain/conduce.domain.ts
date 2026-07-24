@@ -85,7 +85,10 @@ interface CreateConduceCommonDTO {
    cliente_id: string;
    cliente_telefono?: string | null;
    equipo_id: string;
-   categoria_equipo_tarifa_id: string;
+   operador_id?: string;
+   categoria_equipo_tarifa_id?: string | null;
+   categoria_equipo_tarifa_nombre?: string | null; // snapshot, vía categoria_equipo_tarifa.nombre
+   medida_cobro_nombre?: string | null; // snapshot, vía categoria_equipo_tarifa.medida_cobro.nombre
    precio_unitario: number;
    es_cobrable: boolean;
    observaciones?: string | null;

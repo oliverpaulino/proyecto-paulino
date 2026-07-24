@@ -88,7 +88,6 @@ export class KyselyConduceRepository implements IConduceRepository {
                )
             );
 
-      console.log("Filtros aplicados:", filtros);
 
       const query = aplicarFiltros(this.#baseQuery())
          .orderBy("conduce.fecha", "desc")
@@ -151,6 +150,7 @@ export class KyselyConduceRepository implements IConduceRepository {
          : null;
       if (categoriaEquipoTarifaId && !tarifa) throw new Error("La tarifa seleccionada no existe");
 
+
       const common = {
          tipo_conduce: data.tipo_conduce,
          numero_referencia: data.numero_referencia,
@@ -159,10 +159,18 @@ export class KyselyConduceRepository implements IConduceRepository {
          cliente_id: data.cliente_id,
          cliente_telefono: data.cliente_telefono ?? null,
          equipo_id: data.equipo_id,
+         operador_id: data.operador_id,
          categoria_equipo_id: equipo.categoria_id,
          categoria_equipo_tarifa_id: categoriaEquipoTarifaId,
-         categoria_equipo_tarifa_nombre: tarifa?.nombre ?? null,
-         medida_cobro_nombre: tarifa?.medida_cobro_nombre ?? null,
+         categoria_equipo_tarifa_nombre:
+            data.categoria_equipo_tarifa_nombre ??
+            tarifa?.nombre ??
+            null,
+
+         medida_cobro_nombre:
+            data.medida_cobro_nombre ??
+            tarifa?.medida_cobro_nombre ??
+            null,
          es_cobrable: data.es_cobrable,
          observaciones: data.observaciones ?? null,
          precio_unitario: data.precio_unitario,
@@ -241,9 +249,29 @@ export class KyselyConduceRepository implements IConduceRepository {
          }
       }
 
+      const nombresSnapshot = {
+         categoria_equipo_tarifa_nombre:
+            data.categoria_equipo_tarifa_nombre ??
+            refrescoTarifa.categoria_equipo_tarifa_nombre ??
+            current.categoria_equipo_tarifa_nombre ??
+            null,
+
+         medida_cobro_nombre:
+            data.medida_cobro_nombre ??
+            refrescoTarifa.medida_cobro_nombre ??
+            current.medida_cobro_nombre ??
+            null,
+      };
+
       await this.db
          .updateTable("conduce")
-         .set({ ...data, ...refrescoTarifa, precio_unitario: precio, subtotal, updated_at: new Date() } as any)
+         .set({
+            ...data,
+            ...nombresSnapshot,
+            precio_unitario: precio,
+            subtotal,
+            updated_at: new Date(),
+         } as any)
          .where("id", "=", id)
          .execute();
 

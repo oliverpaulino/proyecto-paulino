@@ -84,7 +84,7 @@ export function ConduceTable({ conduces, onDelete, deletingId, ocultarProyecto }
                      <td className="px-3 py-3 text-xs text-muted-foreground max-w-[220px]">
                         {c.tipo_conduce === "CAMION" ? (
                            <span>
-                              {c.categoria_equipo_tarifa_nombre ?? "—"} · {c.procedencia} → {c.destino}
+                              {c.categoria_equipo_tarifa_nombre ?? "-"} · {c.procedencia} → {c.destino}
                            </span>
                         ) : (
                            <span>
