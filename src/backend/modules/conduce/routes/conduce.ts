@@ -12,19 +12,24 @@ const repo = new KyselyConduceRepository(db);
 const proyectoRepo = new KyselyProyectoRepository(db);
 const service = new ConduceService(repo, proyectoRepo);
 
-// GET /api/conduces?proyecto_id=&cliente_id=&tipo_conduce=&es_cobrable=&fecha_desde=&fecha_hasta=&busqueda=&page=&pageSize=
+// GET /api/conduces?proyecto_id=&cliente_id=&equipo_id=&tipo_conduce=&es_cobrable=&fecha_desde=&fecha_hasta=&busqueda=&eliminado=&page=&pageSize=
 conducesRoute.get("/", async (c) => {
    try {
       const q = c.req.query();
       const filtros: ConduceFiltros = {
          proyecto_id: q.proyecto_id || undefined,
          empleado_id: q.empleado_id || undefined,
+         equipo_id: q.equipo_id || undefined,
          cliente_id: q.cliente_id || undefined,
          tipo_conduce: (q.tipo_conduce as ConduceFiltros["tipo_conduce"]) || undefined,
          es_cobrable: q.es_cobrable === "true" ? true : q.es_cobrable === "false" ? false : undefined,
-         fecha_desde: q.fecha_desde ? new Date(q.fecha_desde) : undefined,
-         fecha_hasta: q.fecha_hasta ? new Date(q.fecha_hasta) : undefined,
+         // Se dejan como texto "YYYY-MM-DD" tal cual llegan del <input type="date">
+         // — NO se convierten con `new Date()` aquí. Ver conduce.infraestructure.ts
+         // para el porqué (evita el corrimiento de un día por timezone).
+         fecha_desde: q.fecha_desde || undefined,
+         fecha_hasta: q.fecha_hasta || undefined,
          busqueda: q.busqueda || undefined,
+         eliminado: q.eliminado === "true" ? true : undefined,
          page: q.page ? Number(q.page) : undefined,
          pageSize: q.pageSize ? Number(q.pageSize) : undefined,
       };
@@ -68,6 +73,10 @@ conducesRoute.post("/", async (c) => {
          const conduce = await service.create({
             ...body,
             fecha: new Date(body.fecha),
+            // Antes se pedía la sesión solo para el chequeo de auth y nunca
+            // se guardaba quién creó el registro.
+            created_by: session.user.id,
+            created_by_name: session.user.name,
          } as any);
          return c.json(conduce, 201);
       } catch (error: any) {
@@ -83,6 +92,11 @@ conducesRoute.post("/", async (c) => {
 // si el conduce se reasignó de un proyecto a otro (o se desasignó).
 conducesRoute.patch("/:id", async (c) => {
    try {
+      // Antes este endpoint no exigía sesión — cualquiera podía editar un
+      // conduce sin autenticarse.
+      const session = await auth.api.getSession({ headers: c.req.raw.headers });
+      if (!session?.user) return c.json({ error: "No autenticado" }, 401);
+
       const rawBody = await c.req.json();
       const { proyecto_id_anterior, fecha, ...rest } = rawBody;
 
@@ -98,12 +112,45 @@ conducesRoute.patch("/:id", async (c) => {
 });
 
 // DELETE /api/conduces/:id
+// Eliminación LÓGICA — el registro se conserva, se marca deleted_at/deleted_by
+// y desaparece de los listados normales. body opcional: { reason }
 conducesRoute.delete("/:id", async (c) => {
    try {
-      await service.remove(c.req.param("id"));
+      // Antes este endpoint tampoco exigía sesión.
+      const session = await auth.api.getSession({ headers: c.req.raw.headers });
+      if (!session?.user) return c.json({ error: "No autenticado" }, 401);
+
+      let reason: string | null = null;
+      try {
+         const body = await c.req.json();
+         reason = body?.reason ?? null;
+      } catch {
+         // sin body → eliminación sin motivo, no es un error
+      }
+
+      await service.remove(c.req.param("id"), {
+         deletedBy: session.user.id,
+         deletedByName: session.user.name,
+         reason,
+      });
       return c.json({ success: true });
    } catch (err: unknown) {
       return c.json({ error: err instanceof Error ? err.message : "Error al eliminar conduce" }, 400);
+   }
+});
+
+// POST /api/conduces/:id/restore
+// Revierte una eliminación lógica — pensado para el futuro apartado de
+// "conduces eliminados".
+conducesRoute.post("/:id/restore", async (c) => {
+   try {
+      const session = await auth.api.getSession({ headers: c.req.raw.headers });
+      if (!session?.user) return c.json({ error: "No autenticado" }, 401);
+
+      const conduce = await service.restore(c.req.param("id"));
+      return c.json(conduce);
+   } catch (err: unknown) {
+      return c.json({ error: err instanceof Error ? err.message : "Error al restaurar conduce" }, 400);
    }
 });
 

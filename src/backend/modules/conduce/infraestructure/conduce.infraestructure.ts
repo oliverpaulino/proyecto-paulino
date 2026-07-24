@@ -21,6 +21,8 @@ const SELECT_COLUMNS = [
    "conduce.cliente_telefono",
    "conduce.equipo_id",
    "equipo.nombre as equipo_nombre",
+   "conduce.operador_id",
+   "empleado.nombre as operador_nombre",
    "conduce.categoria_equipo_id",
    "categoria_equipo.nombre as categoria_equipo_nombre",
    // Snapshots — NO dependen de un join vivo a categoria_equipo_tarifa
@@ -36,6 +38,10 @@ const SELECT_COLUMNS = [
    "conduce.created_by_name",
    "conduce.created_at",
    "conduce.updated_at",
+   "conduce.deleted_by",
+   "conduce.deleted_by_name",
+   "conduce.deleted_at",
+   "conduce.deleted_reason",
    // CAMION
    "conduce.procedencia",
    "conduce.destino",
@@ -53,6 +59,21 @@ const SELECT_COLUMNS = [
    "conduce.firma_camionero",
 ] as const;
 
+/**
+ * Suma un día a un string "YYYY-MM-DD" y devuelve otro string "YYYY-MM-DD".
+ * Se usa para volver el filtro "hasta" exclusivo del día SIGUIENTE
+ * (`fecha < hasta+1`) en vez de `fecha <= hasta`, así no se pierden
+ * registros del último día si la columna llegara a tener componente de hora.
+ * Se construye a mano con Date.UTC (sin pasar por parsing de string con
+ * timezone) para no reintroducir el bug de corrimiento de día.
+ */
+function siguienteDiaISO(fechaISO: string): string {
+   const [y, m, d] = fechaISO.split("-").map(Number);
+   const utc = new Date(Date.UTC(y, (m || 1) - 1, d || 1));
+   utc.setUTCDate(utc.getUTCDate() + 1);
+   return utc.toISOString().slice(0, 10);
+}
+
 export class KyselyConduceRepository implements IConduceRepository {
    constructor(private readonly db: Kysely<DB>) { }
 
@@ -63,8 +84,8 @@ export class KyselyConduceRepository implements IConduceRepository {
          .leftJoin("cliente", "cliente.id", "conduce.cliente_id")
          .leftJoin("equipo", "equipo.id", "conduce.equipo_id")
          .leftJoin("operador", "operador.id", "conduce.operador_id")
-         // Si necesitas los datos personales del empleado (como el nombre), haces el puente desde operador:
-         // .leftJoin("empleado", "empleado.id", "operador.empleado_id")
+         // Puente para mostrar el nombre de la persona que operó el equipo.
+         .leftJoin("empleado", "empleado.id", "operador.empleado_id")
          .leftJoin("categoria_equipo", "categoria_equipo.id", "conduce.categoria_equipo_id")
          .select(SELECT_COLUMNS);
    }
@@ -77,13 +98,28 @@ export class KyselyConduceRepository implements IConduceRepository {
          qb
             .$if(!!filtros.proyecto_id, (q: any) => q.where("conduce.proyecto_id", "=", filtros.proyecto_id))
             .$if(!!filtros.cliente_id, (q: any) => q.where("conduce.cliente_id", "=", filtros.cliente_id))
+            .$if(!!filtros.equipo_id, (q: any) => q.where("conduce.equipo_id", "=", filtros.equipo_id))
 
             .$if(!!filtros.empleado_id, (q: any) => q.where("operador.empleado_id", "=", filtros.empleado_id))
 
             .$if(!!filtros.tipo_conduce, (q: any) => q.where("conduce.tipo_conduce", "=", filtros.tipo_conduce))
             .$if(filtros.es_cobrable !== undefined, (q: any) => q.where("conduce.es_cobrable", "=", filtros.es_cobrable))
+            // ── Fechas ──────────────────────────────────────────────────
+            // Antes esto llegaba como `new Date(q.fecha_desde)` desde la ruta
+            // y Kysely lo mandaba a Postgres como timestamp con 'Z' (UTC).
+            // Si la sesión de la BD usa un timezone distinto de UTC (p.ej.
+            // America/Santo_Domingo, UTC-4), Postgres reinterpretaba esa
+            // medianoche UTC como el día ANTERIOR en hora local — por eso
+            // "no funcionaba" el filtro (excluía o corría los resultados un
+            // día). Ahora se compara directo contra el string "YYYY-MM-DD"
+            // que manda el <input type="date">, sin pasar por `new Date()`
+            // en ningún punto del backend, así no hay conversión de
+            // timezone que pueda correr la fecha.
+            // Además "hasta" se vuelve exclusivo del día siguiente en vez de
+            // "<=", para no perder registros del último día si la columna
+            // llegara a tener componente de hora.
             .$if(!!filtros.fecha_desde, (q: any) => q.where("conduce.fecha", ">=", filtros.fecha_desde))
-            .$if(!!filtros.fecha_hasta, (q: any) => q.where("conduce.fecha", "<=", filtros.fecha_hasta))
+            .$if(!!filtros.fecha_hasta, (q: any) => q.where("conduce.fecha", "<", siguienteDiaISO(filtros.fecha_hasta!)))
             .$if(!!filtros.busqueda, (q: any) =>
                q.where((eb: any) =>
                   eb.or([
@@ -91,9 +127,13 @@ export class KyselyConduceRepository implements IConduceRepository {
                      eb("equipo.nombre", "ilike", `%${filtros.busqueda}%`),
                   ])
                )
-            );
-
-      console.log("filtros.fecha_hasta  ", filtros.fecha_desde, filtros.fecha_hasta);
+            )
+            // ── Eliminación lógica ─────────────────────────────────────
+            // Por defecto (eliminado=false/undefined) solo activos. Con
+            // eliminado=true, solo eliminados — para el futuro apartado de
+            // "ver eliminados".
+            .$if(filtros.eliminado !== true, (q: any) => q.where("conduce.deleted_at", "is", null))
+            .$if(filtros.eliminado === true, (q: any) => q.where("conduce.deleted_at", "is not", null));
 
       const query = aplicarFiltros(this.#baseQuery())
          .orderBy("conduce.fecha", "desc")
@@ -122,6 +162,7 @@ export class KyselyConduceRepository implements IConduceRepository {
    async findByProyectoId(proyectoId: string): Promise<ConduceProps[]> {
       const rows = await this.#baseQuery()
          .where("conduce.proyecto_id", "=", proyectoId)
+         .where("conduce.deleted_at", "is", null)
          .orderBy("conduce.fecha", "desc")
          .execute();
       return rows.map((r) => this.#mapRow(r));
@@ -181,6 +222,10 @@ export class KyselyConduceRepository implements IConduceRepository {
          es_cobrable: data.es_cobrable,
          observaciones: data.observaciones ?? null,
          precio_unitario: data.precio_unitario,
+         // Antes se pedía la sesión en la ruta pero nunca se guardaba en el
+         // registro — created_by/created_by_name quedaban siempre en NULL.
+         created_by: data.created_by ?? null,
+         created_by_name: data.created_by_name ?? null,
       };
 
       let specific: Record<string, unknown>;
@@ -221,10 +266,23 @@ export class KyselyConduceRepository implements IConduceRepository {
 
    async update(id: string, data: UpdateConduceDTO): Promise<ConduceProps> {
       const current = await this.findById(id);
-      const equipo = await this.db.selectFrom("equipo").selectAll().where("id", "=", (current?.equipo_id || "")).executeTakeFirst();
-      if (!equipo) throw new Error("Equipo no encontrado");
-      const categoria = await this.db.selectFrom("categoria_equipo").selectAll().where("id", "=", equipo.categoria_id).executeTakeFirst();
       if (!current) throw new Error("Conduce no encontrado");
+      if (current.deleted_at) throw new Error("No se puede editar un conduce eliminado. Restáuralo primero si necesitas modificarlo.");
+
+      // Si el equipo cambia, hay que re-snapshotear categoria_equipo_id —
+      // antes SIEMPRE se validaba el equipo VIEJO (current.equipo_id) aunque
+      // `data.equipo_id` trajera uno nuevo, y el nuevo equipo nunca quedaba
+      // reflejado en categoria_equipo_id.
+      let categoriaEquipoId: string | undefined;
+      if (data.equipo_id && data.equipo_id !== current.equipo_id) {
+         const nuevoEquipo = await this.db
+            .selectFrom("equipo")
+            .select(["categoria_id"])
+            .where("id", "=", data.equipo_id)
+            .executeTakeFirst();
+         if (!nuevoEquipo) throw new Error("Equipo no encontrado");
+         categoriaEquipoId = nuevoEquipo.categoria_id;
+      }
 
       const cantidadNueva = "cantidad" in data ? data.cantidad : undefined;
       const horasNuevas = "total_horas" in data ? data.total_horas : undefined;
@@ -275,6 +333,7 @@ export class KyselyConduceRepository implements IConduceRepository {
          .set({
             ...data,
             ...nombresSnapshot,
+            ...(categoriaEquipoId ? { categoria_equipo_id: categoriaEquipoId } : {}),
             precio_unitario: precio,
             subtotal,
             updated_at: new Date(),
@@ -286,8 +345,33 @@ export class KyselyConduceRepository implements IConduceRepository {
       return updated!;
    }
 
-   async delete(id: string): Promise<void> {
-      await this.db.deleteFrom("conduce").where("id", "=", id).execute();
+   /** Eliminación LÓGICA — nunca se hace DELETE físico sobre `conduce`. */
+   async delete(id: string, info?: { deletedBy?: string | null; deletedByName?: string | null; reason?: string | null }): Promise<void> {
+      await this.db
+         .updateTable("conduce")
+         .set({
+            deleted_at: new Date(),
+            deleted_by: info?.deletedBy ?? null,
+            deleted_by_name: info?.deletedByName ?? null,
+            deleted_reason: info?.reason ?? null,
+            updated_at: new Date(),
+         } as any)
+         .where("id", "=", id)
+         .execute();
+   }
+
+   async restore(id: string): Promise<void> {
+      await this.db
+         .updateTable("conduce")
+         .set({
+            deleted_at: null,
+            deleted_by: null,
+            deleted_by_name: null,
+            deleted_reason: null,
+            updated_at: new Date(),
+         } as any)
+         .where("id", "=", id)
+         .execute();
    }
 
    #mapRow(r: Record<string, unknown>): ConduceProps {
@@ -302,6 +386,8 @@ export class KyselyConduceRepository implements IConduceRepository {
          cliente_telefono: r.cliente_telefono as string | null,
          equipo_id: r.equipo_id as string,
          equipo_nombre: (r.equipo_nombre as string) ?? undefined,
+         operador_id: r.operador_id as string,
+         operador_nombre: (r.operador_nombre as string) ?? undefined,
          categoria_equipo_id: r.categoria_equipo_id as string,
          categoria_equipo_nombre: (r.categoria_equipo_nombre as string) ?? undefined,
          categoria_equipo_tarifa_id: r.categoria_equipo_tarifa_id as string | null,
@@ -315,6 +401,10 @@ export class KyselyConduceRepository implements IConduceRepository {
          created_by_name: (r.created_by_name as string) ?? undefined,
          created_at: new Date(r.created_at as string),
          updated_at: new Date(r.updated_at as string),
+         deleted_by: r.deleted_by as string | null,
+         deleted_by_name: (r.deleted_by_name as string) ?? undefined,
+         deleted_at: r.deleted_at ? new Date(r.deleted_at as string) : null,
+         deleted_reason: r.deleted_reason as string | null,
       };
 
       if (r.tipo_conduce === "CAMION") {

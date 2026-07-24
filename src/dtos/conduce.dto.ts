@@ -50,6 +50,13 @@ export type CreateConduceCamionForm = z.infer<typeof CreateConduceCamionSchema>;
 export type CreateConduceEquipoPesadoForm = z.infer<typeof CreateConduceEquipoPesadoSchema>;
 export type CreateConduceForm = z.infer<typeof CreateConduceDTOSchema>;
 
+// Forma "parcial" usada por el diálogo de edición — mismos campos que la
+// creación pero todos opcionales (tipo_conduce no cambia en edición rápida).
+export type UpdateConduceForm = Partial<Omit<CreateConduceCamionForm, "tipo_conduce">> &
+   Partial<Omit<CreateConduceEquipoPesadoForm, "tipo_conduce">> & {
+      tipo_conduce?: (typeof TIPO_CONDUCE)[number];
+   };
+
 // ─── Lectura ─────────────────────────────────────────────────────────────
 interface ConduceBaseDTO {
    id: string;
@@ -62,6 +69,8 @@ interface ConduceBaseDTO {
    cliente_telefono: string | null;
    equipo_id: string;
    equipo_nombre?: string;
+   operador_id: string;
+   operador_nombre?: string;
    categoria_equipo_id: string;
    categoria_equipo_nombre?: string;
    categoria_equipo_tarifa_id: string | null;
@@ -74,6 +83,10 @@ interface ConduceBaseDTO {
    created_by_name?: string;
    created_at: string;
    updated_at: string;
+   // Eliminación lógica
+   deleted_by_name?: string;
+   deleted_at: string | null;
+   deleted_reason: string | null;
 }
 
 export type ConduceCamionDTO = ConduceBaseDTO & {
@@ -103,12 +116,16 @@ export type TipoConduce = ConduceDTO["tipo_conduce"];
 export interface ConduceFiltros {
    proyecto_id?: string;
    empleado_id?: string;
+   equipo_id?: string;
    cliente_id?: string;
    tipo_conduce?: TipoConduce;
    es_cobrable?: boolean;
-   fecha_desde?: Date;
-   fecha_hasta?: Date;
+   /** "YYYY-MM-DD" — igual al value de un <input type="date">. */
+   fecha_desde?: string;
+   fecha_hasta?: string;
    busqueda?: string;
+   /** true = solo eliminados (para el futuro listado de "eliminados"); false/undefined = solo activos. */
+   eliminado?: boolean;
    page?: number;
    pageSize?: number;
 }

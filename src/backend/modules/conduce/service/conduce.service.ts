@@ -8,6 +8,12 @@ import type {
    ConduceListResult,
 } from "../domain/conduce.domain";
 
+interface EliminarInfo {
+   deletedBy?: string | null;
+   deletedByName?: string | null;
+   reason?: string | null;
+}
+
 export class ConduceService {
    constructor(
       private readonly repo: IConduceRepository,
@@ -38,6 +44,12 @@ export class ConduceService {
       if (data.precio_unitario !== undefined && data.precio_unitario < 0) {
          throw new Error("El precio unitario debe ser mayor o igual a 0");
       }
+      if (data.cantidad !== undefined && data.cantidad <= 0) {
+         throw new Error("Los metros/viajes deben ser mayor a 0");
+      }
+      if (data.total_horas !== undefined && data.total_horas <= 0) {
+         throw new Error("El total de horas trabajadas debe ser mayor a 0");
+      }
 
       const conduce = await this.repo.update(id, data);
 
@@ -52,10 +64,30 @@ export class ConduceService {
       return conduce;
    }
 
-   async remove(id: string): Promise<void> {
+   /**
+    * Eliminación LÓGICA. El conduce se conserva en la base para auditoría y
+    * para poder restaurarlo; solo deja de aparecer en los listados y en los
+    * totales del proyecto.
+    */
+   async remove(id: string, info?: EliminarInfo): Promise<void> {
       const existing = await this.repo.findById(id);
-      await this.repo.delete(id);
-      if (existing?.proyecto_id) await this.proyectoRepo.recalcularTotales(existing.proyecto_id);
+      if (!existing) throw new Error("Conduce no encontrado");
+      if (existing.deleted_at) throw new Error("Este conduce ya fue eliminado");
+
+      await this.repo.delete(id, info);
+      if (existing.proyecto_id) await this.proyectoRepo.recalcularTotales(existing.proyecto_id);
+   }
+
+   /** Revierte una eliminación lógica y recalcula el proyecto si aplica. */
+   async restore(id: string): Promise<ConduceProps> {
+      const existing = await this.repo.findById(id);
+      if (!existing) throw new Error("Conduce no encontrado");
+      if (!existing.deleted_at) throw new Error("Este conduce no está eliminado");
+
+      await this.repo.restore(id);
+      const restored = await this.repo.findById(id);
+      if (restored?.proyecto_id) await this.proyectoRepo.recalcularTotales(restored.proyecto_id);
+      return restored!;
    }
 
    #validate(data: CreateConduceDTO): void {
