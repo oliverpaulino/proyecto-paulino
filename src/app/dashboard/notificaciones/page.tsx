@@ -3,6 +3,10 @@
 import { useEffect } from "react";
 import { Bell, CheckCheck, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useNotificationStore, type Notification } from "@/stores/useNotificationStore";
+import { cn } from "@/lib/utils";
+import { PermissionGuard } from "@/components/permission-guard";
 import { useNotificationStore } from "@/stores/useNotificationStore";
 import NotificationCard from "./components/NotificationCard";
 
@@ -19,9 +23,10 @@ export default function NotificacionesPage() {
    }, [fetchNotifications]);
 
    return (
-      <div className="flex flex-col gap-6 p-6">
-         {/* Header */}
-         <div>
+      <PermissionGuard resource="features" action="read" mode="page">
+         <div className="flex flex-col gap-6 p-6">
+            {/* Header */}
+            <div>
             <div className="flex items-center justify-between">
                <div className="flex items-center gap-3">
                   <div className="h-9 w-1.5 rounded-full bg-brand-yellow" />
@@ -80,6 +85,7 @@ export default function NotificacionesPage() {
                ))}
             </div>
          )}
-      </div>
+         </div>
+      </PermissionGuard>
    );
 }

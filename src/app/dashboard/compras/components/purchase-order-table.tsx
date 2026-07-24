@@ -11,6 +11,7 @@ import { Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { PurchaseOrder } from "@/dtos/purchase-order.dto";
 import Link from "next/link";
+import { PermissionGuard } from "@/components/permission-guard";
 
 interface PurchaseOrderTableProps {
    orders: PurchaseOrder[];
@@ -122,6 +123,7 @@ export function PurchaseOrderTable({
                      </td>
                      <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
+                           <PermissionGuard resource="material_request" action="update">
                            <button
                               onClick={() => onEdit(order)}
                               className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10 transition-colors"
@@ -129,6 +131,16 @@ export function PurchaseOrderTable({
                            >
                               <Pencil className="size-4" />
                            </button>
+                           </PermissionGuard>
+                           <PermissionGuard resource="material_request" action="delete">
+                           <button
+                              onClick={() => onDelete(order)}
+                              className="rounded-md p-1.5 text-brand-red hover:bg-brand-red/10 transition-colors"
+                              title="Eliminar"
+                           >
+                              <Trash2 className="size-4" />
+                           </button>
+                           </PermissionGuard>
 
                            <DropdownMenu modal={false}>
                               <DropdownMenuTrigger asChild>

@@ -31,6 +31,7 @@ import { usePurchaseOrderStore } from "@/stores/usePurchaseOrderStore";
 import { DeletePurchaseOrderDialog } from "../components/delete-purchase-order-dialog";
 import { PurchaseOrderForm } from "../components/purchase-order-form";
 import { generatePurchaseOrderPDF } from "./components/purchase-order-pdf";
+import { PermissionGuard } from "@/components/permission-guard";
 
 const ESTADO_BADGE: Record<string, string> = {
    BORRADOR:

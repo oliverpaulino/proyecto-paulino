@@ -33,6 +33,7 @@ import {
    Layers,
 } from "lucide-react";
 import { AppointmentForm } from "../components/appointment-form";
+import { PermissionGuard } from "@/components/permission-guard";
 
 const ESTADO_LABEL: Record<string, string> = {
    ASIGNADA: "Asignada",
@@ -126,6 +127,7 @@ export default function AppointmentDetailPage() {
    const fechaCita = new Date(cita.fecha);
 
    return (
+      <PermissionGuard resource="appointment" action="read" mode="page">
       <div className="flex flex-col gap-6 p-6">
          {/* Header */}
          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -153,14 +155,18 @@ export default function AppointmentDetailPage() {
             </div>
 
             <div className="flex flex-wrap gap-2 lg:justify-end">
-               <Button variant="outline" onClick={() => setEditOpen(true)}>
-                  <Pencil className="mr-2 size-4" />
-                  Editar
-               </Button>
-               <Button variant="destructive" onClick={handleDelete} disabled={actionLoading}>
-                  {actionLoading ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Trash2 className="mr-2 size-4" />}
-                  Eliminar
-               </Button>
+               <PermissionGuard resource="appointment" action="update">
+                  <Button variant="outline" onClick={() => setEditOpen(true)}>
+                     <Pencil className="mr-2 size-4" />
+                     Editar
+                  </Button>
+               </PermissionGuard>
+               <PermissionGuard resource="appointment" action="delete">
+                  <Button variant="destructive" onClick={handleDelete} disabled={actionLoading}>
+                     {actionLoading ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Trash2 className="mr-2 size-4" />}
+                     Eliminar
+                  </Button>
+               </PermissionGuard>
             </div>
          </div>
 
@@ -295,9 +301,11 @@ export default function AppointmentDetailPage() {
                            </CardTitle>
                            <CardDescription>Anotaciones privadas, evolución médica/estética o comentarios internos del personal.</CardDescription>
                         </div>
-                        <Button variant="outline" size="sm" onClick={() => setNotesOpen(true)}>
-                           <Pencil className="mr-2 size-3.5" /> Editar Notas
-                        </Button>
+                        <PermissionGuard resource="appointment" action="update">
+                           <Button variant="outline" size="sm" onClick={() => setNotesOpen(true)}>
+                              <Pencil className="mr-2 size-3.5" /> Editar Notas
+                           </Button>
+                        </PermissionGuard>
                      </div>
                   </CardHeader>
                   <CardContent>
@@ -368,6 +376,7 @@ export default function AppointmentDetailPage() {
             </DialogContent>
          </Dialog>
       </div>
+      </PermissionGuard>
    );
 }
 

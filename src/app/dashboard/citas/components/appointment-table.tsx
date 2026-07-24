@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Eye, MoreHorizontal, Pencil, Trash2, Calendar, User } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { PermissionGuard } from "@/components/permission-guard";
 
 interface AppointmentTableProps {
    appointments: AppointmentUI[];
@@ -103,20 +104,24 @@ export function AppointmentTable({ appointments, onEdit, onDelete }: Appointment
                            onClick={(e) => e.stopPropagation()}
                         >
                            <div className="flex items-center justify-end gap-1">
-                              <button
-                                 onClick={() => onEdit(cita)}
-                                 className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10 transition-colors"
-                                 title="Editar"
-                              >
-                                 <Pencil className="size-4" />
-                              </button>
-                              <button
-                                 onClick={() => onDelete(cita)}
-                                 className="rounded-md p-1.5 text-brand-red hover:bg-brand-red/10 transition-colors"
-                                 title="Eliminar"
-                              >
-                                 <Trash2 className="size-4" />
-                              </button>
+                              <PermissionGuard resource="appointment" action="update">
+                                 <button
+                                    onClick={() => onEdit(cita)}
+                                    className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10 transition-colors"
+                                    title="Editar"
+                                 >
+                                    <Pencil className="size-4" />
+                                 </button>
+                              </PermissionGuard>
+                              <PermissionGuard resource="appointment" action="delete">
+                                 <button
+                                    onClick={() => onDelete(cita)}
+                                    className="rounded-md p-1.5 text-brand-red hover:bg-brand-red/10 transition-colors"
+                                    title="Eliminar"
+                                 >
+                                    <Trash2 className="size-4" />
+                                 </button>
+                              </PermissionGuard>
 
                               <DropdownMenu modal={false}>
                                  <DropdownMenuTrigger asChild>

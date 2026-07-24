@@ -19,6 +19,7 @@ import { EquipoTable } from "./components/equipo-table";
 import { DeleteEquipoDialog } from "./components/delete-equipo-dialog";
 import { CategoriaEquipoManager } from "./components/categoria-equipo-manager";
 import { TableSearch } from "@/components/table-search";
+import { PermissionGuard } from "@/components/permission-guard";
 import { MedidaCobroManager } from "./components/medida-cobro-manager";
 
 const STAT_STYLES = {
@@ -131,6 +132,7 @@ export default function EquiposPage() {
    }
 
    return (
+      <PermissionGuard resource="machinery" action="read" mode="page">
       <div className="flex flex-col gap-6 p-6">
 
          {/* Header */}
@@ -187,12 +189,14 @@ export default function EquiposPage() {
                </Button>
 
                <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+                  <PermissionGuard resource="machinery" action="create">
                   <DialogTrigger asChild>
                      <Button className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold shadow-md shadow-brand-yellow/30 border-0">
                         <Plus className="size-4 mr-2" />
                         Nuevo Equipo
                      </Button>
                   </DialogTrigger>
+                  </PermissionGuard>
                   <DialogContent className="sm:max-w-md">
                      <DialogHeader>
                         <DialogTitle>Nuevo Equipo</DialogTitle>
@@ -254,7 +258,8 @@ export default function EquiposPage() {
             onClose={() => setDeleteTarget(null)}
             loading={formLoading}
          />
-
+      
+ 
          <CategoriaEquipoManager
             open={manageOpen}
             onOpenChange={async (open) => {
@@ -268,7 +273,7 @@ export default function EquiposPage() {
          />
          {/* Mantén el MedidaCobroManager que ya tienes aquí abajo para el botón principal de la página */}
          <MedidaCobroManager open={manageMedidasOpen} onOpenChange={setManageMedidasOpen} />
-
+     </PermissionGuard>
       </div >
    );
 }

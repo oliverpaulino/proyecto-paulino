@@ -34,6 +34,7 @@ import {
 import type { Supplier } from "@/dtos/supplier.dto";
 import { useSupplierStore } from "@/stores/useSupplierStore";
 import { SupplierForm } from "../components/supplier-form";
+import { PermissionGuard } from "@/components/permission-guard";
 import { OrdenesCompraTable } from "./components/ordenes-compra-table";
 import { usePurchaseOrderStore } from "@/stores/usePurchaseOrderStore";
 import { PurchaseOrder } from "@/dtos/purchase-order.dto";
@@ -156,6 +157,7 @@ export default function SupplierDetailPage() {
    }
 
    return (
+      <PermissionGuard resource="supplier" action="read" mode="page">
       <div className="flex flex-col gap-6 p-6">
 
          {/* Header */}
@@ -181,14 +183,18 @@ export default function SupplierDetailPage() {
             </div>
 
             <div className="flex flex-wrap gap-2 lg:justify-end">
+               <PermissionGuard resource="supplier" action="update">
                <Button variant="outline" onClick={() => setEditOpen(true)}>
                   <Pencil className="mr-2 size-4" />
                   Editar proveedor
                </Button>
+               </PermissionGuard>
+               <PermissionGuard resource="supplier" action="delete">
                <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
                   <Trash2 className="mr-2 size-4" />
                   Eliminar
                </Button>
+               </PermissionGuard>
             </div>
          </div>
 
@@ -377,6 +383,7 @@ export default function SupplierDetailPage() {
             </DialogContent>
          </Dialog>
       </div>
+      </PermissionGuard>
    );
 }
 

@@ -14,6 +14,7 @@ import { type CreateAppointmentForm } from "@/dtos/appointment.dto";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AppointmentForm } from "./components/appointment-form";
 import { AppointmentFilters } from "./components/appointment-filters";
+import { PermissionGuard } from "@/components/permission-guard";
 
 export default function CitasPageWrapper() {
 
@@ -62,10 +63,12 @@ export default function CitasPageWrapper() {
                      Vista de Tablero
                   </TabsTrigger>
                </TabsList>
-
-               <Button className="w-full sm:w-auto" onClick={() => setCreateOpen(true)}>
-                  <Plus className="size-4 mr-2" /> Agendar Cita
-               </Button>
+            
+               <PermissionGuard resource="appointment" action="create">
+                  <Button className="w-full sm:w-auto" onClick={() => setCreateOpen(true)}>
+                     <Plus className="size-4 mr-2" /> Agendar Cita
+                  </Button>
+               </PermissionGuard>
             </div>
 
             <AppointmentFilters viewLimit={activeTab === "lista" ? 20 : 100} />
@@ -92,5 +95,6 @@ export default function CitasPageWrapper() {
             </DialogContent>
          </Dialog>
       </div>
+      </PermissionGuard>
    );
 }

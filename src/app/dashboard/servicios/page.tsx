@@ -17,6 +17,7 @@ import { ServiceForm } from "./components/service-form";
 import { ServiceTable } from "./components/service-table";
 import { DeleteServiceDialog } from "./components/delete-service-dialog";
 import { TableSearch } from "@/components/table-search";
+import { PermissionGuard } from "@/components/permission-guard";
 
 const STAT_STYLES = {
    blue: {
@@ -129,6 +130,7 @@ export default function ServiciosPage() {
    }
 
    return (
+      <PermissionGuard resource="service" action="read" mode="page">
       <div className="flex flex-col gap-6 p-6">
 
          {/* Header */}
@@ -165,6 +167,7 @@ export default function ServiciosPage() {
             />
 
             <div className="ml-auto">
+               <PermissionGuard resource="service" action="create">
                <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                   <DialogTrigger asChild>
                      <Button className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold shadow-md shadow-brand-yellow/30 border-0">
@@ -186,6 +189,7 @@ export default function ServiciosPage() {
                      />
                   </DialogContent>
                </Dialog>
+               </PermissionGuard>
             </div>
          </div>
 
@@ -234,6 +238,7 @@ export default function ServiciosPage() {
             loading={formLoading}
          />
       </div>
+      </PermissionGuard>
    );
 }
 

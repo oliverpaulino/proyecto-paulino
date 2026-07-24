@@ -40,6 +40,7 @@ import type { ContactEmployee } from "@/dtos/employee.dto";
 import { useDebounce } from "@/hooks/use-debounce";
 import { TableSearch } from "@/components/table-search";
 import { GeneralSchemasDTO } from "@/dtos/schema.dto";
+import { PermissionGuard } from "@/components/permission-guard";
 
 interface EmployeeContactsViewProps {
    empleadoId: string;
@@ -243,6 +244,7 @@ export function EmployeeContactsView({ empleadoId }: EmployeeContactsViewProps) 
    };
 
    return (
+      <PermissionGuard resource="users" action="read" mode="page">
       <div className="space-y-4 sm:space-y-6">
          {/* Header */}
          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -273,10 +275,12 @@ export function EmployeeContactsView({ empleadoId }: EmployeeContactsViewProps) 
                   loading={loadingContact}
                   className="md:w-full w-[90vw] m-auto"
                />
+               <PermissionGuard resource="users" action="create">
                <Button className="w-full sm:w-auto" onClick={() => { resetForm(); setCreateOpen(true); }}>
                   <Plus className="mr-2 h-4 w-4" />
                   Nuevo Contacto
                </Button>
+               </PermissionGuard>
             </div>
          </div>
 
@@ -336,10 +340,13 @@ export function EmployeeContactsView({ empleadoId }: EmployeeContactsViewProps) 
                                              </Button>
                                           </DropdownMenuTrigger>
                                           <DropdownMenuContent align="end">
+                                             <PermissionGuard resource="users" action="update">
                                              <DropdownMenuItem onClick={() => openEditDialog(contact)}>
                                                 <Pencil className="mr-2 h-4 w-4" />
                                                 Editar
                                              </DropdownMenuItem>
+                                             </PermissionGuard>
+                                             <PermissionGuard resource="users" action="delete">
                                              <DropdownMenuItem
                                                 className="text-destructive"
                                                 onClick={() => openDeleteDialog(contact)}
@@ -347,6 +354,7 @@ export function EmployeeContactsView({ empleadoId }: EmployeeContactsViewProps) 
                                                 <Trash2 className="mr-2 h-4 w-4" />
                                                 Eliminar
                                              </DropdownMenuItem>
+                                             </PermissionGuard>
                                           </DropdownMenuContent>
                                        </DropdownMenu>
                                     </TableCell>
@@ -380,10 +388,13 @@ export function EmployeeContactsView({ empleadoId }: EmployeeContactsViewProps) 
                                        </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
+                                       <PermissionGuard resource="users" action="update">
                                        <DropdownMenuItem onClick={() => openEditDialog(contact)}>
                                           <Pencil className="mr-2 h-4 w-4" />
                                           Editar
                                        </DropdownMenuItem>
+                                       </PermissionGuard>
+                                       <PermissionGuard resource="users" action="delete">
                                        <DropdownMenuItem
                                           className="text-destructive"
                                           onClick={() => openDeleteDialog(contact)}
@@ -391,6 +402,7 @@ export function EmployeeContactsView({ empleadoId }: EmployeeContactsViewProps) 
                                           <Trash2 className="mr-2 h-4 w-4" />
                                           Eliminar
                                        </DropdownMenuItem>
+                                       </PermissionGuard>
                                     </DropdownMenuContent>
                                  </DropdownMenu>
                               </div>
@@ -498,6 +510,7 @@ export function EmployeeContactsView({ empleadoId }: EmployeeContactsViewProps) 
             </DialogContent>
          </Dialog>
       </div>
+      </PermissionGuard>
    );
 }
 

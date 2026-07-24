@@ -213,6 +213,8 @@ export interface DB {
       tipo: string;
       descripcion: string | null;
       precio_base: number;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
    };
 
    medida_cobro: {
@@ -472,6 +474,32 @@ export interface DB {
       updated_at: Generated<Date>;
    }
 
+   /**
+    * Owned and migrated by Better Auth — declared here only so role
+    * management can check which users hold a given role. Treat as read-only;
+    * writes go through the Better Auth admin API.
+    */
+   user: {
+      id: string;
+      email: string;
+      name: string;
+      role: string | null;
+   }
+
+   /**
+    * Runtime-editable roles. `permissions` is the `{ resource: action[] }`
+    * map consumed by `ac.newRole()` — see `src/lib/permissions/resolve.ts`.
+    */
+   app_role: {
+      key: string;
+      label: string;
+      description: string | null;
+      permissions: Record<string, string[]>;
+      is_builtin: Generated<boolean>;
+      is_admin: Generated<boolean>;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   }
    gasto: {
       id: Generated<string>;
       referencia: Generated<number>;

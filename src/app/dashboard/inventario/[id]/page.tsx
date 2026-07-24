@@ -35,6 +35,7 @@ import type { Item } from "@/dtos/item.dto";
 import { useItemStore } from "@/stores/useItemStore";
 import { ItemForm, type ItemFormValues } from "../components/item-form";
 import { TipoItemManager } from "../components/tipo-item-manager";
+import { PermissionGuard } from "@/components/permission-guard";
 
 export default function ItemDetailPage() {
    const params = useParams();
@@ -133,6 +134,7 @@ export default function ItemDetailPage() {
    const sinStock = Number(item.stock) <= 0;
 
    return (
+      <PermissionGuard resource="material_request" action="read" mode="page">
       <div className="flex flex-col gap-6 p-6">
 
          {/* Header */}
@@ -161,14 +163,18 @@ export default function ItemDetailPage() {
             </div>
 
             <div className="flex flex-wrap gap-2 lg:justify-end">
+               <PermissionGuard resource="material_request" action="update">
                <Button variant="outline" onClick={() => setEditOpen(true)}>
                   <Pencil className="mr-2 size-4" />
                   Editar item
                </Button>
+               </PermissionGuard>
+               <PermissionGuard resource="material_request" action="delete">
                <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
                   <Trash2 className="mr-2 size-4" />
                   Eliminar
                </Button>
+               </PermissionGuard>
             </div>
          </div>
 
@@ -338,6 +344,7 @@ export default function ItemDetailPage() {
 
          <TipoItemManager open={manageOpen} onOpenChange={setManageOpen} />
       </div>
+      </PermissionGuard>
    );
 }
 

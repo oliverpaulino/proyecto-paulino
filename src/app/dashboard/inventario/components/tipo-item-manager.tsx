@@ -14,6 +14,7 @@ import { AlertTriangle, Check, Pencil, Plus, Tag, Trash2, X } from "lucide-react
 import { useTipoItemStore } from "@/stores/useTipoItemStore";
 import { useItemStore } from "@/stores/useItemStore";
 import type { TipoItem } from "@/dtos/tipo-item.dto";
+import { PermissionGuard } from "@/components/permission-guard";
 
 interface TipoItemManagerProps {
    open: boolean;
@@ -118,10 +119,12 @@ export function TipoItemManager({ open, onOpenChange }: TipoItemManagerProps) {
                   placeholder="Nueva categoría…"
                   disabled={busy}
                />
+               <PermissionGuard resource="material_request" action="create">
                <Button type="submit" disabled={busy || !newNombre.trim()} className="shrink-0">
                   <Plus className="size-4 mr-1" />
                   Agregar
                </Button>
+               </PermissionGuard>
             </form>
 
             {error && <p className="text-sm text-destructive">{error}</p>}
@@ -170,6 +173,7 @@ export function TipoItemManager({ open, onOpenChange }: TipoItemManagerProps) {
                                  <span className="text-xs text-muted-foreground">
                                     {used} {used === 1 ? "item" : "items"}
                                  </span>
+                                 <PermissionGuard resource="material_request" action="update">
                                  <button
                                     onClick={() => startEdit(tipo)}
                                     className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10"
@@ -177,6 +181,8 @@ export function TipoItemManager({ open, onOpenChange }: TipoItemManagerProps) {
                                  >
                                     <Pencil className="size-4" />
                                  </button>
+                                 </PermissionGuard>
+                                 <PermissionGuard resource="material_request" action="delete">
                                  <button
                                     onClick={() => setDeleteTarget(tipo)}
                                     className="rounded-md p-1.5 text-brand-red hover:bg-brand-red/10"
@@ -184,6 +190,7 @@ export function TipoItemManager({ open, onOpenChange }: TipoItemManagerProps) {
                                  >
                                     <Trash2 className="size-4" />
                                  </button>
+                                 </PermissionGuard>
                               </>
                            )}
                         </div>

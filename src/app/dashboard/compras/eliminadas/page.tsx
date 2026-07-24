@@ -7,6 +7,7 @@ import { ArrowLeft, Trash2, RefreshCw, Loader2 } from "lucide-react";
 import { usePurchaseOrderStore } from "@/stores/usePurchaseOrderStore";
 import type { PurchaseOrderDeleted } from "@/dtos/purchase-order.dto";
 import { RestorePurchaseOrderDialog } from "../components/restore-purchase-order-dialog";
+import { PermissionGuard } from "@/components/permission-guard";
 import { TableSearch } from "@/components/table-search";
 
 // Utilidades puras fuera del componente para no recrearlas en cada render
@@ -63,6 +64,7 @@ export default function ComprasEliminadasPage() {
    const isBackgroundLoading = loading && hasData; // Cuando cambia de página o busca
 
    return (
+      <PermissionGuard resource="material_request" action="read" mode="page">
       <div className="flex flex-col gap-6 p-6">
          {/* Encabezado */}
          <div className="flex flex-col gap-1.5">
@@ -203,5 +205,6 @@ export default function ComprasEliminadasPage() {
             loading={formLoading}
          />
       </div>
+      </PermissionGuard>
    );
 }

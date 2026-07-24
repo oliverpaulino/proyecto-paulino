@@ -17,6 +17,7 @@ import { SupplierForm as SupplierFormComponent } from "./components/supplier-for
 import { SupplierTable } from "./components/supplier-table";
 import { DeleteSupplierDialog } from "./components/delete-supplier-dialog";
 import { TableSearch } from "@/components/table-search";
+import { PermissionGuard } from "@/components/permission-guard";
 
 const STAT_STYLES = {
    blue: {
@@ -120,6 +121,7 @@ export default function ProveedoresPage() {
    }
 
    return (
+      <PermissionGuard resource="supplier" action="read" mode="page">
       <div className="flex flex-col gap-6 p-6">
 
          {/* Header */}
@@ -156,6 +158,7 @@ export default function ProveedoresPage() {
             />
 
             <div className="ml-auto">
+               <PermissionGuard resource="supplier" action="create">
                <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                   <DialogTrigger asChild>
                      <Button className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold shadow-md shadow-brand-yellow/30 border-0">
@@ -177,6 +180,7 @@ export default function ProveedoresPage() {
                      />
                   </DialogContent>
                </Dialog>
+               </PermissionGuard>
             </div>
          </div>
 
@@ -225,6 +229,7 @@ export default function ProveedoresPage() {
             loading={formLoading}
          />
       </div>
+      </PermissionGuard>
    );
 }
 

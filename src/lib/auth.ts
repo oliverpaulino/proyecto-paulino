@@ -1,9 +1,9 @@
 import { betterAuth } from "better-auth";
 import { Pool } from "pg";
-import { admin, jwt } from "better-auth/plugins";
-import { organization } from "better-auth/plugins";
+import { admin, jwt, customSession } from "better-auth/plugins";
 import { Resend } from "resend";
 import { ac, roles } from "./permission";
+import { getPermissionsForRole } from "./permissions/resolve";
 // const resend = new Resend(process.env.RESEND_API_KEY);
 
 export const auth = betterAuth({
@@ -17,12 +17,25 @@ export const auth = betterAuth({
     },
   },
   plugins: [
-    organization(),
     jwt(),
     admin({
+      // `administrador` is seeded as a protected built-in role and cannot be
+      // deleted, so this stays a safe static anchor for the admin plugin's own
+      // capabilities. Application-level access is resolved from `app_role`.
       adminRoles: ["administrador"],
       ac,
       roles,
+    }),
+    // Ships the role's effective permission map with the session so the client
+    // never has to resolve permissions from the statically bundled role table —
+    // which is what made custom roles impossible before.
+    customSession(async ({ user, session }) => {
+      const role = (user as { role?: string | null }).role ?? null;
+      return {
+        user,
+        session,
+        permissions: await getPermissionsForRole(role),
+      };
     }),
   ],
   session: {

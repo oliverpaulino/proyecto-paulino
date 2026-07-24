@@ -27,6 +27,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useUserEmployeeLinkStore } from "@/stores/useUserEmployeeLinkStore";
+import { useEmployeeStore } from "@/stores/useEmployeeStore";
+import { SelectBuscadorEmployee } from "@/components/shared/selectBuscadorEmployee";
+import { PermissionGuard } from "@/components/permission-guard";
+import type { UserEmployeeLink } from "@/dtos/user-employee-link.dto";
+import type { Employee } from "@/dtos/employee.dto";
 import { UserEmployeeLinkManager } from "@/app/dashboard/user-employee-link/components/user-employee-link-manager";
 
 const ROLES = ["usuario", "asistente", "coordinador", "contable", "administrador"] as const;
@@ -148,6 +154,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
   const initials = user.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 
   return (
+    <PermissionGuard resource="user" action="read" mode="page">
     <SidebarProvider>
       <SidebarInset>
         <div className="flex flex-1 flex-col w-full max-w-xl mx-auto px-4 py-6 sm:px-6 gap-0">
@@ -301,9 +308,11 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
                 <p className="text-sm font-medium text-destructive">Eliminar usuario</p>
                 <p className="text-xs text-muted-foreground">Acción permanente. No se puede deshacer.</p>
               </div>
+              <PermissionGuard resource="user" action="delete">
               <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
                 <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Eliminar
               </Button>
+              </PermissionGuard>
             </div>
           </div>
 
@@ -332,6 +341,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
         </DialogContent>
       </Dialog>
     </SidebarProvider>
+    </PermissionGuard>
   );
 }
 

@@ -5,6 +5,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { Supplier } from "@/dtos/supplier.dto";
+import { PermissionGuard } from "@/components/permission-guard";
 import Link from "next/link";
 
 interface SupplierTableProps {
@@ -95,6 +96,7 @@ export function SupplierTable({ suppliers, onEdit, onDelete }: SupplierTableProp
                      </td>
                      <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
+                           <PermissionGuard resource="supplier" action="update">
                            <button
                               onClick={(e) => { e.stopPropagation(); onEdit(supplier) }}
                               className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10 transition-colors"
@@ -102,6 +104,8 @@ export function SupplierTable({ suppliers, onEdit, onDelete }: SupplierTableProp
                            >
                               <Pencil className="size-4" />
                            </button>
+                           </PermissionGuard>
+                           <PermissionGuard resource="supplier" action="delete">
                            <button
                               onClick={(e) => { e.stopPropagation(); onDelete(supplier) }}
                               className="rounded-md p-1.5 text-brand-red hover:bg-brand-red/10 transition-colors"
@@ -109,6 +113,7 @@ export function SupplierTable({ suppliers, onEdit, onDelete }: SupplierTableProp
                            >
                               <Trash2 className="size-4" />
                            </button>
+                           </PermissionGuard>
 
                            <DropdownMenu modal={false}>
                               <DropdownMenuTrigger asChild>

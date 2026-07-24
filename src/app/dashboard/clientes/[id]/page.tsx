@@ -53,6 +53,7 @@ import {
 } from "lucide-react";
 import { ClientForm } from "../components/client-form";
 import StatCard from "./components/StatCard";
+import { PermissionGuard } from "@/components/permission-guard";
 
 // IMPORTAMOS NUESTROS SCHEMAS Y ENUMS
 import { TipoIdentificacion } from "@/dtos/schema.dto";
@@ -200,6 +201,7 @@ export default function ClientDetailPage() {
    const safeTipoId = (selectedClient.tipo_identificacion?.toUpperCase() || "CEDULA") as keyof typeof TipoIdentificacion;
 
    return (
+      <PermissionGuard resource="client" action="read" mode="page">
       <div className="flex flex-col gap-6 p-6">
          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex items-start gap-4">
@@ -229,14 +231,18 @@ export default function ClientDetailPage() {
                   <ContactIcon className="mr-2 size-4" />
                   Gestionar contactos
                </Button>
+               <PermissionGuard resource="client" action="update">
                <Button variant="outline" onClick={() => setEditClientOpen(true)}>
                   <Pencil className="mr-2 size-4" />
                   Editar cliente
                </Button>
+               </PermissionGuard>
+               <PermissionGuard resource="client" action="delete">
                <Button variant="destructive" onClick={() => setDeleteClientOpen(true)}>
                   <Trash2 className="mr-2 size-4" />
                   Eliminar
                </Button>
+               </PermissionGuard>
             </div>
          </div>
 
@@ -470,6 +476,7 @@ export default function ClientDetailPage() {
 
 
       </div>
+      </PermissionGuard>
    );
 }
 
