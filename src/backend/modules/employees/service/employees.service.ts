@@ -5,7 +5,8 @@ import {
    IEmployeeRepository,
    UpdateEmployeeDTO,
    ContactEmpleadoProps,
-   OperadorProps
+   OperadorProps,
+   SaveTarifasBulkPayload
 } from "../domain/employees.domain";
 ``
 export class EmployeeService {
@@ -35,17 +36,6 @@ export class EmployeeService {
       return employee ? employee.toJSON() : null;
    }
 
-   async getDetails(id: string) {
-      const empleado = await this.getById(id);
-      if (!empleado) return null;
-
-      const [contactos, operador] = await Promise.all([
-         this.repo.getContactsByEmployeeId(id),
-         this.repo.getOperatorByEmployeeId(id)
-      ]);
-
-      return { empleado, contactos, operador };
-   }
 
    async getOperator(empleadoId: string): Promise<OperadorProps | null> {
       return this.repo.getOperatorByEmployeeId(empleadoId);
@@ -143,5 +133,75 @@ export class EmployeeService {
       if (data.fecha_vencimiento !== undefined) updateData.fecha_vencimiento = data.fecha_vencimiento ? new Date(data.fecha_vencimiento) : null;
 
       return this.repo.updateOperator(id, updateData);
+   }
+
+   async addTarifa(data: { empleado_id: string; categoria_equipo_tarifa_id: string; monto_pago: number }) {
+      try {
+         return await this.repo.createTarifa(data);
+      } catch (error: any) {
+
+         throw new Error("Error al asignar la tarifa al empleado.");
+      }
+   }
+
+   async updateTarifa(tarifaId: string, monto_pago: number, frecuencia_pago: string) {
+      try {
+         return await this.repo.updateTarifa(tarifaId, monto_pago, frecuencia_pago);
+      } catch (error) {
+         throw new Error("Error al actualizar la tarifa.");
+      }
+   }
+
+   async deleteTarifa(tarifaId: string) {
+      try {
+         if (!tarifaId) {
+            throw new Error("El ID de la tarifa es requerido.");
+         }
+
+         await this.repo.deleteTarifa(tarifaId);
+
+         return { success: true };
+      } catch (error: any) {
+         console.error("Error en deleteTarifa:", error);
+         throw new Error("Error al eliminar la tarifa de operación.");
+      }
+   }
+
+   async saveTarifasEnBloque(payload: SaveTarifasBulkPayload) {
+      try {
+         const { empleado_id, tarifas } = payload;
+
+         // 1. Lógica de negocio: Filtrar tarifas inválidas (ej. montos negativos o nulos)
+         const tarifasValidas = tarifas.filter(t =>
+            t.monto_pago >= 0 &&
+            t.categoria_equipo_tarifa_id !== ""
+         );
+
+         // 2. Si no hay tarifas válidas, no hacemos peticiones innecesarias a la BD
+         if (tarifasValidas.length === 0) {
+            return { success: true, message: "No se enviaron tarifas válidas para guardar." };
+         }
+
+         // 3. Enviar a infraestructura para el Upsert (ON CONFLICT DO UPDATE)
+         await this.repo.upsertTarifasCategoria(empleado_id, tarifasValidas);
+
+         return { success: true, message: "Tarifas guardadas correctamente." };
+
+      } catch (error: any) {
+         console.error("Error en saveTarifasEnBloque:", error);
+         throw new Error("Error al procesar y guardar las tarifas del empleado.");
+      }
+   }
+
+   async getEmployeeDetails(empleadoId: string) {
+      try {
+         const details = await this.repo.getEmployeeDetails(empleadoId);
+         if (!details.empleado) {
+            throw new Error("Empleado no encontrado");
+         }
+         return details;
+      } catch (error) {
+         throw new Error("Error al obtener los detalles del empleado");
+      }
    }
 }

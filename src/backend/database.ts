@@ -92,6 +92,18 @@ export interface ConduceTable {
    updated_at: Generated<Date>;
 }
 
+export interface EmpleadoCategoriaTarifaTable {
+   id: Generated<string>;
+   empleado_id: string;
+   categoria_equipo_tarifa_id: string; // <-- AHORA SÍ, apunta al "Bote" o "Viaje"
+   monto_pago: number;
+   created_at: Generated<Date>;
+   updated_at: Generated<Date>;
+}
+
+// Y dentro del type DB, agrégala:
+// ... tus otras tablas[cite: 3]
+
 export interface DB {
    cliente: {
       id: Generated<string>;
@@ -124,12 +136,14 @@ export interface DB {
       nombre: string;
       identificacion: string;
       tipo_identificacion: string;
+      frecuencia_pago: string; // <-- Agregado el campo de frecuencia de pago
       rol: string;
       salario: number;
       activo: boolean;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
+   empleado_categoria_tarifa: EmpleadoCategoriaTarifaTable;
 
    contact_empleado: {
       id: Generated<string>;
@@ -442,6 +456,7 @@ export interface DB {
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
+
    servicios: ServicioTable;
    servicio_tarifas: ServicioTarifaTable;
    conduce: ConduceTable; // ← NUEVO
@@ -499,6 +514,24 @@ export interface DB {
       concepto: string;
       balance_pendiente: number | null;
       referencia: Generated<number>;
+      fecha: Date;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+      deleted_by: string | null;
+      deleted_at: Date | null;
+      deleted_reason: string | null;
+   };
+
+   pago: {
+      id: Generated<string>;
+      referencia: Generated<number>;
+      metodo_pago: string;
+      monto_pagado: number;
+      concepto: string;
+      tipo_movimiento: string;
+      gasto_empresa_id: string | null;
+      costo_cliente_id: string | null;
+      deduccion_empleado_id: string | null;
       fecha: Date;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;

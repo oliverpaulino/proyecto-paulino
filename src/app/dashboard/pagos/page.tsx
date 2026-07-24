@@ -1,49 +1,114 @@
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { Separator } from "@/components/ui/separator"
-import {
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
+"use client";
 
-export default function Page() {
-  return (
-    <>
-      <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-        <div className="flex items-center gap-2 px-4">
-          {/* <SidebarTrigger className="-ml-1" /> */}
-          <Separator
-            orientation="vertical"
-            className="mr-2 data-[orientation=vertical]:h-4"
-          />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href="#">
-                  Building Your Application
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator className="hidden md:block" />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Data Fetching</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-      </header>
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-        <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-          <div className="bg-muted/50 aspect-video rounded-xl" />
-          <div className="bg-muted/50 aspect-video rounded-xl" />
-          <div className="bg-muted/50 aspect-video rounded-xl" />
-        </div>
-        <div className="bg-muted/50 min-h-[100vh] flex-1 rounded-xl md:min-h-min" />
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+   Dialog,
+   DialogContent,
+   DialogDescription,
+   DialogHeader,
+   DialogTitle,
+   DialogTrigger,
+} from "@/components/ui/dialog";
+import { Plus, Wallet, ChevronLeft, ChevronRight } from "lucide-react";
+import { usePagoStore } from "@/stores/usePagoStore";
+import type { CreatePagoForm } from "@/dtos/pagos.dto";
+import { PagoForm } from "./components/pago-form";
+import { PagoTable } from "./components/pago-table";
+import { PagoFilters } from "./components/pago-filters";
+
+export default function PagosPage() {
+   const { Pagos, loading, pagination, CreatePago, NextPage, PrevPage } = usePagoStore();
+
+   const [formLoading, setFormLoading] = useState(false);
+   const [createOpen, setCreateOpen] = useState(false);
+
+   async function handleCreate(data: CreatePagoForm) {
+      setFormLoading(true);
+      try {
+         const result = await CreatePago(data);
+         if (result instanceof Error) throw result;
+         setCreateOpen(false);
+      } finally {
+         setFormLoading(false);
+      }
+   }
+
+   return (
+      <div className="flex flex-col gap-6 p-6">
+         {/* Header */}
+         <div>
+            <div className="flex items-center gap-3">
+               <div className="h-9 w-1.5 rounded-full bg-brand-yellow" />
+               <Wallet className="size-7 text-brand-blue dark:text-blue-400" />
+               <h1 className="text-3xl font-bold text-brand-blue dark:text-white tracking-tight">
+                  Pagos
+               </h1>
+            </div>
+            <p className="mt-1.5 ml-11 text-sm text-muted-foreground">
+               Registro y control de pagos y transacciones del sistema.
+            </p>
+            <div className="mt-4 h-px bg-gradient-to-r from-brand-blue via-brand-yellow/50 to-transparent" />
+         </div>
+
+         {/* Controles */}
+         <div className="ml-auto w-full sm:w-auto">
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+               <DialogTrigger asChild>
+                  <Button className="w-full sm:w-auto font-semibold shadow-md border-0">
+                     <Plus className="size-4 mr-2" />
+                     Registrar Pago
+                  </Button>
+               </DialogTrigger>
+               <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                     <DialogTitle>Registrar Nuevo Pago</DialogTitle>
+                     <DialogDescription>
+                        Ingresa los detalles financieros y la vinculación exclusiva a un Costo, Gasto o Deducción.
+                     </DialogDescription>
+                  </DialogHeader>
+                  <PagoForm
+                     onSubmit={handleCreate}
+                     onCancel={() => setCreateOpen(false)}
+                     loading={formLoading}
+                  />
+               </DialogContent>
+            </Dialog>
+         </div>
+
+         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-4 shrink-0">
+            <PagoFilters viewLimit={20} />
+         </div>
+
+         {/* Tabla */}
+         {loading && Pagos.length === 0 ? (
+            <div className="flex items-center justify-center gap-3 p-12 text-sm text-muted-foreground">
+               <div className="size-5 animate-spin rounded-full border-2 border-brand-blue/20 border-t-brand-blue" />
+               Cargando pagos…
+            </div>
+         ) : (
+            <div className="flex flex-col gap-4">
+               <PagoTable pagos={Pagos} />
+
+               {/* Paginación */}
+               <div className="flex items-center justify-between border-t border-border pt-4">
+                  <span className="text-sm text-muted-foreground">
+                     Total: <strong>{pagination.total}</strong> pagos registrados
+                  </span>
+                  <div className="flex items-center gap-2">
+                     <Button variant="outline" size="sm" onClick={PrevPage} disabled={!pagination.hasPrev || loading}>
+                        <ChevronLeft className="size-4 mr-1" /> Anterior
+                     </Button>
+                     <span className="text-xs font-medium px-2 text-foreground">
+                        Pág. {pagination.page} / {pagination.totalPages || 1}
+                     </span>
+                     <Button variant="outline" size="sm" onClick={NextPage} disabled={!pagination.hasNext || loading}>
+                        Siguiente <ChevronRight className="size-4 ml-1" />
+                     </Button>
+                  </div>
+               </div>
+            </div>
+         )}
       </div>
-    </>
-  )
+   );
 }
