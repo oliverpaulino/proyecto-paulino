@@ -11,6 +11,7 @@ import type {
    UpdateOperatorForm,
    EmployeeDetails,
    OperadorAsignable,
+   SaveTarifasBulkForm,
 } from "@/dtos/employee.dto";
 
 type EmployeeStore = {
@@ -48,6 +49,16 @@ type EmployeeStore = {
    GoToPage: (page: number) => Promise<void>;
    SearchEmployees: (search: string) => Promise<void>;
 
+   // ==========================================
+   // TARIFAS DE OPERACIÓN
+   // ==========================================
+   SaveTarifasCategoria: (empleadoId: string, data: SaveTarifasBulkForm) => Promise<void | Error>;
+   UpdateTarifaEmpleado: (empleadoId: string, tarifaId: string, monto_pago: number) => Promise<void | Error>;
+   DeleteTarifaEmpleado: (empleadoId: string, tarifaId: string) => Promise<void | Error>;
+
+   // ==========================================
+   // CONTACTOS Y OPERADORES
+   // ==========================================
    CreateContact: (data: CreateContactEmployeeForm) => Promise<void | Error>;
    UpdateContact: (contactoId: string, data: UpdateContactEmployeeForm) => Promise<void | Error>;
    DeleteContact: (empleadoId: string, contactoId: string) => Promise<void | Error>;
@@ -175,6 +186,56 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
       }
    },
 
+   // ==========================================
+   // TARIFAS DE OPERACIÓN
+   // ==========================================
+   SaveTarifasCategoria: async (empleadoId, data) => {
+      try {
+         const res = await fetch(`/api/employees/${empleadoId}/tarifas/bulk`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+         });
+         if (!res.ok) throw new Error("Error al guardar las tarifas");
+
+         await get().GetEmployeeDetails(empleadoId, true);
+      } catch (error) {
+         throw error;
+      }
+   },
+
+   UpdateTarifaEmpleado: async (empleadoId, tarifaId, monto_pago) => {
+      try {
+         const res = await fetch(`/api/employees/tarifas/${tarifaId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ monto_pago }),
+         });
+         if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || "Error al actualizar tarifa");
+         }
+         await get().GetEmployeeDetails(empleadoId, true);
+      } catch (error) {
+         throw error;
+      }
+   },
+
+   DeleteTarifaEmpleado: async (empleadoId, tarifaId) => {
+      try {
+         const res = await fetch(`/api/employees/tarifas/${tarifaId}`, {
+            method: "DELETE"
+         });
+         if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || "Error al eliminar tarifa");
+         }
+         await get().GetEmployeeDetails(empleadoId, true);
+      } catch (error) {
+         throw error;
+      }
+   },
+
    GetLinkedEmployeesByUserId: async (userId: string) => {
       set({ loading: true });
       try {
@@ -204,7 +265,6 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
             throw new Error("Error al cargar operadores");
          }
          const data: { operators: Operator[]; total: number } = await res.json();
-         console.log(data)
          const totalPages = Math.max(1, Math.ceil(data.total / limit));
 
          set((state) => ({
@@ -225,9 +285,7 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
       } finally {
          set({ loading: false });
       }
-
    },
-
 
    GetEmployeeDetails: async (empleadoId, force = false) => {
       if (!force && get()._fetchedDetails.has(empleadoId)) {
@@ -331,7 +389,6 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
          }
 
          await get().GetEmployeeDetails(data.empleado_id, true);
-
       } catch (error) {
          throw error;
       }
@@ -354,7 +411,6 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
          if (empId) {
             await get().GetEmployeeDetails(empId, true);
          }
-
       } catch (error) {
          throw error;
       }
@@ -372,7 +428,6 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
          }
 
          await get().GetEmployeeDetails(empleadoId, true);
-
       } catch (error) {
          throw error;
       }
@@ -406,7 +461,7 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
          return error as Error;
       }
    },
-   
+
    GetContacts: async () => {
       try {
          const res = await fetch(`/api/employees/contacts`);

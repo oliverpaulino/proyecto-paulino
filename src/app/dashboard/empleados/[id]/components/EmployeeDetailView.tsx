@@ -15,7 +15,6 @@ import {
    Dialog,
    DialogContent,
    DialogDescription,
-   DialogFooter,
    DialogHeader,
    DialogTitle,
 } from "@/components/ui/dialog";
@@ -40,7 +39,7 @@ import {
 import { EmployeeForm, type OperadorFormData } from "../../components/employee-form";
 import { DeleteEmployeeDialog } from "../../components/delete-employee-dialog";
 import StatCard from "./StatCard";
-import { EmployeeConceptsWidget } from "../../conceptos/components/concept-employee-widget";
+import { TarifaEmpleadoDialog } from "./TarifaEmpleadoDialog";
 
 const ROL_LABEL: Record<string, string> = {
    OPERADOR: "Operador",
@@ -61,12 +60,22 @@ export default function EmployeeDetailView() {
    const router = useRouter();
    const empleadoId = params.id as string;
 
-   const { selectedEmployee, loading, GetEmployeeDetails, UpdateEmployee, DeleteEmployee, UpdateOperator, CreateOperator } =
-      useEmployeeStore();
+   const {
+      selectedEmployee,
+      loading,
+      GetEmployeeDetails,
+      UpdateEmployee,
+      DeleteEmployee,
+      DeleteTarifaEmpleado
+   } = useEmployeeStore();
 
    const [editOpen, setEditOpen] = useState(false);
    const [deleteOpen, setDeleteOpen] = useState(false);
    const [actionLoading, setActionLoading] = useState(false);
+
+   // Estados para controlar el modal de asignación de tarifas
+   const [tarifaModalOpen, setTarifaModalOpen] = useState(false);
+   const [categoriaEditarId, setCategoriaEditarId] = useState<string | null>(null);
 
    useEffect(() => {
       GetEmployeeDetails(empleadoId);
@@ -76,7 +85,6 @@ export default function EmployeeDetailView() {
       setActionLoading(true);
       try {
          const payload = { ...data, operador: operadorData };
-
          const result = await UpdateEmployee(empleadoId, payload as any);
          if (result instanceof Error) throw result;
 
@@ -98,6 +106,16 @@ export default function EmployeeDetailView() {
       }
    }
 
+   const handleEliminarTarifa = async (tarifaId: string) => {
+      if (confirm("¿Estás seguro de que deseas eliminar esta tarifa de operación?")) {
+         try {
+            await DeleteTarifaEmpleado(empleadoId, tarifaId);
+         } catch (error: any) {
+            alert(error.message || "Error al eliminar la tarifa");
+         }
+      }
+   };
+
    if (loading && !selectedEmployee) {
       return (
          <div className="flex items-center justify-center p-12">
@@ -118,8 +136,8 @@ export default function EmployeeDetailView() {
       );
    }
 
-   const { empleado, contactos } = selectedEmployee;
-
+   const { empleado, contactos, tarifas } = selectedEmployee;
+   console.log("Selected Employee:", selectedEmployee);
 
    return (
       <div className="flex flex-col gap-6 p-6">
@@ -175,8 +193,8 @@ export default function EmployeeDetailView() {
                <TabsTrigger value="resumen" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
                   Resumen
                </TabsTrigger>
-               <TabsTrigger value="conceptos" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
-                  Conceptos
+               <TabsTrigger value="tarifas" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                  Tarifas por Equipo
                </TabsTrigger>
             </TabsList>
 
@@ -223,7 +241,8 @@ export default function EmployeeDetailView() {
                            <InfoField label="Identificación" value={empleado.identificacion} />
                            <InfoField label="Tipo de identificación" value={TIPO_ID_LABEL[empleado.tipo_identificacion] ?? empleado.tipo_identificacion} />
                            <InfoField label="Rol" value={ROL_LABEL[empleado.rol] ?? empleado.rol} />
-                           <InfoField label="Salario" value={`RD$ ${empleado.salario.toLocaleString("es-DO")}`} />
+                           <InfoField label="Salario Base" value={`RD$ ${empleado.salario.toLocaleString("es-DO")}`} />
+                           <InfoField label="Frecuencia de Pago" value={empleado.frecuencia_pago || "QUINCENAL"} />
                            <InfoField label="Estado" value={empleado.activo ? "Activo" : "Inactivo"} />
                         </div>
                      </CardContent>
@@ -293,20 +312,69 @@ export default function EmployeeDetailView() {
                </Card>
             </TabsContent>
 
-            {/* ── CONCEPTOS ── */}
-            <TabsContent value="conceptos" className="space-y-4">
+
+            {/* ── TARIFAS ── */}
+            <TabsContent value="tarifas" className="space-y-4">
                <Card>
                   <CardHeader>
-                     <CardTitle>Conceptos</CardTitle>
-                     <CardDescription>Bonos, descuentos, amonestaciones y otros conceptos aplicados al empleado.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                     <div className="grid gap-4 md:grid-cols-3">
-                        <MiniStat label="Bonos" value="0" />
-                        <MiniStat label="Descuentos" value="0" />
-                        <MiniStat label="Amonestaciones" value="0" />
+                     <div className="flex items-center justify-between">
+                        <div>
+                           <CardTitle>Tarifas de Operación</CardTitle>
+                           <CardDescription>
+                              Define cuánto gana {empleado.nombre} por operar diferentes equipos (ej. Camión por viaje).
+                           </CardDescription>
+                        </div>
+                        <Button
+                           variant="default"
+                           size="sm"
+                           onClick={() => { setCategoriaEditarId(null); setTarifaModalOpen(true); }}
+                        >
+                           Asignar Tarifas
+                        </Button>
                      </div>
-                     <EmployeeConceptsWidget employeeId={empleadoId} />
+                  </CardHeader>
+                  <CardContent>
+                     {tarifas && tarifas.length > 0 ? (
+                        <Table>
+                           <TableHeader>
+                              <TableRow>
+                                 <TableHead>Categoría de Equipo</TableHead>
+                                 <TableHead>Tipo de Cobro</TableHead>
+                                 <TableHead>Monto a Pagar</TableHead>
+                                 <TableHead className="text-right">Acciones</TableHead>
+                              </TableRow>
+                           </TableHeader>
+                           <TableBody>
+                              {tarifas.map((tarifa) => (
+                                 <TableRow key={tarifa.id}>
+                                    <TableCell className="font-medium">{tarifa.categoria_nombre}</TableCell>
+                                    <TableCell>{tarifa.tarifa_nombre}</TableCell>
+                                    <TableCell>RD$ {tarifa.monto_pago.toLocaleString("es-DO")}</TableCell>
+                                    <TableCell className="text-right">
+                                       <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => {
+                                             setCategoriaEditarId(tarifa.categoria_equipo_id);
+                                             setTarifaModalOpen(true);
+                                          }}
+                                       >
+                                          <Pencil className="size-4 text-muted-foreground" />
+                                       </Button>
+                                       <Button variant="ghost" size="icon" onClick={() => handleEliminarTarifa(tarifa.id)}>
+                                          <Trash2 className="size-4 text-red-500" />
+                                       </Button>
+                                    </TableCell>
+                                 </TableRow>
+                              ))}
+                           </TableBody>
+                        </Table>
+                     ) : (
+                        <EmptyState
+                           title="Sin tarifas asignadas"
+                           description="Este empleado no tiene tarifas configuradas para operar equipos. Ganará su salario base a menos que le asocies el pago por equipo."
+                        />
+                     )}
                   </CardContent>
                </Card>
             </TabsContent>
@@ -336,6 +404,14 @@ export default function EmployeeDetailView() {
             onConfirm={handleDelete}
             onClose={() => setDeleteOpen(false)}
             loading={actionLoading}
+         />
+
+         {/* Modal de Tarifas por Equipo */}
+         <TarifaEmpleadoDialog
+            open={tarifaModalOpen}
+            onClose={() => { setTarifaModalOpen(false); setCategoriaEditarId(null); }}
+            empleadoId={empleadoId}
+            categoriaInicialId={categoriaEditarId}
          />
       </div>
    );

@@ -49,7 +49,7 @@ employeesRoute.get("/linked/:userId", async (c) => {
 
 employeesRoute.get("/:id/details", async (c) => {
    const { id } = c.req.param();
-   const details = await service.getDetails(id);
+   const details = await service.getEmployeeDetails(id);
 
    if (!details) return c.json({ error: "Empleado no encontrado" }, 404);
    return c.json(details);
@@ -186,6 +186,79 @@ employeesRoute.patch("/operators/:operatorId", async (c) => {
 
    if (error) return c.json({ error: String(error) }, 400);
    return c.json({ operator });
+});
+
+// POST: Crear tarifa
+employeesRoute.post("/:id/tarifas", async (c) => {
+   try {
+      const empleado_id = c.req.param().id;
+      const { categoria_equipo_tarifa_id, monto_pago } = await c.req.json();
+
+      const nuevaTarifa = await service.addTarifa({
+         empleado_id,
+         categoria_equipo_tarifa_id,
+         monto_pago: Number(monto_pago)
+      });
+
+      return c.json(nuevaTarifa, 201);
+   } catch (error: any) {
+      return c.json({ error: error.message }, 400);
+   }
+});
+
+// PATCH: Actualizar tarifa
+employeesRoute.patch("/tarifas/:tarifaId", async (c) => {
+   try {
+      const tarifaId = c.req.param().tarifaId;
+      const { monto_pago, frecuencia_pago } = await c.req.json();
+
+      const tarifaActualizada = await service.updateTarifa(
+         tarifaId,
+         Number(monto_pago),
+         frecuencia_pago
+      );
+      return c.json(tarifaActualizada, 200);
+   } catch (error: any) {
+      return c.json({ error: error.message }, 400);
+   }
+});
+
+// DELETE: Eliminar tarifa
+employeesRoute.delete("/tarifas/:tarifaId", async (c) => {
+   try {
+      const tarifaId = c.req.param().tarifaId;
+      await service.deleteTarifa(tarifaId);
+      return c.json({ message: "Tarifa eliminada con éxito" }, 200);
+   } catch (error: any) {
+      return c.json({ error: error.message }, 400);
+   }
+});
+
+employeesRoute.post("/:id/tarifas/bulk", async (c) => {
+   try {
+      const empleado_id = c.req.param().id;
+      // Recibimos el array mágico desde el Dialog del frontend
+      const { tarifas } = await c.req.json();
+
+      await service.saveTarifasEnBloque({ empleado_id, tarifas });
+
+      return c.json({ message: "Tarifas guardadas con éxito" }, 200);
+   } catch (error: any) {
+      return c.json({ error: error.message }, 400);
+   }
+});
+
+// DELETE: Eliminar una tarifa individual
+employeesRoute.delete("/tarifas/:tarifaId", async (c) => {
+   try {
+      const tarifaId = c.req.param().tarifaId;
+
+      await service.deleteTarifa(tarifaId);
+
+      return c.json({ message: "Tarifa eliminada con éxito" }, 200);
+   } catch (error: any) {
+      return c.json({ error: error.message }, 400);
+   }
 });
 
 export default employeesRoute;
