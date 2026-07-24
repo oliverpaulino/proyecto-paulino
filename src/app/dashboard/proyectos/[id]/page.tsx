@@ -92,7 +92,7 @@ export default function ProyectoDetailPage() {
    }
 
    async function handleDeleteConduce(id: string) {
-      if (!confirm("¿Eliminar este conduce? Esta acción no se puede deshacer.")) return;
+      // if (!confirm("¿Eliminar este conduce? Esta acción no se puede deshacer.")) return;
       setDeletingConduceId(id);
       try {
          const result = await DeleteConduce(id);
