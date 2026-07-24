@@ -23,7 +23,10 @@ type ConduceStore = {
       form: Partial<CreateConduceForm>,
       proyectoIdAnterior?: string | null
    ) => Promise<ConduceDTO | Error>;
-   DeleteConduce: (id: string) => Promise<true | Error>;
+   /** Eliminación lógica — motivo es opcional. */
+   DeleteConduce: (id: string, motivo?: string) => Promise<true | Error>;
+   /** Revierte una eliminación lógica (para el futuro apartado de eliminados). */
+   RestoreConduce: (id: string) => Promise<ConduceDTO | Error>;
 };
 
 function buildQuery(filtros: ConduceFiltros): string {
@@ -115,15 +118,39 @@ export const useConduceStore = create<ConduceStore>((set, get) => ({
       }
    },
 
-   DeleteConduce: async (id) => {
+   // Eliminación lógica: el registro no se borra en el backend, solo se
+   // oculta de los listados normales — por eso aquí también se retira de la
+   // lista local, igual que antes con el DELETE físico.
+   DeleteConduce: async (id, motivo) => {
       try {
-         const res = await fetch(`/api/conduces/${id}`, { method: "DELETE" });
+         const res = await fetch(`/api/conduces/${id}`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reason: motivo ?? null }),
+         });
          if (!res.ok) {
             const errorText = await res.text();
             throw new Error(`Error ${res.status}: ${errorText}`);
          }
          set((s) => ({ conduces: s.conduces.filter((c) => c.id !== id), total: Math.max(0, s.total - 1) }));
          return true;
+      } catch (error) {
+         return error as Error;
+      }
+   },
+
+   // Pensado para un futuro apartado "Conduces eliminados". No lo vuelve a
+   // meter en `conduces` automáticamente porque esa lista normalmente está
+   // filtrada a activos — quien llame a esto debe refrescar su propia vista.
+   RestoreConduce: async (id) => {
+      try {
+         const res = await fetch(`/api/conduces/${id}/restore`, { method: "POST" });
+         if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(`Error ${res.status}: ${errorText}`);
+         }
+         const data: ConduceDTO = await res.json();
+         return data;
       } catch (error) {
          return error as Error;
       }
