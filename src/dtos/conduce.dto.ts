@@ -9,7 +9,7 @@ const camposComunes = {
    cliente_id: z.string().min(1, "El cliente es requerido"),
    cliente_telefono: z.string().nullable().optional(),
    equipo_id: z.string().min(1, "El equipo es requerido"),
-   categoria_equipo_tarifa_id: z.string().min(1, "La tarifa aplicable es requerida"),
+   categoria_equipo_tarifa_id: z.string().optional(),
    es_cobrable: z.boolean(),
    observaciones: z.string().nullable().optional(),
    precio_unitario: z.number().min(0),

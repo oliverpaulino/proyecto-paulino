@@ -127,6 +127,8 @@ export class KyselyConduceRepository implements IConduceRepository {
    }
 
    async create(data: CreateConduceDTO): Promise<ConduceProps> {
+      const categoriaEquipoTarifaId = data.categoria_equipo_tarifa_id || null;
+
       const equipo = await this.db
          .selectFrom("equipo")
          .select(["categoria_id"])
@@ -137,17 +139,17 @@ export class KyselyConduceRepository implements IConduceRepository {
       const categoria = await this.db.selectFrom("categoria_equipo").selectAll().where("id", "=", equipo.categoria_id).executeTakeFirst();
       if (!categoria) throw new Error("Categoría de equipo no encontrada");
 
-      // Snapshot: se resuelve el nombre de la tarifa + medida de cobro UNA
-      // VEZ, al momento de registrar. De aquí en adelante el conduce ya no
-      // depende de que categoria_equipo_tarifa.id siga existiendo (tu
-      // update() de categoria-equipo la regenera en cada edición).
-      const tarifa = await this.db
-         .selectFrom("categoria_equipo_tarifa")
-         .leftJoin("medida_cobro", "medida_cobro.id", "categoria_equipo_tarifa.medida_cobro_id")
-         .select(["categoria_equipo_tarifa.nombre", "medida_cobro.nombre as medida_cobro_nombre"])
-         .where("categoria_equipo_tarifa.id", "=", data.categoria_equipo_tarifa_id)
-         .executeTakeFirst();
-      if (!tarifa) throw new Error("La tarifa seleccionada no existe");
+      // Snapshot opcional: si el equipo no tiene tarifa, no se exige.
+      // Si viene una tarifa, se guarda su nombre y medida de cobro.
+      const tarifa = categoriaEquipoTarifaId
+         ? await this.db
+            .selectFrom("categoria_equipo_tarifa")
+            .leftJoin("medida_cobro", "medida_cobro.id", "categoria_equipo_tarifa.medida_cobro_id")
+            .select(["categoria_equipo_tarifa.nombre", "medida_cobro.nombre as medida_cobro_nombre"])
+            .where("categoria_equipo_tarifa.id", "=", categoriaEquipoTarifaId)
+            .executeTakeFirst()
+         : null;
+      if (categoriaEquipoTarifaId && !tarifa) throw new Error("La tarifa seleccionada no existe");
 
       const common = {
          tipo_conduce: data.tipo_conduce,
@@ -158,9 +160,9 @@ export class KyselyConduceRepository implements IConduceRepository {
          cliente_telefono: data.cliente_telefono ?? null,
          equipo_id: data.equipo_id,
          categoria_equipo_id: equipo.categoria_id,
-         categoria_equipo_tarifa_id: data.categoria_equipo_tarifa_id,
-         categoria_equipo_tarifa_nombre: tarifa.nombre,
-         medida_cobro_nombre: tarifa.medida_cobro_nombre ?? "unidad",
+         categoria_equipo_tarifa_id: categoriaEquipoTarifaId,
+         categoria_equipo_tarifa_nombre: tarifa?.nombre ?? null,
+         medida_cobro_nombre: tarifa?.medida_cobro_nombre ?? null,
          es_cobrable: data.es_cobrable,
          observaciones: data.observaciones ?? null,
          precio_unitario: data.precio_unitario,
@@ -170,7 +172,7 @@ export class KyselyConduceRepository implements IConduceRepository {
       let subtotal: number;
 
       if (data.tipo_conduce === "CAMION") {
-         subtotal = data.cantidad * (categoria.metraje ?? 1) * data.precio_unitario;
+         subtotal = data.cantidad * data.precio_unitario;
          specific = {
             procedencia: data.procedencia,
             destino: data.destino,
@@ -216,7 +218,7 @@ export class KyselyConduceRepository implements IConduceRepository {
       let subtotal: number;
       if (current.tipo_conduce === "CAMION") {
          const cantidad = cantidadNueva ?? current.cantidad;
-         subtotal = (cantidad ?? 0) * (categoria?.metraje ?? 1) * precio;
+         subtotal = (cantidad ?? 0) * precio;
       } else {
          const horas = horasNuevas ?? current.total_horas;
          subtotal = (horas ?? 0) * precio;

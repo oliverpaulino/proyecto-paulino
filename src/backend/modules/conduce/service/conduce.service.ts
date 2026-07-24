@@ -61,7 +61,7 @@ export class ConduceService {
    #validate(data: CreateConduceDTO): void {
       if (!data.cliente_id) throw new Error("El cliente es requerido");
       if (!data.equipo_id) throw new Error("El equipo es requerido");
-      if (!data.categoria_equipo_tarifa_id) throw new Error("La tarifa aplicable es requerida");
+      // if (!data.categoria_equipo_tarifa_id) throw new Error("La tarifa aplicable es requerida");
       if (!data.numero_referencia?.trim()) throw new Error("El número de referencia es requerido");
       if (!data.fecha) throw new Error("La fecha del conduce es requerida");
       if (data.precio_unitario < 0) throw new Error("El precio unitario debe ser mayor o igual a 0");

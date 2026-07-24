@@ -40,8 +40,13 @@ interface Props {
    fixedProyectoId?: string;
 }
 
-function hoyISO() {
-   return `${fechaRD("year")}-${fechaRD("month")}-${fechaRD("day")}`;
+function ayerISO() {
+   const fecha = new Date();
+   fecha.setDate(fecha.getDate() - 1);
+   const year = fecha.getFullYear();
+   const month = String(fecha.getMonth() + 1).padStart(2, "0");
+   const day = String(fecha.getDate()).padStart(2, "0");
+   return `${year}-${month}-${day}`;
 }
 
 function calcularHoras(inicio?: string, fin?: string): number {
@@ -56,8 +61,8 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
    const { Clients, GetClients, CreateClient } = useClientStore();
    const { GetEquipos } = useEquipoStore();
    const { CategoriaEquipos, GetCategoriaEquipos } = useCategoriaEquipoStore();
-   const { GetMedidaCobros, getNombre: getNombreMedidaCobro } = useMedidaCobroStore();
-   const { proyectos, CreateProyecto } = useProyectoStore();
+   const { GetMedidaCobros, getNombre: getNombreMedidaCobro, MedidaCobros } = useMedidaCobroStore();
+   const { proyectos, CreateProyecto, GetProyectosByClientId } = useProyectoStore();
    const { GetTarifas, getTarifa } = useProyectoTarifaStore();
 
    // ── Estados para el Modal de Crear Cliente ──
@@ -80,12 +85,16 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
       // (Opcional) Si quieres que al inicio salgan TODOS los proyectos si no hay cliente:
    }, [GetClients, GetEquipos, GetCategoriaEquipos, GetMedidaCobros]);
 
+   useEffect(() => {
+      if (clienteId) { GetProyectosByClientId(clienteId); }
+   }, [clienteId]);
+
    const [tipoConduce, setTipoConduce] = useState<TipoConduce>("CAMION");
 
 
    // ── Comunes ──
    const [numeroReferencia, setNumeroReferencia] = useState("");
-   const [fecha, setFecha] = useState(hoyISO());
+   const [fecha, setFecha] = useState(ayerISO());
    const [proyectoId, setProyectoId] = useState(fixedProyectoId ?? "");
    const [proyectoNombre, setProyectoNombre] = useState("");
    const [clienteTelefono, setClienteTelefono] = useState("");
@@ -95,6 +104,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
    const [precioUnitario, setPrecioUnitario] = useState(0);
    const [esCobrable, setEsCobrable] = useState(true);
    const [observaciones, setObservaciones] = useState("");
+   const [medidaCobroId, setMedidaCobroId] = useState("");
 
    // ── Camión ──
    const [procedencia, setProcedencia] = useState("");
@@ -152,6 +162,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
       setHorarioMananaFin("");
       setHorarioTardeInicio("");
       setHorarioTardeFin("");
+      setMedidaCobroId("");
       setCombustibleCliente(true);
       setFirmaObservante(true);
       setFirmaCamionero(true);
@@ -162,6 +173,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
       setEquipoId("");
       setCategoriaEquipoId("");
       setCategoriaEquipoTarifaId("");
+      setMedidaCobroId("");
       setPrecioUnitario(0);
       limpiarCamposDeTipo();
    }
@@ -182,6 +194,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
    function handleSelectEquipo(id: string | number | null, equipo: Equipo | null) {
       setCategoriaEquipoTarifaId("");
       setPrecioUnitario(0);
+      setMedidaCobroId("");
 
       if (!equipo) {
          setEquipoId("");
@@ -193,14 +206,27 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
    }
 
    function handleTarifaChange(id: string) {
+      if (id === "manual") {
+         setCategoriaEquipoTarifaId("");
+         setPrecioUnitario(0);
+         // Dejamos la medida de cobro intacta para que la elija manualmente
+         return;
+      }
+
       setCategoriaEquipoTarifaId(id);
       setPrecioUnitario(resolverPrecio(id));
+
+      // Auto-completar la medida de cobro según la tarifa elegida
+      const tarifa = opcionesTarifa.find((t) => t.id === id);
+      if (tarifa && tarifa.medida_cobro_id) {
+         setMedidaCobroId(tarifa.medida_cobro_id);
+      }
    }
 
    function buildPayload(): CreateConduceForm | null {
       if (!clienteId) { setError("El cliente es requerido"); return null; }
       if (!equipoId) { setError(tipoConduce === "CAMION" ? "El equipo (placa) es requerido" : "El equipo es requerido"); return null; }
-      // if (!categoriaEquipoTarifaId) { setError("Seleccione la tarifa aplicable"); return null; }
+      if (!medidaCobroId) { setError("La unidad de medida es requerida"); return null; } // <-- Nueva validación
       if (!numeroReferencia.trim()) { setError("El número de referencia (folio) es requerido"); return null; }
       if (!fecha) { setError("La fecha es requerida"); return null; }
 
@@ -212,6 +238,8 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
          cliente_telefono: clienteTelefono || null,
          equipo_id: equipoId,
          categoria_equipo_tarifa_id: categoriaEquipoTarifaId,
+         medida_cobro_id: medidaCobroId,
+         medida_cobro_nombre: getNombreMedidaCobro(medidaCobroId) || null,
          es_cobrable: esCobrable,
          observaciones: observaciones || null,
          precio_unitario: precioUnitario,
@@ -220,7 +248,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
       if (tipoConduce === "CAMION") {
          if (!procedencia.trim()) { setError("La procedencia es requerida"); return null; }
          if (!destino.trim()) { setError("El destino es requerido"); return null; }
-         if (cantidad <= 0) { setError("Los metros/viajes deben ser mayor a 0"); return null; }
+         if (cantidad <= 0) { setError("Los botes/viajes deben ser mayor a 0"); return null; }
 
          return {
             tipo_conduce: "CAMION",
@@ -262,18 +290,19 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
          setEquipoId("");
          setCategoriaEquipoId("");
          setCategoriaEquipoTarifaId("");
+         setMedidaCobroId("");
          setPrecioUnitario(0);
          if (tipoConduce === "CAMION") {
             setCantidad(0);
-            setFirmaChofer(false);
-            setFirmaRecibido(false);
+            setFirmaChofer(true);
+            setFirmaRecibido(true);
          } else {
             setHorarioMananaInicio("");
             setHorarioMananaFin("");
             setHorarioTardeInicio("");
             setHorarioTardeFin("");
-            setFirmaObservante(false);
-            setFirmaCamionero(false);
+            setFirmaObservante(true);
+            setFirmaCamionero(true);
          }
       } else {
          // Si es "Guardar y Cerrar", cerramos el modal de inmediato
@@ -292,25 +321,48 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
 
    const subtotal = tipoConduce === "CAMION" ? cantidad * precioUnitario : totalHoras * precioUnitario;
 
-   const selectorTarifa = (
-      <div className="space-y-1.5">
-         <Label>Tarifa Aplicable *</Label>
-         <Select value={categoriaEquipoTarifaId} onValueChange={handleTarifaChange} disabled={!categoriaEquipoId}>
+   // Determinar el nombre de la medida para las etiquetas dinámicas
+   const nombreMedidaActual = tarifaSeleccionada?.medida_cobro_nombre || getNombreMedidaCobro(medidaCobroId);
 
-            <SelectTrigger><SelectValue placeholder={categoriaEquipoId ? "Seleccionar…" : "Elige un equipo primero"} /></SelectTrigger>
-            <SelectContent>
-               {opcionesTarifa.map((t) => (
-                  <SelectItem key={t.id} value={t.id as string}>
-                     {t.nombre} ({t.medida_cobro_nombre}) · RD$ {t.precio_unitario.toLocaleString("es-DO")}
-                  </SelectItem>
-               ))}
-               {categoriaEquipoId && opcionesTarifa.length === 0 && (
-                  <SelectItem value={""} disabled>
-                     Esta categoría no tiene tarifas configuradas todavía.
-                  </SelectItem>
-               )}
-            </SelectContent>
-         </Select>
+   const selectorTarifa = (
+      <div className="space-y-2">
+         <div className="space-y-1.5">
+            <Label>Tarifa Aplicable</Label>
+            <Select value={categoriaEquipoTarifaId || "manual"} onValueChange={handleTarifaChange} disabled={!categoriaEquipoId}>
+               <SelectTrigger>
+                  <SelectValue placeholder={categoriaEquipoId ? "Seleccionar..." : "Elige un equipo"} />
+               </SelectTrigger>
+               <SelectContent>
+                  <SelectItem value="manual">-- Manual / Sin tarifa --</SelectItem>
+                  {opcionesTarifa.map((t) => (
+                     <SelectItem key={t.id} value={t.id as string}>
+                        {t.nombre} ({t.medida_cobro_nombre}) · RD$ {t.precio_unitario.toLocaleString("es-DO")}
+                     </SelectItem>
+                  ))}
+               </SelectContent>
+            </Select>
+         </div>
+
+         {/* ── SE MUESTRA SOLO SI ESTÁ EN MODO MANUAL ── */}
+         {!categoriaEquipoTarifaId && (
+            <div className="animate-in fade-in slide-in-from-top-1 rounded-md border border-dashed bg-muted/10 p-2 space-y-1.5 mt-1">
+               <Label className="text-[11px] font-semibold uppercase text-muted-foreground">
+                  Unidad de Medida (Manual) *
+               </Label>
+               <Select value={medidaCobroId} onValueChange={setMedidaCobroId}>
+                  <SelectTrigger className="h-8 text-xs">
+                     <SelectValue placeholder="Selecciona una medida..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                     {MedidaCobros.map((m) => (
+                        <SelectItem key={m.id} value={m.id} className="text-xs">
+                           {m.nombre}
+                        </SelectItem>
+                     ))}
+                  </SelectContent>
+               </Select>
+            </div>
+         )}
       </div>
    );
 
@@ -433,9 +485,9 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
                   <div className="grid grid-cols-2 gap-4">
                      <div className="space-y-1.5">
                         <Label htmlFor="cantidad">
-                           {tarifaSeleccionada?.medida_cobro_nombre?.toLowerCase().includes("viaje")
+                           {nombreMedidaActual?.toLowerCase().includes("viaje")
                               ? "Cantidad de Viajes *"
-                              : "Cantidad / Viajes *"}
+                              : "Botes / Viajes *"}
                         </Label>
                         <Input
                            id="cantidad"
@@ -513,7 +565,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
 
                   <div className="space-y-1.5">
                      <Label htmlFor="precio-equipo">
-                        Precio {tarifaSeleccionada?.medida_cobro_nombre ? `por ${tarifaSeleccionada.medida_cobro_nombre}` : ""} (RD$)
+                        Precio {nombreMedidaActual ? `por ${nombreMedidaActual}` : ""} (RD$)
                         <span className="ml-1 text-xs text-muted-foreground">
                            {proyectoId && getTarifa(proyectoId, categoriaEquipoTarifaId)
                               ? "tarifa de este proyecto"
