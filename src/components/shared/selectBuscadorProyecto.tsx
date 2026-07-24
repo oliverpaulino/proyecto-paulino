@@ -41,9 +41,10 @@ export function SelectBuscadorProyecto({
 
    // Sincroniza el label inicial
    useEffect(() => {
-      setInputValue(initialLabel);
-   }, [initialLabel]);
-
+      if (!value) {
+         setInputValue("");
+      }
+   }, [value]);
    // Cierra el dropdown al hacer clic fuera
    useEffect(() => {
       function handleClickOutside(event: MouseEvent) {

@@ -3,9 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, CalendarSearch } from "lucide-react";
+import {
+   Select,
+   SelectContent,
+   SelectItem,
+   SelectTrigger,
+   SelectValue,
+} from "@/components/ui/select";
+import { Loader2, CalendarSearch, X } from "lucide-react";
 import { useConduceStore } from "@/stores/useConduceStores";
 import { ConduceTable } from "../../../conduces/components/conduce-table";
+import { SelectBuscadorProyecto } from "@/components/shared/selectBuscadorProyecto";
 
 interface Props {
    /** Cuál campo de ConduceFiltros se usa para acotar la lista a esta entidad. */
@@ -14,39 +22,75 @@ interface Props {
    ocultarProyecto?: boolean;
 }
 
-/**
- * Resumen (viajes/horas/producción) + tabla de conduces acotados a una
- * entidad (un empleado/operador o un equipo), con filtro de rango de
- * fechas. EmployeeConduces y EquipoConduces son wrappers delgados de este
- * componente — así el filtro "por equipo" queda igual al "por empleado" sin
- * duplicar la tabla dos veces.
- */
 export function ConduceEntityConduces({ filtroKey, filtroValue, ocultarProyecto = false }: Props) {
    const { conduces, loading, GetConduces } = useConduceStore();
 
-   // Antes esto arrancaba con fechaDesde = fechaHasta = "hoy", así que salvo
-   // que hubiera conduces registrados justo ese día, la vista se veía vacía
-   // al entrar. Por defecto ahora no se filtra por fecha (se ve todo el
-   // historial de la entidad) y el usuario acota el rango si lo necesita.
+   // Estados de filtros (Estilo ConduceFiltrosBar)
    const [fechaDesde, setFechaDesde] = useState<string>("");
    const [fechaHasta, setFechaHasta] = useState<string>("");
+   const [busquedaLocal, setBusquedaLocal] = useState<string>("");
+   const [busquedaDebounce, setBusquedaDebounce] = useState<string>("");
 
+   const [proyectoId, setProyectoId] = useState<string | undefined>();
+   const [proyectoNombre, setProyectoNombre] = useState("");
+   const [tipoConduce, setTipoConduce] = useState<string>("all");
+   const [esCobrable, setEsCobrable] = useState<string>("all");
+
+   // Llamada a la API con los nuevos filtros incluidos
    useEffect(() => {
       GetConduces({
          [filtroKey]: filtroValue,
          fecha_desde: fechaDesde || undefined,
          fecha_hasta: fechaHasta || undefined,
-         pageSize: 50,
+         proyecto_id: proyectoId || undefined,
+         tipo_conduce: tipoConduce === "all" ? undefined : tipoConduce,
+         es_cobrable: esCobrable === "all" ? undefined : esCobrable === "true",
+         pageSize: 100, // Aumentado para asegurar traer historial completo
       } as any);
       // eslint-disable-next-line react-hooks/exhaustive-deps
-   }, [filtroKey, filtroValue, fechaDesde, fechaHasta]);
+   }, [filtroKey, filtroValue, fechaDesde, fechaHasta, proyectoId, tipoConduce, esCobrable]);
+
+   // Debounce para la búsqueda local por texto
+   useEffect(() => {
+      const timeoutId = window.setTimeout(() => {
+         setBusquedaDebounce(busquedaLocal.trim().toLowerCase());
+      }, 350);
+
+      return () => window.clearTimeout(timeoutId);
+   }, [busquedaLocal]);
+
+   const conducesFiltradas = useMemo(() => {
+      const terminoBusqueda = busquedaDebounce;
+
+      if (!terminoBusqueda) {
+         return conduces;
+      }
+
+      return conduces.filter((c: any) => {
+         const textoBusqueda = [
+            c.codigo,
+            c.referencia,
+            !ocultarProyecto ? c.proyecto_nombre : "",
+            c.equipo_nombre,
+            c.operador_nombre,
+            c.empleado_nombre,
+            c.notas,
+            c.estado
+         ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+
+         return textoBusqueda.includes(terminoBusqueda);
+      });
+   }, [conduces, busquedaDebounce, ocultarProyecto]);
 
    const resumen = useMemo(() => {
       let totalViajes = 0;
       let totalHoras = 0;
       let produccionBruta = 0;
 
-      conduces.forEach((c) => {
+      conducesFiltradas.forEach((c: any) => {
          if (c.tipo_conduce === "CAMION") {
             totalViajes += c.cantidad;
          } else {
@@ -56,63 +100,134 @@ export function ConduceEntityConduces({ filtroKey, filtroValue, ocultarProyecto 
       });
 
       return { totalViajes, totalHoras, produccionBruta };
-   }, [conduces]);
+   }, [conducesFiltradas]);
+
+   const hayFiltrosActivos =
+      proyectoId || tipoConduce !== "all" || esCobrable !== "all" || fechaDesde || fechaHasta || busquedaLocal;
 
    return (
       <div className="space-y-4">
-         {/* ── BARRA DE FILTROS Y RESUMEN ── */}
-         <div className="flex flex-col gap-4 rounded-xl border bg-muted/20 p-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="flex flex-wrap gap-4">
-               <div className="space-y-1">
-                  <label className="text-xs font-medium text-muted-foreground">Desde</label>
-                  <Input type="date" value={fechaDesde} onChange={(e) => setFechaDesde(e.target.value)} />
-               </div>
-               <div className="space-y-1">
-                  <label className="text-xs font-medium text-muted-foreground">Hasta</label>
-                  <Input type="date" value={fechaHasta} onChange={(e) => setFechaHasta(e.target.value)} />
-               </div>
-               <div className="flex items-end pb-1">
-                  {(fechaDesde || fechaHasta) && (
-                     <Button variant="ghost" size="sm" onClick={() => { setFechaDesde(""); setFechaHasta(""); }}>
-                        Limpiar
-                     </Button>
-                  )}
-               </div>
+
+         {/* ── BARRA DE FILTROS (Mismo diseño que ConduceFiltrosBar) ── */}
+         <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-muted/20 p-4">
+
+            {/* Búsqueda de texto */}
+            <div className="w-56 space-y-1">
+               <label className="text-xs font-medium text-muted-foreground">Buscar (proyecto, ref, equipo...)</label>
+               <Input
+                  value={busquedaLocal}
+                  onChange={(e) => setBusquedaLocal(e.target.value)}
+                  placeholder="Ej. Proyecto Central, 00234..."
+               />
             </div>
 
-            <div className="flex flex-wrap gap-6 rounded-lg bg-background p-3 shadow-sm border">
-               <div>
-                  <p className="text-[10px] font-semibold uppercase text-muted-foreground">Viajes / Botes </p>
-                  <p className="text-lg font-bold">{resumen.totalViajes}</p>
+            {/* Buscador de Proyecto (Opcional) */}
+            {!ocultarProyecto && (
+               <div className="w-56 space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Proyecto</label>
+                  <SelectBuscadorProyecto
+                     value={proyectoId}
+                     initialLabel={proyectoNombre}
+                     placeholder="Todos los proyectos..."
+                     onChange={(id) => setProyectoId(id || undefined)}
+                  />
                </div>
-               <div>
-                  <p className="text-[10px] font-semibold uppercase text-muted-foreground">Horas Trabajadas</p>
-                  <p className="text-lg font-bold">{resumen.totalHoras.toFixed(2)}</p>
-               </div>
-               <div className="border-l pl-4">
-                  <p className="text-[10px] font-semibold uppercase text-brand-blue">Producción Bruta</p>
-                  <p className="text-lg font-bold text-brand-blue">
-                     RD$ {resumen.produccionBruta.toLocaleString("es-DO")}
-                  </p>
-               </div>
+            )}
+
+            {/* Selector de Tipo */}
+            <div className="w-40 space-y-1">
+               <label className="text-xs font-medium text-muted-foreground">Tipo</label>
+               <Select value={tipoConduce} onValueChange={setTipoConduce}>
+                  <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectContent>
+                     <SelectItem value="all">Todos</SelectItem>
+                     <SelectItem value="CAMION">Camión</SelectItem>
+                     <SelectItem value="EQUIPO_PESADO">Equipo Pesado</SelectItem>
+                  </SelectContent>
+               </Select>
+            </div>
+
+            {/* Selector de Cobrable */}
+            <div className="w-32 space-y-1">
+               <label className="text-xs font-medium text-muted-foreground">Cobrable</label>
+               <Select value={esCobrable} onValueChange={setEsCobrable}>
+                  <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectContent>
+                     <SelectItem value="all">Todos</SelectItem>
+                     <SelectItem value="true">Sí</SelectItem>
+                     <SelectItem value="false">No</SelectItem>
+                  </SelectContent>
+               </Select>
+            </div>
+
+            {/* Fechas */}
+            <div className="w-36 space-y-1">
+               <label className="text-xs font-medium text-muted-foreground">Desde</label>
+               <Input type="date" value={fechaDesde} onChange={(e) => setFechaDesde(e.target.value)} />
+            </div>
+            <div className="w-36 space-y-1">
+               <label className="text-xs font-medium text-muted-foreground">Hasta</label>
+               <Input type="date" value={fechaHasta} min={fechaDesde} onChange={(e) => setFechaHasta(e.target.value)} />
+            </div>
+
+            {/* Botón de Limpiar */}
+            {hayFiltrosActivos && (
+               <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                     setFechaDesde("");
+                     setFechaHasta("");
+                     setBusquedaLocal("");
+                     setProyectoId(undefined);
+                     setProyectoNombre("");
+                     setTipoConduce("all");
+                     setEsCobrable("all");
+                  }}
+               >
+                  <X className="size-4 mr-1" /> Limpiar filtros
+               </Button>
+            )}
+         </div>
+
+         {/* ── RESUMEN ── */}
+         <div className="flex flex-wrap gap-6 rounded-lg bg-background p-3 shadow-sm border w-fit">
+            <div>
+               <p className="text-[10px] font-semibold uppercase text-muted-foreground">Viajes / Botes </p>
+               <p className="text-lg font-bold">{resumen.totalViajes}</p>
+            </div>
+            <div>
+               <p className="text-[10px] font-semibold uppercase text-muted-foreground">Horas Trabajadas</p>
+               <p className="text-lg font-bold">{resumen.totalHoras.toFixed(2)}</p>
+            </div>
+            <div className="border-l pl-4">
+               <p className="text-[10px] font-semibold uppercase text-brand-blue">Producción Bruta</p>
+               <p className="text-lg font-bold text-brand-blue">
+                  RD$ {resumen.produccionBruta.toLocaleString("es-DO")}
+               </p>
             </div>
          </div>
 
          {/* ── TABLA DE CONDUCES ── */}
-         {loading ? (
-            <div className="flex items-center justify-center py-12">
-               <Loader2 className="size-6 animate-spin text-brand-blue" />
-            </div>
-         ) : conduces.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground border rounded-xl border-dashed">
-               <CalendarSearch className="size-8 opacity-20" />
-               <p className="text-sm">No hay conduces registrados en este período.</p>
-            </div>
-         ) : (
-            <div className="rounded-xl border">
-               <ConduceTable conduces={conduces} ocultarProyecto={ocultarProyecto} />
-            </div>
-         )}
-      </div>
+         {
+            loading ? (
+               <div className="flex items-center justify-center py-12">
+                  <Loader2 className="size-6 animate-spin text-brand-blue" />
+               </div>
+            ) : conducesFiltradas.length === 0 ? (
+               <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground border rounded-xl border-dashed">
+                  <CalendarSearch className="size-8 opacity-20" />
+                  <p className="text-sm">
+                     {busquedaDebounce ? "No hay conduces que coincidan con la búsqueda." : "No hay conduces registrados con estos filtros."}
+                  </p>
+               </div>
+            ) : (
+               <div className="rounded-xl border">
+                  <ConduceTable conduces={conducesFiltradas} ocultarProyecto={ocultarProyecto} />
+               </div>
+            )
+         }
+      </div >
    );
 }
