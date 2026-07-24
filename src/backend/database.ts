@@ -392,6 +392,7 @@ export interface DB {
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
+   
    servicios: ServicioTable;
    servicio_tarifas: ServicioTarifaTable;
    proyecto_tarifas: ProyectoTarifaTable;
@@ -447,6 +448,24 @@ export interface DB {
       concepto: string;
       balance_pendiente: number | null;
       referencia: Generated<number>;
+      fecha: Date;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+      deleted_by: string | null;
+      deleted_at: Date | null;
+      deleted_reason: string | null;
+   };
+
+   pago: {
+      id: Generated<string>;
+      referencia: Generated<number>;
+      metodo_pago: string;
+      monto_pagado: number;
+      concepto: string;
+      tipo_movimiento: string;
+      gasto_empresa_id: string | null;
+      costo_cliente_id: string | null;
+      deduccion_empleado_id: string | null;
       fecha: Date;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
