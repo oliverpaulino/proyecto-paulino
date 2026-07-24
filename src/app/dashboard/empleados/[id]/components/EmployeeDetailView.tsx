@@ -137,7 +137,6 @@ export default function EmployeeDetailView() {
    }
 
    const { empleado, contactos, tarifas } = selectedEmployee;
-   console.log("Selected Employee:", selectedEmployee);
 
    return (
       <div className="flex flex-col gap-6 p-6">
