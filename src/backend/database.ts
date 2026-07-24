@@ -40,6 +40,18 @@ export interface ProyectoEquipoTable {
    updated_at: Generated<Date>;
 }
 
+export interface EmpleadoCategoriaTarifaTable {
+   id: Generated<string>;
+   empleado_id: string;
+   categoria_equipo_tarifa_id: string; // <-- AHORA SÍ, apunta al "Bote" o "Viaje"
+   monto_pago: number;
+   created_at: Generated<Date>;
+   updated_at: Generated<Date>;
+}
+
+// Y dentro del type DB, agrégala:
+// ... tus otras tablas[cite: 3]
+
 export interface DB {
    cliente: {
       id: Generated<string>;
@@ -72,12 +84,14 @@ export interface DB {
       nombre: string;
       identificacion: string;
       tipo_identificacion: string;
+      frecuencia_pago: string; // <-- Agregado el campo de frecuencia de pago
       rol: string;
       salario: number;
       activo: boolean;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
+   empleado_categoria_tarifa: EmpleadoCategoriaTarifaTable;
 
    contact_empleado: {
       id: Generated<string>;
@@ -392,7 +406,7 @@ export interface DB {
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
-   
+
    servicios: ServicioTable;
    servicio_tarifas: ServicioTarifaTable;
    proyecto_tarifas: ProyectoTarifaTable;
@@ -405,7 +419,7 @@ export interface DB {
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    }
-   
+
    gasto: {
       id: Generated<string>;
       referencia: Generated<number>;
