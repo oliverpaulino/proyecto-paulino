@@ -51,7 +51,7 @@ export default function ConducesPage() {
    }
 
    async function handleDelete(id: string) {
-      if (!confirm("¿Eliminar este conduce? Esta acción no se puede deshacer.")) return;
+      // if (!confirm("¿Eliminar este conduce? Esta acción no se puede deshacer.")) return;
       setDeletingId(id);
       try {
          await DeleteConduce(id);

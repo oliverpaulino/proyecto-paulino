@@ -19,18 +19,39 @@ import { SelectBuscadorProyecto } from "@/components/shared/selectBuscadorProyec
 interface Props {
    filtros: ConduceFiltros;
    onChange: (filtros: ConduceFiltros) => void;
+   debounceDelay?: number; // Opcional: para personalizar el retraso (por defecto 350ms)
 }
 
-export function ConduceFiltrosBar({ filtros, onChange }: Props) {
+export function ConduceFiltrosBar({ filtros, onChange, debounceDelay = 350 }: Props) {
    const { Clients, GetClients } = useClientStore();
 
-   // Estados locales para los nombres seleccionados (para los initialLabel de los buscadores)
+   // Estados locales para los nombres seleccionados
    const [clienteNombre, setClienteNombre] = useState("");
    const [proyectoNombre, setProyectoNombre] = useState("");
+
+   // Estado local para el input de búsqueda con debounce
+   const [busquedaLocal, setBusquedaLocal] = useState(filtros.busqueda ?? "");
 
    useEffect(() => {
       GetClients();
    }, [GetClients]);
+
+   // Sincronizar el estado local si los filtros cambian externamente (ej. al limpiar filtros)
+   useEffect(() => {
+      setBusquedaLocal(filtros.busqueda ?? "");
+   }, [filtros.busqueda]);
+
+   // Efecto de Debounce para la búsqueda
+   useEffect(() => {
+      const timer = setTimeout(() => {
+         // Solo disparamos el cambio si el valor local difiere del filtro actual
+         if (busquedaLocal !== (filtros.busqueda ?? "")) {
+            onChange({ ...filtros, busqueda: busquedaLocal || undefined, page: 1 });
+         }
+      }, debounceDelay);
+
+      return () => clearTimeout(timer);
+   }, [busquedaLocal, debounceDelay]); // Nota: omitimos 'filtros' y 'onChange' para evitar loops, o los controlamos bien
 
    // Sincronizar nombres si los filtros cambian externamente o se limpian
    useEffect(() => {
@@ -55,8 +76,8 @@ export function ConduceFiltrosBar({ filtros, onChange }: Props) {
          <div className="w-48 space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Buscar (referencia/equipo)</label>
             <Input
-               value={filtros.busqueda ?? ""}
-               onChange={(e) => set("busqueda", e.target.value || undefined)}
+               value={busquedaLocal}
+               onChange={(e) => setBusquedaLocal(e.target.value)}
                placeholder="Ej. 00234"
             />
          </div>
@@ -70,14 +91,13 @@ export function ConduceFiltrosBar({ filtros, onChange }: Props) {
                placeholder="Todos los clientes..."
                onChange={(id) => {
                   set("cliente_id", id || undefined);
-                  // Si cambia o limpia el cliente, limpiamos también el proyecto seleccionado por coherencia
                   set("proyecto_id", undefined);
                   setProyectoNombre("");
                }}
             />
          </div>
 
-         {/* Buscador de Proyecto (Filtra automáticamente por cliente_id si está seleccionado) */}
+         {/* Buscador de Proyecto */}
          <div className="w-56 space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Proyecto</label>
             <SelectBuscadorProyecto
@@ -127,7 +147,7 @@ export function ConduceFiltrosBar({ filtros, onChange }: Props) {
          </div>
          <div className="w-36 space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Hasta</label>
-            <Input type="date" value={filtros.fecha_hasta ?? ""} onChange={(e) => set("fecha_hasta", e.target.value || undefined)} />
+            <Input type="date" value={filtros.fecha_hasta ?? ""} min={filtros.fecha_desde || undefined} onChange={(e) => set("fecha_hasta", e.target.value || undefined)} />
          </div>
 
          {hayFiltrosActivos && (
@@ -138,6 +158,7 @@ export function ConduceFiltrosBar({ filtros, onChange }: Props) {
                onClick={() => {
                   setClienteNombre("");
                   setProyectoNombre("");
+                  setBusquedaLocal("");
                   onChange({ page: 1, pageSize: filtros.pageSize });
                }}
             >
