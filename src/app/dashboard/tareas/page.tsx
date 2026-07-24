@@ -35,6 +35,7 @@ export default function TareasPage() {
    const [createOpen, setCreateOpen] = useState(false);
 
    useEffect(() => {
+      document.title = "Tareas";
       GetProyectos();
    }, [GetProyectos]);
 

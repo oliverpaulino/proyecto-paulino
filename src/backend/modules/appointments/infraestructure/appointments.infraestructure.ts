@@ -12,9 +12,15 @@ import {
 export class KyselyAppointmentRepository implements IAppointmentRepository {
    constructor(private readonly db: Kysely<DB>) {}
 
+   private buildCodigoReferencia(referencia: number): string {
+      const ref = String(referencia).padStart(3, "0");
+      return `CIT-${ref}`;
+   }
+
    private mapToEntity(row: any): Appointment {
       return Appointment.create({
          ...row,
+         codigoReferencia: this.buildCodigoReferencia(row.referencia),
          estado: row.estado as EstadoCita,
          fecha: new Date(row.fecha),
          created_at: new Date(row.created_at),
@@ -25,6 +31,9 @@ export class KyselyAppointmentRepository implements IAppointmentRepository {
    private mapToEntityUI(row: any): AppointmentUI {
       return AppointmentUI.create({
          ...row,
+         cliente_nombre: row.cliente_nombre || "Sin cliente",
+         employee_nombre: row.employee_nombre || "Sin asignar",
+         codigoReferencia: this.buildCodigoReferencia(row.referencia),
          estado: row.estado as EstadoCita,
          fecha: new Date(row.fecha),
          created_at: new Date(row.created_at),
@@ -33,7 +42,7 @@ export class KyselyAppointmentRepository implements IAppointmentRepository {
    }
 
    async findAll(start?: Date | null, end?: Date | null, state?: EstadoCita | null, mine?: boolean | null, userId?: string | null): Promise<AppointmentUI[]> {
-      let query = await this.db
+      let query = this.db
          .selectFrom("cita")
          .selectAll("cita")
          .leftJoin("cliente", "cliente.id", "cita.cliente_id")
@@ -83,19 +92,7 @@ export class KyselyAppointmentRepository implements IAppointmentRepository {
 
       if (!row) return null;
 
-      return AppointmentUI.create({
-         id: row.id,
-         cliente_id: row.cliente_id,
-         employee_id: row.employee_id,
-         fecha: new Date(row.fecha),
-         motivo: row.motivo,
-         estado: row.estado as any,
-         notas: row.notas,
-         created_at: new Date(row.created_at),
-         updated_at: new Date(row.updated_at),
-         cliente_nombre: row.cliente_nombre || "No encontrado",
-         employee_nombre: row.employee_nombre || "Sin asignar"
-      });
+      return this.mapToEntityUI(row);
    }
 
    async create(data: CreateAppointmentDTO): Promise<Appointment> {
@@ -150,21 +147,7 @@ export class KyselyAppointmentRepository implements IAppointmentRepository {
          .orderBy("cita.fecha", "desc")
          .execute();
 
-      return rows.map((row) => 
-         AppointmentUI.create({
-            id: row.id,
-            cliente_id: row.cliente_id,
-            employee_id: row.employee_id,
-            fecha: new Date(row.fecha),
-            motivo: row.motivo,
-            estado: row.estado as any,
-            notas: row.notas,
-            created_at: new Date(row.created_at),
-            updated_at: new Date(row.updated_at),
-            cliente_nombre: row.cliente_nombre || "No encontrado",
-            employee_nombre: row.employee_nombre || "Sin asignar"
-         })
-      );
+      return rows.map((row) => this.mapToEntityUI(row));
    }
 
    async findAppointmentsByEmployeeId(employeeId: string): Promise<AppointmentUI[]> {
@@ -181,21 +164,7 @@ export class KyselyAppointmentRepository implements IAppointmentRepository {
          .orderBy("cita.fecha", "asc")
          .execute();
 
-      return rows.map((row) => 
-         AppointmentUI.create({
-            id: row.id,
-            cliente_id: row.cliente_id,
-            employee_id: row.employee_id,
-            fecha: new Date(row.fecha),
-            motivo: row.motivo,
-            estado: row.estado as any,
-            notas: row.notas,
-            created_at: new Date(row.created_at),
-            updated_at: new Date(row.updated_at),
-            cliente_nombre: row.cliente_nombre || "No encontrado",
-            employee_nombre: row.employee_nombre || "Sin asignar"
-         })
-      );
+      return rows.map((row) => this.mapToEntityUI(row));
    }
 
    async findAppointmentsByUserId(userId: string): Promise<AppointmentUI[]> {
@@ -213,20 +182,6 @@ export class KyselyAppointmentRepository implements IAppointmentRepository {
          .orderBy("cita.fecha", "asc")
          .execute();
 
-      return rows.map((row) => 
-         AppointmentUI.create({
-            id: row.id,
-            cliente_id: row.cliente_id,
-            employee_id: row.employee_id,
-            fecha: new Date(row.fecha),
-            motivo: row.motivo,
-            estado: row.estado as any,
-            notas: row.notas,
-            created_at: new Date(row.created_at),
-            updated_at: new Date(row.updated_at),
-            cliente_nombre: row.cliente_nombre || "No encontrado",
-            employee_nombre: row.employee_nombre || "Sin asignar"
-         })
-      );
+      return rows.map((row) => this.mapToEntityUI(row));
    }
 }

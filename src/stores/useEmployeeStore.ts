@@ -10,10 +10,14 @@ import type {
    CreateOperatorForm,
    UpdateOperatorForm,
    EmployeeDetails,
+   OperadorAsignable,
+   SaveTarifasBulkForm,
 } from "@/dtos/employee.dto";
 
 type EmployeeStore = {
    Employees: Employee[];
+   UnlinkedEmployees: Employee[];
+   Operators: OperadorAsignable[];
    Contacts: ContactEmployee[];
    selectedEmployee: EmployeeDetails | null;
    loading: boolean;
@@ -31,6 +35,7 @@ type EmployeeStore = {
    _fetchedDetails: Set<string>;
 
    GetEmployees: (params?: { page?: number; limit?: number; search?: string; force?: boolean }) => Promise<void>;
+   GetOperators: (params?: { page?: number; limit?: number; search?: string; force?: boolean }) => Promise<void>;
    GetUnlinkedEmployees: (params?: { page?: number; limit?: number; search?: string; force?: boolean }) => Promise<void>;
    GetLinkedEmployeesByUserId: (userId: string) => Promise<Employee[]>;
 
@@ -44,6 +49,16 @@ type EmployeeStore = {
    GoToPage: (page: number) => Promise<void>;
    SearchEmployees: (search: string) => Promise<void>;
 
+   // ==========================================
+   // TARIFAS DE OPERACIÓN
+   // ==========================================
+   SaveTarifasCategoria: (empleadoId: string, data: SaveTarifasBulkForm) => Promise<void | Error>;
+   UpdateTarifaEmpleado: (empleadoId: string, tarifaId: string, monto_pago: number) => Promise<void | Error>;
+   DeleteTarifaEmpleado: (empleadoId: string, tarifaId: string) => Promise<void | Error>;
+
+   // ==========================================
+   // CONTACTOS Y OPERADORES
+   // ==========================================
    CreateContact: (data: CreateContactEmployeeForm) => Promise<void | Error>;
    UpdateContact: (contactoId: string, data: UpdateContactEmployeeForm) => Promise<void | Error>;
    DeleteContact: (empleadoId: string, contactoId: string) => Promise<void | Error>;
@@ -60,6 +75,8 @@ type EmployeeStore = {
 
 export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
    Employees: [],
+   UnlinkedEmployees: [],
+   Operators: [],
    Contacts: [],
    selectedEmployee: null,
    loading: false,
@@ -150,7 +167,7 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
          const start = (page - 1) * limit;
 
          set((state) => ({
-            Employees: filtered.slice(start, start + limit),
+            UnlinkedEmployees: filtered.slice(start, start + limit),
             pagination: {
                page,
                limit,
@@ -169,16 +186,101 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
       }
    },
 
+   // ==========================================
+   // TARIFAS DE OPERACIÓN
+   // ==========================================
+   SaveTarifasCategoria: async (empleadoId, data) => {
+      try {
+         const res = await fetch(`/api/employees/${empleadoId}/tarifas/bulk`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+         });
+         if (!res.ok) throw new Error("Error al guardar las tarifas");
+
+         await get().GetEmployeeDetails(empleadoId, true);
+      } catch (error) {
+         throw error;
+      }
+   },
+
+   UpdateTarifaEmpleado: async (empleadoId, tarifaId, monto_pago) => {
+      try {
+         const res = await fetch(`/api/employees/tarifas/${tarifaId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ monto_pago }),
+         });
+         if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || "Error al actualizar tarifa");
+         }
+         await get().GetEmployeeDetails(empleadoId, true);
+      } catch (error) {
+         throw error;
+      }
+   },
+
+   DeleteTarifaEmpleado: async (empleadoId, tarifaId) => {
+      try {
+         const res = await fetch(`/api/employees/tarifas/${tarifaId}`, {
+            method: "DELETE"
+         });
+         if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || "Error al eliminar tarifa");
+         }
+         await get().GetEmployeeDetails(empleadoId, true);
+      } catch (error) {
+         throw error;
+      }
+   },
+
    GetLinkedEmployeesByUserId: async (userId: string) => {
       set({ loading: true });
       try {
          const res = await fetch(`/api/employees/linked/${userId}`);
          if (!res.ok) throw new Error("Error al cargar empleados vinculados");
-         
+
          const linkedEmployees: Employee[] = await res.json();
          return linkedEmployees;
       } catch (error) {
          console.error(error);
+         throw error;
+      } finally {
+         set({ loading: false });
+      }
+   },
+
+   GetOperators: async (params = {}) => {
+      const { page = 1, limit = 20, search = "", force = false } = params;
+      const cacheKey = `operators:${page}:${limit}:${search}`;
+      if (!force && get()._fetchedEmployeeLists.has(cacheKey)) return;
+      set({ loading: true });
+      try {
+         const res = await fetch(`/api/employees/operators?page=${page}&limit=${limit}&search=${search}`);
+         if (!res.ok) {
+            const errorText = await res.text();
+            console.error(`Error ${res.status}: ${errorText}`);
+            throw new Error("Error al cargar operadores");
+         }
+         const data: { operators: Operator[]; total: number } = await res.json();
+         const totalPages = Math.max(1, Math.ceil(data.total / limit));
+
+         set((state) => ({
+            Operators: data as any,
+            pagination: {
+               page,
+               limit,
+               total: data.total,
+               totalPages,
+               hasNext: page < totalPages,
+               hasPrev: page > 1,
+            },
+            _fetchedEmployeeLists: new Set(state._fetchedEmployeeLists).add(cacheKey),
+         }));
+      } catch (error) {
+         console.error("Error fetching operators:", error);
          throw error;
       } finally {
          set({ loading: false });
@@ -195,7 +297,6 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
          if (!res.ok) throw new Error("Error al cargar detalles del empleado");
 
          const details: EmployeeDetails = await res.json();
-
          set((state) => ({
             selectedEmployee: details,
             _fetchedDetails: new Set(state._fetchedDetails).add(empleadoId),
@@ -288,7 +389,6 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
          }
 
          await get().GetEmployeeDetails(data.empleado_id, true);
-
       } catch (error) {
          throw error;
       }
@@ -311,7 +411,6 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
          if (empId) {
             await get().GetEmployeeDetails(empId, true);
          }
-
       } catch (error) {
          throw error;
       }
@@ -329,7 +428,6 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
          }
 
          await get().GetEmployeeDetails(empleadoId, true);
-
       } catch (error) {
          throw error;
       }
@@ -363,6 +461,7 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
          return error as Error;
       }
    },
+
    GetContacts: async () => {
       try {
          const res = await fetch(`/api/employees/contacts`);

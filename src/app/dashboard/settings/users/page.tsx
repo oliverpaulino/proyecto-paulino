@@ -57,14 +57,19 @@ export default function UsersPage() {
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+
   const fetchUsers = async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data } = await (authClient.admin as any).listUsers({ query: { limit: 100 } });
+    const { data } = await (authClient.admin).listUsers({ query: { limit: 100 } });
+    console.log(data)
     setUsers((data?.users as User[]) ?? []);
     setLoading(false);
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => {
+    document.title = "Usuarios";
+    fetchUsers();
+  }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,3 +1,5 @@
+import { CategoriaEquipo } from "@/dtos/categoria-equipo.dto";
+
 export const ESTADOS_EQUIPO = [
    "ACTIVO",
    "INACTIVO",
@@ -8,11 +10,13 @@ export type EstadoEquipo = (typeof ESTADOS_EQUIPO)[number];
 
 export interface EquipoProps {
    id: string;
+   referencia: number;
+   codigoReferencia: string;
    nombre: string;
    categoria_id: string;
+   operador_id: string | null;
+   operador_nombre: string | null;
    categoria_nombre: string;
-   cobra_en: string;
-   cobra_minimo: number | null;
    estado: EstadoEquipo;
    costo_por_hora: number;
    placa: string | null;
@@ -30,11 +34,16 @@ export class Equipo {
    }
 
    get id(): string { return this.props.id; }
+   get referencia() { return this.props.referencia; }
+   get codigoReferencia() {
+      const ref = String(this.props.referencia).padStart(3, "0");
+      return `EQU-${ref}`;
+   }
    get nombre(): string { return this.props.nombre; }
    get categoria_id(): string { return this.props.categoria_id; }
+   get operador_id(): string | null { return this.props.operador_id; }
+   get operador_nombre(): string | null { return this.props.operador_nombre; }
    get categoria_nombre(): string { return this.props.categoria_nombre; }
-   get cobra_en(): string { return this.props.cobra_en; }
-   get cobra_minimo(): number | null { return this.props.cobra_minimo; }
    get estado(): EstadoEquipo { return this.props.estado; }
    get costo_por_hora(): number { return this.props.costo_por_hora; }
    get placa(): string | null { return this.props.placa; }
@@ -71,10 +80,10 @@ export interface EquipoCompraItemProps {
 }
 
 export interface CreateEquipoDTO {
+   operador_id: string | null;
    nombre: string;
    categoria_id: string;
    estado?: EstadoEquipo;
-   costo_por_hora?: number;
    placa?: string | null;
    modelo?: string | null;
    ano?: number | null;
@@ -82,20 +91,21 @@ export interface CreateEquipoDTO {
 
 export interface UpdateEquipoDTO {
    nombre?: string;
+   operador_id?: string | null;
    categoria_id?: string;
    estado?: EstadoEquipo;
-   costo_por_hora?: number;
    placa?: string | null;
    modelo?: string | null;
    ano?: number | null;
 }
 
 export interface IEquipoRepository {
-   findAll(): Promise<Equipo[]>;
+   findAll(params?: { page?: number; limit?: number; search?: string }): Promise<Equipo[]>;
    findById(id: string): Promise<Equipo | null>;
    create(data: CreateEquipoDTO): Promise<Equipo>;
    update(id: string, data: UpdateEquipoDTO): Promise<Equipo | null>;
    delete(id: string): Promise<boolean>;
+   findCategoriaByEquipoId(equipoId: string): Promise<CategoriaEquipo | null>;
    changeEstado(
       id: string,
       nuevoEstado: EstadoEquipo,

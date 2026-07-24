@@ -6,6 +6,7 @@ import {
    IPurchaseOrderRepository,
    isEditable,
    PurchaseOrderItemInput,
+   PurchaseOrderPaginatedResult,
    PurchaseOrderProps,
    UpdatePurchaseOrderDTO,
 } from "../domain/purchase-order.domain";
@@ -13,14 +14,15 @@ import {
 export class PurchaseOrderService {
    constructor(private readonly repo: IPurchaseOrderRepository) { }
 
-   async getAll(): Promise<PurchaseOrderProps[]> {
-      const orders = await this.repo.findAll();
-      return orders.map((o) => o.toJSON());
+   async getAll(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<PurchaseOrderPaginatedResult> {
+      const { supplierId = "", search, page, limit } = params;
+      const orders = await this.repo.findAll({ supplierId, search, page, limit });
+      return orders
    }
 
-   async getAllDeleted(): Promise<PurchaseOrderProps[]> {
-      const orders = await this.repo.findAllDeleted();
-      return orders.map((o) => o.toJSON());
+   async getAllDeleted(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<PurchaseOrderPaginatedResult> {
+      const orders = await this.repo.findAllDeleted(params);
+      return orders;
    }
 
    async getById(id: string): Promise<PurchaseOrderProps | null> {
@@ -74,7 +76,7 @@ export class PurchaseOrderService {
       return this.getById(id);
    }
 
-   async restore (id: string): Promise<PurchaseOrderProps | null> {
+   async restore(id: string): Promise<PurchaseOrderProps | null> {
       await this.repo.restore(id);
       return this.getById(id);
    }

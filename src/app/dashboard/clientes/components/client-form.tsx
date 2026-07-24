@@ -5,14 +5,15 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useDebounce } from "@/hooks/use-debounce"; 
+import { useDebounce } from "@/hooks/use-debounce";
 
-import { 
-   GeneralSchemasDTO, 
-   TipoIdentificacion,  
-} from "@/dtos/schema.dto"; 
+import {
+   GeneralSchemasDTO,
+   TipoIdentificacion,
+} from "@/dtos/schema.dto";
 
 import { TipoCliente } from "@/dtos/client.dto";
+import { useClientStore } from "@/stores/useClientStore";
 
 const tipoIdentificacionOptions = Object.entries(TipoIdentificacion).map(([key, value]) => ({
    value: key as keyof typeof TipoIdentificacion,
@@ -35,7 +36,7 @@ interface FormValues {
 }
 
 interface ClientFormProps {
-   initialData?: Partial<any>; 
+   initialData?: Partial<any>;
    onSubmit: (data: FormValues) => Promise<void>;
    onCancel?: () => void;
    loading?: boolean;
@@ -63,10 +64,12 @@ export function ClientForm({
       telefono: initialData?.telefono ?? "",
       direccion: initialData?.direccion ?? "",
    });
-   
+
+   const { Clients } = useClientStore()
+
    const [error, setError] = useState<string | null>(null);
    const [isSearching, setIsSearching] = useState(false);
-   
+
    const [isManualEntryAllowed, setIsManualEntryAllowed] = useState(false);
    const [apiDataFound, setApiDataFound] = useState<{ nombre: boolean; perfil: boolean }>({
       nombre: false,
@@ -83,27 +86,30 @@ export function ClientForm({
    useEffect(() => {
       async function fetchClienteDGII() {
          if (values.tipo_identificacion === "PASAPORTE") {
-             set("tipo_cliente", "FISICA");
-             setIsManualEntryAllowed(true); 
-             return;
+            set("tipo_cliente", "FISICA");
+            setIsManualEntryAllowed(true);
+            return;
          }
-         
+
          if (!isIdLengthValid) {
-             setIsManualEntryAllowed(false);
-             setApiDataFound({ nombre: false, perfil: false });
-             return;
+            setIsManualEntryAllowed(false);
+            setApiDataFound({ nombre: false, perfil: false });
+            return;
          }
 
          setIsSearching(true);
-         setIsManualEntryAllowed(false); 
-         
+         setIsManualEntryAllowed(false);
+
          try {
+
             const url = `/api/dgii/${debouncedIdentificacion.toString()}`;
             const response = await fetch(url);
-            
+            console.log("DGII API response status:", response.status);
+            console.log(response)
+
             if (response.ok) {
                const data = await response.json();
-               
+
                if (data.error === false && data.nombre_razon_social) {
                   let tipoC: keyof typeof TipoCliente = "FISICA";
                   let tipoI: keyof typeof TipoIdentificacion = "CEDULA";
@@ -116,17 +122,17 @@ export function ClientForm({
                   set("nombre", data.nombre_razon_social);
                   set("tipo_cliente", tipoC);
                   set("tipo_identificacion", tipoI);
-                  
-                  setApiDataFound({ 
-                      nombre: true, 
-                      perfil: true 
+
+                  setApiDataFound({
+                     nombre: true,
+                     perfil: true
                   });
-                  
-                  setIsManualEntryAllowed(true); 
-                  setError(null); 
+
+                  setIsManualEntryAllowed(true);
+                  setError(null);
                } else {
-                   setIsManualEntryAllowed(true);
-                   setApiDataFound({ nombre: false, perfil: false });
+                  setIsManualEntryAllowed(true);
+                  setApiDataFound({ nombre: false, perfil: false });
                }
             } else {
                setIsManualEntryAllowed(true);
@@ -164,6 +170,11 @@ export function ClientForm({
 
    function validateForm(): boolean {
       setError(null);
+
+      if (isDuplicateId) {
+         setError("Esta identificación ya se encuentra registrada en otro cliente.");
+         return false;
+      }
 
       if (values.email) {
          const emailValidation = GeneralSchemasDTO.EmailSchema.safeParse(values.email);
@@ -206,7 +217,7 @@ export function ClientForm({
 
    async function handleSubmit(e: React.FormEvent) {
       e.preventDefault();
-      
+
       if (!validateForm()) return;
 
       try {
@@ -219,11 +230,24 @@ export function ClientForm({
    const isTipoIdDisabled = isSearching || apiDataFound.perfil;
    const isPerfilDisabled = values.tipo_identificacion === "PASAPORTE" || !isManualEntryAllowed || apiDataFound.perfil;
    const isNombreDisabled = !isManualEntryAllowed || apiDataFound.nombre;
-   const areOtherFieldsDisabled = !isManualEntryAllowed; 
+   const areOtherFieldsDisabled = !isManualEntryAllowed;
 
+   const isIdLengthInvalid =
+      values.tipo_identificacion !== "PASAPORTE" &&
+      values.identificacion.length > 0 &&
+      values.identificacion.length !== 9 &&
+      values.identificacion.length !== 11;
+
+
+   const isDuplicateId =
+      values.identificacion.length > 0 &&
+      Clients.some((c) => c.identificacion === values.identificacion && c.id !== initialData?.id);
+
+   // Agrupamos el estado de error
+   const hasIdError = isIdLengthInvalid || isDuplicateId;
    return (
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-         
+
          <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
                <Label htmlFor="cf-tipo-id">Tipo de Identificación</Label>
@@ -234,7 +258,7 @@ export function ClientForm({
                      const val = e.target.value as keyof typeof TipoIdentificacion;
                      set("tipo_identificacion", val);
                      if (val === "PASAPORTE") set("tipo_cliente", "FISICA");
-                     
+
                      setIsManualEntryAllowed(false);
                      setApiDataFound({ nombre: false, perfil: false });
                   }}
@@ -266,7 +290,7 @@ export function ClientForm({
          </div>
 
          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="cf-identificacion">Identificación *</Label>
+            <Label htmlFor="cf-identificacion" className={isIdLengthInvalid ? "text-destructive/90 transition-colors" : "transition-colors"} >Identificación *</Label>
             <div className="relative">
                <Input
                   id="cf-identificacion"
@@ -274,15 +298,32 @@ export function ClientForm({
                   onChange={handleIdentificacionChange}
                   placeholder={
                      values.tipo_identificacion === "CEDULA" ? "Ej: 40212345678" :
-                     values.tipo_identificacion === "RNC" ? "Ej: 130123456" : "Ej: RD1234567"
+                        values.tipo_identificacion === "RNC" ? "Ej: 130123456" : "Ej: RD1234567"
                   }
                   required
-                  className={isSearching ? `pr-10 ${INPUT_DISABLED_CLASS}` : INPUT_DISABLED_CLASS}
+                  className={`
+                     ${isSearching ? "pr-10" : ""} 
+                     ${INPUT_DISABLED_CLASS} 
+                     ${isIdLengthInvalid ? "border-destructive/60 focus-visible:ring-destructive/30" : ""}
+                  `}
                />
                {isSearching && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   </div>
+               )}
+               {isDuplicateId ? (
+                  <span className="text-[11px] font-medium text-destructive/80 -mt-0.5 animate-in fade-in slide-in-from-top-0.5">
+                     Esta cédula/RNC ya existe en tus registros
+                  </span>
+               ) : isIdLengthInvalid ? (
+                  <span className="text-[11px] font-medium text-destructive/80 -mt-0.5 animate-in fade-in slide-in-from-top-0.5">
+                     Llevas {values.identificacion.length} caracteres (deben ser 9 u 11)
+                  </span>
+               ) : (
+                  <span className="text-[11px] font-medium text-white -mt-0.5 animate-in fade-in slide-in-from-top-0.5">
+                     espacio
+                  </span>
                )}
             </div>
          </div>

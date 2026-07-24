@@ -1,9 +1,113 @@
 import { Kysely, PostgresDialect, Generated } from "kysely";
 import { Pool } from "pg";
 
+export interface ServicioTable {
+   id: Generated<string>;
+   nombre: string;
+   is_custom: Generated<boolean>;
+   activo: Generated<boolean>;
+   created_at: Generated<Date>;
+   updated_at: Generated<Date>;
+}
+
+export interface ServicioTarifaTable {
+   id: Generated<string>;
+   servicio_id: string;
+   categoria_equipo_id: string;
+   precio_sugerido: number;
+   created_at: Generated<Date>;
+}
+
+// ── NUEVO: tarifas propias del proyecto. Referencian categoria_equipo_tarifa ──
+// ── con ON DELETE CASCADE: si esa tarifa desaparece (tu update() actual la ──
+// ── borra y reinserta en cada edición de la categoría — ver nota en el   ──
+// ── chat), el override del proyecto se limpia solo en vez de romper el   ──
+// ── guardado. Se snapshotea el nombre para no depender de un join vivo.  ──
+export interface ProyectoTarifaTable {
+   id: Generated<string>;
+   proyecto_id: string;
+   categoria_equipo_tarifa_id: string;
+   categoria_equipo_tarifa_nombre: string;
+   categoria_equipo_nombre: string;
+   medida_cobro_nombre: string;
+   precio_unitario: number;
+   created_at: Generated<Date>;
+   updated_at: Generated<Date>;
+}
+
+// ── NUEVO: Conduce con dos subtipos (CAMION / EQUIPO_PESADO). El precio se ──
+// ── resuelve vía categoria_equipo_tarifa (categoría + medida_cobro +      ──
+// ── precio + cobra_minimo), que YA EXISTE y la administras tú.           ──
+// ── categoria_equipo_tarifa_id es NULLABLE con ON DELETE SET NULL a      ──
+// ── propósito: tu update() de categoria-equipo hace hard-replace (borra  ──
+// ── y reinserta TODAS las tarifas de la categoría en cada edición), así  ──
+// ── que el id puede dejar de existir. El conduce NUNCA depende de ese id ──
+// ── para mostrarse — el nombre y la medida de cobro quedan snapshoteados ──
+// ── como texto en el momento del registro (igual que un papel físico:    ──
+// ── el precio/condición queda congelado aunque la config cambie después).──
+export interface ConduceTable {
+   id: Generated<string>;
+   tipo_conduce: string; // 'CAMION' | 'EQUIPO_PESADO'
+   numero_referencia: string; // folio físico que digita la oficina
+   fecha: Date;
+
+   proyecto_id: string | null;
+   cliente_id: string;
+   cliente_telefono: string | null;
+
+   equipo_id: string;
+   operador_id: string;
+   categoria_equipo_id: string; // snapshot, vía equipo.categoria_id
+
+   categoria_equipo_tarifa_id: string | null; // best-effort, puede quedar NULL (ver nota arriba)
+   categoria_equipo_tarifa_nombre: string; // snapshot — SIEMPRE presente, no depende del id
+   medida_cobro_nombre: string; // snapshot — SIEMPRE presente
+
+   es_cobrable: boolean;
+   observaciones: string | null;
+
+   precio_unitario: number;
+   subtotal: Generated<number>;
+
+   // Exclusivos de CAMION
+   procedencia: string | null;
+   destino: string | null;
+   cantidad: number | null;
+   firma_chofer: Generated<boolean>;
+   firma_recibido: Generated<boolean>;
+
+   // Exclusivos de EQUIPO_PESADO
+   horario_manana_inicio: string | null; // "HH:mm"
+   horario_manana_fin: string | null;
+   horario_tarde_inicio: string | null;
+   horario_tarde_fin: string | null;
+   total_horas: number | null;
+   combustible_pagado_cliente: boolean | null;
+   firma_observante: Generated<boolean>;
+   firma_camionero: Generated<boolean>;
+
+   created_by: string | null;
+   created_by_name: string | null;
+   created_at: Generated<Date>;
+   updated_at: Generated<Date>;
+}
+
+export interface EmpleadoCategoriaTarifaTable {
+   id: Generated<string>;
+   empleado_id: string;
+   categoria_equipo_tarifa_id: string; // <-- AHORA SÍ, apunta al "Bote" o "Viaje"
+   monto_pago: number;
+   created_at: Generated<Date>;
+   updated_at: Generated<Date>;
+}
+
+// Y dentro del type DB, agrégala:
+// ... tus otras tablas[cite: 3]
+
 export interface DB {
    cliente: {
       id: Generated<string>;
+      referencia: Generated<number>;
       nombre: string;
       identificacion: string;
       tipo_identificacion: string;
@@ -28,15 +132,18 @@ export interface DB {
 
    empleado: {
       id: Generated<string>;
+      referencia: Generated<number>;
       nombre: string;
       identificacion: string;
       tipo_identificacion: string;
+      frecuencia_pago: string; // <-- Agregado el campo de frecuencia de pago
       rol: string;
       salario: number;
       activo: boolean;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
+   empleado_categoria_tarifa: EmpleadoCategoriaTarifaTable;
 
    contact_empleado: {
       id: Generated<string>;
@@ -70,6 +177,7 @@ export interface DB {
 
    proveedor: {
       id: Generated<string>;
+      referencia: Generated<number>;
       nombre: string;
       tipo: string;
       rnc: string;
@@ -104,25 +212,50 @@ export interface DB {
       nombre: string;
       tipo: string;
       descripcion: string | null;
-      // numeric(12,2): the pg driver returns this as a string at runtime; the
-      // repository normalizes it to a number. DB has a default of 0 (not generated).
       precio_base: number;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
-   
+
+   medida_cobro: {
+      id: Generated<string>;
+      nombre: string; // "Viaje", "Bote", "Hora", etc.
+      descripcion: string | null;
+      permite_decimales: Generated<boolean>;
+      is_active: Generated<boolean>;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   }
+
    categoria_equipo: {
       id: Generated<string>;
       nombre: string;
-      cobra_en: string;
-      cobra_minimo: number | null;
+      metraje: number | null;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
 
-   equipo: {
+   // Una categoria_equipo puede tener varias tarifas (p.ej. "Arena - Viaje",
+   // "Arena - Bote", "Hora normal"), cada una con su propia medida_cobro y
+   // precio. OJO: el update() actual de este módulo hace hard-replace
+   // (borra+reinserta), así que estos ids NO son estables entre ediciones —
+   // ver nota extensa en ConduceTable arriba.
+   categoria_equipo_tarifa: {
       id: Generated<string>;
       nombre: string;
+      categoria_equipo_id: string;
+      medida_cobro_id: string;
+      precio_unitario: number;
+      cobra_minimo: number | null;
+      created_at: Generated<Date>;
+   }
+
+   equipo: {
+      id: Generated<string>;
+      referencia: Generated<number>;
+      nombre: string;
+      operador_id: string | null;
+      operador_nombre: string | null;
       categoria_id: string;
       estado: Generated<string>;
       costo_por_hora: Generated<number>;
@@ -135,6 +268,7 @@ export interface DB {
 
    orden_compra: {
       id: Generated<string>;
+      referencia: Generated<number>;
       proveedor_id: string;
       fecha: Date;
       estado: Generated<string>;
@@ -153,6 +287,7 @@ export interface DB {
    purchase_order_approvers: {
       user_id: string;
       user_name: string;
+      is_protected: boolean;
       granted_by: string;
       granted_at: Generated<Date>;
    };
@@ -228,19 +363,12 @@ export interface DB {
       updated_at: Generated<Date>;
    };
 
-   // Read-only minimal view of proyecto (the full module lives elsewhere/TBD).
-   // Only the columns the tareas feature needs are typed here.
-   proyecto: {
-      id: Generated<string>;
-      nombre: string;
-   };
-
    tarea: {
       id: Generated<string>;
       proyecto_id: string | null;
       nombre: string;
       descripcion: string | null;
-      estado: Generated<string>; // estado_tarea enum, cast at runtime
+      estado: Generated<string>;
       fecha_inicio: Date | null;
       fecha_fin: Date | null;
       created_at: Generated<Date>;
@@ -266,7 +394,7 @@ export interface DB {
       empleado_id: string;
       created_at: Generated<Date>;
    };
-   
+
    unidades: {
       id: Generated<string>;
       nombre: string;
@@ -276,15 +404,72 @@ export interface DB {
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    }
-   
+
    cita: {
       id: Generated<string>;
+      referencia: Generated<number>;
       cliente_id: string | null;
       employee_id: string | null;
       fecha: Date;
       motivo: string | null;
       estado: string;
       notas: string | null;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+
+   proyecto: {
+      id: Generated<string>;
+      nombre: string;
+      estado: string;       // 'BORRADOR' | 'COMPLETADO' | 'CANCELADO' | 'EN PROGRESO'
+      cliente_id: string;
+      tarifa_servicio: number | null;
+
+      total_cobrable: Generated<number>;
+      total_gasto_interno: Generated<number>;
+      total_equipos: Generated<number>; // suma cacheada de conduces (arregla el bug del historial)
+      rentabilidad: Generated<number>;
+
+      notas: string | null;
+      fecha_inicio: Date;
+      fecha_fin: Date | null;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+
+   proyecto_detalle: {
+      id: Generated<string>;
+      proyecto_id: string;
+      descripcion: string;
+      cantidad: number;
+      precio_unitario: number;
+      subtotal: number;
+      es_cobrable: boolean;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+
+   proyecto_asignacion: {
+      id: Generated<string>;
+      proyecto_id: string;
+      empleado_id: string;
+      equipo_id: string;
+      horas_trabajadas: number;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+
+   servicios: ServicioTable;
+   servicio_tarifas: ServicioTarifaTable;
+   conduce: ConduceTable; // ← NUEVO
+   proyecto_tarifa: ProyectoTarifaTable; // ← NUEVO (tarifas propias del proyecto)
+   // El viejo proyecto_tarifas (ligado a proyecto_equipos) y proyecto_equipos
+   // se ELIMINARON — reemplazados por `conduce` + este `proyecto_tarifa`.
+
+   categoria_gasto: {
+      id: Generated<string>;
+      nombre: string;
+      grupo: string;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    }
@@ -315,6 +500,73 @@ export interface DB {
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    }
+   gasto: {
+      id: Generated<string>;
+      referencia: Generated<number>;
+      monto_total: number;
+      concepto: string;
+      ncf: string;
+      categoria_gasto_id: string;
+      orden_compra_id: string | null;
+      proyecto_id: string | null;
+      equipo_id: string | null;
+      fecha: Date;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+      deleted_by: string | null;
+      deleted_at: Date | null;
+      deleted_reason: string | null;
+   };
+
+   costo: {
+      id: Generated<string>;
+      proyecto_id: string,
+      monto_total: number,
+      concepto: string,
+      ncf: string;
+      orden_compra_id: string | null;
+      referencia: Generated<number>;
+      fecha: Date;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+      deleted_by: string | null;
+      deleted_at: Date | null;
+      deleted_reason: string | null;
+   };
+
+   deduccion: {
+      id: Generated<string>;
+      empleado_id: string;
+      equipo_id: string | null;
+      monto_total: number;
+      concepto: string;
+      balance_pendiente: number | null;
+      referencia: Generated<number>;
+      fecha: Date;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+      deleted_by: string | null;
+      deleted_at: Date | null;
+      deleted_reason: string | null;
+   };
+
+   pago: {
+      id: Generated<string>;
+      referencia: Generated<number>;
+      metodo_pago: string;
+      monto_pagado: number;
+      concepto: string;
+      tipo_movimiento: string;
+      gasto_empresa_id: string | null;
+      costo_cliente_id: string | null;
+      deduccion_empleado_id: string | null;
+      fecha: Date;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+      deleted_by: string | null;
+      deleted_at: Date | null;
+      deleted_reason: string | null;
+   };
 }
 
 const db = new Kysely<DB>({

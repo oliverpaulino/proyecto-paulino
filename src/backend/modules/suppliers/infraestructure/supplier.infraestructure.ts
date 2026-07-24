@@ -5,6 +5,21 @@ import { CreateSupplierDTO, ISupplierRepository, Supplier, SupplierProps, TipoPr
 export class KyselySupplierRepository implements ISupplierRepository {
    constructor(private readonly db: Kysely<DB>) { }
 
+   private buildCodigoReferencia(referencia: number): string {
+      const ref = String(referencia).padStart(3, "0");
+      return `PRO-${ref}`;
+   }
+
+   private mapToEntity(row: any): Supplier {
+      return Supplier.create({
+            ...row,
+            codigoReferencia: this.buildCodigoReferencia(row.referencia),
+            tipo: row.tipo as TipoProveedor,
+            created_at: new Date(row.created_at),
+            updated_at: new Date(row.updated_at),
+         })
+   }
+   
    async findAll(): Promise<Supplier[]> {
       const rows = await this.db
          .selectFrom("proveedor")
@@ -12,14 +27,7 @@ export class KyselySupplierRepository implements ISupplierRepository {
          .orderBy("created_at", "desc")
          .execute();
 
-      return rows.map((row) =>
-         Supplier.create({
-            ...row,
-            tipo: row.tipo as TipoProveedor,
-            created_at: new Date(row.created_at),
-            updated_at: new Date(row.updated_at),
-         })
-      );
+      return rows.map((row) => this.mapToEntity(row));
    }
 
    async findById(id: string): Promise<Supplier | null> {
@@ -31,12 +39,7 @@ export class KyselySupplierRepository implements ISupplierRepository {
 
       if (!row) return null;
 
-      return Supplier.create({
-         ...row,
-         tipo: row.tipo as TipoProveedor,
-         created_at: new Date(row.created_at),
-         updated_at: new Date(row.updated_at),
-      });
+      return this.mapToEntity(row);
    }
 
    async create(data: CreateSupplierDTO): Promise<Supplier> {
@@ -53,12 +56,7 @@ export class KyselySupplierRepository implements ISupplierRepository {
          .returningAll()
          .executeTakeFirstOrThrow();
 
-      return Supplier.create({
-         ...row,
-         tipo: row.tipo as TipoProveedor,
-         created_at: new Date(row.created_at),
-         updated_at: new Date(row.updated_at),
-      });
+      return this.mapToEntity(row);
    }
 
    async update(id: string, data: UpdateSupplierDTO): Promise<Supplier | null> {
@@ -71,12 +69,7 @@ export class KyselySupplierRepository implements ISupplierRepository {
 
       if (!row) return null;
 
-      return Supplier.create({
-         ...row,
-         tipo: row.tipo as TipoProveedor,
-         created_at: new Date(row.created_at),
-         updated_at: new Date(row.updated_at),
-      });
+      return this.mapToEntity(row);
    }
 
    async delete(id: string): Promise<boolean> {

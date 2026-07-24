@@ -20,10 +20,10 @@ interface AppointmentTableProps {
 }
 
 const ESTADO_BADGE: Record<string, string> = {
-   ASIGNADA: "bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800",
-   PENDIENTE:  "bg-purple-100 text-purple-900 border border-purple-300 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800",
-   REALIZADA:  "bg-emerald-100 text-emerald-900 border border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800",
-   CANCELADA:   "bg-rose-100 text-rose-900 border border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800",
+   ASIGNADA:  "bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800",
+   PENDIENTE: "bg-purple-100 text-purple-900 border border-purple-300 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800",
+   REALIZADA: "bg-emerald-100 text-emerald-900 border border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800",
+   CANCELADA: "bg-rose-100 text-rose-900 border border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800",
 };
 
 export function AppointmentTable({ appointments, onEdit, onDelete }: AppointmentTableProps) {
@@ -59,7 +59,11 @@ export function AppointmentTable({ appointments, onEdit, onDelete }: Appointment
                   const horaFmt = isValidDate ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
 
                   return (
-                     <tr key={cita.id} className="border-t border-border hover:bg-brand-blue/5 transition-colors">
+                     <tr 
+                        key={cita.id} 
+                        onClick={() => router.push(`/dashboard/citas/${cita.id}`)}
+                        className="border-t border-border hover:bg-brand-blue/5 transition-colors cursor-pointer"
+                     >
                         <td className="px-4 py-3 whitespace-nowrap">
                            <div className="flex items-center gap-1.5 font-medium text-foreground">
                               <Calendar className="size-3.5 text-brand-blue dark:text-blue-400" />
@@ -95,7 +99,10 @@ export function AppointmentTable({ appointments, onEdit, onDelete }: Appointment
                            </span>
                         </td>
 
-                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <td 
+                           className="px-4 py-3 text-right whitespace-nowrap"
+                           onClick={(e) => e.stopPropagation()}
+                        >
                            <div className="flex items-center justify-end gap-1">
                               <PermissionGuard resource="appointment" action="update">
                                  <button

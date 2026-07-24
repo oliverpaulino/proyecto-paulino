@@ -35,6 +35,9 @@ import type { Supplier } from "@/dtos/supplier.dto";
 import { useSupplierStore } from "@/stores/useSupplierStore";
 import { SupplierForm } from "../components/supplier-form";
 import { PermissionGuard } from "@/components/permission-guard";
+import { OrdenesCompraTable } from "./components/ordenes-compra-table";
+import { usePurchaseOrderStore } from "@/stores/usePurchaseOrderStore";
+import { PurchaseOrder } from "@/dtos/purchase-order.dto";
 
 const TIPO_LABEL: Record<string, string> = {
    SUPLIDOR: "SUPLIDOR",
@@ -51,9 +54,12 @@ export default function SupplierDetailPage() {
    const router = useRouter();
    const supplierId = params.id as string;
 
-   const { UpdateSupplier, DeleteSupplier } = useSupplierStore();
+   const { UpdateSupplier, DeleteSupplier, GetSupplierById } = useSupplierStore();
+   const { GetOrdenesCompraBySupplier, PurchaseOrders: ordenes } = usePurchaseOrderStore();
 
    const [supplier, setSupplier] = useState<Supplier | null>(null);
+   const [page, setPage] = useState(1);
+   const limit = 10
    const [loading, setLoading] = useState(true);
    const [actionLoading, setActionLoading] = useState(false);
    const [editOpen, setEditOpen] = useState(false);
@@ -65,10 +71,12 @@ export default function SupplierDetailPage() {
       async function load() {
          setLoading(true);
          try {
-            const res = await fetch(`/api/suppliers/${supplierId}`);
-            if (!res.ok) throw new Error("Not found");
-            const data: Supplier = await res.json();
-            if (active) setSupplier(data);
+            const data = await GetSupplierById(supplierId);
+            await GetOrdenesCompraBySupplier(supplierId, { page, limit });
+
+            setSupplier(data);
+            if (data)
+               document.title = `${data.nombre}`;
          } catch {
             if (active) setSupplier(null);
          } finally {
@@ -119,6 +127,13 @@ export default function SupplierDetailPage() {
          setActionLoading(false);
       }
    }
+
+   const ordenesPendientes = ordenes.data?.filter(o => o.estado === "PENDIENTE") || [];
+
+   const totalDeuda = ordenes.data?.filter(o => ["PENDIENTE", "APROBADA", "RECIBIDA"].includes(o.estado))
+      .reduce((acc, o) => {
+         return acc + o.total;
+      }, 0);
 
    if (loading) {
       return (
@@ -190,7 +205,6 @@ export default function SupplierDetailPage() {
                   { value: "resumen", label: "Resumen" },
                   { value: "compras", label: "Órdenes de compra" },
                   { value: "pagos", label: "Pagos" },
-                  { value: "documentos", label: "Documentos" },
                ].map((tab) => (
                   <TabsTrigger
                      key={tab.value}
@@ -204,25 +218,19 @@ export default function SupplierDetailPage() {
 
             {/* ── RESUMEN ── */}
             <TabsContent value="resumen" className="space-y-4">
-               <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                   <MiniStatCard
                      icon={<ShoppingCart className="size-4 text-brand-blue" />}
                      label="Órdenes de compra"
-                     value="0"
+                     value={ordenes.data?.length.toString() ?? 0}
                      index={0}
 
                   />
                   <MiniStatCard
                      icon={<Receipt className="size-4 text-brand-blue" />}
                      label="Monto total"
-                     value="RD$0"
+                     value={ordenes.data.filter((o) => o.estado !== "BORRADOR" && o.estado !== "CANCELADA").reduce((sum, order) => sum + (order.total || 0), 0).toLocaleString("es-DO", { style: "currency", currency: "DOP" })}
                      index={1}
-                  />
-                  <MiniStatCard
-                     icon={<PackageSearch className="size-4 text-brand-blue" />}
-                     label="Última compra"
-                     value="—"
-                     index={2}
                   />
                   <MiniStatCard
                      icon={<Building2 className="size-4 text-brand-blue" />}
@@ -281,15 +289,30 @@ export default function SupplierDetailPage() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                      <div className="grid gap-4 md:grid-cols-3">
-                        <MiniStat label="Pendientes" value="0" />
-                        <MiniStat label="Completadas" value="0" />
-                        <MiniStat label="Total pagado" value="RD$0" />
+                        <MiniStat
+                           label="Pendientes"
+                           value={ordenesPendientes.length.toString()}
+                        />
+
+                        <MiniStat
+                           label="Total Deuda"
+                           value={`RD$ ${totalDeuda?.toLocaleString('es-DO', { minimumFractionDigits: 2 })}`}
+                        />
+
+                        <MiniStat
+                           label="Total Pagado"
+                           value="RD$ 0.00"
+                        />
                      </div>
-                     <EmptyState
-                        icon={<ShoppingCart className="size-8 opacity-30" />}
-                        title="Sin órdenes de compra"
-                        description="Aquí podrás registrar y ver el historial de órdenes de compra enviadas a este proveedor, incluyendo estado, montos y fechas."
-                     />
+                     <OrdenesCompraTable ordenes={ordenes} onPageChange={(newPage) => setPage(newPage)} onEdit={() => { }} onDelete={() => { }} />
+                     {ordenes.data?.length === 0 && (
+                        <EmptyState
+                           icon={<ShoppingCart className="size-8 opacity-30" />}
+                           title="Sin órdenes de compra"
+                           description="Aquí podrás registrar y ver el historial de órdenes de compra enviadas a este proveedor, incluyendo estado, montos y fechas."
+                        />
+
+                     )}
                   </CardContent>
                </Card>
             </TabsContent>
@@ -321,27 +344,6 @@ export default function SupplierDetailPage() {
                </Card>
             </TabsContent>
 
-            {/* ── DOCUMENTOS ── */}
-            <TabsContent value="documentos" className="space-y-4">
-               <Card>
-                  <CardHeader>
-                     <CardTitle className="flex items-center gap-2">
-                        <FileText className="size-5 text-brand-blue" />
-                        Documentos
-                     </CardTitle>
-                     <CardDescription>
-                        Contratos, certificaciones y archivos relacionados.
-                     </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                     <EmptyState
-                        icon={<FileText className="size-8 opacity-30" />}
-                        title="Sin documentos"
-                        description="Aquí podrás subir y gestionar contratos, certificaciones de RNC, fichas técnicas y cualquier otro documento de este proveedor."
-                     />
-                  </CardContent>
-               </Card>
-            </TabsContent>
          </Tabs>
 
          {/* Edit dialog */}
@@ -399,11 +401,11 @@ function MiniStatCard({
    index?: number;
 }) {
    return (
-      <div className={`flex items-start gap-3 rounded-xl border border-border  p-4 shadow-sm ${index !== undefined && index % 2 === 0 ? "bg-brand-yellow" : "bg-brand-red/60"}`}>
-         <div className={`mt-0.5 rounded-lg ${index !== undefined && index % 2 === 0 ? "bg-brand-red/50" : "bg-brand-yellow/50"} p-2`}>{icon}</div>
+      <div className={`flex items-start gap-3 rounded-xl border border-border  p-4 shadow-sm bg-brand-blue dark:bg-brand-blue/10`}>
+         <div className={`mt-0.5 rounded-lg bg-white p-2`}>{icon}</div>
          <div className="min-w-0">
-            <p className="text-xs font-medium text-muted-foreground">{label}</p>
-            <p className={`mt-0.5 font-bold text-foreground ${compact ? "text-base" : "text-2xl"}`}>{value}</p>
+            <p className="text-xs font-medium text-white">{label}</p>
+            <p className={`mt-0.5 font-bold text-white break-words ${compact ? "text-base" : "text-2xl"}`}>{value}</p>
          </div>
       </div>
    );

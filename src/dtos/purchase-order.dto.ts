@@ -32,6 +32,8 @@ const PurchaseOrderDTO = z.object({
    id: z.string(),
    proveedor_id: z.string(),
    proveedor_nombre: z.string().optional(),
+   referencia: z.number(),
+   codigoReferencia: z.string(),
    fecha: z.coerce.date(),
    estado: EstadoOrdenCompraSchema,
    notas: z.string().nullable(),
@@ -41,8 +43,12 @@ const PurchaseOrderDTO = z.object({
    approved_at: z.coerce.date().nullable().optional(),
    items: z.array(PurchaseOrderItemSchema),
    created_at: z.coerce.date(),
+   deleted_by: z.string().nullable().optional(),
+   deleted_reason: z.string().nullable().optional(),
+   deleted_at: z.coerce.date().nullable().optional(),
    updated_at: z.coerce.date(),
 });
+
 
 const PurchaseOrderDeletedDTO = PurchaseOrderDTO.extend({
    deleted_by: z.string().nullable().optional(),
@@ -64,9 +70,20 @@ const UpdatePurchaseOrderDTO = z.object({
    items: z.array(PurchaseOrderItemFormSchema).min(1).optional(),
 });
 
+
+
 export type PurchaseOrder = z.infer<typeof PurchaseOrderDTO>;
 export type PurchaseOrderDeleted = z.infer<typeof PurchaseOrderDeletedDTO>;
 export type PurchaseOrderForm = z.infer<typeof CreatePurchaseOrderDTO>;
 export type UpdatePurchaseOrderForm = z.infer<typeof UpdatePurchaseOrderDTO>;
 export type PurchaseOrderItemForm = z.infer<typeof PurchaseOrderItemFormSchema>;
 export type EstadoOrdenCompra = z.infer<typeof EstadoOrdenCompraSchema>;
+
+
+export interface PaginatedPurchaseOrders {
+   data: PurchaseOrder[];
+   total: number;
+   page: number;
+   limit: number;
+   totalPages: number;
+}

@@ -16,7 +16,12 @@ const notifService = new NotificationService(notifRepo);
 // GET /api/purchase-orders
 purchaseOrdersRoute.get("/", async (c) => {
    try {
-      const orders = await service.getAll();
+      const supplierId = c.req.query("supplierId") as string | undefined;
+      const search = c.req.query("search") as string | undefined;
+      const page = parseInt(c.req.query("page") as string) || 1;
+      const limit = parseInt(c.req.query("limit") as string) || 0;
+
+      const orders = await service.getAll({ supplierId, search, page, limit });
       return c.json(orders);
    } catch (err: unknown) {
       return c.json(
@@ -29,7 +34,11 @@ purchaseOrdersRoute.get("/", async (c) => {
 // GET /api/purchase-orders/deleted
 purchaseOrdersRoute.get("/deleted", async (c) => {
    try {
-      const orders = await service.getAllDeleted();
+      const supplierId = c.req.query("supplierId") as string | undefined;
+      const search = c.req.query("search") as string | undefined;
+      const page = parseInt(c.req.query("page") as string) || 1;
+      const limit = parseInt(c.req.query("limit") as string) || 0;
+      const orders = await service.getAllDeleted({ supplierId, search, page, limit });
       return c.json(orders);
    } catch (err: unknown) {
       return c.json(
@@ -87,6 +96,15 @@ purchaseOrdersRoute.delete("/approvers/:userId", async (c) => {
    const session = await auth.api.getSession({ headers: c.req.raw.headers });
    if (!session?.user) return c.json({ error: "No autenticado" }, 401);
    const role = (session.user as { role?: string }).role;
+
+   const userIdToDelete = c.req.param("userId");
+
+   if (session.user.id === userIdToDelete) {
+      return c.json(
+         { error: "No puedes eliminarte como firmante." },
+         400
+      );
+   }
    if (role !== "administrador") return c.json({ error: "Acceso denegado" }, 403);
 
    await service.removeApprover(c.req.param("userId"));
@@ -172,7 +190,7 @@ purchaseOrdersRoute.patch("/:id/status", async (c) => {
                   approvers.map((a) => ({
                      user_id: a.user_id,
                      title: "Orden de compra pendiente de aprobación",
-                     message: `La orden #${order.id.slice(0, 8)} ha sido enviada a revisión y requiere tu aprobación.`,
+                     message: `La orden #${order.codigoReferencia} ha sido enviada a revisión y requiere tu aprobación.`,
                      type: "PURCHASE_ORDER_REVIEW",
                      reference_id: order.id,
                      reference_type: "purchase_order",
@@ -215,7 +233,7 @@ purchaseOrdersRoute.patch("/:id", async (c) => {
 purchaseOrdersRoute.patch("/:id/restore", async (c) => {
    try {
       const order = await service.restore(c.req.param("id"));
-      
+
       if (!order) {
          return c.json({ error: "Orden no encontrada" }, 404);
       }
@@ -234,10 +252,13 @@ purchaseOrdersRoute.delete("/:id", async (c) => {
    try {
       const session = await auth.api.getSession({ headers: c.req.raw.headers });
       if (!session?.user) return c.json({ error: "No autenticado" }, 401);
+
+      const order = await service.getById(c.req.param("id"));
+      if (!order) return c.json({ error: "Orden no encontrada" }, 404);
+
       const deleted = await service.delete(session.user.id, c.req.param("id"));
       if (!deleted) return c.json({ error: "Orden no encontrada" }, 404);
 
-      const order = await service.getById(c.req.param("id"));
       try {
          const approvers = await service.listApprovers();
          if (approvers.length > 0) {
@@ -245,7 +266,7 @@ purchaseOrdersRoute.delete("/:id", async (c) => {
                approvers.map((a) => ({
                   user_id: a.user_id,
                   title: "Orden de compra Ha sido Eliminada",
-                  message: `La orden #${order?.id.slice(0, 8)} ha sido eliminada.`,
+                  message: `La orden #${order?.codigoReferencia} ha sido eliminada.`,
                   type: "PURCHASE_ORDER_DELETED",
                   reference_id: order?.id,
                   reference_type: "purchase_order",

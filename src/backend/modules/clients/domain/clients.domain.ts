@@ -3,6 +3,8 @@ export type TipoIdentificacion = "CEDULA" | "PASAPORTE" | "RNC";
 
 export interface ClientProps {
    id: string;
+   referencia: number;
+   codigoReferencia: string;
    nombre: string;
    identificacion: string;
    tipo_identificacion: TipoIdentificacion;
@@ -22,6 +24,9 @@ export class Client {
    }
 
    get id() { return this.props.id; }
+   get referencia() { return this.props.referencia; }
+   get codigoReferencia() { const ref = String(this.props.referencia).padStart(3, "0");
+                            return `CLI-${ref}`; }
    get nombre() { return this.props.nombre; }
    get identificacion() { return this.props.identificacion; }
    get tipo_identificacion() { return this.props.tipo_identificacion; }

@@ -11,6 +11,7 @@ import { EstadoCita, type AppointmentUI } from "@/dtos/appointment.dto";
 import type { DragEvent } from "react";
 import { AppointmentForm } from "./appointment-form";
 import { PermissionGuard } from "@/components/permission-guard";
+import { useRouter } from "next/navigation";
 
 const ESTADOS_LISTA = Object.entries(EstadoCita).map(([key, label]) => ({ key: key as keyof typeof EstadoCita, label }));
 
@@ -26,8 +27,8 @@ export function AppointmentsKanbanView() {
 
    const [editTarget, setEditTarget] = useState<AppointmentUI | null>(null);
    const [draggedId, setDraggedId] = useState<string | null>(null);
-   const [formLoading, setFormLoading] = useState(false);
-
+   const [formLoading, setFormLoading] = useState(false)
+   
    async function handleMove(id: string, nuevoEstado: string) {
       setFormLoading(true);
       try { await UpdateAppointment(id, { estado: nuevoEstado as any }); } finally { setFormLoading(false); }
@@ -111,11 +112,13 @@ function KanbanCard({ cita, isDragging, colIdx, onDragStart, onMove, onEdit, onD
    const prev = ESTADOS_LISTA[colIdx - 1]?.key;
    const next = ESTADOS_LISTA[colIdx + 1]?.key;
    const f = new Date(cita.fecha);
-
+   const router = useRouter();
+   
    return (
       <div 
         draggable 
         onDragStart={onDragStart}
+        onClick={() => router.push(`/dashboard/citas/${cita.id}`)}
         className={`group relative flex flex-col rounded-xl border border-border bg-card p-3 shadow-sm hover:border-brand-blue/40 transition-all cursor-grab active:cursor-grabbing ${isDragging ? "opacity-30 border-dashed border-brand-blue scale-95" : ""}`}
       >
          <div className="flex items-center justify-between gap-1 text-[11px] font-medium text-muted-foreground">
@@ -131,7 +134,7 @@ function KanbanCard({ cita, isDragging, colIdx, onDragStart, onMove, onEdit, onD
                <User className="size-3 inline mr-1 text-brand-blue" />
                {cita.employee_nombre || "Sin asignar"}
             </span>
-            <div className="flex items-center gap-0.5">
+            <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
                {prev && <Button variant="ghost" size="icon" className="size-6 text-muted-foreground hover:text-foreground" onClick={() => onMove(prev)}><ArrowLeft className="size-3.5" /></Button>}
                {next && <Button variant="ghost" size="icon" className="size-6 text-brand-blue hover:bg-brand-blue/10" onClick={() => onMove(next)}><ArrowRight className="size-3.5" /></Button>}
                <DropdownMenu>

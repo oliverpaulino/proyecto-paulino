@@ -23,12 +23,14 @@ export function SelectBuscadorEmployee({
    disabled = false,
    unlinkedOnly = false,
 }: SelectBuscadorEmployeeProps) {
-   const { Employees, loading, GetEmployees, GetUnlinkedEmployees } = useEmployeeStore();
+   const { Employees, UnlinkedEmployees, loading, GetEmployees, GetUnlinkedEmployees } = useEmployeeStore();
    const [isOpen, setIsOpen] = useState(false);
    const [inputValue, setInputValue] = useState(initialLabel);
    const containerRef = useRef<HTMLDivElement>(null);
 
    const debouncedSearch = useDebounce(inputValue, 500);
+
+   const currentEmployeesList = unlinkedOnly ? UnlinkedEmployees : Employees;
 
    useEffect(() => {
       setInputValue(initialLabel);
@@ -100,10 +102,10 @@ export function SelectBuscadorEmployee({
 
          {isOpen && (
             <div className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-md p-1">
-               {loading && Employees.length === 0 ? (
+               {loading && currentEmployeesList.length === 0 ? (
                   <div className="p-4 text-center text-sm text-muted-foreground">Buscando empleados...</div>
-               ) : Employees.length > 0 ? (
-                  Employees.map((employee) => (
+               ) : currentEmployeesList.length > 0 ? (
+                  currentEmployeesList.map((employee) => (
                      <div
                         key={employee.id}
                         onClick={() => handleSelect(employee)}

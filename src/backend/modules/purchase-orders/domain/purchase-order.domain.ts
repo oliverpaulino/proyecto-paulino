@@ -29,6 +29,8 @@ export interface PurchaseOrderItemInput {
 export interface PurchaseOrderProps {
    id: string;
    proveedor_id: string;
+   referencia: number;
+   codigoReferencia: string;
    proveedor_nombre?: string;
    fecha: Date;
    estado: EstadoOrdenCompra;
@@ -43,6 +45,14 @@ export interface PurchaseOrderProps {
    deleted_by: string | null;
    deleted_at: Date | null;
    deleted_reason: string | null;
+}
+
+export interface PurchaseOrderPaginatedResult {
+   data: PurchaseOrder[];
+   total: number;
+   page: number;
+   limit: number;
+   totalPages: number;
 }
 
 const TRANSITIONS: Record<EstadoOrdenCompra, EstadoOrdenCompra[]> = {
@@ -72,6 +82,7 @@ export class PurchaseOrder {
    }
 
    get id(): string { return this.props.id; }
+   get referencia(): number { return this.props.referencia }
    get proveedor_id(): string { return this.props.proveedor_id; }
    get proveedor_nombre(): string | undefined { return this.props.proveedor_nombre; }
    get fecha(): Date { return this.props.fecha; }
@@ -84,12 +95,25 @@ export class PurchaseOrder {
    get items(): PurchaseOrderItemProps[] { return this.props.items; }
    get created_at(): Date { return this.props.created_at; }
    get updated_at(): Date { return this.props.updated_at; }
+   get codigoReferencia(): string {
+      const d = this.props.fecha;
+      const yy = String(d.getFullYear()).slice(-2);
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+
+      const ref = String(this.referencia).padStart(3, '0');
+
+      return `OC-${yy}${mm}${dd}-${ref}`;
+   }
    get deleted_by(): string | null { return this.props.deleted_by; }
    get deleted_at(): Date | null { return this.props.deleted_at; }
    get deleted_reason(): string | null { return this.props.deleted_reason; }
 
    toJSON(): PurchaseOrderProps {
-      return { ...this.props };
+      return {
+         ...this.props,
+         codigoReferencia: this.codigoReferencia
+      };
    }
 }
 
@@ -115,8 +139,9 @@ export interface ApproverRecord {
 }
 
 export interface IPurchaseOrderRepository {
-   findAll(): Promise<PurchaseOrder[]>;
-   findAllDeleted(): Promise<PurchaseOrder[]>;
+   findAll(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<PurchaseOrderPaginatedResult>;
+   findAllDeleted(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<PurchaseOrderPaginatedResult>
+   findAllDeleted(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<PurchaseOrderPaginatedResult>
    findById(id: string): Promise<PurchaseOrder | null>;
    restore(id: string): Promise<PurchaseOrder | null>;
    create(data: CreatePurchaseOrderDTO): Promise<PurchaseOrder>;

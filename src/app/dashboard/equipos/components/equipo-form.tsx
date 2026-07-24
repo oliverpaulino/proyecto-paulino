@@ -12,12 +12,16 @@ import {
 } from "@/dtos/equipo.dto";
 import { ESTADO_LABEL } from "./equipo-labels";
 import { useCategoriaEquipoStore } from "@/stores/useCategoriaEquipoStore";
+import { SelectBuscadorOperator } from "@/components/select-operator";
+import { useEmployeeStore } from "@/stores/useEmployeeStore";
+import { CategoriaEquipoManager } from "./categoria-equipo-manager";
+import { MedidaCobroManager } from "./medida-cobro-manager";
 
 export interface EquipoFormValues {
    nombre: string;
    categoria_id: string;
+   operador_id?: string;
    estado: EstadoEquipo;
-   costo_por_hora: string;
    placa: string;
    modelo: string;
    ano: string;
@@ -44,12 +48,16 @@ export function EquipoForm({
    submitLabel = "Crear equipo",
 }: EquipoFormProps) {
    const { CategoriaEquipos, GetCategoriaEquipos } = useCategoriaEquipoStore();
+   const { GetOperators } = useEmployeeStore();
+   const [manageOpen, setManageOpen] = useState(false);
+   const [manageMedidasOpen, setManageMedidasOpen] = useState(false);
+
 
    const [values, setValues] = useState<EquipoFormValues>({
       nombre: initialData?.nombre ?? "",
       categoria_id: initialData?.categoria_id ?? "",
+      operador_id: initialData?.operador_id ?? undefined,
       estado: initialData?.estado ?? "ACTIVO",
-      costo_por_hora: initialData?.costo_por_hora != null ? String(initialData.costo_por_hora) : "0",
       placa: initialData?.placa ?? "",
       modelo: initialData?.modelo ?? "",
       ano: initialData?.ano != null ? String(initialData.ano) : "",
@@ -58,6 +66,7 @@ export function EquipoForm({
 
    useEffect(() => {
       GetCategoriaEquipos();
+      GetOperators({ search: "", limit: 20, force: true });
    }, [GetCategoriaEquipos]);
 
    // Cuando cargan las categorías y no hay una seleccionada, pre-seleccionar la primera.
@@ -103,16 +112,14 @@ export function EquipoForm({
          <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
                <Label htmlFor="ef-categoria">Categoría *</Label>
-               {onManageCategorias && (
-                  <button
-                     type="button"
-                     onClick={onManageCategorias}
-                     className="flex items-center gap-1 text-xs text-brand-blue hover:underline"
-                  >
-                     <Settings2 className="size-3" />
-                     Gestionar categorías
-                  </button>
-               )}
+               <button
+                  type="button"
+                  onClick={() => setManageOpen(true)}
+                  className="flex items-center gap-1 text-xs text-brand-blue hover:underline"
+               >
+                  <Settings2 className="size-3" />
+                  Gestionar categorías
+               </button>
             </div>
             <select
                id="ef-categoria"
@@ -129,13 +136,17 @@ export function EquipoForm({
                   ))
                )}
             </select>
-            {selectedCat && (
-               <p className="text-xs text-muted-foreground">
-                  Se cobra en: <span className="font-medium">{selectedCat.cobra_en}</span>
-                  {selectedCat.cobra_minimo != null && (
-                     <span className="ml-1">(mín. {selectedCat.cobra_minimo})</span>
-                  )}
-               </p>
+            {selectedCat && selectedCat.tarifas && (
+               <div className="text-xs text-muted-foreground">
+                  <span className="font-semibold block mb-1">Tarifas disponibles:</span>
+                  <ul className="flex flex-wrap gap-2">
+                     {selectedCat.tarifas.map((t, i) => (
+                        <li key={i} className="bg-brand-blue/10 text-brand-blue px-2 py-0.5 rounded-md">
+                           {t.nombre}: ${t.precio_unitario} {t.cobra_minimo != null && `(mín. ${t.cobra_minimo})`}
+                        </li>
+                     ))}
+                  </ul>
+               </div>
             )}
          </div>
 
@@ -155,18 +166,13 @@ export function EquipoForm({
 
          <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-               <Label htmlFor="ef-costo">Costo por unidad (RD$)</Label>
-               <Input
-                  id="ef-costo"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={values.costo_por_hora}
-                  onChange={(e) => set("costo_por_hora", e.target.value)}
-                  placeholder="0"
-               />
+               <Label htmlFor="ef-operador">Operador</Label>
+               <SelectBuscadorOperator
+                  value={values.operador_id ?? null}
+                  onChange={(id) => {
+                     setValues((prev) => ({ ...prev, operador_id: id ?? undefined }));
+                  }} disabled={loading} placeholder="Buscar operador..." />
             </div>
-
             <div className="flex flex-col gap-1.5">
                <Label htmlFor="ef-ano">Año</Label>
                <Input
@@ -215,6 +221,11 @@ export function EquipoForm({
                {loading ? "Guardando…" : submitLabel}
             </Button>
          </div>
+         <CategoriaEquipoManager
+            open={manageOpen}
+            onOpenChange={setManageOpen}
+         />
+         {/* BORRA el <MedidaCobroManager ... /> de aquí */}
       </form>
    );
 }

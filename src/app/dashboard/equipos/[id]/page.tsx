@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Profiler, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -23,8 +23,14 @@ import {
    History,
    Loader2,
    Pencil,
+   PersonStanding,
    ShoppingCart,
    Truck,
+   User2,
+   UserCircle,
+   UserRound,
+   UsersRoundIcon,
+   UserX2,
 } from "lucide-react";
 import type {
    Equipo,
@@ -40,6 +46,11 @@ import {
 } from "../components/equipo-labels";
 import { EquipoForm, type EquipoFormValues } from "../components/equipo-form";
 import { PermissionGuard } from "@/components/permission-guard";
+import { useCategoriaEquipoStore } from "@/stores/useCategoriaEquipoStore";
+import { CategoriaEquipo } from "@/dtos/categoria-equipo.dto";
+import { Employee, OperadorAsignable } from "@/dtos/employee.dto";
+import { OperadorProps } from "@/backend/modules/employees/domain/employees.domain";
+import { CategoriaEquipoManager } from "../components/categoria-equipo-manager";
 
 const SELECT_CLASS =
    "h-9 w-full rounded-4xl border border-input bg-input/30 px-3 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 text-foreground";
@@ -66,13 +77,16 @@ function formatDateTime(value: string | Date): string {
 }
 
 export default function EquipoDetailPage() {
+
    const params = useParams();
    const router = useRouter();
    const equipoId = params.id as string;
 
-   const { ChangeEstado, UpdateEquipo } = useEquipoStore();
+   const { ChangeEstado, UpdateEquipo, GetCategoriasEquipoByEquipoId, GetOperadorByEquipoId } = useEquipoStore();
 
    const [equipo, setEquipo] = useState<Equipo | null>(null);
+   const [categoria, setCategoria] = useState<CategoriaEquipo | null>(null);
+   const [operador, setOperador] = useState<OperadorAsignable | null>(null);
    const [compras, setCompras] = useState<EquipoCompraItem[]>([]);
    const [historial, setHistorial] = useState<EquipoEstadoHistorial[]>([]);
    const [loading, setLoading] = useState(true);
@@ -80,6 +94,8 @@ export default function EquipoDetailPage() {
    const [estadoError, setEstadoError] = useState<string | null>(null);
    const [editOpen, setEditOpen] = useState(false);
    const [editLoading, setEditLoading] = useState(false);
+   const [manageOpen, setManageOpen] = useState(false);
+   const [manageMedidasOpen, setManageMedidasOpen] = useState(false);
 
    async function loadAll(active = { value: true }) {
       try {
@@ -96,6 +112,10 @@ export default function EquipoDetailPage() {
          const historialData: EquipoEstadoHistorial[] = historialRes.ok
             ? await historialRes.json()
             : [];
+         const categoria = await GetCategoriasEquipoByEquipoId(equipoId);
+         setCategoria(categoria);
+         const operadors = await GetOperadorByEquipoId(equipoId);
+         setOperador(operadors);
          if (active.value) {
             setEquipo(equipoData);
             setCompras(comprasData);
@@ -107,6 +127,10 @@ export default function EquipoDetailPage() {
          if (active.value) setLoading(false);
       }
    }
+
+   useEffect(() => {
+      document.title = `Equipo - ${equipo?.nombre ?? "Cargando..."}`;
+   }, [equipo]);
 
    useEffect(() => {
       const active = { value: true };
@@ -139,8 +163,8 @@ export default function EquipoDetailPage() {
          const result = await UpdateEquipo(equipoId, {
             nombre: data.nombre,
             categoria_id: data.categoria_id,
+            operador_id: data.operador_id || null,
             estado: data.estado,
-            costo_por_hora: data.costo_por_hora === "" ? 0 : Number(data.costo_por_hora),
             placa: data.placa || null,
             modelo: data.modelo || null,
             ano: data.ano === "" ? null : Number(data.ano),
@@ -160,6 +184,7 @@ export default function EquipoDetailPage() {
          </div>
       );
    }
+
 
    if (!equipo) {
       return (
@@ -198,8 +223,9 @@ export default function EquipoDetailPage() {
                         {ESTADO_LABEL[equipo.estado]}
                      </span>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                     Categoría: <span className="font-semibold">{equipo.categoria_nombre}</span>
+                  <p className="text-sm bg-brand-blue text-white rounded-lg px-2 py-1 inline-flex items-center gap-1">
+                     <UserRound className="inline-block w-5 h-5" /> <span className="font-semibold">{operador?.nombre ?? "No hay asignado"}</span>
+
                   </p>
                   <p className="text-sm text-muted-foreground">
                      Registrado el {formatDate(equipo.created_at)}
@@ -253,8 +279,14 @@ export default function EquipoDetailPage() {
             <CardContent>
                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <InfoField label="Categoría" value={equipo.categoria_nombre} />
-                  <InfoField label="Cobra en" value={equipo.cobra_en} />
-                  <InfoField label="Costo por unidad" value={formatMoney(equipo.costo_por_hora)} />
+                  <InfoField
+                     label="Tarifas Aplicables"
+                     value={
+                        categoria?.tarifas?.length
+                           ? categoria.tarifas.map(t => `${t.nombre}: $${t.precio_unitario}`).join(" | ")
+                           : "Sin tarifas asignadas"
+                     }
+                  />
                   <InfoField label="Placa" value={equipo.placa ?? "—"} />
                   <InfoField label="Modelo" value={equipo.modelo ?? "—"} />
                   <InfoField label="Año" value={equipo.ano != null ? String(equipo.ano) : "—"} />
@@ -400,18 +432,21 @@ export default function EquipoDetailPage() {
                <EquipoForm
                   initialData={equipo}
                   onSubmit={handleEdit}
+                  onManageCategorias={() => { setManageOpen(true); }}
                   onCancel={() => setEditOpen(false)}
                   loading={editLoading}
                   submitLabel="Guardar cambios"
                />
             </DialogContent>
          </Dialog>
+
+         <CategoriaEquipoManager open={manageOpen} onOpenChange={setManageOpen} />
       </div>
       </PermissionGuard>
    );
 }
 
-function InfoField({ label, value }: { label: string; value: string }) {
+function InfoField({ label, value }: { label: string; value: string | number }) {
    return (
       <div className="rounded-lg border border-border bg-muted/20 p-3">
          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

@@ -2,18 +2,19 @@
 
 import { ClientProps } from "@/backend/modules/clients/domain/clients.domain";
 import { Button } from "@/components/ui/button";
-import { 
-   DropdownMenu, 
-   DropdownMenuContent, 
-   DropdownMenuItem, 
-   DropdownMenuTrigger 
+import {
+   DropdownMenu,
+   DropdownMenuContent,
+   DropdownMenuItem,
+   DropdownMenuTrigger
 } from "@radix-ui/react-dropdown-menu";
 import { Contact, Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { PermissionGuard } from "@/components/permission-guard";
 
-import { TipoIdentificacion } from "@/dtos/schema.dto"; 
+import { TipoIdentificacion } from "@/dtos/schema.dto";
 import { TipoCliente } from "@/dtos/client.dto";
+import Link from "next/link";
 
 
 interface ClientTableProps {
@@ -73,13 +74,15 @@ export function ClientTable({ clients, onEdit, onDelete }: ClientTableProps) {
                         className="border-t border-border hover:bg-brand-blue/5 transition-colors"
                      >
                         <td className="px-4 py-3">
-                           {/* Usamos el DTO para el Label de la Identificación */}
-                           <div className="text-xs text-muted-foreground">
-                              {TipoIdentificacion[tipoIdentificacion] ?? tipoIdentificacion}
-                           </div>
-                           <span className="inline-block rounded bg-brand-yellow/25 px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-black dark:text-brand-yellow">
-                              <div className="font-medium">{client.identificacion}</div>
-                           </span>
+                           <Link href={`/dashboard/clientes/${client.id}`} className="hover:bg-brand-yellow/50 transition  " >
+                              {/* Usamos el DTO para el Label de la Identificación */}
+                              <div className="text-xs text-muted-foreground">
+                                 {TipoIdentificacion[tipoIdentificacion] ?? tipoIdentificacion}
+                              </div>
+                              <span className="inline-block rounded bg-brand-yellow/25 px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-black dark:text-brand-yellow">
+                                 <div className="font-medium">{client.identificacion}</div>
+                              </span>
+                           </Link>
                         </td>
                         <td className="px-4 py-3">
                            <div className="font-semibold text-brand-blue dark:text-white">{client.nombre}</div>

@@ -1,0 +1,96 @@
+export interface DeduccionProps {
+   id: string;
+   referencia: number;
+   codigoReferencia: string;
+   monto_total: number;
+   balance_pendiente: number | null;
+   concepto: string;
+   
+   empleado_id: string;
+   //join empleado
+   empleado_nombre: string | null;
+
+   equipo_id: string | null;
+   //join equipo
+   equipo_codigo_referencia: string | null;
+
+   fecha: Date;
+   created_at: Date;
+   updated_at: Date;
+   deleted_by: string | null;
+   deleted_at: Date | null;
+   deleted_reason: string | null;
+}
+
+export class Deduccion {
+   private constructor(private readonly props: DeduccionProps) { }
+
+   static create(props: DeduccionProps): Deduccion {
+      return new Deduccion(props);
+   }
+
+   get id() { return this.props.id; }
+   get referencia() { return this.props.referencia; }
+   get codigoReferencia() { 
+      const ref = String(this.props.referencia).padStart(3, "0");
+      return `DED-${ref}`; 
+   }
+   get monto_total() { return this.props.monto_total; }
+   get balance_pendiente() { return this.props.balance_pendiente; }
+   get concepto() { return this.props.concepto; }
+   get empleado_id() { return this.props.empleado_id; }
+   get empleado_nombre() { return this.props.empleado_nombre; }
+   get equipo_id() { return this.props.equipo_id; }
+   get equipo_codigo_referencia() { return this.props.equipo_codigo_referencia; }
+   get fecha() { return this.props.fecha }
+   get created_at() { return this.props.created_at; }
+   get updated_at() { return this.props.updated_at; }
+   get deleted_by() { return this.props.deleted_by; }
+   get deleted_at() { return this.props.deleted_at; }
+   get deleted_reason() { return this.props.deleted_reason; }
+   
+   toJSON(): DeduccionProps {
+      return { ...this.props };
+   }
+}
+
+export interface CreateDeduccionDTO {
+   empleado_id: string;
+   equipo_id?: string | null;
+   monto_total: number;
+   balance_pendiente?: number | null;
+   concepto: string;
+   fecha: Date;
+}
+
+export type UpdateDeduccionDTO = Partial<CreateDeduccionDTO>;
+
+export interface DeleteDeduccionDTO {
+   deleted_by?: string;
+   deleted_reason?: string;
+};
+
+export interface IDeduccionRepository {
+   findAll( params?: { page?: number; 
+                     limit?: number; 
+                     search?: string; 
+                     start?: Date; 
+                     end?: Date; 
+                     empleado_id?: string;
+                     equipo_id?: string | null; }): Promise<Deduccion[]>;
+
+   findAllDeleted( params?: { page?: number; 
+                     limit?: number; 
+                     search?: string; 
+                     start?: Date; 
+                     end?: Date; 
+                     empleado_id?: string;
+                     equipo_id?: string | null; }): Promise<Deduccion[]>;
+
+   findById(id: string): Promise<Deduccion | null>;
+   findDeletedById(id: string): Promise<Deduccion | null>;
+   create(data: CreateDeduccionDTO): Promise<Deduccion>;
+   update(id: string, data: UpdateDeduccionDTO): Promise<Deduccion | null>;
+   delete(id: string, data: DeleteDeduccionDTO): Promise<boolean>;
+   restore(id: string): Promise<Deduccion | null>;
+}

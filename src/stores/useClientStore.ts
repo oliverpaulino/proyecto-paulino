@@ -126,6 +126,7 @@ export const useClientStore = create<ClientStore>((set, get) => ({
       }
    },
 
+
    UploadBulkClients: async (file) => {
       const formData = new FormData();
       formData.append("file", file);
@@ -191,7 +192,7 @@ export const useClientStore = create<ClientStore>((set, get) => ({
          if (!res.ok) throw new Error("Error al cargar detalles del cliente");
 
          const clientData = await res.json();
-         
+
          const clientDetails = {
             ...clientData,
             ventas: [],
@@ -202,7 +203,7 @@ export const useClientStore = create<ClientStore>((set, get) => ({
             selectedClientDetails: clientDetails as any,
             _fetchedDetails: new Set(state._fetchedDetails).add(clientId),
          }));
-         
+
          return clientDetails as any;
       } catch (error) {
          console.error("Error fetching client details:", error);

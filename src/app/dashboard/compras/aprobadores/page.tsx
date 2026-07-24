@@ -16,7 +16,7 @@ import {
    DialogHeader,
    DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Loader2, Shield, Trash2, UserPlus } from "lucide-react";
+import { ArrowLeft, Loader2, Lock, Shield, ShieldAlert, Trash2, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { authClient, useSession } from "@/lib/auth-client";
 import { PermissionGuard } from "@/components/permission-guard";
@@ -26,6 +26,7 @@ interface Approver {
    user_name: string;
    granted_by: string;
    granted_at: string;
+   is_protected: boolean;
 }
 
 interface UserRecord {
@@ -84,6 +85,7 @@ export default function AprobadoresPage() {
    }, []);
 
    useEffect(() => {
+      document.title = "Aprobadores de Órdenes de Compra";
       if (role === "administrador") {
          loadApprovers();
          loadUsers();
@@ -124,8 +126,8 @@ export default function AprobadoresPage() {
    const dropdownUsers = eligibleUsers.length > 0
       ? eligibleUsers
       : currentAdminEligible
-        ? [currentAdminEligible as UserRecord]
-        : [];
+         ? [currentAdminEligible as UserRecord]
+         : [];
 
    async function handleAdd() {
       if (!selectedUserId) return;
@@ -300,6 +302,7 @@ export default function AprobadoresPage() {
                                  </PermissionGuard>
                               </td>
                            </tr>
+
                         ))}
                      </tbody>
                   </table>

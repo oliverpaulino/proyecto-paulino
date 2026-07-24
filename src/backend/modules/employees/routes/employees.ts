@@ -8,11 +8,35 @@ const employeesRoute = new Hono();
 const repo = new KyselyEmployeeRepository(db);
 const service = new EmployeeService(repo);
 
+
+// GET /api/employees
 employeesRoute.get("/", async (c) => {
-   const employees = await service.getAll();
+   const page = parseInt(c.req.query("page") || "1", 10);
+   const limit = parseInt(c.req.query("limit") || "10", 10);
+   const search = c.req.query("search") || "";
+   const employees = await service.getAll({ page, limit, search });
    return c.json(employees);
 });
 
+
+
+employeesRoute.get("/operators", async (c) => {
+   console.log("tu maldit amadre")
+   const page = parseInt(c.req.query("page") || "1", 10);
+   const limit = parseInt(c.req.query("limit") || "10", 10);
+   const search = c.req.query("search") || "";
+   console.log("Fetching operators with params:", { page, limit, search });
+   const operators = await service.getAllOperators({ page, limit, search });
+   return c.json(operators);
+});
+
+
+// employeesRoute.get("/contacts", async (c) => {
+//    const contacts = await service.getContacts();
+//    return c.json(contacts);
+// });
+
+// GET /api/employees/:id/details
 employeesRoute.get("/unlinked", async (c) => {
    const employees = await service.getUnlinked();
    return c.json(employees);
@@ -25,8 +49,8 @@ employeesRoute.get("/linked/:userId", async (c) => {
 
 employeesRoute.get("/:id/details", async (c) => {
    const { id } = c.req.param();
-   const details = await service.getDetails(id);
-   
+   const details = await service.getEmployeeDetails(id);
+
    if (!details) return c.json({ error: "Empleado no encontrado" }, 404);
    return c.json(details);
 });
@@ -65,14 +89,14 @@ employeesRoute.post("/", async (c) => {
 employeesRoute.patch("/:id", async (c) => {
    const { operador, ...employeeData } = await c.req.json();
    const id = c.req.param("id");
-   
+
    try {
       const employee = await service.update(id, employeeData);
       if (!employee) return c.json({ error: "Empleado no encontrado" }, 404);
 
       if (operador) {
          const existingOp = await service.getOperator(id);
-         
+
          if (existingOp) {
             await service.updateOperator(existingOp.id, {
                licencia: operador.licencia,
@@ -162,6 +186,79 @@ employeesRoute.patch("/operators/:operatorId", async (c) => {
 
    if (error) return c.json({ error: String(error) }, 400);
    return c.json({ operator });
+});
+
+// POST: Crear tarifa
+employeesRoute.post("/:id/tarifas", async (c) => {
+   try {
+      const empleado_id = c.req.param().id;
+      const { categoria_equipo_tarifa_id, monto_pago } = await c.req.json();
+
+      const nuevaTarifa = await service.addTarifa({
+         empleado_id,
+         categoria_equipo_tarifa_id,
+         monto_pago: Number(monto_pago)
+      });
+
+      return c.json(nuevaTarifa, 201);
+   } catch (error: any) {
+      return c.json({ error: error.message }, 400);
+   }
+});
+
+// PATCH: Actualizar tarifa
+employeesRoute.patch("/tarifas/:tarifaId", async (c) => {
+   try {
+      const tarifaId = c.req.param().tarifaId;
+      const { monto_pago, frecuencia_pago } = await c.req.json();
+
+      const tarifaActualizada = await service.updateTarifa(
+         tarifaId,
+         Number(monto_pago),
+         frecuencia_pago
+      );
+      return c.json(tarifaActualizada, 200);
+   } catch (error: any) {
+      return c.json({ error: error.message }, 400);
+   }
+});
+
+// DELETE: Eliminar tarifa
+employeesRoute.delete("/tarifas/:tarifaId", async (c) => {
+   try {
+      const tarifaId = c.req.param().tarifaId;
+      await service.deleteTarifa(tarifaId);
+      return c.json({ message: "Tarifa eliminada con éxito" }, 200);
+   } catch (error: any) {
+      return c.json({ error: error.message }, 400);
+   }
+});
+
+employeesRoute.post("/:id/tarifas/bulk", async (c) => {
+   try {
+      const empleado_id = c.req.param().id;
+      // Recibimos el array mágico desde el Dialog del frontend
+      const { tarifas } = await c.req.json();
+
+      await service.saveTarifasEnBloque({ empleado_id, tarifas });
+
+      return c.json({ message: "Tarifas guardadas con éxito" }, 200);
+   } catch (error: any) {
+      return c.json({ error: error.message }, 400);
+   }
+});
+
+// DELETE: Eliminar una tarifa individual
+employeesRoute.delete("/tarifas/:tarifaId", async (c) => {
+   try {
+      const tarifaId = c.req.param().tarifaId;
+
+      await service.deleteTarifa(tarifaId);
+
+      return c.json({ message: "Tarifa eliminada con éxito" }, 200);
+   } catch (error: any) {
+      return c.json({ error: error.message }, 400);
+   }
 });
 
 export default employeesRoute;

@@ -82,27 +82,20 @@ export default function ClientDetailPage() {
    const router = useRouter();
    const clientId = params.id as string;
 
+   const { selectedClient, GetClient } = useClientStore();
+
    const {
       Contacts,
-      GetClientContacts,
-      CreateContact,
-      UpdateContact,
-      DeleteContact,
       UpdateClient,
       DeleteClient,
+      setSelectedClient
    } = useClientStore();
 
-   const [client, setClient] = useState<ClientRecord | null>(null);
-   const [loading, setLoading] = useState(true);
+   const [loading, setLoading] = useState(false);
    const [clientActionLoading, setClientActionLoading] = useState(false);
-   const [contactActionLoading, setContactActionLoading] = useState(false);
 
    const [editClientOpen, setEditClientOpen] = useState(false);
    const [deleteClientOpen, setDeleteClientOpen] = useState(false);
-   const [createContactOpen, setCreateContactOpen] = useState(false);
-   const [editContactOpen, setEditContactOpen] = useState(false);
-   const [deleteContactOpen, setDeleteContactOpen] = useState(false);
-   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
    const [contactForm, setContactForm] = useState<ContactFormState>({
       name: "",
       email: "",
@@ -110,32 +103,19 @@ export default function ClientDetailPage() {
       job_title: "",
    });
 
+
+
    useEffect(() => {
-      let active = true;
-
-      async function loadClient() {
+      const loadClient = async () => {
          setLoading(true);
-         try {
-            const [clientResponse] = await Promise.all([
-               fetch(`/api/clients/${clientId}`),
-               GetClientContacts(clientId, true).catch(() => undefined),
-            ]);
-
-            const data = (await clientResponse.json()) as ClientRecord;
-            if (active) setClient(data);
-         } catch {
-            if (active) setClient(null);
-         } finally {
-            if (active) setLoading(false);
-         }
-      }
+         const client = await GetClient(clientId);
+         setSelectedClient(client);
+         document.title = client ? `${client.nombre}` : "Cargando Cliente...";
+         setLoading(false);
+      };
 
       loadClient();
-
-      return () => {
-         active = false;
-      };
-   }, [clientId, GetClientContacts]);
+   }, [clientId, GetClient, setSelectedClient]);
 
    const totalContacts = Contacts.length;
 
@@ -149,20 +129,8 @@ export default function ClientDetailPage() {
       [Contacts],
    );
 
-   function resetContactForm() {
-      setContactForm({
-         name: "",
-         email: "",
-         phone: "",
-         job_title: "",
-      });
-   }
-
    async function refreshClient() {
-      const response = await fetch(`/api/clients/${clientId}`);
-      if (!response.ok) return;
-      const data = (await response.json()) as ClientRecord;
-      setClient(data);
+      GetClient(clientId);
    }
 
    async function handleUpdateClient(values: {
@@ -174,7 +142,7 @@ export default function ClientDetailPage() {
       telefono: string;
       direccion: string;
    }) {
-      if (!client) return;
+      if (!selectedClient) return;
       setClientActionLoading(true);
       try {
          const result = await UpdateClient(clientId, {
@@ -197,7 +165,7 @@ export default function ClientDetailPage() {
    }
 
    async function handleDeleteClient() {
-      if (!client) return;
+      if (!selectedClient) return;
       setClientActionLoading(true);
       try {
          const result = await DeleteClient(clientId);
@@ -208,81 +176,7 @@ export default function ClientDetailPage() {
       }
    }
 
-   async function handleCreateContact() {
-      if (!contactForm.name.trim()) return;
-      setContactActionLoading(true);
-      try {
-         const result = await CreateContact({
-            client_id: clientId,
-            name: contactForm.name,
-            email: contactForm.email || undefined,
-            phone: contactForm.phone || undefined,
-            job_title: contactForm.job_title || undefined,
-         });
-
-         if (result instanceof Error) throw result;
-
-         setCreateContactOpen(false);
-         resetContactForm();
-      } finally {
-         setContactActionLoading(false);
-      }
-   }
-
-   async function handleUpdateContact() {
-      if (!selectedContact || !contactForm.name.trim()) return;
-      setContactActionLoading(true);
-      try {
-         const result = await UpdateContact({
-            client_id: clientId,
-            id: selectedContact.id,
-            name: contactForm.name,
-            email: contactForm.email || undefined,
-            phone: contactForm.phone || undefined,
-            job_title: contactForm.job_title || undefined,
-         } as any);
-
-         if (result instanceof Error) throw result;
-
-         setEditContactOpen(false);
-         setSelectedContact(null);
-         resetContactForm();
-      } finally {
-         setContactActionLoading(false);
-      }
-   }
-
-   async function handleDeleteContact() {
-      if (!selectedContact) return;
-      setContactActionLoading(true);
-      try {
-         const result = await DeleteContact(clientId, selectedContact.id);
-         if (result instanceof Error) throw result;
-
-         setDeleteContactOpen(false);
-         setSelectedContact(null);
-      } finally {
-         setContactActionLoading(false);
-      }
-   }
-
-   function openEditContact(contact: Contact) {
-      setSelectedContact(contact);
-      setContactForm({
-         name: contact.name ?? "",
-         email: contact.email ?? "",
-         phone: contact.phone ?? "",
-         job_title: contact.job_title ?? "",
-      });
-      setEditContactOpen(true);
-   }
-
-   function openDeleteContact(contact: Contact) {
-      setSelectedContact(contact);
-      setDeleteContactOpen(true);
-   }
-
-   if (loading && !client) {
+   if (loading && !selectedClient) {
       return (
          <div className="flex items-center justify-center p-12">
             <Loader2 className="size-6 animate-spin text-brand-blue" />
@@ -290,7 +184,7 @@ export default function ClientDetailPage() {
       );
    }
 
-   if (!client) {
+   if (!selectedClient) {
       return (
          <div className="flex flex-col items-center justify-center gap-3 p-12 text-muted-foreground">
             <User className="size-12 opacity-30" />
@@ -303,8 +197,8 @@ export default function ClientDetailPage() {
       );
    }
 
-   const safeTipoCliente = (client.tipo_cliente?.toUpperCase() || "FISICA") as keyof typeof TipoCliente;
-   const safeTipoId = (client.tipo_identificacion?.toUpperCase() || "CEDULA") as keyof typeof TipoIdentificacion;
+   const safeTipoCliente = (selectedClient.tipo_cliente?.toUpperCase() || "FISICA") as keyof typeof TipoCliente;
+   const safeTipoId = (selectedClient.tipo_identificacion?.toUpperCase() || "CEDULA") as keyof typeof TipoIdentificacion;
 
    return (
       <PermissionGuard resource="client" action="read" mode="page">
@@ -317,17 +211,17 @@ export default function ClientDetailPage() {
                <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                      <h1 className="text-2xl font-bold text-brand-blue dark:text-white">
-                        {client.nombre}
+                        {selectedClient.nombre}
                      </h1>
                      <span className="rounded-full bg-brand-yellow/20 px-2.5 py-1 text-xs font-semibold text-brand-black dark:text-brand-yellow">
                         {TipoCliente[safeTipoCliente] ?? safeTipoCliente}
                      </span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                     {TipoIdentificacion[safeTipoId] ?? safeTipoId}: {client.identificacion}
+                     {TipoIdentificacion[safeTipoId] ?? safeTipoId}: {selectedClient.identificacion}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                     {client.email ?? "Sin correo"} · {formatPhone(client.telefono) ?? "Sin teléfono"}
+                     {selectedClient.email ?? "Sin correo"} · {formatPhone(selectedClient.telefono) ?? "Sin teléfono"}
                   </p>
                </div>
             </div>
@@ -387,7 +281,7 @@ export default function ClientDetailPage() {
                   />
                   <StatCard
                      label="Última actualización"
-                     value={formatDate(client.updated_at)}
+                     value={formatDate(selectedClient.updated_at)}
                      icon={<Building2 className="size-4" />}
                      compact
                   />
@@ -401,14 +295,14 @@ export default function ClientDetailPage() {
                      </CardHeader>
                      <CardContent>
                         <div className="grid gap-4 sm:grid-cols-2">
-                           <InfoField label="Nombre" value={client.nombre} />
-                           <InfoField label="Identificación" value={client.identificacion} />
+                           <InfoField label="Nombre" value={selectedClient.nombre} />
+                           <InfoField label="Identificación" value={selectedClient.identificacion} />
                            <InfoField label="Tipo de identificación" value={TipoIdentificacion[safeTipoId] ?? safeTipoId} />
                            <InfoField label="Tipo de cliente" value={TipoCliente[safeTipoCliente] ?? safeTipoCliente} />
-                           <InfoField label="Correo" value={client.email ?? "—"} />
-                           <InfoField label="Teléfono" value={formatPhone(client.telefono) ?? "—"} />
+                           <InfoField label="Correo" value={selectedClient.email ?? "—"} />
+                           <InfoField label="Teléfono" value={formatPhone(selectedClient.telefono) ?? "—"} />
                            <div className="sm:col-span-2">
-                              <InfoField label="Dirección" value={client.direccion ?? "—"} />
+                              <InfoField label="Dirección" value={selectedClient.direccion ?? "—"} />
                            </div>
                         </div>
                      </CardContent>
@@ -420,8 +314,8 @@ export default function ClientDetailPage() {
                         <CardDescription>Fechas y estado general del registro.</CardDescription>
                      </CardHeader>
                      <CardContent className="space-y-4">
-                        <InfoField label="Creado" value={formatDate(client.created_at)} />
-                        <InfoField label="Actualizado" value={formatDate(client.updated_at)} />
+                        <InfoField label="Creado" value={formatDate(selectedClient.created_at)} />
+                        <InfoField label="Actualizado" value={formatDate(selectedClient.updated_at)} />
                         <InfoField label="Estado" value="Activo" />
                      </CardContent>
                   </Card>
@@ -545,11 +439,11 @@ export default function ClientDetailPage() {
             <DialogContent className="sm:max-w-md">
                <DialogHeader>
                   <DialogTitle>Editar cliente</DialogTitle>
-                  <DialogDescription>Actualiza los datos de {client.nombre}.</DialogDescription>
+                  <DialogDescription>Actualiza los datos de {selectedClient.nombre}.</DialogDescription>
                </DialogHeader>
                <ClientForm
                   initialData={{
-                     ...client,
+                     ...selectedClient,
                      tipo_cliente: safeTipoCliente,
                      tipo_identificacion: safeTipoId
                   } as unknown as Partial<ClientProps>}
@@ -566,7 +460,7 @@ export default function ClientDetailPage() {
                <DialogHeader>
                   <DialogTitle>Eliminar cliente</DialogTitle>
                   <DialogDescription>
-                     ¿Estás seguro de que deseas eliminar a <strong>{client.nombre}</strong>? Esta acción no se puede deshacer.
+                     ¿Estás seguro de que deseas eliminar a <strong>{selectedClient.nombre}</strong>? Esta acción no se puede deshacer.
                   </DialogDescription>
                </DialogHeader>
                <DialogFooter>
@@ -580,57 +474,7 @@ export default function ClientDetailPage() {
             </DialogContent>
          </Dialog>
 
-         <Dialog
-            open={editContactOpen}
-            onOpenChange={(open) => {
-               setEditContactOpen(open);
-               if (!open) {
-                  setSelectedContact(null);
-                  resetContactForm();
-               }
-            }}
-         >
-            <DialogContent className="sm:max-w-md">
-               <DialogHeader>
-                  <DialogTitle>Editar contacto</DialogTitle>
-                  <DialogDescription>Modifica la información del contacto.</DialogDescription>
-               </DialogHeader>
-               {/* <ContactFormFields form={contactForm} onChange={setContactForm} /> */}
-               <DialogFooter>
-                  <Button variant="outline" onClick={() => setEditContactOpen(false)} disabled={contactActionLoading}>
-                     Cancelar
-                  </Button>
-                  <Button onClick={handleUpdateContact} disabled={contactActionLoading || !contactForm.name.trim()}>
-                     {contactActionLoading ? "Guardando…" : "Guardar cambios"}
-                  </Button>
-               </DialogFooter>
-            </DialogContent>
-         </Dialog>
 
-         <Dialog
-            open={deleteContactOpen}
-            onOpenChange={(open) => {
-               setDeleteContactOpen(open);
-               if (!open) setSelectedContact(null);
-            }}
-         >
-            <DialogContent className="sm:max-w-md">
-               <DialogHeader>
-                  <DialogTitle>Eliminar contacto</DialogTitle>
-                  <DialogDescription>
-                     ¿Estás seguro de que deseas eliminar este contacto? Esta acción no se puede deshacer.
-                  </DialogDescription>
-               </DialogHeader>
-               <DialogFooter>
-                  <Button variant="outline" onClick={() => setDeleteContactOpen(false)} disabled={contactActionLoading}>
-                     Cancelar
-                  </Button>
-                  <Button variant="destructive" onClick={handleDeleteContact} disabled={contactActionLoading}>
-                     {contactActionLoading ? "Eliminando…" : "Eliminar"}
-                  </Button>
-               </DialogFooter>
-            </DialogContent>
-         </Dialog>
       </div>
       </PermissionGuard>
    );

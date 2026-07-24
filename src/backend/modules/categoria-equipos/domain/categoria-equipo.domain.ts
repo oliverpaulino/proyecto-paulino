@@ -1,8 +1,16 @@
+export interface TarifaCategoriaProps {
+   id?: string;
+   nombre: string;
+   medida_cobro_id: string;
+   precio_unitario: number;
+   cobra_minimo: number | null;
+}
+
 export interface CategoriaEquipoProps {
    id: string;
    nombre: string;
-   cobra_en: string;
-   cobra_minimo: number | null;
+   metraje: number | null;
+   tarifas: TarifaCategoriaProps[]; // Relación uno a muchos
    created_at: Date;
    updated_at: Date;
 }
@@ -16,8 +24,8 @@ export class CategoriaEquipo {
 
    get id(): string { return this.props.id; }
    get nombre(): string { return this.props.nombre; }
-   get cobra_en(): string { return this.props.cobra_en; }
-   get cobra_minimo(): number | null { return this.props.cobra_minimo; }
+   get metraje(): number | null { return this.props.metraje; }
+   get tarifas(): TarifaCategoriaProps[] { return this.props.tarifas; }
    get created_at(): Date { return this.props.created_at; }
    get updated_at(): Date { return this.props.updated_at; }
 
@@ -28,14 +36,14 @@ export class CategoriaEquipo {
 
 export interface CreateCategoriaEquipoDTO {
    nombre: string;
-   cobra_en: string;
-   cobra_minimo?: number | null;
+   metraje: number | null;
+   tarifas: TarifaCategoriaProps[]; // Se envían las tarifas al crear
 }
 
 export interface UpdateCategoriaEquipoDTO {
    nombre?: string;
-   cobra_en?: string;
-   cobra_minimo?: number | null;
+   metraje?: number | null;
+   tarifas?: TarifaCategoriaProps[];
 }
 
 export interface ICategoriaEquipoRepository {

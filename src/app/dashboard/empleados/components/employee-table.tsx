@@ -11,6 +11,7 @@ import {
 import { Contact, Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { PermissionGuard } from "@/components/permission-guard";
+import Link from "next/link";
 
 interface EmployeeTableProps {
    employees: Employee[];
@@ -68,13 +69,16 @@ export function EmployeeTable({ employees, onEdit, onDelete }: EmployeeTableProp
                {employees.map((employee) => (
                   <tr
                      key={employee.id}
-                     className="border-t border-border hover:bg-brand-blue/5 transition-colors"
+                     className="border-t border-border hover:bg-brand-yellow/5 transition-colors cursor-pointer"
+                     onClick={() => router.push(`/dashboard/empleados/${employee.id}`)}
                   >
-                     <td className="px-4 py-3">
+                     <td className="px-4 py-3  transition-colors">
+                        {/* <Link href={`/dashboard/empleados/${employee.id}`} className="" > */}
                         <div className="text-xs text-muted-foreground">{employee.tipo_identificacion}</div>
-                        <span className="inline-block rounded bg-brand-yellow/25 px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-black dark:text-brand-yellow">
+                        <span className="inline-block rounded bg-brand-yellow/25  px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-black dark:text-brand-yellow">
                            {employee.identificacion}
                         </span>
+                        {/* </Link> */}
                      </td>
                      <td className="px-4 py-3">
                         <div className="font-semibold text-brand-blue dark:text-white">{employee.nombre}</div>
@@ -94,11 +98,10 @@ export function EmployeeTable({ employees, onEdit, onDelete }: EmployeeTableProp
                      </td>
                      <td className="px-4 py-3">
                         <span
-                           className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                              employee.activo
-                                 ? "bg-green-100 text-green-800 border border-green-300 dark:bg-green-900/30 dark:text-green-300"
-                                 : "bg-gray-100 text-gray-600 border border-gray-300 dark:bg-gray-800 dark:text-gray-400"
-                           }`}
+                           className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${employee.activo
+                              ? "bg-green-100 text-green-800 border border-green-300 dark:bg-green-900/30 dark:text-green-300"
+                              : "bg-gray-100 text-gray-600 border border-gray-300 dark:bg-gray-800 dark:text-gray-400"
+                              }`}
                         >
                            {employee.activo ? "Activo" : "Inactivo"}
                         </span>
@@ -125,12 +128,12 @@ export function EmployeeTable({ employees, onEdit, onDelete }: EmployeeTableProp
                            </PermissionGuard>
 
                            <DropdownMenu modal={false}>
-                              <DropdownMenuTrigger asChild>
-                                 <Button variant="ghost" className="h-8 w-8 p-0">
+                              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                 <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-brand-blue/10">
                                     <MoreHorizontal className="h-4 w-4" />
                                  </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
+                              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                                  <DropdownMenuItem
                                     onClick={() => router.push(`/dashboard/empleados/${employee.id}`)}
                                  >

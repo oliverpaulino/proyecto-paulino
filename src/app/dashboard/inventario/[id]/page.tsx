@@ -52,6 +52,7 @@ export default function ItemDetailPage() {
    const [manageOpen, setManageOpen] = useState(false);
 
    useEffect(() => {
+
       let active = true;
 
       async function load() {
@@ -60,6 +61,7 @@ export default function ItemDetailPage() {
             const res = await fetch(`/api/items/${itemId}`);
             if (!res.ok) throw new Error("Not found");
             const data: Item = await res.json();
+            document.title = `Item ${data.nombre} - Inventario`;
             if (active) setItem(data);
          } catch {
             if (active) setItem(null);

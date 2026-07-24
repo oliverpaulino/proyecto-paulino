@@ -61,6 +61,7 @@ export default function InventarioPage() {
    const [manageOpen, setManageOpen] = useState(false);
 
    useEffect(() => {
+      document.title = "Inventario"
       GetItems();
       GetTipoItems();
    }, [GetItems, GetTipoItems]);
