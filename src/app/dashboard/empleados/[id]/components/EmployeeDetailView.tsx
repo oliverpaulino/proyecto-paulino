@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
 import { useEmployeeStore } from "@/stores/useEmployeeStore";
+import { usePathname, useRouter, useSearchParams, useParams } from "next/navigation";
+import { Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import {
    Card,
@@ -58,8 +59,11 @@ const TIPO_ID_LABEL: Record<string, string> = {
 };
 
 export default function EmployeeDetailView() {
-   const params = useParams();
+   const pathname = usePathname();
+   const searchParams = useSearchParams();
+   const currentTab = searchParams.get("tab") || "resumen";
    const router = useRouter();
+   const params = useParams();
    const empleadoId = params.id as string;
 
    const {
@@ -116,6 +120,12 @@ export default function EmployeeDetailView() {
             alert(error.message || "Error al eliminar la tarifa");
          }
       }
+   };
+
+   const handleTabChange = (value: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("tab", value); // Seteas el valor
+      router.replace(`${pathname}?${params.toString()}`); // Actualizas la URL silenciosamente
    };
 
    if (loading && !selectedEmployee) {
@@ -189,7 +199,7 @@ export default function EmployeeDetailView() {
          </div>
 
          {/* Tabs */}
-         <Tabs defaultValue="resumen" className="space-y-4">
+         <Tabs defaultValue={currentTab} onValueChange={handleTabChange} className="space-y-4">
             <TabsList className="w-full flex-wrap justify-start gap-1 bg-transparent p-0">
                <TabsTrigger value="resumen" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
                   Resumen

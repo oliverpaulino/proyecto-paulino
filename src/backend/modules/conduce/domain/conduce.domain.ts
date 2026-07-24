@@ -27,6 +27,11 @@ interface ConduceBaseProps {
 
    equipo_id: string;
    equipo_nombre?: string;
+   // Persona que operó el equipo en este conduce (chofer/operador). Antes se
+   // hacía join a `operador` solo para poder filtrar por empleado_id, pero
+   // nunca se exponía el nombre — se agrega aquí para poder mostrarlo.
+   operador_id: string;
+   operador_nombre?: string;
    categoria_equipo_id: string; // snapshot, vía equipo.categoria_id
    categoria_equipo_nombre?: string;
 
@@ -52,6 +57,15 @@ interface ConduceBaseProps {
    created_by_name?: string;
    created_at: Date;
    updated_at: Date;
+
+   // ── Eliminación lógica ──────────────────────────────────────────────
+   // El repositorio NUNCA borra la fila físicamente. `delete()` solo llena
+   // estos campos y `findAll`/`findByProyectoId` filtran deleted_at IS NULL
+   // por defecto. Requiere la migración migration_conduce_soft_delete.sql.
+   deleted_by: string | null;
+   deleted_by_name?: string;
+   deleted_at: Date | null;
+   deleted_reason: string | null;
 }
 
 export type ConduceCamionProps = ConduceBaseProps & {
@@ -92,6 +106,9 @@ interface CreateConduceCommonDTO {
    precio_unitario: number;
    es_cobrable: boolean;
    observaciones?: string | null;
+   // Se rellenan desde la sesión en la ruta (no vienen del body del cliente).
+   created_by?: string | null;
+   created_by_name?: string | null;
 }
 
 export type CreateConduceCamionDTO = CreateConduceCommonDTO & {
@@ -126,12 +143,21 @@ export type UpdateConduceDTO = Partial<Omit<CreateConduceCamionDTO, "tipo_conduc
 export interface ConduceFiltros {
    proyecto_id?: string;
    empleado_id?: string;
+   equipo_id?: string;
    cliente_id?: string;
    tipo_conduce?: TipoConduce;
    es_cobrable?: boolean;
-   fecha_desde?: Date;
-   fecha_hasta?: Date;
+   // "YYYY-MM-DD" (igual al value de un <input type="date">). A propósito
+   // NO es `Date`: convertir a Date en el backend fue la causa del bug de
+   // "el filtro de fecha no funciona" (corrimiento de un día por timezone
+   // al comparar contra la BD). Ver conduce.infraestructure.ts.
+   fecha_desde?: string;
+   fecha_hasta?: string;
    busqueda?: string; // numero_referencia / nombre de equipo (placa)
+   // true = solo eliminados (para un futuro listado de "eliminados");
+   // false/undefined = solo activos (comportamiento por defecto en todos
+   // los listados).
+   eliminado?: boolean;
    page?: number;
    pageSize?: number;
 }
@@ -149,5 +175,8 @@ export interface IConduceRepository {
    findById(id: string): Promise<ConduceProps | null>;
    create(data: CreateConduceDTO): Promise<ConduceProps>;
    update(id: string, data: UpdateConduceDTO): Promise<ConduceProps>;
-   delete(id: string): Promise<void>;
+   /** Eliminación LÓGICA — nunca borra la fila, solo marca deleted_*. */
+   delete(id: string, info?: { deletedBy?: string | null; deletedByName?: string | null; reason?: string | null }): Promise<void>;
+   /** Revierte una eliminación lógica. */
+   restore(id: string): Promise<void>;
 }

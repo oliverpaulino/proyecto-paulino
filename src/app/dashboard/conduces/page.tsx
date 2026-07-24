@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FileStack, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { FileStack, Plus, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
    Dialog,
@@ -16,6 +16,8 @@ import { useConduceStore } from "@/stores/useConduceStores";
 import { ConduceForm } from "./components/conduce-form";
 import { ConduceFiltrosBar } from "./components/conduce-filtro";
 import { ConduceTable } from "./components/conduce-table";
+import Link from "next/link";
+import { useSession } from "@/lib/auth-client";
 
 export default function ConducesPage() {
    const {
@@ -51,7 +53,7 @@ export default function ConducesPage() {
    }
 
    async function handleDelete(id: string) {
-      if (!confirm("¿Eliminar este conduce? Esta acción no se puede deshacer.")) return;
+      // if (!confirm("¿Eliminar este conduce? Esta acción no se puede deshacer.")) return;
       setDeletingId(id);
       try {
          await DeleteConduce(id);
@@ -140,6 +142,15 @@ export default function ConducesPage() {
                   </Button>
                </div>
             </div>
+         )}
+
+         {useSession().data?.user?.role === "administrador" && (
+            <Button asChild variant="outline" className="font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive">
+               <Link href="/dashboard/conduces/eliminados">
+                  <Trash2 className="size-4 mr-2" />
+                  Conduces Eliminados
+               </Link>
+            </Button>
          )}
       </div>
    );

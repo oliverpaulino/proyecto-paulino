@@ -14,16 +14,29 @@ type ConduceStore = {
    loading: boolean;
    filtros: ConduceFiltros;
 
+   // ── Eliminados ──────────────────────────────────────────────────────
+   // Estado APARTE de `conduces` a propósito: así el apartado de
+   // "eliminados" no pisa la lista activa que esté viendo otra pantalla al
+   // mismo tiempo (ambas comparten este mismo store global).
+   eliminados: ConduceDTO[];
+   totalEliminados: number;
+   loadingEliminados: boolean;
+
    SetFiltros: (filtros: ConduceFiltros) => void;
    GetConduces: (filtros?: ConduceFiltros) => Promise<void>;
    GetConducesByProyecto: (proyectoId: string) => Promise<void>;
+   /** Trae conduces eliminados (fuerza eliminado=true sin importar lo que le pases). */
+   GetConducesEliminados: (filtros?: Omit<ConduceFiltros, "eliminado">) => Promise<void>;
    CreateConduce: (form: CreateConduceForm) => Promise<ConduceDTO | Error>;
    UpdateConduce: (
       id: string,
       form: Partial<CreateConduceForm>,
       proyectoIdAnterior?: string | null
    ) => Promise<ConduceDTO | Error>;
-   DeleteConduce: (id: string) => Promise<true | Error>;
+   /** Eliminación lógica — motivo es opcional. */
+   DeleteConduce: (id: string, motivo?: string) => Promise<true | Error>;
+   /** Revierte una eliminación lógica y lo quita de `eliminados` si estaba ahí. */
+   RestoreConduce: (id: string) => Promise<ConduceDTO | Error>;
 };
 
 function buildQuery(filtros: ConduceFiltros): string {
@@ -41,6 +54,10 @@ export const useConduceStore = create<ConduceStore>((set, get) => ({
    pageSize: 25,
    loading: false,
    filtros: {},
+
+   eliminados: [],
+   totalEliminados: 0,
+   loadingEliminados: false,
 
    SetFiltros: (filtros) => set({ filtros }),
 
@@ -74,6 +91,26 @@ export const useConduceStore = create<ConduceStore>((set, get) => ({
          set({ conduces: data.data, total: data.total });
       } finally {
          set({ loading: false });
+      }
+   },
+
+   // Para el apartado de "Conduces eliminados". Usa su propio slice de
+   // estado (eliminados/totalEliminados/loadingEliminados) para no chocar
+   // con la lista activa.
+   GetConducesEliminados: async (filtros) => {
+      set({ loadingEliminados: true });
+      try {
+         const finalFiltros: ConduceFiltros = { page: 1, pageSize: 25, ...filtros, eliminado: true };
+         const qs = buildQuery(finalFiltros);
+         const res = await fetch(`/api/conduces?${qs}`);
+         if (!res.ok) throw new Error("Error al cargar conduces eliminados");
+         const data: ConduceListResult = await res.json();
+         set({ eliminados: data.data, totalEliminados: data.total });
+      } catch (error) {
+         console.error("Error fetching conduces eliminados:", error);
+         throw error;
+      } finally {
+         set({ loadingEliminados: false });
       }
    },
 
@@ -115,15 +152,45 @@ export const useConduceStore = create<ConduceStore>((set, get) => ({
       }
    },
 
-   DeleteConduce: async (id) => {
+   // Eliminación lógica: el registro no se borra en el backend, solo se
+   // oculta de los listados normales — por eso aquí también se retira de la
+   // lista local, igual que antes con el DELETE físico.
+   DeleteConduce: async (id, motivo) => {
       try {
-         const res = await fetch(`/api/conduces/${id}`, { method: "DELETE" });
+         const res = await fetch(`/api/conduces/${id}`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reason: motivo ?? null }),
+         });
          if (!res.ok) {
             const errorText = await res.text();
             throw new Error(`Error ${res.status}: ${errorText}`);
          }
          set((s) => ({ conduces: s.conduces.filter((c) => c.id !== id), total: Math.max(0, s.total - 1) }));
          return true;
+      } catch (error) {
+         return error as Error;
+      }
+   },
+
+   // Usado por el apartado de "Conduces eliminados". Al restaurar con
+   // éxito, lo quita de `eliminados` (ya no pertenece ahí) — no lo agrega
+   // de vuelta a `conduces` automáticamente porque esa lista puede tener
+   // filtros/paginación propios; quien esté viendo la lista activa la
+   // refresca al volver a esa pantalla.
+   RestoreConduce: async (id) => {
+      try {
+         const res = await fetch(`/api/conduces/${id}/restore`, { method: "POST" });
+         if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(`Error ${res.status}: ${errorText}`);
+         }
+         const data: ConduceDTO = await res.json();
+         set((s) => ({
+            eliminados: s.eliminados.filter((c) => c.id !== id),
+            totalEliminados: Math.max(0, s.totalEliminados - 1),
+         }));
+         return data;
       } catch (error) {
          return error as Error;
       }

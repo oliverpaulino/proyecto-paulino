@@ -90,6 +90,17 @@ export interface ConduceTable {
    created_by_name: string | null;
    created_at: Generated<Date>;
    updated_at: Generated<Date>;
+
+   // ── NUEVO: eliminación LÓGICA ──────────────────────────────────────────
+   // Nunca se hace DELETE físico sobre esta tabla. Al "eliminar" un conduce
+   // solo se llenan estas columnas; el registro sigue existiendo para
+   // auditoría y para poder restaurarlo. Los repos deben filtrar
+   // `deleted_at IS NULL` en todo listado normal. Requiere migración, ver
+   // migration_conduce_soft_delete.sql.
+   deleted_by: string | null;
+   deleted_by_name: string | null;
+   deleted_at: Date | null;
+   deleted_reason: string | null;
 }
 
 export interface EmpleadoCategoriaTarifaTable {

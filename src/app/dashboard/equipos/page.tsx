@@ -133,148 +133,148 @@ export default function EquiposPage() {
 
    return (
       <PermissionGuard resource="machinery" action="read" mode="page">
-      <div className="flex flex-col gap-6 p-6">
+         <div className="flex flex-col gap-6 p-6">
 
-         {/* Header */}
-         <div>
-            <div className="flex items-center gap-3">
-               <div className="h-9 w-1.5 rounded-full bg-brand-yellow" />
-               <Truck className="size-7 text-brand-blue dark:text-blue-400" />
-               <h1 className="text-3xl font-bold text-brand-blue dark:text-white tracking-tight">
-                  Equipos
-               </h1>
+            {/* Header */}
+            <div>
+               <div className="flex items-center gap-3">
+                  <div className="h-9 w-1.5 rounded-full bg-brand-yellow" />
+                  <Truck className="size-7 text-brand-blue dark:text-blue-400" />
+                  <h1 className="text-3xl font-bold text-brand-blue dark:text-white tracking-tight">
+                     Equipos
+                  </h1>
+               </div>
+               <p className="mt-1.5 ml-11 text-sm text-muted-foreground">
+                  Gestiona la maquinaria de la empresa, sus estados y disponibilidad
+               </p>
+               <div className="mt-4 h-px bg-gradient-to-r from-brand-blue via-brand-yellow/50 to-transparent" />
             </div>
-            <p className="mt-1.5 ml-11 text-sm text-muted-foreground">
-               Gestiona la maquinaria de la empresa, sus estados y disponibilidad
-            </p>
-            <div className="mt-4 h-px bg-gradient-to-r from-brand-blue via-brand-yellow/50 to-transparent" />
-         </div>
 
-         {/* Stat cards */}
-         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard label="Total Equipos" value={total} accent="blue" />
-            <StatCard label="Disponibles" value={activos} accent="yellow" />
-            <StatCard label="En Mantenimiento" value={enMantenimiento} accent="dark" />
-            <StatCard label="Fuera de Servicio" value={fueraDeServicio} accent="red" />
-         </div>
+            {/* Stat cards */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+               <StatCard label="Total Equipos" value={total} accent="blue" />
+               <StatCard label="Disponibles" value={activos} accent="yellow" />
+               <StatCard label="En Mantenimiento" value={enMantenimiento} accent="dark" />
+               <StatCard label="Fuera de Servicio" value={fueraDeServicio} accent="red" />
+            </div>
 
-         {/* Search + actions */}
-         <div className="flex flex-wrap items-center gap-3">
-            <TableSearch
-               value={searchInput}
-               onValueChange={setSearchInput}
-               onSearch={setSearch}
-               placeholder="Buscar equipos..."
-               debounceDelay={350}
-               className="w-full max-w-sm"
-            />
+            {/* Search + actions */}
+            <div className="flex flex-wrap items-center gap-3">
+               <TableSearch
+                  value={searchInput}
+                  onValueChange={setSearchInput}
+                  onSearch={setSearch}
+                  placeholder="Buscar equipos..."
+                  debounceDelay={350}
+                  className="w-full max-w-sm"
+               />
 
-            <div className="ml-auto flex gap-2">
-               <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setManageOpen(true)}
-                  className="font-semibold"
-               >
-                  <Tag className="size-4 mr-2" />
-                  Gestionar categorías
-               </Button>
-               <Button
-                  variant="outline"
-                  onClick={() => setManageMedidasOpen(true)}
-                  className="font-semibold w-auto"
-               >
-                  <Tag className="size-4 mr-2" />
-                  Medidas de Cobro
-               </Button>
+               <div className="ml-auto flex gap-2">
+                  <Button
+                     type="button"
+                     variant="outline"
+                     onClick={() => setManageOpen(true)}
+                     className="font-semibold"
+                  >
+                     <Tag className="size-4 mr-2" />
+                     Gestionar categorías
+                  </Button>
+                  <Button
+                     variant="outline"
+                     onClick={() => setManageMedidasOpen(true)}
+                     className="font-semibold w-auto"
+                  >
+                     <Tag className="size-4 mr-2" />
+                     Medidas de Cobro
+                  </Button>
 
-               <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-                  <PermissionGuard resource="machinery" action="create">
-                  <DialogTrigger asChild>
-                     <Button className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold shadow-md shadow-brand-yellow/30 border-0">
-                        <Plus className="size-4 mr-2" />
-                        Nuevo Equipo
-                     </Button>
-                  </DialogTrigger>
-                  </PermissionGuard>
-                  <DialogContent className="sm:max-w-md">
-                     <DialogHeader>
-                        <DialogTitle>Nuevo Equipo</DialogTitle>
-                        <DialogDescription>
-                           Registra una nueva pieza de maquinaria.
-                        </DialogDescription>
-                     </DialogHeader>
+                  <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+                     <PermissionGuard resource="machinery" action="create">
+                        <DialogTrigger asChild>
+                           <Button className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold shadow-md shadow-brand-yellow/30 border-0">
+                              <Plus className="size-4 mr-2" />
+                              Nuevo Equipo
+                           </Button>
+                        </DialogTrigger>
+                     </PermissionGuard>
+                     <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                           <DialogTitle>Nuevo Equipo</DialogTitle>
+                           <DialogDescription>
+                              Registra una nueva pieza de maquinaria.
+                           </DialogDescription>
+                        </DialogHeader>
+                        <EquipoForm
+                           onSubmit={handleCreate}
+                           onCancel={() => setCreateOpen(false)}
+                           loading={formLoading}
+                        />
+                     </DialogContent>
+                  </Dialog>
+               </div>
+            </div>
+
+            {/* Table */}
+            {loading ? (
+               <div className="flex items-center justify-center gap-3 p-12 text-sm text-muted-foreground">
+                  <div className="size-5 animate-spin rounded-full border-2 border-brand-blue/20 border-t-brand-blue" />
+                  Cargando equipos…
+               </div>
+            ) : (
+               <EquipoTable
+                  equipos={filtered}
+                  onEdit={setEditTarget}
+                  onDelete={setDeleteTarget}
+               />
+            )}
+
+            {/* Edit dialog */}
+            <Dialog
+               open={!!editTarget}
+               onOpenChange={(open) => { if (!open) setEditTarget(null); }}
+            >
+               <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                     <DialogTitle>Editar Equipo</DialogTitle>
+                     <DialogDescription>
+                        Modifica los datos del equipo.
+                     </DialogDescription>
+                  </DialogHeader>
+                  {editTarget && (
                      <EquipoForm
-                        onSubmit={handleCreate}
-                        onCancel={() => setCreateOpen(false)}
+                        initialData={editTarget}
+                        onSubmit={handleEdit}
+                        onCancel={() => setEditTarget(null)}
                         loading={formLoading}
+                        submitLabel="Guardar cambios"
                      />
-                  </DialogContent>
-               </Dialog>
-            </div>
-         </div>
+                  )}
+               </DialogContent>
+            </Dialog>
 
-         {/* Table */}
-         {loading ? (
-            <div className="flex items-center justify-center gap-3 p-12 text-sm text-muted-foreground">
-               <div className="size-5 animate-spin rounded-full border-2 border-brand-blue/20 border-t-brand-blue" />
-               Cargando equipos…
-            </div>
-         ) : (
-            <EquipoTable
-               equipos={filtered}
-               onEdit={setEditTarget}
-               onDelete={setDeleteTarget}
+            <DeleteEquipoDialog
+               equipo={deleteTarget}
+               onConfirm={handleDelete}
+               onClose={() => setDeleteTarget(null)}
+               loading={formLoading}
             />
-         )}
 
-         {/* Edit dialog */}
-         <Dialog
-            open={!!editTarget}
-            onOpenChange={(open) => { if (!open) setEditTarget(null); }}
-         >
-            <DialogContent className="sm:max-w-md">
-               <DialogHeader>
-                  <DialogTitle>Editar Equipo</DialogTitle>
-                  <DialogDescription>
-                     Modifica los datos del equipo.
-                  </DialogDescription>
-               </DialogHeader>
-               {editTarget && (
-                  <EquipoForm
-                     initialData={editTarget}
-                     onSubmit={handleEdit}
-                     onCancel={() => setEditTarget(null)}
-                     loading={formLoading}
-                     submitLabel="Guardar cambios"
-                  />
-               )}
-            </DialogContent>
-         </Dialog>
 
-         <DeleteEquipoDialog
-            equipo={deleteTarget}
-            onConfirm={handleDelete}
-            onClose={() => setDeleteTarget(null)}
-            loading={formLoading}
-         />
-      
- 
-         <CategoriaEquipoManager
-            open={manageOpen}
-            onOpenChange={async (open) => {
-               setManageOpen(open);
-               if (!open) {
-                  // Al cerrar, forzamos la recarga de datos en los stores
-                  await GetCategoriaEquipos({ force: true });
-                  await GetEquipos({ force: true });
-               }
-            }}
-         />
-         {/* Mantén el MedidaCobroManager que ya tienes aquí abajo para el botón principal de la página */}
-         <MedidaCobroManager open={manageMedidasOpen} onOpenChange={setManageMedidasOpen} />
-     </PermissionGuard>
-      </div >
+            <CategoriaEquipoManager
+               open={manageOpen}
+               onOpenChange={async (open) => {
+                  setManageOpen(open);
+                  if (!open) {
+                     // Al cerrar, forzamos la recarga de datos en los stores
+                     await GetCategoriaEquipos({ force: true });
+                     await GetEquipos({ force: true });
+                  }
+               }}
+            />
+            {/* Mantén el MedidaCobroManager que ya tienes aquí abajo para el botón principal de la página */}
+            <MedidaCobroManager open={manageMedidasOpen} onOpenChange={setManageMedidasOpen} />
+         </div >
+      </PermissionGuard>
    );
 }
 

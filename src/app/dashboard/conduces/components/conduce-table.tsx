@@ -1,20 +1,59 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Trash2, Truck, HardHat } from "lucide-react";
+import { Trash2, Pencil, Eye, Truck, HardHat } from "lucide-react";
+import { useConduceStore } from "@/stores/useConduceStores";
+import { ConduceDeleteDialog } from "./conduce-delete-dialog";
+import { ConduceEditDialog } from "./conduce-edit-dialog";
+import { ConduceDetalleDialog } from "./conduce-detalle-dialog";
 import type { ConduceDTO } from "@/dtos/conduce.dto";
 
 interface Props {
    conduces: ConduceDTO[];
-   onDelete?: (id: string) => void;
+   /**
+    * Opcional: si tu página ya maneja su propia lógica de eliminación,
+    * pásala aquí y se usará en vez de la interna (que llama a
+    * DeleteConduce del store directamente). El motivo llega como segundo
+    * argumento; si tu handler actual solo recibe el id, no pasa nada, se
+    * ignora el extra.
+    */
+   onDelete?: (id: string, motivo?: string) => void | Promise<void>;
    deletingId?: string | null;
    /** Oculta la columna de Proyecto cuando ya se está viendo dentro de uno. */
    ocultarProyecto?: boolean;
 }
 
 export function ConduceTable({ conduces, onDelete, deletingId, ocultarProyecto }: Props) {
+   const { DeleteConduce } = useConduceStore();
+   const [eliminandoId, setEliminandoId] = useState<string | null>(null);
+   const [conduceAEliminar, setConduceAEliminar] = useState<ConduceDTO | null>(null);
+   const [conduceAEditar, setConduceAEditar] = useState<ConduceDTO | null>(null);
+   const [conduceDetalle, setConduceDetalle] = useState<ConduceDTO | null>(null);
+
+   const idEnProceso = deletingId ?? eliminandoId;
+
+   const handleConfirmarEliminar = async (id: string, motivo?: string) => {
+      if (onDelete) {
+         await onDelete(id, motivo);
+         return;
+      }
+      // Por defecto, elimina (lógicamente) usando el store directamente —
+      // así este diálogo funciona sin que cada página tenga que cablear su
+      // propio handler.
+      setEliminandoId(id);
+      try {
+         const resultado = await DeleteConduce(id, motivo);
+         if (resultado instanceof Error) {
+            alert(resultado.message);
+         }
+      } finally {
+         setEliminandoId(null);
+      }
+   };
+
    if (conduces.length === 0) {
       return (
          <div className="flex items-center justify-center p-8 text-sm text-muted-foreground">
@@ -36,11 +75,12 @@ export function ConduceTable({ conduces, onDelete, deletingId, ocultarProyecto }
                      <th className="px-3 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Proyecto</th>
                   )}
                   <th className="px-3 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Equipo</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Operador</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Detalle</th>
                   <th className="px-3 py-3 text-right text-xs font-semibold uppercase text-muted-foreground">Cant./Horas</th>
                   <th className="px-3 py-3 text-right text-xs font-semibold uppercase text-muted-foreground">Subtotal</th>
                   <th className="px-3 py-3 text-center text-xs font-semibold uppercase text-muted-foreground">Cobrable</th>
-                  {onDelete && <th className="px-3 py-3" />}
+                  <th className="px-3 py-3" />
                </tr>
             </thead>
             <tbody>
@@ -57,7 +97,15 @@ export function ConduceTable({ conduces, onDelete, deletingId, ocultarProyecto }
                            </Badge>
                         )}
                      </td>
-                     <td className="px-3 py-3 font-medium">{c.numero_referencia}</td>
+                     <td className="px-3 py-3">
+                        <button
+                           type="button"
+                           onClick={() => setConduceDetalle(c)}
+                           className="font-medium text-left hover:underline hover:text-blue-600"
+                        >
+                           {c.numero_referencia}
+                        </button>
+                     </td>
                      <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">
                         {new Date(c.fecha).toLocaleDateString("es-DO")}
                      </td>
@@ -81,6 +129,7 @@ export function ConduceTable({ conduces, onDelete, deletingId, ocultarProyecto }
                         </td>
                      )}
                      <td className="px-3 py-3">{c.equipo_nombre ?? "—"}</td>
+                     <td className="px-3 py-3">{c.operador_nombre ?? "—"}</td>
                      <td className="px-3 py-3 text-xs text-muted-foreground max-w-[220px]">
                         {c.tipo_conduce === "CAMION" ? (
                            <span>
@@ -101,7 +150,7 @@ export function ConduceTable({ conduces, onDelete, deletingId, ocultarProyecto }
                      </td>
                      <td className="px-3 py-3 text-right whitespace-nowrap">
                         {c.tipo_conduce === "CAMION"
-                           ? `${c.cantidad} ${c.medida_cobro_nombre ?? ""}`
+                           ? `${c.categoria_equipo_tarifa_nombre ?? "S.T."} / ${c.cantidad}`
                            : `${c.total_horas.toFixed(2)} h`}
                      </td>
                      <td className="px-3 py-3 text-right font-semibold whitespace-nowrap">
@@ -114,24 +163,61 @@ export function ConduceTable({ conduces, onDelete, deletingId, ocultarProyecto }
                            <Badge className="border-0 bg-gray-100 text-gray-600 text-xs">No</Badge>
                         )}
                      </td>
-                     {onDelete && (
-                        <td className="px-3 py-3 text-right">
+                     <td className="px-3 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                           <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="size-7 text-muted-foreground hover:text-foreground"
+                              onClick={() => setConduceDetalle(c)}
+                           >
+                              <Eye className="h-4 w-4" />
+                           </Button>
+                           <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="size-7 text-muted-foreground hover:text-foreground"
+                              onClick={() => setConduceAEditar(c)}
+                           >
+                              <Pencil className="h-4 w-4" />
+                           </Button>
                            <Button
                               type="button"
                               variant="ghost"
                               size="icon"
                               className="size-7 text-muted-foreground hover:text-destructive"
-                              disabled={deletingId === c.id}
-                              onClick={() => onDelete(c.id)}
+                              disabled={idEnProceso === c.id}
+                              onClick={() => setConduceAEliminar(c)}
                            >
                               <Trash2 className="h-4 w-4" />
                            </Button>
-                        </td>
-                     )}
+                        </div>
+                     </td>
                   </tr>
                ))}
             </tbody>
          </table>
+
+         <ConduceDetalleDialog
+            conduce={conduceDetalle}
+            open={!!conduceDetalle}
+            onOpenChange={(v) => !v && setConduceDetalle(null)}
+         />
+
+         <ConduceDeleteDialog
+            conduce={conduceAEliminar}
+            open={!!conduceAEliminar}
+            onOpenChange={(v) => !v && setConduceAEliminar(null)}
+            onConfirm={handleConfirmarEliminar}
+         />
+
+         <ConduceEditDialog
+            conduce={conduceAEditar}
+            open={!!conduceAEditar}
+            onOpenChange={(v) => !v && setConduceAEditar(null)}
+         />
       </div>
    );
 }
