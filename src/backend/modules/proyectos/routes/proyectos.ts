@@ -2,19 +2,23 @@ import { Hono } from "hono";
 import db from "@/backend/database";
 import { KyselyProyectoRepository } from "../infraestructure/proyecto.infraestructure";
 import { ProyectoService } from "../service/proyecto.service";
-import type { TipoProyecto, CreateProyectoExpressDTO } from "../domain/proyecto.domain";
-import { CreateProyectoExpressDTOSchema } from "@/dtos/proyecto.dto";
 import { auth } from "@/lib/auth";
+import { KyselyConduceRepository } from "../../conduce/infraestructure/conduce.infraestructure";
+import { CreateProyectoDTOSchema } from "@/dtos/proyecto.dto";
 
 const proyectosRoute = new Hono();
 const repo = new KyselyProyectoRepository(db);
-const service = new ProyectoService(repo);
+const conduceRepo = new KyselyConduceRepository(db); // ← NUEVO: ProyectoService ahora lo necesita para combinar conduces en getById()/getLiquidacion()
+const service = new ProyectoService(repo, conduceRepo);
 
-// GET /api/proyectos?tipo=EXPRESS|NORMAL|GRANDE
+// GET /api/proyectos?search=...&page=1&limit=10
 proyectosRoute.get("/", async (c) => {
    try {
-      const tipo = c.req.query("tipo") as TipoProyecto | undefined;
-      const proyectos = await service.getAll(tipo);
+      const searchQuery = c.req.query("search") || "";
+      const page = parseInt(c.req.query("page") || "1");
+      const limit = parseInt(c.req.query("limit") || "10");
+      const pagination = { page, limit };
+      const proyectos = await service.getAll(searchQuery, pagination);
       return c.json(proyectos);
    } catch (err: unknown) {
       return c.json({ error: err instanceof Error ? err.message : "Error al obtener proyectos" }, 500);
@@ -32,6 +36,20 @@ proyectosRoute.get("/:id", async (c) => {
    }
 });
 
+// GET /api/proyectos/cliente/:clientid
+proyectosRoute.get("/cliente/:clientid", async (c) => {
+   try {
+      const clientId = c.req.param("clientid");
+      const page = parseInt(c.req.query("page") || "1");
+      const limit = parseInt(c.req.query("limit") || "10");
+      const searchQuery = c.req.query("search") || "";
+      const proyectos = await service.getByClientId(clientId, searchQuery, { page, limit }); // Obtener todos los proyectos
+      return c.json(proyectos);
+   } catch (err: unknown) {
+      return c.json({ error: err instanceof Error ? err.message : "Error" }, 500);
+   }
+});
+
 // GET /api/proyectos/:id/liquidacion — datos consolidados para el PDF (Facade)
 proyectosRoute.get("/:id/liquidacion", async (c) => {
    try {
@@ -43,55 +61,40 @@ proyectosRoute.get("/:id/liquidacion", async (c) => {
    }
 });
 
-// POST /api/proyectos/express — transacción atómica Express
-proyectosRoute.post("/express", async (c) => {
+
+// POST /api/proyectos
+proyectosRoute.post("/", async (c) => {
    try {
-      // 1. Verificamos sesión
       const session = await auth.api.getSession({ headers: c.req.raw.headers });
       if (!session?.user) return c.json({ error: "No autenticado" }, 401);
 
-      // 2. Obtenemos el body crudo que mandó el Frontend
       const rawBody = await c.req.json();
-      console.log("rawBody recibido en route:", rawBody);
-      // 3. VALIDACIÓN NORMAL Y MANUAL CON ZOD
-      const validation = CreateProyectoExpressDTOSchema.safeParse(rawBody);
-      console.log("validation result:", validation);
+      const validation = CreateProyectoDTOSchema.safeParse(rawBody);
 
-      // 4. Si la validación falla, controlamos el error manualmente
       if (!validation.success) {
          return c.json(
-            {
-               error: "Datos incompletos o incorrectos",
-               // Esto te devuelve un objeto exacto de qué campo falló (útil para debugear)
-               detalles: validation.error.format()
-            },
+            { error: "Datos incompletos o incorrectos", detalles: validation.error.format() },
             400
          );
       }
 
-      // 5. Si todo está bien, extraemos los datos ya validados y tipados
       const body = validation.data;
 
-      // 6. Ejecutamos la lógica de negocio
       try {
-         const proyecto = service.createExpress({
-            ...body, // Aquí ya vienen 'tarifas' y 'equipos' validados por Zod
-            servicio_id: body.servicio_id ?? null, // Aseguramos que sea null si no viene
+         const proyecto = await service.create({
+            ...body,
             fecha_inicio: body.fecha_inicio ? new Date(body.fecha_inicio) : new Date(),
+            fecha_fin: body.fecha_fin ? new Date(body.fecha_fin) : undefined,
             cargos_cobrables: body.cargos_cobrables ?? [],
             gastos_internos: body.gastos_internos ?? [],
          });
          return c.json(proyecto, 201);
-
       } catch (error: any) {
-         console.error("Error creando proyecto Express:", error);
          return c.json({ error: error.message }, 400);
       }
-
-
    } catch (err: unknown) {
       return c.json(
-         { error: err instanceof Error ? err.message : "Error al registrar proyecto express" },
+         { error: err instanceof Error ? err.message : "Error al registrar proyecto" },
          500
       );
    }

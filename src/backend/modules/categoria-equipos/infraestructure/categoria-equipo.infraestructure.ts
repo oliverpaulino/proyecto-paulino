@@ -1,3 +1,19 @@
+// ⚠️ OPCIONAL — mejora recomendada, no obligatoria.
+//
+// Tu update() actual borra TODAS las tarifas de la categoría y las
+// reinserta en cada edición, así que sus `id` cambian aunque el contenido
+// sea idéntico. El módulo de Conduces ya es robusto a esto (usa
+// ON DELETE SET NULL + snapshot de nombre en `conduce`, y ON DELETE CASCADE
+// en `proyecto_tarifa`), así que NO es obligatorio que apliques este cambio.
+//
+// Pero si lo aplicas, los `id` de categoria_equipo_tarifa se mantienen
+// estables entre ediciones (solo cambian si agregas/quitas una tarifa),
+// lo cual es en general más sano para cualquier otro módulo que llegues a
+// enlazar a esos ids en el futuro.
+//
+// Diferencia con tu archivo original: SOLO cambia el método `update()`.
+// El resto (findById, findAll, create, delete) queda idéntico.
+
 import { Kysely, sql } from "kysely";
 import { DB } from "@/backend/database";
 import {
@@ -40,7 +56,6 @@ export class KyselyCategoriaEquipoRepository implements ICategoriaEquipoReposito
 
       if (!row) return null;
 
-
       return CategoriaEquipo.create({
          id: row.id,
          nombre: row.nombre,
@@ -52,7 +67,6 @@ export class KyselyCategoriaEquipoRepository implements ICategoriaEquipoReposito
    }
 
    async findAll(): Promise<CategoriaEquipo[]> {
-      // Usamos json_agg (función de PostgreSQL) para traer las tarifas en la misma consulta
       const rows = await this.db
          .selectFrom("categoria_equipo as ce")
          .leftJoin("categoria_equipo_tarifa as cet", "ce.id", "cet.categoria_equipo_id")
@@ -92,7 +106,6 @@ export class KyselyCategoriaEquipoRepository implements ICategoriaEquipoReposito
    async create(data: CreateCategoriaEquipoDTO): Promise<CategoriaEquipo> {
       try {
          return await this.db.transaction().execute(async (trx) => {
-            // 1. Insertar la categoría base
             const cat = await trx
                .insertInto("categoria_equipo")
                .values({
@@ -104,7 +117,6 @@ export class KyselyCategoriaEquipoRepository implements ICategoriaEquipoReposito
                .returningAll()
                .executeTakeFirstOrThrow();
 
-            // 2. Insertar las tarifas múltiples (Bote, Viaje, etc.)
             if (data.tarifas && data.tarifas.length > 0) {
                const tarifasValues = data.tarifas.map((t) => ({
                   categoria_equipo_id: cat.id,
@@ -138,11 +150,17 @@ export class KyselyCategoriaEquipoRepository implements ICategoriaEquipoReposito
       }
    }
 
+   // ── ÚNICO MÉTODO QUE CAMBIA ──────────────────────────────────────────────
+   // Antes: deleteFrom(categoria_equipo_tarifa) + insertInto(...) con TODO el
+   // array → todos los id se regeneran siempre.
+   // Ahora: upsert por id — actualiza las que ya existen (mismo id), inserta
+   // las que no traen id o traen uno que ya no existe, y borra solo las que
+   // el payload dejó de incluir. Los id de las tarifas que el usuario no tocó
+   // quedan exactamente iguales.
    async update(id: string, data: UpdateCategoriaEquipoDTO): Promise<CategoriaEquipo | null> {
       try {
 
          return await this.db.transaction().execute(async (trx) => {
-            // 1. Actualizamos los datos base de la categoría si vienen en el payload
             if (data.nombre !== undefined) {
                await trx
                   .updateTable("categoria_equipo")
@@ -151,33 +169,61 @@ export class KyselyCategoriaEquipoRepository implements ICategoriaEquipoReposito
                   .execute();
             }
 
-            // 2. Si el payload incluye tarifas, las reemplazamos (Hard Replace)
             if (data.tarifas !== undefined) {
-               // Borramos las tarifas antiguas de esta categoría
-               await trx
-                  .deleteFrom("categoria_equipo_tarifa")
+               const existentes = await trx
+                  .selectFrom("categoria_equipo_tarifa")
+                  .select(["id"])
                   .where("categoria_equipo_id", "=", id)
                   .execute();
+               const idsExistentes = new Set(existentes.map((e) => e.id));
+               const idsEnviados = new Set(
+                  data.tarifas.filter((t) => t.id && idsExistentes.has(t.id)).map((t) => t.id as string)
+               );
 
-               // Insertamos las nuevas
-               if (data.tarifas.length > 0) {
-                  const tarifasValues = data.tarifas.map((t) => ({
-                     categoria_equipo_id: id,
-                     nombre: t.nombre,
-                     medida_cobro_id: t.medida_cobro_id,
-                     precio_unitario: t.precio_unitario,
-                     cobra_minimo: t.cobra_minimo ?? null,
-                     created_at: new Date(),
-                  }));
+               // Borra solo las que el payload dejó de incluir.
+               const idsABorrar = [...idsExistentes].filter((eid) => !idsEnviados.has(eid));
+               if (idsABorrar.length > 0) {
+                  await trx
+                     .deleteFrom("categoria_equipo_tarifa")
+                     .where("id", "in", idsABorrar)
+                     .execute();
+               }
 
+               // Actualiza las que traen un id que ya existía (mismo id → no rompe FKs).
+               for (const t of data.tarifas) {
+                  if (t.id && idsExistentes.has(t.id)) {
+                     await trx
+                        .updateTable("categoria_equipo_tarifa")
+                        .set({
+                           nombre: t.nombre,
+                           medida_cobro_id: t.medida_cobro_id,
+                           precio_unitario: t.precio_unitario,
+                           cobra_minimo: t.cobra_minimo ?? null,
+                        })
+                        .where("id", "=", t.id)
+                        .execute();
+                  }
+               }
+
+               // Inserta las nuevas (sin id, o con un id que ya no existe).
+               const nuevas = data.tarifas.filter((t) => !t.id || !idsExistentes.has(t.id));
+               if (nuevas.length > 0) {
                   await trx
                      .insertInto("categoria_equipo_tarifa")
-                     .values(tarifasValues)
+                     .values(
+                        nuevas.map((t) => ({
+                           categoria_equipo_id: id,
+                           nombre: t.nombre,
+                           medida_cobro_id: t.medida_cobro_id,
+                           precio_unitario: t.precio_unitario,
+                           cobra_minimo: t.cobra_minimo ?? null,
+                           created_at: new Date(),
+                        }))
+                     )
                      .execute();
                }
             }
 
-            // 3. Traemos el registro completo actualizado usando la misma lógica de findById
             const row = await trx
                .selectFrom("categoria_equipo as ce")
                .leftJoin("categoria_equipo_tarifa as cet", "ce.id", "cet.categoria_equipo_id")
@@ -226,13 +272,11 @@ export class KyselyCategoriaEquipoRepository implements ICategoriaEquipoReposito
    async delete(id: string): Promise<boolean> {
       try {
          return await this.db.transaction().execute(async (trx) => {
-            // 1. Borramos primero las tarifas asociadas (tabla hija)
             await trx
                .deleteFrom("categoria_equipo_tarifa")
                .where("categoria_equipo_id", "=", id)
                .execute();
 
-            // 2. Borramos la categoría base (tabla padre)
             const result = await trx
                .deleteFrom("categoria_equipo")
                .where("id", "=", id)
@@ -241,8 +285,6 @@ export class KyselyCategoriaEquipoRepository implements ICategoriaEquipoReposito
             return Number(result.numDeletedRows) > 0;
          });
       } catch (err: unknown) {
-         // Si la base de datos lanza un error 23503, significa que la categoría
-         // no se puede borrar porque está siendo usada por un "equipo"
          if (this.isFKViolation(err)) {
             throw new Error("No se puede eliminar la categoría porque tiene equipos asociados");
          }
@@ -250,12 +292,10 @@ export class KyselyCategoriaEquipoRepository implements ICategoriaEquipoReposito
       }
    }
 
-   // Asegúrate de tener tu helper para la restricción de llave foránea
    private isFKViolation(err: unknown): boolean {
       return typeof err === "object" && err !== null && "code" in err && (err as any).code === "23503";
    }
 
-   // Funciones auxiliares para errores de Postgres...
    private isUniqueViolation(err: unknown): boolean {
       return typeof err === "object" && err !== null && "code" in err && (err as any).code === "23505";
    }

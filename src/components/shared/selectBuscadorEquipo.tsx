@@ -32,11 +32,18 @@ export function SelectBuscadorEquipo({
       setInputValue(initialLabel);
    }, [initialLabel]);
 
+   // Agrega este useEffect para limpiar el texto visual si el valor externo se borra
+   useEffect(() => {
+      if (!value) {
+         setInputValue("");
+      }
+   }, [value]);
+
    useEffect(() => {
       function handleClickOutside(event: MouseEvent) {
          if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
             setIsOpen(false);
-            if (!value) setInputValue(""); 
+            if (!value) setInputValue("");
          }
       }
       document.addEventListener("mousedown", handleClickOutside);
@@ -85,7 +92,7 @@ export function SelectBuscadorEquipo({
                placeholder={placeholder}
                className="h-10 w-full rounded-md border border-input bg-input/30 pl-9 pr-9 py-2 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
             />
-            
+
             <div className="absolute right-3 flex items-center gap-1">
                {loading && isOpen && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
                {value && !disabled && (
@@ -117,11 +124,10 @@ export function SelectBuscadorEquipo({
                            <span className="text-muted-foreground truncate">
                               Categoría: {equipo.categoria_nombre} {/*[cite: 4] */}
                            </span>
-                           <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                              equipo.estado === "ACTIVO" ? "bg-green-500/10 text-green-500" : //[cite: 4]
-                              equipo.estado === "EN_MANTENIMIENTO" ? "bg-yellow-500/10 text-yellow-500" : //[cite: 4]
-                              "bg-red-500/10 text-red-500"
-                           }`}>
+                           <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${equipo.estado === "ACTIVO" ? "bg-green-500/10 text-green-500" : //[cite: 4]
+                                 equipo.estado === "EN_MANTENIMIENTO" ? "bg-yellow-500/10 text-yellow-500" : //[cite: 4]
+                                    "bg-red-500/10 text-red-500"
+                              }`}>
                               {equipo.estado.replace("_", " ")} {/*[cite: 4] */}
                            </span>
                         </div>

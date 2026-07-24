@@ -13,6 +13,7 @@ import {
 } from "@/dtos/schema.dto";
 
 import { TipoCliente } from "@/dtos/client.dto";
+import { useClientStore } from "@/stores/useClientStore";
 
 const tipoIdentificacionOptions = Object.entries(TipoIdentificacion).map(([key, value]) => ({
    value: key as keyof typeof TipoIdentificacion,
@@ -63,6 +64,8 @@ export function ClientForm({
       telefono: initialData?.telefono ?? "",
       direccion: initialData?.direccion ?? "",
    });
+
+   const { Clients } = useClientStore()
 
    const [error, setError] = useState<string | null>(null);
    const [isSearching, setIsSearching] = useState(false);
@@ -168,6 +171,11 @@ export function ClientForm({
    function validateForm(): boolean {
       setError(null);
 
+      if (isDuplicateId) {
+         setError("Esta identificación ya se encuentra registrada en otro cliente.");
+         return false;
+      }
+
       if (values.email) {
          const emailValidation = GeneralSchemasDTO.EmailSchema.safeParse(values.email);
          if (!emailValidation.success) {
@@ -224,6 +232,19 @@ export function ClientForm({
    const isNombreDisabled = !isManualEntryAllowed || apiDataFound.nombre;
    const areOtherFieldsDisabled = !isManualEntryAllowed;
 
+   const isIdLengthInvalid =
+      values.tipo_identificacion !== "PASAPORTE" &&
+      values.identificacion.length > 0 &&
+      values.identificacion.length !== 9 &&
+      values.identificacion.length !== 11;
+
+
+   const isDuplicateId =
+      values.identificacion.length > 0 &&
+      Clients.some((c) => c.identificacion === values.identificacion && c.id !== initialData?.id);
+
+   // Agrupamos el estado de error
+   const hasIdError = isIdLengthInvalid || isDuplicateId;
    return (
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
 
@@ -269,7 +290,7 @@ export function ClientForm({
          </div>
 
          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="cf-identificacion">Identificación *</Label>
+            <Label htmlFor="cf-identificacion" className={isIdLengthInvalid ? "text-destructive/90 transition-colors" : "transition-colors"} >Identificación *</Label>
             <div className="relative">
                <Input
                   id="cf-identificacion"
@@ -280,12 +301,29 @@ export function ClientForm({
                         values.tipo_identificacion === "RNC" ? "Ej: 130123456" : "Ej: RD1234567"
                   }
                   required
-                  className={isSearching ? `pr-10 ${INPUT_DISABLED_CLASS}` : INPUT_DISABLED_CLASS}
+                  className={`
+                     ${isSearching ? "pr-10" : ""} 
+                     ${INPUT_DISABLED_CLASS} 
+                     ${isIdLengthInvalid ? "border-destructive/60 focus-visible:ring-destructive/30" : ""}
+                  `}
                />
                {isSearching && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   </div>
+               )}
+               {isDuplicateId ? (
+                  <span className="text-[11px] font-medium text-destructive/80 -mt-0.5 animate-in fade-in slide-in-from-top-0.5">
+                     Esta cédula/RNC ya existe en tus registros
+                  </span>
+               ) : isIdLengthInvalid ? (
+                  <span className="text-[11px] font-medium text-destructive/80 -mt-0.5 animate-in fade-in slide-in-from-top-0.5">
+                     Llevas {values.identificacion.length} caracteres (deben ser 9 u 11)
+                  </span>
+               ) : (
+                  <span className="text-[11px] font-medium text-white -mt-0.5 animate-in fade-in slide-in-from-top-0.5">
+                     espacio
+                  </span>
                )}
             </div>
          </div>

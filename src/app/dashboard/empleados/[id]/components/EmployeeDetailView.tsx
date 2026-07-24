@@ -39,6 +39,8 @@ import {
 import { EmployeeForm, type OperadorFormData } from "../../components/employee-form";
 import { DeleteEmployeeDialog } from "../../components/delete-employee-dialog";
 import StatCard from "./StatCard";
+import { EmployeeConceptsWidget } from "../../conceptos/components/concept-employee-widget";
+import { EmployeeConduces } from "./employee-conduces";
 import { TarifaEmpleadoDialog } from "./TarifaEmpleadoDialog";
 
 const ROL_LABEL: Record<string, string> = {
@@ -192,6 +194,11 @@ export default function EmployeeDetailView() {
                <TabsTrigger value="resumen" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
                   Resumen
                </TabsTrigger>
+               {empleado.rol === "OPERADOR" && (
+                  <TabsTrigger value="conduces" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                     Conduces
+                  </TabsTrigger>
+               )}
                <TabsTrigger value="tarifas" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
                   Tarifas por Equipo
                </TabsTrigger>
@@ -311,6 +318,21 @@ export default function EmployeeDetailView() {
                </Card>
             </TabsContent>
 
+            {/* ── Conduces ── */}
+            {empleado.rol === "OPERADOR" && (
+
+               <TabsContent value="conduces" className="space-y-4">
+                  <Card>
+                     <CardHeader>
+                        <CardTitle>Conduces</CardTitle>
+                        <CardDescription>Información sobre los conduces del empleado.</CardDescription>
+                     </CardHeader>
+                     <CardContent>
+                        <EmployeeConduces empleadoId={empleadoId} />
+                     </CardContent>
+                  </Card>
+               </TabsContent>
+            )}
 
             {/* ── TARIFAS ── */}
             <TabsContent value="tarifas" className="space-y-4">

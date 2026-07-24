@@ -2,33 +2,32 @@ import { Kysely } from "kysely";
 import type { DB } from "@/backend/database";
 import type {
    IProyectoRepository,
-   CreateProyectoExpressDTO,
    ProyectoProps,
    ProyectoDetalleProps,
-   ProyectoAsignacionProps,
-   TipoProyecto,
-   LiquidacionExpressFacade,
-   ProyectoEquipoDetalleProps,
+   ProyectoTotales,
+   LiquidacionFacade,
+   CreateProyectoDTO,
 } from "../domain/proyecto.domain";
+import { ConduceProps } from "../../conduce/domain/conduce.domain";
 
 export class KyselyProyectoRepository implements IProyectoRepository {
 
    constructor(private readonly db: Kysely<DB>) { }
 
-   async findAll(tipo?: TipoProyecto): Promise<ProyectoProps[]> {
+   async findAll(search?: string, pagination?: { page: number, limit: number }): Promise<ProyectoProps[]> {
       let query = this.db
          .selectFrom("proyecto")
          .leftJoin("cliente", "cliente.id", "proyecto.cliente_id")
          .select([
             "proyecto.id",
-            "proyecto.tipo_proyecto",
             "proyecto.estado",
             "proyecto.cliente_id",
+            "proyecto.nombre",
             "cliente.nombre as cliente_nombre",
-            "proyecto.tipo_servicio_id",
             "proyecto.tarifa_servicio",
             "proyecto.total_cobrable",
             "proyecto.total_gasto_interno",
+            "proyecto.total_equipos",
             "proyecto.rentabilidad",
             "proyecto.notas",
             "proyecto.fecha_inicio",
@@ -38,11 +37,20 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          ])
          .orderBy("proyecto.created_at", "desc");
 
-      if (tipo) {
-         query = query.where("proyecto.tipo_proyecto", "=", tipo);
+
+      if (search) {
+         query = query.where("proyecto.nombre", "ilike", `%${search}%`);
+      }
+
+      if (pagination) {
+         const { page, limit } = pagination;
+         query = query.offset((page - 1) * limit).limit(limit);
       }
 
       const rows = await query.execute();
+      // El historial no necesita el detalle línea por línea, solo los totales
+      // ya cacheados en la fila (incluyendo total_equipos, que antes NUNCA se
+      // llenaba porque acá se pasaba `[]` fijo — ese era el bug de la tabla).
       return rows.map((r) => this.#mapRow(r, [], []));
    }
 
@@ -52,14 +60,14 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          .leftJoin("cliente", "cliente.id", "proyecto.cliente_id")
          .select([
             "proyecto.id",
-            "proyecto.tipo_proyecto",
             "proyecto.estado",
             "proyecto.cliente_id",
+            "proyecto.nombre",
             "cliente.nombre as cliente_nombre",
-            "proyecto.tipo_servicio_id",
             "proyecto.tarifa_servicio",
             "proyecto.total_cobrable",
             "proyecto.total_gasto_interno",
+            "proyecto.total_equipos",
             "proyecto.rentabilidad",
             "proyecto.notas",
             "proyecto.fecha_inicio",
@@ -72,140 +80,75 @@ export class KyselyProyectoRepository implements IProyectoRepository {
 
       if (!row) return null;
 
-      const [detalle, asignaciones, equiposDetalleRaw] = await Promise.all([
-         this.db
-            .selectFrom("proyecto_detalle")
-            .selectAll()
-            .where("proyecto_id", "=", id)
-            .execute(),
-         this.db
-            .selectFrom("proyecto_asignacion")
-            .leftJoin("empleado", "empleado.id", "proyecto_asignacion.empleado_id")
-            .leftJoin("equipo", "equipo.id", "proyecto_asignacion.equipo_id")
-            .select([
-               "proyecto_asignacion.id",
-               "proyecto_asignacion.proyecto_id",
-               "proyecto_asignacion.empleado_id",
-               "empleado.nombre as empleado_nombre",
-               "proyecto_asignacion.equipo_id",
-               "equipo.nombre as equipo_nombre",
-               "proyecto_asignacion.horas_trabajadas",
-            ])
-            .where("proyecto_asignacion.proyecto_id", "=", id)
-            .execute(),
-         this.db
-            .selectFrom("proyecto_equipos")
-            .innerJoin("proyecto_tarifas", "proyecto_tarifas.id", "proyecto_equipos.proyecto_tarifa_id")
-            .innerJoin("equipo", "equipo.id", "proyecto_equipos.equipo_id")
-            .innerJoin("categoria_equipo", "categoria_equipo.id", "proyecto_tarifas.categoria_equipo_id")
-            .leftJoin("operador", "operador.id", "proyecto_equipos.operador_id")
-            .leftJoin("empleado", "empleado.id", "operador.empleado_id")
-            .select([
-               "proyecto_equipos.id",
-               "proyecto_equipos.equipo_id",
-               "equipo.nombre as equipo_nombre",
-               "proyecto_equipos.operador_id",
-               "empleado.nombre as operador_nombre",
-               "proyecto_tarifas.categoria_equipo_id",
-               "categoria_equipo.nombre as categoria_nombre",
-               "proyecto_equipos.cantidad",
-               "proyecto_tarifas.precio_acordado",
-               "proyecto_tarifas.cobra_en_snapshot",
-               "proyecto_equipos.es_cobrable",
-            ])
-            .where("proyecto_equipos.proyecto_id", "=", id)
-            .execute(),
-      ]);
+      const detalle = await this.db
+         .selectFrom("proyecto_detalle")
+         .selectAll()
+         .where("proyecto_id", "=", id)
+         .execute();
 
-      const equiposDetalle: ProyectoEquipoDetalleProps[] = equiposDetalleRaw.map((e) => ({
-         id: e.id,
-         equipo_id: e.equipo_id,
-         equipo_nombre: e.equipo_nombre ?? undefined,
-         operador_id: e.operador_id,
-         operador_nombre: (e.operador_nombre as string) ?? undefined,
-         categoria_equipo_id: e.categoria_equipo_id,
-         categoria_nombre: (e.categoria_nombre as string) ?? undefined,
-         cantidad: Number(e.cantidad),
-         precio_acordado: Number(e.precio_acordado),
-         cobra_en_snapshot: e.cobra_en_snapshot,
-         subtotal: Number(e.cantidad) * Number(e.precio_acordado),
-         es_cobrable: e.es_cobrable,
-      }));
-
-      return this.#mapRow(row, detalle, asignaciones, equiposDetalle);
-
-
+      // conduces se deja en [] aquí a propósito: ProyectoService.getById()
+      // lo combina llamando a ConduceRepository.findByProyectoId(), para no
+      // duplicar el mapeo de dos subtipos (CAMION/EQUIPO_PESADO) en dos sitios.
+      return this.#mapRow(row, detalle, []);
    }
 
-   async createExpress(data: CreateProyectoExpressDTO): Promise<ProyectoProps> {
-      return await this.db.transaction().execute(async (trx) => {
-         // 1 — Snapshot del nombre del servicio (si existe en tu BD)
-         let nombreServicio = "Desconocido";
+   async findByClientId(clienteId: string, search?: string, pagination?: { page: number, limit: number }): Promise<ProyectoProps[]> {
+      let query = this.db
+         .selectFrom("proyecto")
+         .leftJoin("cliente", "cliente.id", "proyecto.cliente_id")
+         .select([
+            "proyecto.id",
+            "proyecto.estado",
+            "proyecto.cliente_id",
+            "proyecto.nombre",
+            "cliente.nombre as cliente_nombre",
+            "proyecto.tarifa_servicio",
+            "proyecto.total_cobrable",
+            "proyecto.total_gasto_interno",
+            "proyecto.total_equipos",
+            "proyecto.rentabilidad",
+            "proyecto.notas",
+            "proyecto.fecha_inicio",
+            "proyecto.fecha_fin",
+            "proyecto.created_at",
+            "proyecto.updated_at",
+         ])
+         .where("proyecto.cliente_id", "=", clienteId)
+         .orderBy("proyecto.created_at", "desc")
+      if (search) {
+         query = query.where("proyecto.nombre", "ilike", `%${search}%`);
+      }
+      if (pagination) {
+         const { page, limit } = pagination;
+         query = query.offset((page - 1) * limit).limit(limit);
+      }
 
-         if (data.servicio_id) {
-            const servicio = await trx
-               .selectFrom("servicios")
-               .select(["nombre"])
-               .where("id", "=", data.servicio_id)
-               .executeTakeFirst();
-            if (servicio) nombreServicio = servicio.nombre;
-         }
-         // const nombreServicio = servicio ? servicio.nombre : "Desconocido";
+      const rows = await query.execute();
 
-         // 2 — Cabecera: estado COMPLETADO para Express
-         console.log(data.tarifa_servicio, "TARIFA SERVICIO");
-         const header = await trx
+      return rows.map((r) => this.#mapRow(r, [], []));
+   }
+
+   // ── Creación: SOLO cabecera + cargos/gastos manuales. El equipo ya no se ──
+   // ── registra aquí: se agrega después vía conduces (ver conduce.service). ──
+   async create(data: CreateProyectoDTO): Promise<ProyectoProps> {
+      const header = await this.db.transaction().execute(async (trx) => {
+         const inserted = await trx
             .insertInto("proyecto")
             .values({
                nombre: data.nombre,
-               tipo_proyecto: "EXPRESS",
-               estado: "COMPLETADO",
+               estado: "BORRADOR", // antes era COMPLETADO fijo; ahora el proyecto vive en el tiempo mientras se agregan conduces
                cliente_id: data.cliente_id,
-               servicio_id: data.servicio_id ?? null,
-               tipo_servicio_id: data.servicio_id ?? null,
                tarifa_servicio: data.tarifa_servicio ?? 0,
-
                notas: data.notas ?? null,
                fecha_inicio: data.fecha_inicio ?? new Date(),
-               fecha_fin: new Date(),
+               fecha_fin: null,
+
             })
             .returningAll()
             .executeTakeFirstOrThrow();
 
-         // 3 — Insertar Tarifas (El nuevo esquema)
-         const tarifasToInsert = data.tarifas.map((t) => ({
-            proyecto_id: header.id,
-            categoria_equipo_id: t.categoria_equipo_id,
-            precio_acordado: t.precio_acordado,
-            cobra_en_snapshot: t.cobra_en_snapshot,
-            cobra_minimo_snapshot: t.cobra_minimo_snapshot,
-         }));
-
-         const insertedTarifas = await trx
-            .insertInto("proyecto_tarifas") // <-- Singular, según tu base de datos
-            .values(tarifasToInsert)
-            .returningAll()
-            .execute();
-
-         // 4 — Asignar Equipos Físicos (El nuevo esquema)
-         const equiposToInsert = data.equipos?.map((e) => {
-            const tarifa = insertedTarifas.find(t => t.categoria_equipo_id === e.categoria_equipo_id);
-            if (!tarifa) throw new Error(`Inconsistencia: No se encontró tarifa para categoría ${e.categoria_equipo_id}`);
-            return {
-               proyecto_id: header.id,
-               equipo_id: e.equipo_id,
-               operador_id: e.operador_id || null,
-               proyecto_tarifa_id: tarifa.id,
-               cantidad: e.cantidad,
-               es_cobrable: e.es_cobrable,
-            };
-         });
-
-         const insertedEquipos = await trx.insertInto("proyecto_equipos").values(equiposToInsert || []).returningAll().execute();
-
-         // 5 — Cargos y Gastos (Detalles)
          const itemsCobrables = data.cargos_cobrables.map((c) => ({
-            proyecto_id: header.id,
+            proyecto_id: inserted.id,
             descripcion: c.descripcion,
             cantidad: c.cantidad,
             precio_unitario: c.precio_unitario,
@@ -213,156 +156,113 @@ export class KyselyProyectoRepository implements IProyectoRepository {
             es_cobrable: true,
          }));
          const itemsInternos = data.gastos_internos.map((g) => ({
-            proyecto_id: header.id,
+            proyecto_id: inserted.id,
             descripcion: g.descripcion,
             cantidad: g.cantidad,
             precio_unitario: g.precio_unitario,
             subtotal: g.cantidad * g.precio_unitario,
             es_cobrable: false,
          }));
-
          const allItems = [...itemsCobrables, ...itemsInternos];
-         const insertedDetalle = allItems.length > 0
-            ? await trx.insertInto("proyecto_detalle").values(allItems).returningAll().execute()
-            : [];
 
-         // 6 — Calcular totales financieros
-         const total_cobrable_tarifas = insertedTarifas.reduce((sum, t) => sum + Number(t.precio_acordado), 0);
-         const total_cobrable_cargos = insertedDetalle.filter(i => i.es_cobrable).reduce((sum, i) => sum + Number(i.subtotal), 0);
-         const total_cobrable_equipos = insertedEquipos
-            .filter(e => e.es_cobrable)
-            .reduce((sum, e) => {
-               const tarifa = insertedTarifas.find(t => t.id === e.proyecto_tarifa_id);
-               return sum + Number(e.cantidad) * Number(tarifa?.precio_acordado ?? 0);
-            }, 0);
+         if (allItems.length > 0) {
+            await trx.insertInto("proyecto_detalle").values(allItems).execute();
+         }
 
-         const total_cobrable = total_cobrable_equipos + total_cobrable_cargos;
-
-
-         const total_gasto_interno = insertedDetalle.filter(i => !i.es_cobrable).reduce((sum, i) => sum + Number(i.subtotal), 0);
-         const rentabilidad = total_cobrable - total_gasto_interno;
-
-         // 7 — Actualizar totales en la cabecera
-         await trx
-            .updateTable("proyecto")
-            .set({ total_cobrable, total_gasto_interno, rentabilidad, updated_at: new Date() })
-            .where("id", "=", header.id)
-            .execute();
-
-         // 8 — Retornar el DTO mapeado (asignaciones vacías porque la estructura vieja cambió)
-         return this.#mapRow(
-            { ...header, total_cobrable, total_gasto_interno, rentabilidad, cliente_nombre: null },
-            insertedDetalle,
-            []
-         );
+         return inserted;
       });
+
+      // Los totales (tarifa_servicio + cargos - gastos) se calculan con la
+      // misma rutina que usan los conduces, para no duplicar la fórmula.
+      await this.recalcularTotales(header.id);
+
+      const proyecto = await this.findById(header.id);
+      return proyecto!;
    }
 
-   async getLiquidacion(id: string): Promise<LiquidacionExpressFacade | null> {
+   async getLiquidacion(id: string): Promise<LiquidacionFacade | null> {
       const proyecto = await this.findById(id);
-      if (!proyecto || proyecto.tipo_proyecto !== "EXPRESS") return null;
-
-      const asignacion = proyecto.asignaciones[0];
+      if (!proyecto) return null;
 
       return {
+         nombre: proyecto.nombre,
          proyecto_id: id,
          cliente_nombre: proyecto.cliente_nombre ?? "",
-         tarifa_servicio: proyecto.tipo_proyecto === "EXPRESS" ? proyecto.tarifa_servicio : 0,
+         tarifa_servicio: proyecto.tarifa_servicio,
          cargos_cobrables: proyecto.detalle.filter((d) => d.es_cobrable),
          gastos_internos: proyecto.detalle.filter((d) => !d.es_cobrable),
+         conduces: proyecto.conduces,
          total_cobrable: Number(proyecto.total_cobrable),
          total_gasto_interno: Number(proyecto.total_gasto_interno),
          rentabilidad: Number(proyecto.rentabilidad),
-         operador_nombre: asignacion?.operador_nombre ?? "",
-         equipo_nombre: asignacion?.equipo_nombre ?? "",
-         horas_trabajadas: asignacion?.horas_trabajadas ?? 0,
          fecha: proyecto.fecha_inicio,
       };
    }
 
-   async createExpressTransaction(data: CreateProyectoExpressDTO) {
-      // La infraestructura maneja el 'trx' (transacción de base de datos) de forma aislada
-      return await this.db.transaction().execute(async (trx) => {
-         // 1. Snapshot del nombre del servicio
-         const servicio = await trx
-            .selectFrom("servicios")
-            .select(["nombre"])
-            .where("id", "=", data.servicio_id)
-            .executeTakeFirst();
+   // ── NUEVO: recalcula total_cobrable / total_gasto_interno / total_equipos / ──
+   // ── rentabilidad a partir de proyecto_detalle + conduce, y los persiste.  ──
+   // ── Lo llama ConduceService después de crear/editar/borrar un conduce.    ──
+   async recalcularTotales(proyectoId: string): Promise<ProyectoTotales> {
+      const [proyecto, detalle, conduces] = await Promise.all([
+         this.db
+            .selectFrom("proyecto")
+            .select(["tarifa_servicio"])
+            .where("id", "=", proyectoId)
+            .executeTakeFirst(),
+         this.db
+            .selectFrom("proyecto_detalle")
+            .select(["subtotal", "es_cobrable"])
+            .where("proyecto_id", "=", proyectoId)
+            .execute(),
+         this.db
+            .selectFrom("conduce")
+            .select(["subtotal", "es_cobrable"])
+            .where("proyecto_id", "=", proyectoId)
+            .execute(),
+      ]);
 
-         const nombreServicio = servicio ? servicio.nombre : "Desconocido";
+      const tarifaServicio = Number(proyecto?.tarifa_servicio ?? 0);
 
-         // 2. Crear Proyecto
-         const newProject = await trx
-            .insertInto("proyecto")
-            .values({
-               tipo_proyecto: "EXPRESS", // <-- AQUÍ ESTÁ LA SOLUCIÓN
-               estado: "COMPLETADO",
-               cliente_id: data.cliente_id,
-               servicio_id: data.servicio_id,
-               nombre: data.nombre,
-               fecha_inicio: data.fecha_inicio ? new Date(data.fecha_inicio) : new Date(),
-               tipo_servicio_snapshot: nombreServicio,
-               // created_by: userId,
-            })
-            .returningAll()
-            .executeTakeFirstOrThrow();
+      const totalEquiposCobrables = conduces
+         .filter((c) => c.es_cobrable)
+         .reduce((sum, c) => sum + Number(c.subtotal), 0);
+      const totalEquiposInternos = conduces
+         .filter((c) => !c.es_cobrable)
+         .reduce((sum, c) => sum + Number(c.subtotal), 0);
 
-         // 3. Insertar Tarifas (Snapshot)
-         const tarifasToInsert = data.tarifas.map((t) => ({
-            proyecto_id: newProject.id,
-            categoria_equipo_id: t.categoria_equipo_id,
-            precio_acordado: t.precio_acordado,
-            cobra_en_snapshot: t.cobra_en_snapshot,
-            cobra_minimo_snapshot: t.cobra_minimo_snapshot,
-         }));
+      const totalCargosCobrables = detalle
+         .filter((d) => d.es_cobrable)
+         .reduce((sum, d) => sum + Number(d.subtotal), 0);
+      const totalGastosInternosDetalle = detalle
+         .filter((d) => !d.es_cobrable)
+         .reduce((sum, d) => sum + Number(d.subtotal), 0);
 
-         const insertedTarifas = await trx
-            .insertInto("proyecto_tarifas")
-            .values(tarifasToInsert)
-            .returningAll()
-            .execute();
+      const total_equipos = totalEquiposCobrables + totalEquiposInternos;
+      const total_cobrable = tarifaServicio + totalEquiposCobrables + totalCargosCobrables;
+      const total_gasto_interno = totalEquiposInternos + totalGastosInternosDetalle;
+      const rentabilidad = total_cobrable - total_gasto_interno;
 
-         // 4. Asignar Equipos Físicos
-         if (data.equipos && data.equipos.length > 0) {
-            const equiposToInsert = data.equipos.map((e) => {
-               const tarifa = insertedTarifas.find(
-                  (t) => t.categoria_equipo_id === e.categoria_equipo_id
-               );
+      await this.db
+         .updateTable("proyecto")
+         .set({
+            total_cobrable,
+            total_gasto_interno,
+            total_equipos,
+            rentabilidad,
+            updated_at: new Date(),
+         })
+         .where("id", "=", proyectoId)
+         .execute();
 
-               if (!tarifa) {
-                  throw new Error(`Inconsistencia: No se encontró tarifa para la categoría ${e.categoria_equipo_id}`);
-               }
-
-               return {
-                  proyecto_id: newProject.id,
-                  equipo_id: e.equipo_id,
-                  operador_id: e.operador_id || null,
-                  proyecto_tarifa_id: tarifa.id, // Enlace crucial
-                  cantidad: e.cantidad ?? 1,
-                  es_cobrable: e.es_cobrable ?? true,
-               };
-            });
-
-            await trx
-               .insertInto("proyecto_equipos")
-               .values(equiposToInsert)
-               .execute();
-         }
-
-         return newProject;
-      });
+      return { total_cobrable, total_gasto_interno, total_equipos, rentabilidad };
    }
-
 
    // ─── Mapper privado ────────────────────────────────────────────────────────
    #mapRow(
       row: Record<string, unknown>,
       detalle: Array<Record<string, unknown>>,
-      asignaciones: Array<Record<string, unknown>>,
-      equiposDetalle: ProyectoEquipoDetalleProps[] = []
+      conduces: ConduceProps[] = []
    ): ProyectoProps {
-      const tipo = row.tipo_proyecto as string;
 
       const mappedDetalle: ProyectoDetalleProps[] = detalle.map((d) => ({
          id: d.id as string,
@@ -376,25 +276,16 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          updated_at: new Date(d.updated_at as string),
       }));
 
-      const mappedAsignaciones: ProyectoAsignacionProps[] = asignaciones.map((a) => ({
-         id: a.id as string,
-         proyecto_id: a.proyecto_id as string,
-         operador_id: a.operador_id as string,
-         operador_nombre: a.operador_nombre as string | undefined,
-         equipo_id: a.equipo_id as string,
-         equipo_nombre: a.equipo_nombre as string | undefined,
-         horas_trabajadas: Number(a.horas_trabajadas),
-
-
-      }));
-
       const base = {
          id: row.id as string,
          estado: row.estado as ProyectoProps["estado"],
          cliente_id: row.cliente_id as string,
+         tarifa_servicio: Number(row.tarifa_servicio),
+         nombre: row.nombre as string,
          cliente_nombre: (row.cliente_nombre as string) ?? undefined,
          total_cobrable: Number(row.total_cobrable),
          total_gasto_interno: Number(row.total_gasto_interno),
+         total_equipos: Number(row.total_equipos ?? 0),
          rentabilidad: Number(row.rentabilidad),
          notas: (row.notas as string) ?? null,
          fecha_inicio: new Date(row.fecha_inicio as string),
@@ -402,19 +293,10 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          created_at: new Date(row.created_at as string),
          updated_at: new Date(row.updated_at as string),
          detalle: mappedDetalle,
-         asignaciones: mappedAsignaciones,
-         equiposDetalle,
+         conduces,
       };
 
-      if (tipo === "EXPRESS") {
-         return {
-            ...base,
-            tipo_proyecto: "EXPRESS",
-            tipo_servicio_id: (row.tipo_servicio_id as string) ?? null,
-            tarifa_servicio: Number(row.tarifa_servicio ?? 0),
-         };
-      }
-      if (tipo === "GRANDE") return { ...base, tipo_proyecto: "GRANDE" };
-      return { ...base, tipo_proyecto: "NORMAL" };
+
+      return { ...base };
    }
 }

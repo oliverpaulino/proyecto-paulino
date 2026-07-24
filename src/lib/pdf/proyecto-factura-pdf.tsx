@@ -1,6 +1,6 @@
 import React from "react";
 import { Document, Page, View, Text, Image, StyleSheet, pdf } from "@react-pdf/renderer";
-import type { ProyectoExpressDTO } from "@/dtos/proyecto.dto";
+import type { Proyecto } from "@/dtos/proyecto.dto";
 
 const COMPANY_NAME = "Constructora Kissimmee";
 const COMPANY_TAGLINE = "Construcción con Excelencia";
@@ -63,8 +63,8 @@ const s = StyleSheet.create({
    footerText: { fontSize: 7, color: "#C8DCF0" },
 });
 
-function ProyectoFacturaDocument({ proyecto }: { proyecto: ProyectoExpressDTO }) {
-   const equiposCobrables = proyecto.equiposDetalle?.filter((e) => e.es_cobrable);
+function ProyectoFacturaDocument({ proyecto }: { proyecto: Proyecto }) {
+   const equiposCobrables = proyecto.?.filter((e) => e.es_cobrable);
    const cargosCobrables = proyecto.detalle.filter((d) => d.es_cobrable);
 
    return (
@@ -166,7 +166,7 @@ function ProyectoFacturaDocument({ proyecto }: { proyecto: ProyectoExpressDTO })
    );
 }
 
-export async function generateProyectoFacturaPDF(proyecto: ProyectoExpressDTO): Promise<void> {
+export async function generateProyectoFacturaPDF(proyecto: Proyecto): Promise<void> {
    const blob = await pdf(<ProyectoFacturaDocument proyecto={proyecto} />).toBlob();
    const url = URL.createObjectURL(blob);
    const a = document.createElement("a");

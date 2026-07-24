@@ -20,6 +20,7 @@ import { dgiiProvider } from "./providers/dgii.provider";
 import medidaCobroRoute from "./modules/categoria-equipos/routes/medida-cobro";
 import unitsRoute from "./modules/units/routes/units.routes";
 import userEmployeeLinksRoute from "./modules/user-employee-link/routes/user-employee-link.routes";
+import conducesRoute from "./modules/conduce/routes/conduce";
 import categoriaGastosRoute from "./modules/categoria-gastos/routes/categoria-gastos.routes";
 import gastosRoute from "./modules/gastos/routes/gastos.routes";
 import costosRoute from "./modules/costos/routes/costos.routes";
@@ -65,6 +66,8 @@ app.route("/items", itemsRoute);
 app.route("/notifications", notificationsRoute);
 app.route("/units", unitsRoute);
 app.route("/user-employee-links", userEmployeeLinksRoute);
+
+app.route("/conduces", conducesRoute);
 
 app.get("/dgii/:rnc", async (c) => {
    const rnc = c.req.param("rnc");

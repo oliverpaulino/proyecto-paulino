@@ -18,24 +18,76 @@ export interface ServicioTarifaTable {
    created_at: Generated<Date>;
 }
 
+// ── NUEVO: tarifas propias del proyecto. Referencian categoria_equipo_tarifa ──
+// ── con ON DELETE CASCADE: si esa tarifa desaparece (tu update() actual la ──
+// ── borra y reinserta en cada edición de la categoría — ver nota en el   ──
+// ── chat), el override del proyecto se limpia solo en vez de romper el   ──
+// ── guardado. Se snapshotea el nombre para no depender de un join vivo.  ──
 export interface ProyectoTarifaTable {
    id: Generated<string>;
    proyecto_id: string;
-   categoria_equipo_id: string;
-   precio_acordado: number;
-   cobra_en_snapshot: string | null;
-   cobra_minimo_snapshot: number | null;
+   categoria_equipo_tarifa_id: string;
+   categoria_equipo_tarifa_nombre: string;
+   categoria_equipo_nombre: string;
+   medida_cobro_nombre: string;
+   precio_unitario: number;
    created_at: Generated<Date>;
+   updated_at: Generated<Date>;
 }
 
-export interface ProyectoEquipoTable {
+// ── NUEVO: Conduce con dos subtipos (CAMION / EQUIPO_PESADO). El precio se ──
+// ── resuelve vía categoria_equipo_tarifa (categoría + medida_cobro +      ──
+// ── precio + cobra_minimo), que YA EXISTE y la administras tú.           ──
+// ── categoria_equipo_tarifa_id es NULLABLE con ON DELETE SET NULL a      ──
+// ── propósito: tu update() de categoria-equipo hace hard-replace (borra  ──
+// ── y reinserta TODAS las tarifas de la categoría en cada edición), así  ──
+// ── que el id puede dejar de existir. El conduce NUNCA depende de ese id ──
+// ── para mostrarse — el nombre y la medida de cobro quedan snapshoteados ──
+// ── como texto en el momento del registro (igual que un papel físico:    ──
+// ── el precio/condición queda congelado aunque la config cambie después).──
+export interface ConduceTable {
    id: Generated<string>;
-   proyecto_id: string;
+   tipo_conduce: string; // 'CAMION' | 'EQUIPO_PESADO'
+   numero_referencia: string; // folio físico que digita la oficina
+   fecha: Date;
+
+   proyecto_id: string | null;
+   cliente_id: string;
+   cliente_telefono: string | null;
+
    equipo_id: string;
-   operador_id: string | null;
-   proyecto_tarifa_id: string; // <-- El enlace crucial a la tarifa (Snapshot)
-   cantidad: number;
+   operador_id: string;
+   categoria_equipo_id: string; // snapshot, vía equipo.categoria_id
+
+   categoria_equipo_tarifa_id: string | null; // best-effort, puede quedar NULL (ver nota arriba)
+   categoria_equipo_tarifa_nombre: string; // snapshot — SIEMPRE presente, no depende del id
+   medida_cobro_nombre: string; // snapshot — SIEMPRE presente
+
    es_cobrable: boolean;
+   observaciones: string | null;
+
+   precio_unitario: number;
+   subtotal: Generated<number>;
+
+   // Exclusivos de CAMION
+   procedencia: string | null;
+   destino: string | null;
+   cantidad: number | null;
+   firma_chofer: Generated<boolean>;
+   firma_recibido: Generated<boolean>;
+
+   // Exclusivos de EQUIPO_PESADO
+   horario_manana_inicio: string | null; // "HH:mm"
+   horario_manana_fin: string | null;
+   horario_tarde_inicio: string | null;
+   horario_tarde_fin: string | null;
+   total_horas: number | null;
+   combustible_pagado_cliente: boolean | null;
+   firma_observante: Generated<boolean>;
+   firma_camionero: Generated<boolean>;
+
+   created_by: string | null;
+   created_by_name: string | null;
    created_at: Generated<Date>;
    updated_at: Generated<Date>;
 }
@@ -160,15 +212,13 @@ export interface DB {
       nombre: string;
       tipo: string;
       descripcion: string | null;
-      // numeric(12,2): the pg driver returns this as a string at runtime; the
-      // repository normalizes it to a number. DB has a default of 0 (not generated).
       precio_base: number;
    };
 
    medida_cobro: {
       id: Generated<string>;
-      nombre: string;
-      descripcion: string | null; // <-- Importante: aquí también debe ser null
+      nombre: string; // "Viaje", "Bote", "Hora", etc.
+      descripcion: string | null;
       permite_decimales: Generated<boolean>;
       is_active: Generated<boolean>;
       created_at: Generated<Date>;
@@ -183,11 +233,16 @@ export interface DB {
       updated_at: Generated<Date>;
    };
 
+   // Una categoria_equipo puede tener varias tarifas (p.ej. "Arena - Viaje",
+   // "Arena - Bote", "Hora normal"), cada una con su propia medida_cobro y
+   // precio. OJO: el update() actual de este módulo hace hard-replace
+   // (borra+reinserta), así que estos ids NO son estables entre ediciones —
+   // ver nota extensa en ConduceTable arriba.
    categoria_equipo_tarifa: {
       id: Generated<string>;
       nombre: string;
       categoria_equipo_id: string;
-      medida_cobro_id: string;      // Enlaza con 'Bote' o 'Viaje'
+      medida_cobro_id: string;
       precio_unitario: number;
       cobra_minimo: number | null;
       created_at: Generated<Date>;
@@ -311,7 +366,7 @@ export interface DB {
       proyecto_id: string | null;
       nombre: string;
       descripcion: string | null;
-      estado: Generated<string>; // estado_tarea enum, cast at runtime
+      estado: Generated<string>;
       fecha_inicio: Date | null;
       fecha_fin: Date | null;
       created_at: Generated<Date>;
@@ -363,19 +418,14 @@ export interface DB {
 
    proyecto: {
       id: Generated<string>;
-      tipo_proyecto: string;
-      nombre: string;       // 'EXPRESS' | 'NORMAL' | 'GRANDE'
-      // tipo_servicio_snapshot: string | null; // FK se añade cuando exista tipo_servicio
+      nombre: string;
       estado: string;       // 'BORRADOR' | 'COMPLETADO' | 'CANCELADO' | 'EN PROGRESO'
       cliente_id: string;
-      // Servicios (nullable como solicitaste)
-      servicio_id: string | null;
-      tipo_servicio_snapshot: string | null;
-      tipo_servicio_id: string | null;
       tarifa_servicio: number | null;
 
       total_cobrable: Generated<number>;
       total_gasto_interno: Generated<number>;
+      total_equipos: Generated<number>; // suma cacheada de conduces (arregla el bug del historial)
       rentabilidad: Generated<number>;
 
       notas: string | null;
@@ -409,8 +459,10 @@ export interface DB {
 
    servicios: ServicioTable;
    servicio_tarifas: ServicioTarifaTable;
-   proyecto_tarifas: ProyectoTarifaTable;
-   proyecto_equipos: ProyectoEquipoTable;
+   conduce: ConduceTable; // ← NUEVO
+   proyecto_tarifa: ProyectoTarifaTable; // ← NUEVO (tarifas propias del proyecto)
+   // El viejo proyecto_tarifas (ligado a proyecto_equipos) y proyecto_equipos
+   // se ELIMINARON — reemplazados por `conduce` + este `proyecto_tarifa`.
 
    categoria_gasto: {
       id: Generated<string>;
