@@ -1,0 +1,111 @@
+export type MetodoPago = 'CHEQUE' | 'EFECTIVO' | 'TRANSFERENCIA' | 'TARJETA' | 'DESCUENTO_NOMINA';
+export type TipoMovimiento = 'ENTRADA' | 'SALIDA';
+
+export interface PagoProps {
+   id: string;
+   referencia: number;
+   codigoReferencia: string;
+   metodo_pago: MetodoPago | string;
+   monto_pagado: number;
+   concepto: string;
+   tipo_movimiento: TipoMovimiento | string;
+   
+   gasto_empresa_id: string | null;
+   // join
+   gasto_codigo_referencia: string | null;
+
+   costo_cliente_id: string | null;
+   // join
+   costo_codigo_referencia: string | null;
+
+   deduccion_empleado_id: string | null;
+   // join
+   deduccion_codigo_referencia: string | null;
+
+   fecha: Date;
+   created_at: Date;
+   updated_at: Date;
+   deleted_by: string | null;
+   deleted_at: Date | null;
+   deleted_reason: string | null;
+}
+
+export class Pago {
+   private constructor(private readonly props: PagoProps) { }
+
+   static create(props: PagoProps): Pago {
+      return new Pago(props);
+   }
+
+   get id() { return this.props.id; }
+   get referencia() { return this.props.referencia; }
+   get codigoReferencia() { 
+      const ref = String(this.props.referencia).padStart(3, "0");
+      return `PAG-${ref}`; 
+   }
+   get metodo_pago() { return this.props.metodo_pago; }
+   get monto_pagado() { return this.props.monto_pagado; }
+   get concepto() { return this.props.concepto; }
+   get tipo_movimiento() { return this.props.tipo_movimiento; }
+   get gasto_empresa_id() { return this.props.gasto_empresa_id; }
+   get gasto_codigo_referencia() { return this.props.gasto_codigo_referencia; }
+   get costo_cliente_id() { return this.props.costo_cliente_id; }
+   get costo_codigo_referencia() { return this.props.costo_codigo_referencia; }
+   get deduccion_empleado_id() { return this.props.deduccion_empleado_id; }
+   get deduccion_codigo_referencia() { return this.props.deduccion_codigo_referencia; }
+   get fecha() { return this.props.fecha }
+   get created_at() { return this.props.created_at; }
+   get updated_at() { return this.props.updated_at; }
+   get deleted_by() { return this.props.deleted_by; }
+   get deleted_at() { return this.props.deleted_at; }
+   get deleted_reason() { return this.props.deleted_reason; }
+   
+   toJSON(): PagoProps {
+      return { ...this.props, codigoReferencia: this.codigoReferencia };
+   }
+}
+
+export interface CreatePagoDTO {
+   metodo_pago: MetodoPago | string;
+   monto_pagado: number;
+   concepto: string;
+   tipo_movimiento: TipoMovimiento | string;
+   fecha: Date;
+   gasto_empresa_id?: string | null;
+   costo_cliente_id?: string | null;
+   deduccion_empleado_id?: string | null;
+}
+
+export type UpdatePagoDTO = Partial<CreatePagoDTO>;
+
+export interface DeletePagoDTO {
+   deleted_by?: string;
+   deleted_reason?: string;
+};
+
+export interface IPagoRepository {
+   findAll( params?: { page?: number; 
+                     limit?: number; 
+                     search?: string; 
+                     start?: Date; 
+                     end?: Date; 
+                     gasto_empresa_id?: string | null;
+                     costo_cliente_id?: string | null;
+                     deduccion_empleado_id?: string | null; }): Promise<Pago[]>;
+
+   findAllDeleted( params?: { page?: number; 
+                     limit?: number; 
+                     search?: string; 
+                     start?: Date; 
+                     end?: Date; 
+                     gasto_empresa_id?: string | null;
+                     costo_cliente_id?: string | null;
+                     deduccion_empleado_id?: string | null; }): Promise<Pago[]>;
+
+   findById(id: string): Promise<Pago | null>;
+   findDeletedById(id: string): Promise<Pago | null>;
+   create(data: CreatePagoDTO): Promise<Pago>;
+   update(id: string, data: UpdatePagoDTO): Promise<Pago | null>;
+   delete(id: string, data: DeletePagoDTO): Promise<boolean>;
+   restore(id: string): Promise<Pago | null>;
+}

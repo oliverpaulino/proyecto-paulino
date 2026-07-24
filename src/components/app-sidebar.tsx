@@ -135,6 +135,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         { id: "fin-deducciones", title: "Deducciones", url: "/dashboard/deducciones" },
         { id: "fin-deducciones-anuladas", title: "Deducciones anuladas", url: "/dashboard/deducciones/anuladas" },
         { id: "fin-pagos", title: "Pagos", url: "/dashboard/pagos" },
+        { id: "fin-pagos-anulados", title: "Pagos anulados", url: "/dashboard/pagos/anulados" },
+
       ],
     },
     {
