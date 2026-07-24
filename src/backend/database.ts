@@ -56,6 +56,7 @@ export interface ConduceTable {
    cliente_telefono: string | null;
 
    equipo_id: string;
+   operador_id: string;
    categoria_equipo_id: string; // snapshot, vía equipo.categoria_id
 
    categoria_equipo_tarifa_id: string | null; // best-effort, puede quedar NULL (ver nota arriba)

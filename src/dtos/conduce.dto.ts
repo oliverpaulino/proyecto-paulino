@@ -106,8 +106,8 @@ export interface ConduceFiltros {
    cliente_id?: string;
    tipo_conduce?: TipoConduce;
    es_cobrable?: boolean;
-   fecha_desde?: string;
-   fecha_hasta?: string;
+   fecha_desde?: Date;
+   fecha_hasta?: Date;
    busqueda?: string;
    page?: number;
    pageSize?: number;

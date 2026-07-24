@@ -62,6 +62,9 @@ export class KyselyConduceRepository implements IConduceRepository {
          .leftJoin("proyecto", "proyecto.id", "conduce.proyecto_id")
          .leftJoin("cliente", "cliente.id", "conduce.cliente_id")
          .leftJoin("equipo", "equipo.id", "conduce.equipo_id")
+         .leftJoin("operador", "operador.id", "conduce.operador_id")
+         // Si necesitas los datos personales del empleado (como el nombre), haces el puente desde operador:
+         // .leftJoin("empleado", "empleado.id", "operador.empleado_id")
          .leftJoin("categoria_equipo", "categoria_equipo.id", "conduce.categoria_equipo_id")
          .select(SELECT_COLUMNS);
    }
@@ -74,7 +77,9 @@ export class KyselyConduceRepository implements IConduceRepository {
          qb
             .$if(!!filtros.proyecto_id, (q: any) => q.where("conduce.proyecto_id", "=", filtros.proyecto_id))
             .$if(!!filtros.cliente_id, (q: any) => q.where("conduce.cliente_id", "=", filtros.cliente_id))
-            .$if(!!filtros.empleado_id, (q: any) => q.where("conduce.empleado_id", "=", filtros.empleado_id))
+
+            .$if(!!filtros.empleado_id, (q: any) => q.where("operador.empleado_id", "=", filtros.empleado_id))
+
             .$if(!!filtros.tipo_conduce, (q: any) => q.where("conduce.tipo_conduce", "=", filtros.tipo_conduce))
             .$if(filtros.es_cobrable !== undefined, (q: any) => q.where("conduce.es_cobrable", "=", filtros.es_cobrable))
             .$if(!!filtros.fecha_desde, (q: any) => q.where("conduce.fecha", ">=", filtros.fecha_desde))
@@ -88,6 +93,7 @@ export class KyselyConduceRepository implements IConduceRepository {
                )
             );
 
+      console.log("filtros.fecha_hasta  ", filtros.fecha_desde, filtros.fecha_hasta);
 
       const query = aplicarFiltros(this.#baseQuery())
          .orderBy("conduce.fecha", "desc")
@@ -99,6 +105,7 @@ export class KyselyConduceRepository implements IConduceRepository {
          this.db
             .selectFrom("conduce")
             .leftJoin("equipo", "equipo.id", "conduce.equipo_id")
+            .leftJoin("operador", "operador.id", "conduce.operador_id")
             .select(sql<number>`count(*)`.as("count"))
       );
 

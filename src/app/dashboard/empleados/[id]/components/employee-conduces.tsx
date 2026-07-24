@@ -17,8 +17,8 @@ export function EmployeeConduces({ empleadoId, ocultarProyecto = false }: Employ
    const { conduces, loading, GetConduces, DeleteConduce } = useConduceStore();
 
    // Filtros de fecha para la quincena/mensualidad
-   const [fechaDesde, setFechaDesde] = useState("");
-   const [fechaHasta, setFechaHasta] = useState("");
+   const [fechaDesde, setFechaDesde] = useState<Date | null>(new Date()); // Fecha actual como valor inicial
+   const [fechaHasta, setFechaHasta] = useState<Date | null>(new Date()); // Fecha actual como valor inicial
    const [deletingId, setDeletingId] = useState<string | null>(null);
 
    // Fetch automático al cambiar fechas o cargar el componente
@@ -65,15 +65,15 @@ export function EmployeeConduces({ empleadoId, ocultarProyecto = false }: Employ
             <div className="flex flex-wrap gap-4">
                <div className="space-y-1">
                   <label className="text-xs font-medium text-muted-foreground">Desde</label>
-                  <Input type="date" value={fechaDesde} onChange={(e) => setFechaDesde(e.target.value)} />
+                  <Input type="date" value={fechaDesde?.toISOString().split("T")[0] || ""} onChange={(e) => setFechaDesde(e.target.value ? new Date(e.target.value) : null)} />
                </div>
                <div className="space-y-1">
                   <label className="text-xs font-medium text-muted-foreground">Hasta</label>
-                  <Input type="date" value={fechaHasta} onChange={(e) => setFechaHasta(e.target.value)} />
+                  <Input type="date" value={fechaHasta?.toISOString().split("T")[0] || ""} onChange={(e) => setFechaHasta(e.target.value ? new Date(e.target.value) : null)} />
                </div>
                <div className="flex items-end pb-1">
                   {(fechaDesde || fechaHasta) && (
-                     <Button variant="ghost" size="sm" onClick={() => { setFechaDesde(""); setFechaHasta(""); }}>
+                     <Button variant="ghost" size="sm" onClick={() => { setFechaDesde(null); setFechaHasta(null); }}>
                         Limpiar
                      </Button>
                   )}
@@ -176,7 +176,7 @@ export function EmployeeConduces({ empleadoId, ocultarProyecto = false }: Employ
                               )}
                            </td>
                            <td className="px-3 py-3 text-right whitespace-nowrap">
-                              {c.tipo_conduce === "CAMION" ? `${c.categoria_equipo_tarifa_nombre} ${c.medida_cobro_nombre ?? ""}` : `${c.total_horas.toFixed(2)} h`}
+                              {c.tipo_conduce === "CAMION" ? `${c.categoria_equipo_tarifa_nombre} - ${c.cantidad}` : `${c.total_horas.toFixed(2)} h`}
                            </td>
                            <td className="px-3 py-3 text-right font-semibold whitespace-nowrap">
                               RD$ {c.subtotal.toLocaleString("es-DO")}
