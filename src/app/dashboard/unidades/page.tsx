@@ -18,6 +18,7 @@ import { UnitTable } from "./components/unit-table";
 import { DeleteUnitDialog } from "./components/delete-unit-dialog";
 import { TableSearch } from "@/components/table-search";
 import { SelectBuscadorUnidad } from "@/components/shared/selectBuscadorUnidad";
+import { PermissionGuard } from "@/components/permission-guard";
 
 const STAT_STYLES = {
    blue: {
@@ -96,6 +97,7 @@ export default function UnidadesPage() {
    }
 
    return (
+      <PermissionGuard resource="category" action="read" mode="page">
       <div className="flex flex-col gap-6 p-6">
          {/* Header */}
          <div>
@@ -131,12 +133,14 @@ export default function UnidadesPage() {
 
             <div className="ml-auto">
                <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+                  <PermissionGuard resource="category" action="create">
                   <DialogTrigger asChild>
                      <Button className="hover:bg-yellow-300 font-semibold shadow-md shadow-brand-yellow/30 border-0">
                         <Plus className="size-4 mr-2" />
                         Nueva Unidad
                      </Button>
                   </DialogTrigger>
+                  </PermissionGuard>
                   <DialogContent className="sm:max-w-md">
                      <DialogHeader>
                         <DialogTitle>Nueva Unidad</DialogTitle>
@@ -199,6 +203,7 @@ export default function UnidadesPage() {
             loading={formLoading}
          />
       </div>
+      </PermissionGuard>
    );
 }
 

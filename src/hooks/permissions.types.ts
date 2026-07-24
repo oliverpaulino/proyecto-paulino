@@ -17,7 +17,14 @@ export type Resource =
    | "users"
    | "taxOrgProfiles"
    | "material_request"
-   | "payment_request";
+   | "payment_request"
+   // Direct resources for pages whose domain has no aggregate mapping above.
+   | "client"
+   | "machinery"
+   | "task"
+   | "appointment"
+   | "payroll"
+   | "warning";
 
 export type Action =
    | "create"

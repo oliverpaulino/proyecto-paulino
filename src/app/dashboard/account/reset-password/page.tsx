@@ -29,6 +29,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { PermissionGuard } from "@/components/permission-guard";
 
 function PasswordStrength({ password }: { password: string }) {
   const checks = [
@@ -130,7 +131,7 @@ export default function DashboardResetPasswordPage() {
   };
 
   return (
-    <>
+    <PermissionGuard resource="features" action="read" mode="page">
         <div className="flex flex-1 flex-col w-full max-w-md mx-auto px-4 py-6 sm:px-6">
 
           {/* header */}
@@ -211,7 +212,7 @@ export default function DashboardResetPasswordPage() {
             </div>
           </form>
         </div>
-      </>
+      </PermissionGuard>
   );
 }
 

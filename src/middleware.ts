@@ -1,35 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const ADMIN_ONLY_ROUTES = [
-  "/dashboard/settings",
-  "/dashboard/equipo",
-  "/dashboard/limites",
+type PermissionMap = Record<string, string[]>;
+
+/**
+ * Route prefix -> the permission required to open it, as a
+ * `[resource, action]` pair from the statements in `src/lib/permission.ts`.
+ *
+ * This replaces the old numeric `ROLE_HIERARCHY`: with runtime-editable roles
+ * there is no single privilege ladder to sit on, and a custom role would not
+ * have a level at all. Checking the permission map means custom roles are
+ * handled by construction and this file has no list of role names to drift out
+ * of sync with the database.
+ */
+const ROUTE_PERMISSIONS: [prefix: string, resource: string, action: string][] = [
+  ["/dashboard/settings", "user", "list"],
+  ["/dashboard/equipo", "machinery", "read"],
+  ["/dashboard/limites", "organization", "update"],
+  ["/dashboard/contabilidad", "account_payable", "read"],
+  ["/dashboard/nomina", "payroll", "read"],
+  ["/dashboard/proyectos", "project", "read"],
 ];
 
-const CONTABLE_ROUTES = [
-  "/dashboard/contabilidad",
-  "/dashboard/nomina",
-];
-
-const COORDINADOR_ROUTES = [
-  "/dashboard/proyectos",
-];
-
-const ROLE_HIERARCHY: Record<string, number> = {
-  usuario: 1,
-  asistente: 2,
-  coordinador: 3,
-  contable: 3,
-  administrador: 4,
-};
-
-function hasMinRole(userRole: string | undefined, minRole: string): boolean {
-  if (!userRole) return false;
-  return (ROLE_HIERARCHY[userRole] ?? 0) >= (ROLE_HIERARCHY[minRole] ?? 99);
+function matchesRoute(pathname: string, route: string): boolean {
+  return pathname === route || pathname.startsWith(route + "/");
 }
 
-function matchesRoute(pathname: string, routes: string[]): boolean {
-  return routes.some((route) => pathname === route || pathname.startsWith(route + "/"));
+interface SessionResponse {
+  user?: { role?: string };
+  /** Attached by the `customSession` plugin in `src/lib/auth.ts`. */
+  permissions?: PermissionMap;
 }
 
 async function getSession(request: NextRequest) {
@@ -39,7 +38,7 @@ async function getSession(request: NextRequest) {
       headers: { cookie: request.headers.get("cookie") ?? "" },
     });
     if (res.ok) {
-      const data = await res.json() as { user?: { role?: string } } | null;
+      const data = (await res.json()) as SessionResponse | null;
       return data ?? null;
     }
   } catch {
@@ -66,18 +65,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/auth/signin", request.url));
   }
 
-  const role = (userSession as { user?: { role?: string } }).user?.role;
+  const permissions = userSession.permissions ?? {};
 
-  if (matchesRoute(pathname, ADMIN_ONLY_ROUTES) && !hasMinRole(role, "administrador")) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
-
-  if (matchesRoute(pathname, CONTABLE_ROUTES) && !hasMinRole(role, "contable")) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
-
-  if (matchesRoute(pathname, COORDINADOR_ROUTES) && !hasMinRole(role, "coordinador")) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+  for (const [prefix, resource, action] of ROUTE_PERMISSIONS) {
+    if (matchesRoute(pathname, prefix) && !permissions[resource]?.includes(action)) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
   }
 
   return NextResponse.next();

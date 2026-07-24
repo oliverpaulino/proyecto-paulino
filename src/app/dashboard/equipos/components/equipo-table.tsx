@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Pencil, Trash2, User } from "lucide-react";
 import type { Equipo } from "@/dtos/equipo.dto";
 import { ESTADO_BADGE, ESTADO_LABEL } from "./equipo-labels";
+import { PermissionGuard } from "@/components/permission-guard";
 import { useEquipoStore } from "@/stores/useEquipoStore";
 import { useEffect, useState } from "react";
 import { OperadorAsignable } from "@/dtos/employee.dto";
@@ -102,20 +103,24 @@ export function EquipoTable({ equipos, onEdit, onDelete }: EquipoTableProps) {
                      </td>
                      <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
-                           <button
-                              onClick={() => onEdit(equipo)}
-                              className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10 transition-colors"
-                              title="Editar"
-                           >
-                              <Pencil className="size-4" />
-                           </button>
-                           <button
-                              onClick={() => onDelete(equipo)}
-                              className="rounded-md p-1.5 text-brand-red hover:bg-brand-red/10 transition-colors"
-                              title="Eliminar"
-                           >
-                              <Trash2 className="size-4" />
-                           </button>
+                           <PermissionGuard resource="machinery" action="update">
+                              <button
+                                 onClick={() => onEdit(equipo)}
+                                 className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10 transition-colors"
+                                 title="Editar"
+                              >
+                                 <Pencil className="size-4" />
+                              </button>
+                           </PermissionGuard>
+                           <PermissionGuard resource="machinery" action="delete">
+                              <button
+                                 onClick={() => onDelete(equipo)}
+                                 className="rounded-md p-1.5 text-brand-red hover:bg-brand-red/10 transition-colors"
+                                 title="Eliminar"
+                              >
+                                 <Trash2 className="size-4" />
+                              </button>
+                           </PermissionGuard>
                         </div>
                      </td>
                   </tr>

@@ -27,6 +27,7 @@ import type { Tarea } from "@/dtos/tarea.dto";
 import { useTareaStore } from "@/stores/useTareaStore";
 import { ESTADO_CONFIG } from "./tarea-config";
 import { TareaForm } from "./tarea-form";
+import { PermissionGuard } from "@/components/permission-guard";
 
 export function TareaCard({ tarea }: { tarea: Tarea }) {
    const [open, setOpen] = useState(false);
@@ -140,13 +141,15 @@ export function TareaCard({ tarea }: { tarea: Tarea }) {
                      </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                     <DropdownMenuItem
-                        className="text-brand-red focus:text-brand-red"
-                        onClick={handleDelete}
-                     >
-                        <Trash2 className="mr-2 size-4" />
-                        Eliminar
-                     </DropdownMenuItem>
+                     <PermissionGuard resource="task" action="delete">
+                        <DropdownMenuItem
+                           className="text-brand-red focus:text-brand-red"
+                           onClick={handleDelete}
+                        >
+                           <Trash2 className="mr-2 size-4" />
+                           Eliminar
+                        </DropdownMenuItem>
+                     </PermissionGuard>
                   </DropdownMenuContent>
                </DropdownMenu>
             </div>

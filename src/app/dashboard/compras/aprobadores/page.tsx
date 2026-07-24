@@ -19,6 +19,7 @@ import {
 import { ArrowLeft, Loader2, Lock, Shield, ShieldAlert, Trash2, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { authClient, useSession } from "@/lib/auth-client";
+import { PermissionGuard } from "@/components/permission-guard";
 
 interface Approver {
    user_id: string;
@@ -187,6 +188,7 @@ export default function AprobadoresPage() {
    const isSelfApprover = currentUser && approverIds.has(currentUser.id);
 
    return (
+      <PermissionGuard resource="material_request" action="read" mode="page">
       <div className="flex flex-col gap-6 p-6">
          {/* Header */}
          <div>
@@ -244,6 +246,7 @@ export default function AprobadoresPage() {
                      Solo estos usuarios pueden cambiar una orden a estado &quot;Aprobada&quot;.
                   </CardDescription>
                </div>
+               <PermissionGuard resource="material_request" action="create">
                <Button
                   className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold"
                   onClick={() => { setAddOpen(true); setError(null); }}
@@ -251,6 +254,7 @@ export default function AprobadoresPage() {
                   <UserPlus className="mr-2 size-4" />
                   Agregar firmante
                </Button>
+               </PermissionGuard>
             </CardHeader>
             <CardContent className="p-0">
                {approvers.length === 0 ? (
@@ -286,21 +290,16 @@ export default function AprobadoresPage() {
                                  {new Date(a.granted_at).toLocaleDateString("es-DO")}
                               </td>
                               <td className="px-4 py-3 text-right">
-                                 {a.is_protected ? (
-                                    <Button size="icon" className="bg-transparent hover:bg-muted/20 text-muted-foreground cursor-not-allowed" >
-                                       <Lock className="size-4 text-blue-500" />
-                                    </Button>
-                                 ) : (
-                                    <Button
-                                       variant="ghost"
-                                       size="icon"
-                                       className="text-destructive hover:text-destructive"
-                                       disabled={currentUser?.id === a.user_id}
-                                       onClick={() => handleRemove(a.user_id)}
-                                    >
-                                       <Trash2 className="size-4" />
-                                    </Button>
-                                 )}
+                                 <PermissionGuard resource="material_request" action="delete">
+                                 <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-destructive hover:text-destructive"
+                                    onClick={() => handleRemove(a.user_id)}
+                                 >
+                                    <Trash2 className="size-4" />
+                                 </Button>
+                                 </PermissionGuard>
                               </td>
                            </tr>
 
@@ -372,5 +371,6 @@ export default function AprobadoresPage() {
             </DialogContent>
          </Dialog>
       </div>
+      </PermissionGuard>
    );
 }

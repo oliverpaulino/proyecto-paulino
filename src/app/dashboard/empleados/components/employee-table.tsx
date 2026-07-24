@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Contact, Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { PermissionGuard } from "@/components/permission-guard";
 import Link from "next/link";
 
 interface EmployeeTableProps {
@@ -107,6 +108,7 @@ export function EmployeeTable({ employees, onEdit, onDelete }: EmployeeTableProp
                      </td>
                      <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
+                           <PermissionGuard resource="users" action="update">
                            <button
                               onClick={() => onEdit(employee)}
                               className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10 transition-colors"
@@ -114,6 +116,8 @@ export function EmployeeTable({ employees, onEdit, onDelete }: EmployeeTableProp
                            >
                               <Pencil className="size-4" />
                            </button>
+                           </PermissionGuard>
+                           <PermissionGuard resource="users" action="delete">
                            <button
                               onClick={() => onDelete(employee)}
                               className="rounded-md p-1.5 text-brand-red hover:bg-brand-red/10 transition-colors"
@@ -121,6 +125,7 @@ export function EmployeeTable({ employees, onEdit, onDelete }: EmployeeTableProp
                            >
                               <Trash2 className="size-4" />
                            </button>
+                           </PermissionGuard>
 
                            <DropdownMenu modal={false}>
                               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>

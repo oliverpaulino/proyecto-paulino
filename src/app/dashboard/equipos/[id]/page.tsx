@@ -45,6 +45,7 @@ import {
    ESTADO_LABEL,
 } from "../components/equipo-labels";
 import { EquipoForm, type EquipoFormValues } from "../components/equipo-form";
+import { PermissionGuard } from "@/components/permission-guard";
 import { useCategoriaEquipoStore } from "@/stores/useCategoriaEquipoStore";
 import { CategoriaEquipo } from "@/dtos/categoria-equipo.dto";
 import { Employee, OperadorAsignable } from "@/dtos/employee.dto";
@@ -199,6 +200,7 @@ export default function EquipoDetailPage() {
    }
 
    return (
+      <PermissionGuard resource="machinery" action="read" mode="page">
       <div className="flex flex-col gap-6 p-6">
          {/* Header */}
          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -233,10 +235,12 @@ export default function EquipoDetailPage() {
 
             {/* Actions: edit + inline estado change */}
             <div className="flex flex-col items-start gap-3 lg:items-end">
-               <Button variant="outline" onClick={() => setEditOpen(true)}>
-                  <Pencil className="mr-2 size-4" />
-                  Editar
-               </Button>
+               <PermissionGuard resource="machinery" action="update">
+                  <Button variant="outline" onClick={() => setEditOpen(true)}>
+                     <Pencil className="mr-2 size-4" />
+                     Editar
+                  </Button>
+               </PermissionGuard>
 
                <div className="flex flex-col items-start gap-1.5 lg:items-end">
                   <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -438,6 +442,7 @@ export default function EquipoDetailPage() {
 
          <CategoriaEquipoManager open={manageOpen} onOpenChange={setManageOpen} />
       </div>
+      </PermissionGuard>
    );
 }
 

@@ -10,6 +10,7 @@ import { useTareaStore } from "@/stores/useTareaStore";
 import type { Tarea, EstadoTarea } from "@/dtos/tarea.dto";
 import { TableSearch } from "@/components/table-search";
 import { TareaForm } from "./tarea-form";
+import { PermissionGuard } from "@/components/permission-guard";
 
 const ESTADOS_LISTA: { key: EstadoTarea; label: string }[] = [
    { key: "PENDIENTE" as EstadoTarea, label: "Pendiente" },
@@ -185,8 +186,12 @@ function TareaKanbanCard({ tarea, isDragging, colIdx, onDragStart, onMove, onEdi
                      <Button variant="ghost" size="icon" className="size-6"><MoreHorizontal className="size-3.5" /></Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                     <DropdownMenuItem onClick={onEdit} className="text-xs">Editar</DropdownMenuItem>
-                     <DropdownMenuItem onClick={onDelete} className="text-xs text-destructive focus:bg-destructive/10">Eliminar</DropdownMenuItem>
+                     <PermissionGuard resource="task" action="update">
+                        <DropdownMenuItem onClick={onEdit} className="text-xs">Editar</DropdownMenuItem>
+                     </PermissionGuard>
+                     <PermissionGuard resource="task" action="delete">
+                        <DropdownMenuItem onClick={onDelete} className="text-xs text-destructive focus:bg-destructive/10">Eliminar</DropdownMenuItem>
+                     </PermissionGuard>
                   </DropdownMenuContent>
                </DropdownMenu>
             </div>

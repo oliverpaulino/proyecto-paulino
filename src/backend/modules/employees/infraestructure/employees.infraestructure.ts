@@ -21,15 +21,15 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
 
    private mapToEntity(row: any): Employee {
       return Employee.create({
-            ...row,
-            codigoReferencia: this.buildCodigoReferencia(row.referencia),
-            tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
-            rol: row.rol as TipoRolEmpleado,
-            created_at: new Date(row.created_at),
-            updated_at: new Date(row.updated_at),
-         })
+         ...row,
+         codigoReferencia: this.buildCodigoReferencia(row.referencia),
+         tipo_identificacion: row.tipo_identificacion as TipoIdentificacion,
+         rol: row.rol as TipoRolEmpleado,
+         created_at: new Date(row.created_at),
+         updated_at: new Date(row.updated_at),
+      })
    }
-   
+
    async findAll(params?: { page?: number; limit?: number; search?: string }): Promise<Employee[]> {
       const { page = 1, limit = 10, search = "" } = params || {};
       let query = this.db
@@ -179,6 +179,7 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
             nombre: data.nombre,
             identificacion: data.identificacion,
             tipo_identificacion: data.tipo_identificacion,
+            frecuencia_pago: data.frecuencia_pago,
             rol: data.rol,
             salario: data.salario,
             activo: data.activo ?? true,
@@ -306,4 +307,75 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
          updated_at: new Date(row.updated_at),
       } as OperadorProps;
    }
+
+
+   async getEmployeeDetails(empleadoId: string) {
+      const empleado = await this.db.selectFrom("empleado").selectAll().where("id", "=", empleadoId).executeTakeFirst();
+      const contactos = await this.db.selectFrom("contact_empleado").selectAll().where("empleado_id", "=", empleadoId).execute();
+      const operador = await this.db.selectFrom("operador").selectAll().where("empleado_id", "=", empleadoId).executeTakeFirst();
+
+      const tarifas = await this.db.selectFrom("empleado_categoria_tarifa as ect")
+         .innerJoin("categoria_equipo_tarifa as cet", "cet.id", "ect.categoria_equipo_tarifa_id")
+         .innerJoin("categoria_equipo as ce", "ce.id", "cet.categoria_equipo_id")
+         .select([
+            "ect.id",
+            "ect.empleado_id",
+            "ect.categoria_equipo_tarifa_id",
+            "cet.nombre as tarifa_nombre", // "Viaje", "Bote"
+            "ce.id as categoria_equipo_id",
+            "ce.nombre as categoria_nombre", // "Camión"
+            "ect.monto_pago"
+         ])
+         .where("ect.empleado_id", "=", empleadoId)
+         .execute();
+
+
+      return { empleado, contactos, operador: operador || null, tarifas };
+   }
+
+   async createTarifa(data: { empleado_id: string; categoria_equipo_tarifa_id: string; monto_pago: number }) {
+      return await this.db.insertInto("empleado_categoria_tarifa")
+         .values(data)
+         .returningAll()
+         .executeTakeFirstOrThrow();
+   }
+
+   async updateTarifa(id: string, monto_pago: number, frecuencia_pago: string) {
+      return await this.db.updateTable("empleado_categoria_tarifa")
+         .set({ monto_pago, updated_at: new Date() })
+         .where("id", "=", id)
+         .returningAll()
+         .executeTakeFirstOrThrow();
+   }
+
+   async deleteTarifa(id: string) {
+      return await this.db.deleteFrom("empleado_categoria_tarifa")
+         .where("id", "=", id)
+         .executeTakeFirst();
+   }
+
+   async upsertTarifasCategoria(
+      empleado_id: string,
+      tarifas: { categoria_equipo_tarifa_id: string, monto_pago: number }[]
+   ) {
+      if (tarifas.length === 0) return;
+
+      const values = tarifas.map(t => ({
+         empleado_id,
+         categoria_equipo_tarifa_id: t.categoria_equipo_tarifa_id,
+         monto_pago: t.monto_pago
+      }));
+
+      return await this.db.insertInto("empleado_categoria_tarifa")
+         .values(values)
+         .onConflict((oc) => oc
+            .columns(['empleado_id', 'categoria_equipo_tarifa_id'])
+            .doUpdateSet({
+               monto_pago: (eb) => eb.ref('excluded.monto_pago'),
+               updated_at: new Date()
+            })
+         )
+         .execute();
+   }
+
 }

@@ -103,6 +103,18 @@ export interface ConduceTable {
    deleted_reason: string | null;
 }
 
+export interface EmpleadoCategoriaTarifaTable {
+   id: Generated<string>;
+   empleado_id: string;
+   categoria_equipo_tarifa_id: string; // <-- AHORA SÍ, apunta al "Bote" o "Viaje"
+   monto_pago: number;
+   created_at: Generated<Date>;
+   updated_at: Generated<Date>;
+}
+
+// Y dentro del type DB, agrégala:
+// ... tus otras tablas[cite: 3]
+
 export interface DB {
    cliente: {
       id: Generated<string>;
@@ -135,12 +147,14 @@ export interface DB {
       nombre: string;
       identificacion: string;
       tipo_identificacion: string;
+      frecuencia_pago: string; // <-- Agregado el campo de frecuencia de pago
       rol: string;
       salario: number;
       activo: boolean;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
+   empleado_categoria_tarifa: EmpleadoCategoriaTarifaTable;
 
    contact_empleado: {
       id: Generated<string>;
@@ -210,6 +224,8 @@ export interface DB {
       tipo: string;
       descripcion: string | null;
       precio_base: number;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
    };
 
    medida_cobro: {
@@ -453,6 +469,7 @@ export interface DB {
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
+
    servicios: ServicioTable;
    servicio_tarifas: ServicioTarifaTable;
    conduce: ConduceTable; // ← NUEVO
@@ -468,6 +485,32 @@ export interface DB {
       updated_at: Generated<Date>;
    }
 
+   /**
+    * Owned and migrated by Better Auth — declared here only so role
+    * management can check which users hold a given role. Treat as read-only;
+    * writes go through the Better Auth admin API.
+    */
+   user: {
+      id: string;
+      email: string;
+      name: string;
+      role: string | null;
+   }
+
+   /**
+    * Runtime-editable roles. `permissions` is the `{ resource: action[] }`
+    * map consumed by `ac.newRole()` — see `src/lib/permissions/resolve.ts`.
+    */
+   app_role: {
+      key: string;
+      label: string;
+      description: string | null;
+      permissions: Record<string, string[]>;
+      is_builtin: Generated<boolean>;
+      is_admin: Generated<boolean>;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   }
    gasto: {
       id: Generated<string>;
       referencia: Generated<number>;
@@ -510,6 +553,24 @@ export interface DB {
       concepto: string;
       balance_pendiente: number | null;
       referencia: Generated<number>;
+      fecha: Date;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+      deleted_by: string | null;
+      deleted_at: Date | null;
+      deleted_reason: string | null;
+   };
+
+   pago: {
+      id: Generated<string>;
+      referencia: Generated<number>;
+      metodo_pago: string;
+      monto_pagado: number;
+      concepto: string;
+      tipo_movimiento: string;
+      gasto_empresa_id: string | null;
+      costo_cliente_id: string | null;
+      deduccion_empleado_id: string | null;
       fecha: Date;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;

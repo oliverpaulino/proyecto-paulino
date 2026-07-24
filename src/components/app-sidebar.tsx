@@ -74,6 +74,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     { id: "settings-unidades", title: "Unidades", url: "/dashboard/unidades" },
     { id: "settings-vinculos", title: "Vínculos", url: "/dashboard/user-employee-link" },
     ...(isAdmin ? [{ id: "settings-usuarios", title: "Usuarios", url: "/dashboard/settings/users" }] : []),
+    ...(isAdmin ? [{ id: "settings-roles", title: "Roles y Permisos", url: "/dashboard/settings/roles" }] : []),
   ]
 
   const navMain = [
@@ -95,26 +96,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     },
     {
       id: "operaciones",
-      title: "Gestión de Obras",
+      title: "Operaciones",
       url: "#",
       icon: Building2,
       items: [
         { id: "op-proyectos", title: "Proyectos", url: "/dashboard/proyectos" },
-        { id: "op-tareas", title: "Tareas", url: "/dashboard/tareas" },
-        { id: "op-citas", title: "Citas", url: "/dashboard/citas" },
-        { id: "op-cotizaciones", title: "Cotizaciones", url: "/dashboard/cotizaciones" },
-        { id: "op-servicios", title: "Servicios", url: "/dashboard/servicios" },
-      ],
-    },
-    {
-      id: "flota",
-      title: "Maquinaria",
-      url: "#",
-      icon: Truck,
-      items: [
-        { id: "flota-equipos", title: "Equipos", url: "/dashboard/equipos" },
-        { id: "flota-mantenimientos", title: "Mantenimientos", url: "/dashboard/mantenimientos" },
-        { id: "flota-conduces", title: "Conduces", url: "/dashboard/conduces" },
+        { id: "op-conduces", title: "Conduces", url: "/dashboard/conduces" },
+        { id: "op-equipos", title: "Equipos", url: "/dashboard/equipos" },
+        { id: "op-mantenimientos", title: "Mantenimientos", url: "/dashboard/mantenimientos" },
+
       ],
     },
     {
@@ -126,7 +116,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         { id: "fin-cotizaciones", title: "Cotizaciones", url: "/dashboard/cotizaciones" },
         { id: "fin-compras", title: "Compras", url: "/dashboard/compras" },
         ...(isAdmin ? [{ id: "fin-aprobadores", title: "Firmantes de Compras", url: "/dashboard/compras/aprobadores" }] : []),
-        { id: "fin-compras-eliminadas", title: "Compras eliminadas", url: "/dashboard/compras/eliminadas" },
+        ...(isAdmin ? [{ id: "fin-compras-eliminadas", title: "Compras eliminadas", url: "/dashboard/compras/eliminadas" }] : []),
         { id: "fin-gastos", title: "Gastos", url: "/dashboard/gastos" },
         { id: "fin-gastos-anulados", title: "Gastos anulados", url: "/dashboard/gastos/anulados" },
         { id: "fin-categorias-gastos", title: "Categorías de Gastos", url: "/dashboard/categorias-gastos" },
@@ -135,6 +125,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         { id: "fin-deducciones", title: "Deducciones", url: "/dashboard/deducciones" },
         { id: "fin-deducciones-anuladas", title: "Deducciones anuladas", url: "/dashboard/deducciones/anuladas" },
         { id: "fin-pagos", title: "Pagos", url: "/dashboard/pagos" },
+        { id: "fin-pagos-anulados", title: "Pagos anulados", url: "/dashboard/pagos/anulados" },
+
       ],
     },
     {
@@ -144,7 +136,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       icon: HardHat,
       items: [
         { id: "rh-empleados", title: "Empleados", url: "/dashboard/empleados" },
-        { id: "rh-conceptos", title: "Conceptos", url: "/dashboard/empleados/conceptos" },
         { id: "rh-nomina", title: "Nómina", url: "/dashboard/nomina" },
       ],
     },

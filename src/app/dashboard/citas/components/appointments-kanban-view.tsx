@@ -10,6 +10,7 @@ import { useAppointmentStore } from "@/stores/useAppointmentStore";
 import { EstadoCita, type AppointmentUI } from "@/dtos/appointment.dto";
 import type { DragEvent } from "react";
 import { AppointmentForm } from "./appointment-form";
+import { PermissionGuard } from "@/components/permission-guard";
 import { useRouter } from "next/navigation";
 
 const ESTADOS_LISTA = Object.entries(EstadoCita).map(([key, label]) => ({ key: key as keyof typeof EstadoCita, label }));
@@ -141,8 +142,12 @@ function KanbanCard({ cita, isDragging, colIdx, onDragStart, onMove, onEdit, onD
                      <Button variant="ghost" size="icon" className="size-6"><MoreHorizontal className="size-3.5" /></Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                     <DropdownMenuItem onClick={onEdit} className="text-xs">Editar</DropdownMenuItem>
-                     <DropdownMenuItem onClick={onDelete} className="text-xs text-destructive focus:bg-destructive/10">Eliminar</DropdownMenuItem>
+                     <PermissionGuard resource="appointment" action="update">
+                        <DropdownMenuItem onClick={onEdit} className="text-xs">Editar</DropdownMenuItem>
+                     </PermissionGuard>
+                     <PermissionGuard resource="appointment" action="delete">
+                        <DropdownMenuItem onClick={onDelete} className="text-xs text-destructive focus:bg-destructive/10">Eliminar</DropdownMenuItem>
+                     </PermissionGuard>
                   </DropdownMenuContent>
                </DropdownMenu>
             </div>
