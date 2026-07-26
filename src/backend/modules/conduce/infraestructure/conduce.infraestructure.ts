@@ -360,19 +360,28 @@ export class KyselyConduceRepository implements IConduceRepository {
          .execute();
    }
 
-   async restore(id: string): Promise<void> {
-      await this.db
-         .updateTable("conduce")
-         .set({
-            deleted_at: null,
-            deleted_by: null,
-            deleted_by_name: null,
-            deleted_reason: null,
-            updated_at: new Date(),
-         } as any)
-         .where("id", "=", id)
-         .execute();
-   }
+    async restore(id: string): Promise<void> {
+       await this.db
+          .updateTable("conduce")
+          .set({
+             deleted_at: null,
+             deleted_by: null,
+             deleted_by_name: null,
+             deleted_reason: null,
+             updated_at: new Date(),
+          } as any)
+          .where("id", "=", id)
+          .execute();
+    }
+
+    async bulkToggleCobrable(ids: string[], es_cobrable: boolean): Promise<void> {
+       if (ids.length === 0) return;
+       await this.db
+          .updateTable("conduce")
+          .set({ es_cobrable, updated_at: new Date() } as any)
+          .where("id", "in", ids)
+          .execute();
+    }
 
    #mapRow(r: Record<string, unknown>): ConduceProps {
       const base = {

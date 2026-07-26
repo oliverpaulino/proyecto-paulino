@@ -111,6 +111,29 @@ conducesRoute.patch("/:id", async (c) => {
    }
 });
 
+// PATCH /api/conduces/bulk-cobrable — toggle es_cobrable en lote
+conducesRoute.patch("/bulk-cobrable", async (c) => {
+   try {
+      const session = await auth.api.getSession({ headers: c.req.raw.headers });
+      if (!session?.user) return c.json({ error: "No autenticado" }, 401);
+
+      const body = await c.req.json();
+      const { ids, es_cobrable } = body as { ids: string[]; es_cobrable: boolean };
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+         return c.json({ error: "Se requiere al menos un ID" }, 400);
+      }
+      if (typeof es_cobrable !== "boolean") {
+         return c.json({ error: "es_cobrable debe ser boolean" }, 400);
+      }
+
+      await service.bulkToggleCobrable(ids, es_cobrable);
+      return c.json({ success: true });
+   } catch (err: unknown) {
+      return c.json({ error: err instanceof Error ? err.message : "Error al actualizar conduces" }, 500);
+   }
+});
+
 // DELETE /api/conduces/:id
 // Eliminación LÓGICA — el registro se conserva, se marca deleted_at/deleted_by
 // y desaparece de los listados normales. body opcional: { reason }

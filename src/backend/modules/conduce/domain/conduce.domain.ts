@@ -177,6 +177,7 @@ export interface IConduceRepository {
    update(id: string, data: UpdateConduceDTO): Promise<ConduceProps>;
    /** Eliminación LÓGICA — nunca borra la fila, solo marca deleted_*. */
    delete(id: string, info?: { deletedBy?: string | null; deletedByName?: string | null; reason?: string | null }): Promise<void>;
-   /** Revierte una eliminación lógica. */
-   restore(id: string): Promise<void>;
+    /** Revierte una eliminación lógica. */
+    restore(id: string): Promise<void>;
+    bulkToggleCobrable(ids: string[], es_cobrable: boolean): Promise<void>;
 }
