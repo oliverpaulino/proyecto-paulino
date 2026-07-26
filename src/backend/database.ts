@@ -534,7 +534,7 @@ export interface DB {
       proyecto_id: string,
       monto_total: number,
       concepto: string,
-      ncf: string;
+      ncf: string | null;
       orden_compra_id: string | null;
       referencia: Generated<number>;
       fecha: Date;
