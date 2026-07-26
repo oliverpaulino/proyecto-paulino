@@ -72,11 +72,8 @@ export class KyselyCostoRepository implements ICostoRepository {
             const conditions: any[] = [
                eb("costo.concepto", "ilike", searchLike),
                eb("costo.ncf", "ilike", searchLike),
+               eb(eb.cast("costo.referencia", "text"), "ilike", `%${refNumber}%`)
             ];
-
-            if (refNumber !== null) {
-               conditions.push(eb("costo.referencia", "=", refNumber));
-            }
 
             return eb.or(conditions);
          });
