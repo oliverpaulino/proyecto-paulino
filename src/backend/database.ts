@@ -56,7 +56,21 @@ export interface ConduceTable {
    cliente_telefono: string | null;
 
    equipo_id: string;
-   operador_id: string;
+
+   // ── Persona que operó el equipo ────────────────────────────────────────
+   // Hay DOS columnas y AMBAS son nullable (FK ON DELETE SET NULL):
+   //   - empleado_id → empleado.id   (referencia directa)
+   //   - operador_id → operador.id   (perfil de operador; empleado vía
+   //                                  operador.empleado_id)
+   // En los datos actuales son mutuamente excluyentes: unas filas traen
+   // empleado_id, otras operador_id, y muchas NINGUNA de las dos.
+   // Para resolver el empleado real SIEMPRE usa:
+   //   COALESCE(conduce.empleado_id, operador.empleado_id)
+   // con LEFT JOIN operador ON operador.id = conduce.operador_id.
+   // Filtrar solo por `operador.empleado_id` deja fuera los conduces que
+   // traen empleado_id directo.
+   empleado_id: string | null;
+   operador_id: string | null;
    categoria_equipo_id: string; // snapshot, vía equipo.categoria_id
 
    categoria_equipo_tarifa_id: string | null; // best-effort, puede quedar NULL (ver nota arriba)
@@ -355,6 +369,63 @@ export interface DB {
       is_active: boolean;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
+   };
+
+   // ── Nómina: ciclo (período que se paga) ──────────────────────────────────
+   // Ver migración 007_payroll_cycles.sql. `payroll_items.cycle_id` ya
+   // apuntaba aquí desde el código antes de que la tabla existiera.
+   payroll_cycles: {
+      id: Generated<string>;
+      organization_id: string | null;
+      nombre: string;
+      frecuencia: string; // SEMANAL | QUINCENAL | MENSUAL
+      fecha_inicio: Date;
+      fecha_fin: Date;
+      fecha_pago: Date | null;
+      estado: Generated<string>; // ABIERTO | CALCULADO | CERRADO | PAGADO
+      closed_at: Date | null;
+      closed_by: string | null;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+
+   // Snapshot congelado por empleado dentro del ciclo. Una vez CERRADO, estos
+   // montos no se recalculan aunque cambien tarifas, salario o conduces.
+   payroll_cycle_employees: {
+      id: Generated<string>;
+      cycle_id: string;
+      empleado_id: string;
+      empleado_nombre: string | null;
+      frecuencia_pago: string | null;
+      minimo_garantizado: Generated<number>; // empleado.salario
+      devengado_tarifas: Generated<number>; // Σ conduces × monto_pago
+      complemento_minimo: Generated<number>; // MAX(0, mínimo − devengado)
+      seguro: Generated<number>; // campo libre editable
+      deducciones: Generated<number>;
+      deuda_total: Generated<number>;
+      deuda_pendiente: Generated<number>;
+      neto_pagar: Generated<number>;
+      total_conduces: Generated<number>;
+      // Conduces sin persona que se atribuyeron infiriendo por
+      // `equipo.operador_id`. Si > 0 la UI debe marcar la fila: es una
+      // suposición, no un dato duro.
+      conduces_inferidos: Generated<number>;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+
+   // Desglose por tarifa: un chofer puede tener varias tarifas distintas en un
+   // mismo ciclo ("Arena - Viaje" 350, "Grava - Bote" 500).
+   payroll_cycle_employee_tarifas: {
+      id: Generated<string>;
+      cycle_employee_id: string;
+      categoria_equipo_tarifa_id: string | null; // best-effort (hard-replace)
+      categoria_equipo_tarifa_nombre: string; // snapshot
+      medida_cobro_nombre: string | null;
+      cantidad: Generated<number>;
+      monto_pago: Generated<number>; // precio unitario AL CHOFER
+      subtotal: Generated<number>;
+      created_at: Generated<Date>;
    };
 
    payroll_items: {
