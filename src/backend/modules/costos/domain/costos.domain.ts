@@ -4,7 +4,7 @@ export interface CostoProps {
    codigoReferencia: string;
    monto_total: number;
    concepto: string;
-   ncf: string;
+   ncf: string | null;
    
    proyecto_id: string;
    //join proyecto
@@ -58,7 +58,7 @@ export interface CreateCostoDTO {
    proyecto_id: string;
    monto_total: number;
    concepto: string;
-   ncf: string;
+   ncf?: string | null;
    fecha: Date;
    orden_compra_id?: string | null;
 }
