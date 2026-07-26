@@ -35,8 +35,9 @@ type ConduceStore = {
    ) => Promise<ConduceDTO | Error>;
    /** Eliminación lógica — motivo es opcional. */
    DeleteConduce: (id: string, motivo?: string) => Promise<true | Error>;
-   /** Revierte una eliminación lógica y lo quita de `eliminados` si estaba ahí. */
-   RestoreConduce: (id: string) => Promise<ConduceDTO | Error>;
+    /** Revierte una eliminación lógica y lo quita de `eliminados` si estaba ahí. */
+    RestoreConduce: (id: string) => Promise<ConduceDTO | Error>;
+    BulkToggleCobrable: (ids: string[], es_cobrable: boolean) => Promise<true | Error>;
 };
 
 function buildQuery(filtros: ConduceFiltros): string {
@@ -178,21 +179,44 @@ export const useConduceStore = create<ConduceStore>((set, get) => ({
    // de vuelta a `conduces` automáticamente porque esa lista puede tener
    // filtros/paginación propios; quien esté viendo la lista activa la
    // refresca al volver a esa pantalla.
-   RestoreConduce: async (id) => {
-      try {
-         const res = await fetch(`/api/conduces/${id}/restore`, { method: "POST" });
-         if (!res.ok) {
-            const errorText = await res.text();
-            throw new Error(`Error ${res.status}: ${errorText}`);
-         }
-         const data: ConduceDTO = await res.json();
-         set((s) => ({
-            eliminados: s.eliminados.filter((c) => c.id !== id),
-            totalEliminados: Math.max(0, s.totalEliminados - 1),
-         }));
-         return data;
-      } catch (error) {
-         return error as Error;
-      }
-   },
+    RestoreConduce: async (id) => {
+       try {
+          const res = await fetch(`/api/conduces/${id}/restore`, { method: "POST" });
+          if (!res.ok) {
+             const errorText = await res.text();
+             throw new Error(`Error ${res.status}: ${errorText}`);
+          }
+          const data: ConduceDTO = await res.json();
+          set((s) => ({
+             eliminados: s.eliminados.filter((c) => c.id !== id),
+             totalEliminados: Math.max(0, s.totalEliminados - 1),
+          }));
+          return data;
+       } catch (error) {
+          return error as Error;
+       }
+    },
+
+    BulkToggleCobrable: async (ids, es_cobrable) => {
+       try {
+          const res = await fetch("/api/conduces/bulk-cobrable", {
+             method: "PATCH",
+             headers: { "Content-Type": "application/json" },
+             body: JSON.stringify({ ids, es_cobrable }),
+          });
+          if (!res.ok) {
+             const errorText = await res.text();
+             throw new Error(`Error ${res.status}: ${errorText}`);
+          }
+          // Actualizar el estado local de los conduces modificados
+          set((s) => ({
+             conduces: s.conduces.map((c) =>
+                ids.includes(c.id) ? { ...c, es_cobrable } : c
+             ),
+          }));
+          return true;
+       } catch (error) {
+          return error as Error;
+       }
+    },
 }));

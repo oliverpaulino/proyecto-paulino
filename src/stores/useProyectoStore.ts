@@ -15,6 +15,7 @@ type ProyectoStore = {
    GetProyectosByClientId: (clienteId: string, opts?: { force?: boolean, search?: string, page?: number, limit?: number }) => Promise<void>;
    CreateProyecto: (form: CreateProyectoDTO) => Promise<Proyecto | Error>;
    GetLiquidacion: (id: string) => Promise<LiquidacionFacade | Error>;
+   ToggleDetalleCobrable: (ids: string[], es_cobrable: boolean) => Promise<true | Error>;
    invalidateCache: () => void;
 };
 
@@ -107,13 +108,30 @@ export const useProyectoStore = create<ProyectoStore>((set, get) => ({
       }
    },
 
-   GetLiquidacion: async (id) => {
-      try {
-         const res = await fetch(`/api/proyectos/${id}/liquidacion`);
-         if (!res.ok) throw new Error("Liquidación no disponible");
-         return await res.json() as LiquidacionFacade;
-      } catch (error) {
-         return error as Error;
-      }
-   },
+    GetLiquidacion: async (id) => {
+       try {
+          const res = await fetch(`/api/proyectos/${id}/liquidacion`);
+          if (!res.ok) throw new Error("Liquidación no disponible");
+          return await res.json() as LiquidacionFacade;
+       } catch (error) {
+          return error as Error;
+       }
+    },
+
+    ToggleDetalleCobrable: async (ids, es_cobrable) => {
+       try {
+          const res = await fetch("/api/proyectos/detalle/cobrable", {
+             method: "PATCH",
+             headers: { "Content-Type": "application/json" },
+             body: JSON.stringify({ ids, es_cobrable }),
+          });
+          if (!res.ok) {
+             const errorText = await res.text();
+             throw new Error(`Error ${res.status}: ${errorText}`);
+          }
+          return true;
+       } catch (error) {
+          return error as Error;
+       }
+    },
 }));
