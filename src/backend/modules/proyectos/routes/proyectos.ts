@@ -62,6 +62,26 @@ proyectosRoute.get("/:id/liquidacion", async (c) => {
 });
 
 
+// PATCH /api/proyectos/detalle/cobrable — toggle es_cobrable en lote
+proyectosRoute.patch("/detalle/cobrable", async (c) => {
+   try {
+      const body = await c.req.json();
+      const { ids, es_cobrable } = body as { ids: string[]; es_cobrable: boolean };
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+         return c.json({ error: "Se requiere al menos un ID" }, 400);
+      }
+      if (typeof es_cobrable !== "boolean") {
+         return c.json({ error: "es_cobrable debe ser boolean" }, 400);
+      }
+
+      await service.toggleDetalleCobrable(ids, es_cobrable);
+      return c.json({ success: true });
+   } catch (err: unknown) {
+      return c.json({ error: err instanceof Error ? err.message : "Error al actualizar detalle" }, 500);
+   }
+});
+
 // POST /api/proyectos
 proyectosRoute.post("/", async (c) => {
    try {

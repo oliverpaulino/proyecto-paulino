@@ -257,7 +257,28 @@ export class KyselyProyectoRepository implements IProyectoRepository {
       return { total_cobrable, total_gasto_interno, total_equipos, rentabilidad };
    }
 
-   // ─── Mapper privado ────────────────────────────────────────────────────────
+    async toggleDetalleCobrable(ids: string[], es_cobrable: boolean): Promise<void> {
+       if (ids.length === 0) return;
+
+       await this.db
+          .updateTable("proyecto_detalle")
+          .set({ es_cobrable, updated_at: new Date() })
+          .where("id", "in", ids)
+          .execute();
+
+       // Recalcular totales del proyecto al que pertenece el primer ítem
+       const first = await this.db
+          .selectFrom("proyecto_detalle")
+          .select("proyecto_id")
+          .where("id", "=", ids[0])
+          .executeTakeFirst();
+
+       if (first) {
+          await this.recalcularTotales(first.proyecto_id);
+       }
+    }
+
+    // ─── Mapper privado ────────────────────────────────────────────────────────
    #mapRow(
       row: Record<string, unknown>,
       detalle: Array<Record<string, unknown>>,

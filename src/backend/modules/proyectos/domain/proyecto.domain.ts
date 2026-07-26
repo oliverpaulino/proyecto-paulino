@@ -97,4 +97,5 @@ export interface IProyectoRepository {
    // proyecto_detalle + conduce. Lo llama ConduceService tras crear/editar/
    // borrar un conduce, y también se puede llamar tras editar detalle.
    recalcularTotales(proyectoId: string): Promise<ProyectoTotales>;
+   toggleDetalleCobrable(ids: string[], es_cobrable: boolean): Promise<void>;
 }

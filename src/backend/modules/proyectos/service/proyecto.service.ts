@@ -57,9 +57,14 @@ export class ProyectoService {
       return { ...liquidacion, conduces };
    }
 
-   async recalcularTotales(id: string): Promise<ProyectoTotales> {
-      return this.repo.recalcularTotales(id);
-   }
+    async recalcularTotales(id: string): Promise<ProyectoTotales> {
+       return this.repo.recalcularTotales(id);
+    }
+
+    async toggleDetalleCobrable(ids: string[], es_cobrable: boolean): Promise<void> {
+       if (ids.length === 0) return;
+       return this.repo.toggleDetalleCobrable(ids, es_cobrable);
+    }
 
    #validateItems(
 
