@@ -4,7 +4,7 @@ export interface GastoProps {
    codigoReferencia: string;
    monto_total: number;
    concepto: string;
-   ncf: string;
+   ncf: string | null;
    
    categoria_gasto_id: string;
    //join categoria
@@ -70,7 +70,7 @@ export class Gasto {
 export interface CreateGastoDTO {
    monto_total: number;
    concepto: string;
-   ncf: string;
+   ncf?: string | null;
    fecha: Date;
    categoria_gasto_id: string;
    orden_compra_id?: string | null;

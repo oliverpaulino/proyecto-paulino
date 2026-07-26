@@ -109,8 +109,8 @@ export function GastoForm({ initialData, predefinedValues, onSubmit, onCancel, l
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
-                <Label>Número de comprobante fiscal *</Label>
-                <Input value={values.ncf} onChange={(e) => set("ncf", e.target.value)} required disabled={isDisabled("ncf")} className={INPUT_CLASS} placeholder="B01..." />
+                <Label>Número de comprobante fiscal </Label>
+                <Input value={values.ncf} onChange={(e) => set("ncf", e.target.value)} disabled={isDisabled("ncf")} className={INPUT_CLASS} placeholder="B01..." />
                 </div>
                 <div className="flex flex-col gap-1.5">
                 <Label>Fecha del Comprobante *</Label>

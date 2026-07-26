@@ -80,11 +80,8 @@ export class KyselyGastoRepository implements IGastoRepository {
             const conditions: any[] = [
                eb("gasto.concepto", "ilike", searchLike),
                eb("gasto.ncf", "ilike", searchLike),
+               eb(eb.cast("gasto.referencia", "text"), "ilike", `%${refNumber}%`),
             ];
-
-            if (refNumber !== null) {
-               conditions.push(eb("gasto.referencia", "=", refNumber));
-            }
 
             return eb.or(conditions);
          });

@@ -516,7 +516,7 @@ export interface DB {
       referencia: Generated<number>;
       monto_total: number;
       concepto: string;
-      ncf: string;
+      ncf: string | null;
       categoria_gasto_id: string;
       orden_compra_id: string | null;
       proyecto_id: string | null;
