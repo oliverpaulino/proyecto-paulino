@@ -64,7 +64,7 @@ const s = StyleSheet.create({
 });
 
 function ProyectoFacturaDocument({ proyecto }: { proyecto: Proyecto }) {
-   const equiposCobrables = proyecto.?.filter((e) => e.es_cobrable);
+   const equiposCobrables = proyecto?.conduces?.filter((e) => e.es_cobrable);
    const cargosCobrables = proyecto.detalle.filter((d) => d.es_cobrable);
 
    return (
@@ -119,10 +119,10 @@ function ProyectoFacturaDocument({ proyecto }: { proyecto: Proyecto }) {
                   {equiposCobrables?.map((e, i) => (
                      <View key={e.id} style={[s.tableRow, i % 2 !== 0 ? s.tableRowAlt : {}]}>
                         <Text style={[s.tableCell, s.colDesc]}>
-                           {e.equipo_nombre ?? "Equipo"} ({e.cobra_en_snapshot ?? "unidad"})
+                           {e.equipo_nombre ?? "Equipo"} ({e.medida_cobro_nombre ?? "unidad"})
                         </Text>
-                        <Text style={[s.tableCell, s.colQty]}>{e.cantidad}</Text>
-                        <Text style={[s.tableCell, s.colPrice]}>{fmt(e.precio_acordado)}</Text>
+                        <Text style={[s.tableCell, s.colQty]}>{e.tipo_conduce === "CAMION" ? e.cantidad : e.total_horas}</Text>
+                        <Text style={[s.tableCell, s.colPrice]}>{fmt(e.precio_unitario)}</Text>
                         <Text style={[s.tableCell, s.colSub]}>{fmt(e.subtotal)}</Text>
                      </View>
                   ))}
