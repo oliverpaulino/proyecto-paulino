@@ -21,7 +21,7 @@ export function SelectBuscadorOrdenCompra({
    placeholder = "Buscar orden por código o proveedor...",
    disabled = false,
 }: SelectBuscadorOrdenCompraProps) {
-   const { PurchaseOrders, loading, GetPurchaseOrders } = usePurchaseOrderStore(); //[cite: 7]
+   const { PurchaseOrders, loading, GetPurchaseOrders } = usePurchaseOrderStore();
    const [isOpen, setIsOpen] = useState(false);
    const [inputValue, setInputValue] = useState(initialLabel);
    const containerRef = useRef<HTMLDivElement>(null);
@@ -45,30 +45,30 @@ export function SelectBuscadorOrdenCompra({
 
    useEffect(() => {
       if (!isOpen) return;
-      GetPurchaseOrders({ force: true }); //[cite: 7]
+      GetPurchaseOrders({ force: true });
    }, [isOpen, GetPurchaseOrders]);
 
-   // Filtrado local al no tener endpoint de search text
    const ordenesFiltradas = useMemo(() => {
-      if (!debouncedSearch.trim()) return PurchaseOrders; //[cite: 7]
+      if (!debouncedSearch.trim()) return PurchaseOrders.data || []; 
       
       const searchLower = debouncedSearch.toLowerCase();
-      return PurchaseOrders.filter((orden) => { //[cite: 7]
-         const proveedor = orden.proveedor_nombre?.toLowerCase() || ""; //[cite: 6]
-         const codigo = orden.codigoReferencia.toLowerCase(); //[cite: 6]
-         const id = orden.id.toLowerCase(); //[cite: 6]
+      
+      return (PurchaseOrders.data || []).filter((orden) => {
+         const proveedor = orden.proveedor_nombre?.toLowerCase() || "";
+         const codigo = orden.codigoReferencia.toLowerCase();
+         const id = orden.id.toLowerCase();
          
          return proveedor.includes(searchLower) || codigo.includes(searchLower) || id.includes(searchLower);
       });
-   }, [PurchaseOrders, debouncedSearch]); //[cite: 7]
+   }, [PurchaseOrders, debouncedSearch]);
 
    const getOrdenLabel = (orden: PurchaseOrder) => {
-      return `${orden.codigoReferencia} - ${orden.proveedor_nombre || "Sin proveedor"}`; //[cite: 6]
+      return `${orden.codigoReferencia} - ${orden.proveedor_nombre || "Sin proveedor"}`;
    };
 
    const handleSelect = (orden: PurchaseOrder) => {
       setInputValue(getOrdenLabel(orden));
-      onChange(orden.id); //[cite: 6]
+      onChange(orden.id);
       setIsOpen(false);
    };
 
@@ -131,9 +131,9 @@ export function SelectBuscadorOrdenCompra({
                               Total: ${orden.total.toFixed(2)} {/*[cite: 6] */}
                            </span>
                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                              orden.estado === "APROBADA" ? "bg-green-500/10 text-green-500" : //[cite: 6]
-                              orden.estado === "PENDIENTE" ? "bg-blue-500/10 text-blue-500" : //[cite: 6]
-                              orden.estado === "RECIBIDA" ? "bg-purple-500/10 text-purple-500" : //[cite: 6]
+                              orden.estado === "APROBADA" ? "bg-green-500/10 text-green-500" :
+                              orden.estado === "PENDIENTE" ? "bg-blue-500/10 text-blue-500" : 
+                              orden.estado === "RECIBIDA" ? "bg-purple-500/10 text-purple-500" :
                               "bg-gray-500/10 text-gray-500"
                            }`}>
                               {orden.estado} {/*[cite: 6] */}
