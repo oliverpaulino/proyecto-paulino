@@ -13,6 +13,7 @@ import type {
    ModalidadPago,
    EstadoCiclo,
    FrecuenciaPago,
+   PrecioManualProps,
 } from "../domain/nomina.domain";
 
 const num = (v: unknown): number => (v == null ? 0 : Number(v));
@@ -63,6 +64,9 @@ function mapCycleEmployee(row: any): PayrollCycleEmployeeProps {
       neto_pagar: num(row.neto_pagar),
       total_conduces: num(row.total_conduces),
       conduces_inferidos: num(row.conduces_inferidos),
+      // Lo sobrescribe quien tenga el conteo real; sin él, 0 es lo honesto:
+      // "no sé de cuántos conceptos viene", no "viene de cero".
+      deducciones_count: 0,
       created_at: row.created_at,
       updated_at: row.updated_at,
    };
@@ -232,6 +236,117 @@ export class KyselyNominaRepository implements INominaRepository {
       return new Map(rows.map((r) => [r.categoria_equipo_tarifa_id, num(r.monto_pago)]));
    }
 
+   /**
+    * Categorías de tarifa indexadas por nombre normalizado, saltando las que
+    * comparten nombre. Ver `getTarifasPorNombreUnico` en el dominio: permite
+    * pagar un conduce que guardó el nombre pero perdió el id, sin adivinar
+    * cuando el nombre es ambiguo.
+    */
+   async getTarifasPorNombreUnico(): Promise<Map<string, string>> {
+      const rows = await this.db
+         .selectFrom("categoria_equipo_tarifa")
+         .select(["id", "nombre"])
+         .execute();
+
+      const porNombre = new Map<string, string[]>();
+      for (const r of rows) {
+         const k = r.nombre.trim().toLowerCase();
+         porNombre.set(k, [...(porNombre.get(k) ?? []), r.id]);
+      }
+
+      const unicos = new Map<string, string>();
+      for (const [nombre, ids] of porNombre) {
+         if (ids.length === 1) unicos.set(nombre, ids[0]);
+      }
+      return unicos;
+   }
+
+   // ── Precio manual ────────────────────────────────────────────────────────
+
+   /** Clave del precio manual: empleado + nombre de tarifa normalizado. */
+   static claveManual(empleadoId: string, tarifaNombre: string): string {
+      return `${empleadoId}::${tarifaNombre.trim().toLowerCase()}`;
+   }
+
+   async getPreciosManuales(cycleId: string): Promise<Map<string, PrecioManualProps>> {
+      const rows = await this.db
+         .selectFrom("payroll_cycle_precio_manual")
+         .selectAll()
+         .where("cycle_id", "=", cycleId)
+         .execute();
+
+      return new Map(
+         rows.map((r) => [
+            KyselyNominaRepository.claveManual(r.empleado_id, r.tarifa_nombre_norm),
+            {
+               id: r.id,
+               cycle_id: r.cycle_id,
+               empleado_id: r.empleado_id,
+               tarifa_nombre: r.tarifa_nombre,
+               monto_pago: num(r.monto_pago),
+               nota: r.nota ?? null,
+               created_by: r.created_by ?? null,
+            },
+         ])
+      );
+   }
+
+   async upsertPrecioManual(data: {
+      cycle_id: string;
+      empleado_id: string;
+      tarifa_nombre: string;
+      monto_pago: number;
+      nota?: string | null;
+      created_by?: string | null;
+   }): Promise<PrecioManualProps> {
+      const norm = data.tarifa_nombre.trim().toLowerCase();
+
+      const row = await this.db
+         .insertInto("payroll_cycle_precio_manual")
+         .values({
+            cycle_id: data.cycle_id,
+            empleado_id: data.empleado_id,
+            tarifa_nombre_norm: norm,
+            tarifa_nombre: data.tarifa_nombre.trim(),
+            monto_pago: data.monto_pago,
+            nota: data.nota ?? null,
+            created_by: data.created_by ?? null,
+         })
+         .onConflict((oc) =>
+            oc.columns(["cycle_id", "empleado_id", "tarifa_nombre_norm"]).doUpdateSet({
+               monto_pago: data.monto_pago,
+               nota: data.nota ?? null,
+               updated_at: new Date(),
+            } as any)
+         )
+         .returningAll()
+         .executeTakeFirstOrThrow();
+
+      return {
+         id: row.id,
+         cycle_id: row.cycle_id,
+         empleado_id: row.empleado_id,
+         tarifa_nombre: row.tarifa_nombre,
+         monto_pago: num(row.monto_pago),
+         nota: row.nota ?? null,
+         created_by: row.created_by ?? null,
+      };
+   }
+
+   async deletePrecioManual(
+      cycleId: string,
+      empleadoId: string,
+      tarifaNombre: string
+   ): Promise<boolean> {
+      const res = await this.db
+         .deleteFrom("payroll_cycle_precio_manual")
+         .where("cycle_id", "=", cycleId)
+         .where("empleado_id", "=", empleadoId)
+         .where("tarifa_nombre_norm", "=", tarifaNombre.trim().toLowerCase())
+         .executeTakeFirst();
+      return Number(res.numDeletedRows ?? 0) > 0;
+   }
+
    // ── Deducciones ──────────────────────────────────────────────────────────
 
    async getDeduccionesDelPeriodo(
@@ -263,7 +378,10 @@ export class KyselyNominaRepository implements INominaRepository {
    // ── Resumen por empleado ─────────────────────────────────────────────────
 
    async upsertCycleEmployee(
-      row: Omit<PayrollCycleEmployeeProps, "id" | "created_at" | "updated_at" | "tarifas">,
+      row: Omit<
+         PayrollCycleEmployeeProps,
+         "id" | "created_at" | "updated_at" | "tarifas" | "deducciones_count"
+      >,
       tarifas: TarifaDesglose[]
    ): Promise<PayrollCycleEmployeeProps> {
       return await this.db.transaction().execute(async (trx) => {
@@ -337,6 +455,59 @@ export class KyselyNominaRepository implements INominaRepository {
       });
    }
 
+   /**
+    * Para las tarifas huérfanas (sin `categoria_equipo_tarifa_id`), busca si su
+    * nombre snapshoteado corresponde hoy a una categoría viva.
+    *
+    * Hay dos razones distintas por las que un id queda en NULL y desde la
+    * nómina se ven igual:
+    *   1. La categoría se borró y solo sobrevive el nombre. Irrecuperable: no
+    *      hay a qué re-vincular.
+    *   2. El conduce se guardó mal (nombre sí, id no) con la categoría viva.
+    *      Recuperable: es el caso que se puede corregir desde el diálogo.
+    *
+    * Compara sin distinguir mayúsculas ni espacios, porque los nombres no
+    * están normalizados. Si varias categorías comparten nombre NO elige
+    * ninguna: pagarle al chofer con la tarifa equivocada es peor que pedirle
+    * que desambigüe.
+    *
+    * Devuelve un lector sincrónico para no volver a la base por cada fila.
+    */
+   async #resolverRescates(
+      nombres: string[]
+   ): Promise<(nombre: string) => Partial<TarifaDesglose>> {
+      const clave = (s: string) => s.trim().toLowerCase();
+      const buscados = [...new Set(nombres.map(clave))].filter((n) => n.length > 0);
+      if (buscados.length === 0) return () => ({ rescate: "sin_categoria" });
+
+      const filas = await this.db
+         .selectFrom("categoria_equipo_tarifa")
+         .select(["id", "nombre"])
+         .where(sql<boolean>`lower(trim(nombre)) = any(${buscados})`)
+         .execute();
+
+      const porNombre = new Map<string, string[]>();
+      for (const f of filas) {
+         const k = clave(f.nombre);
+         porNombre.set(k, [...(porNombre.get(k) ?? []), f.id]);
+      }
+
+      return (nombre: string) => {
+         const candidatas = porNombre.get(clave(nombre)) ?? [];
+         if (candidatas.length === 1) {
+            return {
+               rescate: "vinculable",
+               rescate_id: candidatas[0],
+               rescate_candidatas: 1,
+            };
+         }
+         if (candidatas.length > 1) {
+            return { rescate: "ambigua", rescate_candidatas: candidatas.length };
+         }
+         return { rescate: "sin_categoria", rescate_candidatas: 0 };
+      };
+   }
+
    async listCycleEmployees(cycleId: string): Promise<PayrollCycleEmployeeProps[]> {
       const rows = await this.db
          .selectFrom("payroll_cycle_employees")
@@ -357,9 +528,29 @@ export class KyselyNominaRepository implements INominaRepository {
          )
          .execute();
 
+      // Una tarifa huérfana puede ser rescatable: se resuelve para todo el
+      // ciclo de una vez, no por fila.
+      const rescates = await this.#resolverRescates(
+         tarifas
+            .filter((t) => t.categoria_equipo_tarifa_id == null)
+            .map((t) => t.categoria_equipo_tarifa_nombre)
+      );
+
+      // El snapshot no guarda de dónde salió el monto, así que la marca de
+      // "precio manual" se deriva al leer, desde su propia tabla — que es la
+      // única fuente de verdad de esos precios.
+      const manuales = await this.getPreciosManuales(cycleId);
+      const empleadoDeFila = new Map(rows.map((r) => [r.id, r.empleado_id]));
+
       const porEmpleado = new Map<string, TarifaDesglose[]>();
       for (const t of tarifas) {
          const lista = porEmpleado.get(t.cycle_employee_id) ?? [];
+         const manual = manuales.get(
+            KyselyNominaRepository.claveManual(
+               empleadoDeFila.get(t.cycle_employee_id) ?? "",
+               t.categoria_equipo_tarifa_nombre
+            )
+         );
          lista.push({
             categoria_equipo_tarifa_id: t.categoria_equipo_tarifa_id ?? null,
             categoria_equipo_tarifa_nombre: t.categoria_equipo_tarifa_nombre,
@@ -367,34 +558,129 @@ export class KyselyNominaRepository implements INominaRepository {
             cantidad: num(t.cantidad),
             monto_pago: num(t.monto_pago),
             subtotal: num(t.subtotal),
+            ...(t.categoria_equipo_tarifa_id == null
+               ? rescates(t.categoria_equipo_tarifa_nombre)
+               : {}),
+            // Solo cuenta como manual si el monto guardado es el que se fijó:
+            // si el catálogo ya lo resolvió, el manual dejó de aplicar.
+            ...(manual && num(t.monto_pago) === manual.monto_pago
+               ? { precio_manual: true, precio_manual_nota: manual.nota }
+               : {}),
          });
          porEmpleado.set(t.cycle_employee_id, lista);
       }
 
-      // Detalle de las deducciones que componen el monto, para poder mostrar
-      // de dónde sale el descuento en vez de un total opaco.
+      // Cuántas deducciones componen el monto de cada empleado. La fila
+      // colapsada solo muestra el número ("N conceptos"); el detalle se pide
+      // aparte al expandir. Antes esto era un Promise.all con una query POR
+      // EMPLEADO: con 100 empleados eran 100 viajes a la base. Un GROUP BY lo
+      // resuelve en uno solo.
       const ciclo = await this.findCycleById(cycleId);
-      const detalles = ciclo
-         ? await Promise.all(
-              rows.map((r) =>
-                 this.listDeduccionesDelPeriodo(r.empleado_id, ciclo.fecha_inicio, ciclo.fecha_fin)
-              )
-           )
-         : rows.map(() => []);
+      const conteos = new Map<string, number>();
 
-      return rows.map((r, i) => ({
+      if (ciclo) {
+         const filas = await this.db
+            .selectFrom("deduccion")
+            .select(["empleado_id", sql<string>`count(*)`.as("total")])
+            .where(
+               "empleado_id",
+               "in",
+               rows.map((r) => r.empleado_id)
+            )
+            .where("deleted_at", "is", null)
+            .where("fecha", ">=", aFechaISO(ciclo.fecha_inicio) as any)
+            .where("fecha", "<=", aFechaISO(ciclo.fecha_fin) as any)
+            .groupBy("empleado_id")
+            .execute();
+
+         for (const f of filas) conteos.set(f.empleado_id, num(f.total));
+      }
+
+      return rows.map((r) => ({
          ...mapCycleEmployee(r),
          tarifas: porEmpleado.get(r.id) ?? [],
-         detalle_deducciones: detalles[i],
+         deducciones_count: conteos.get(r.empleado_id) ?? 0,
       }));
    }
 
+   /**
+    * Un solo empleado del ciclo, con su desglose de tarifas y el detalle de
+    * sus deducciones. Este SÍ trae el detalle completo: es lo que pide la UI
+    * al expandir una fila, y es una persona, no las cien del ciclo.
+    */
    async findCycleEmployee(
       cycleId: string,
       empleadoId: string
    ): Promise<PayrollCycleEmployeeProps | null> {
-      const todos = await this.listCycleEmployees(cycleId);
-      return todos.find((e) => e.empleado_id === empleadoId) ?? null;
+      const row = await this.db
+         .selectFrom("payroll_cycle_employees")
+         .selectAll()
+         .where("cycle_id", "=", cycleId)
+         .where("empleado_id", "=", empleadoId)
+         .executeTakeFirst();
+      if (!row) return null;
+
+      const ciclo = await this.findCycleById(cycleId);
+
+      const [tarifas, detalle] = await Promise.all([
+         this.db
+            .selectFrom("payroll_cycle_employee_tarifas")
+            .selectAll()
+            .where("cycle_employee_id", "=", row.id)
+            .execute(),
+         ciclo
+            ? this.listDeduccionesDelPeriodo(empleadoId, ciclo.fecha_inicio, ciclo.fecha_fin)
+            : Promise.resolve([]),
+      ]);
+
+      const [rescates, manuales] = await Promise.all([
+         this.#resolverRescates(
+            tarifas
+               .filter((t) => t.categoria_equipo_tarifa_id == null)
+               .map((t) => t.categoria_equipo_tarifa_nombre)
+         ),
+         this.getPreciosManuales(cycleId),
+      ]);
+
+      return {
+         ...mapCycleEmployee(row),
+         tarifas: tarifas.map((t) => {
+            const manual = manuales.get(
+               KyselyNominaRepository.claveManual(empleadoId, t.categoria_equipo_tarifa_nombre)
+            );
+            return {
+               categoria_equipo_tarifa_id: t.categoria_equipo_tarifa_id ?? null,
+               categoria_equipo_tarifa_nombre: t.categoria_equipo_tarifa_nombre,
+               medida_cobro_nombre: t.medida_cobro_nombre ?? null,
+               cantidad: num(t.cantidad),
+               monto_pago: num(t.monto_pago),
+               subtotal: num(t.subtotal),
+               ...(t.categoria_equipo_tarifa_id == null
+                  ? rescates(t.categoria_equipo_tarifa_nombre)
+                  : {}),
+               ...(manual && num(t.monto_pago) === manual.monto_pago
+                  ? { precio_manual: true, precio_manual_nota: manual.nota }
+                  : {}),
+            };
+         }),
+         deducciones_count: detalle.length,
+         detalle_deducciones: detalle,
+      };
+   }
+
+   /**
+    * El `seguro` es lo único que `calcularCiclo` necesita saber de la fila
+    * anterior (es un campo libre que no se pisa al recalcular). Leer solo esa
+    * columna evita arrastrar tarifas y deducciones en cada vuelta del loop.
+    */
+   async getSeguroActual(cycleId: string, empleadoId: string): Promise<number | null> {
+      const row = await this.db
+         .selectFrom("payroll_cycle_employees")
+         .select("seguro")
+         .where("cycle_id", "=", cycleId)
+         .where("empleado_id", "=", empleadoId)
+         .executeTakeFirst();
+      return row ? num(row.seguro) : null;
    }
 
    async updateSeguro(

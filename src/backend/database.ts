@@ -340,6 +340,43 @@ export interface DB {
       created_at: Generated<Date>;
    };
 
+   /**
+    * Bitácora de mantenimientos. Una fila está ABIERTA mientras `fecha_fin`
+    * sea null — es el estado en que queda el equipo al pasar a
+    * EN_MANTENIMIENTO, y se cierra al devolverlo a ACTIVO.
+    * `gasto_id` enlaza el costo con el módulo de gastos (creado o existente).
+    */
+   mantenimiento: {
+      id: Generated<string>;
+      referencia: Generated<number>;
+      equipo_id: string;
+      tipo: Generated<string>;
+      estado: Generated<string>;
+      descripcion: string;
+      taller: string | null;
+      trabajo_realizado: string | null;
+      /**
+       * Costo declarado. Con gastos enlazados la app lo mantiene igual a la
+       * suma de `mantenimiento_gasto`; sin ellos se captura a mano.
+       */
+      costo: number | null;
+      fecha_inicio: Generated<Date>;
+      fecha_fin: Date | null;
+      created_by: string | null;
+      created_by_name: string | null;
+      closed_by: string | null;
+      closed_by_name: string | null;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+
+   /** Un mantenimiento puede tener varios gastos (repuestos, mano de obra…). */
+   mantenimiento_gasto: {
+      mantenimiento_id: string;
+      gasto_id: string;
+      created_at: Generated<Date>;
+   };
+
    payroll_concepts: {
       id: Generated<string>;
       organization_id: string | null;
@@ -438,6 +475,31 @@ export interface DB {
       created_at: Generated<Date>;
    };
 
+   /*
+      Precio escrito a mano para una tarifa que la nómina no puede resolver
+      sola (el conduce guardó el nombre pero no el id, y ese nombre o no existe
+      ya en el catálogo o corresponde a varias categorías).
+
+      Aplica SOLO a ese empleado en ESE ciclo. Vive fuera de
+      `payroll_cycle_employee_tarifas` porque ese snapshot se borra y reescribe
+      en cada recálculo; aquí el precio sobrevive, que es el punto.
+
+      Se indexa por nombre normalizado porque estas filas, por definición, no
+      tienen `categoria_equipo_tarifa_id`.
+   */
+   payroll_cycle_precio_manual: {
+      id: Generated<string>;
+      cycle_id: string;
+      empleado_id: string;
+      tarifa_nombre_norm: string;
+      tarifa_nombre: string;
+      monto_pago: Generated<number>;
+      nota: string | null;
+      created_by: string | null;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+
    payroll_items: {
       id: Generated<string>;
       organization_id: string | null;
@@ -512,6 +574,7 @@ export interface DB {
 
    proyecto: {
       id: Generated<string>;
+      referencia: Generated<number>; // se muestra como PRO-001 (ver proyecto.infraestructure)
       nombre: string;
       estado: string;       // 'BORRADOR' | 'COMPLETADO' | 'CANCELADO' | 'EN PROGRESO'
       cliente_id: string;

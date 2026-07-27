@@ -50,6 +50,7 @@ export default function ProyectoDetailPage() {
    const [proyecto, setProyecto] = useState<Proyecto | null>(null);
    const [loading, setLoading] = useState(true);
    const [pdfLoading, setPdfLoading] = useState<"interno" | "factura" | null>(null);
+   const [pdfError, setPdfError] = useState<string | null>(null);
    const [conduceDialogOpen, setConduceDialogOpen] = useState(false);
    const [conduceLoading, setConduceLoading] = useState(false);
    const [deletingConduceId, setDeletingConduceId] = useState<string | null>(null);
@@ -75,8 +76,27 @@ export default function ProyectoDetailPage() {
       // eslint-disable-next-line react-hooks/exhaustive-deps
    }, [proyectoId]);
 
+   /*
+      Los conduces se pasan explícitamente desde el store: `proyecto.conduces`
+      puede venir vacío según el endpoint, y el store ya los tiene cargados y
+      frescos para esta pantalla.
+   */
    async function handleGenerarPDF(tipo: "interno" | "factura") {
-      // Lógica de PDF comentada originalmente
+      if (!proyecto) return;
+      setPdfLoading(tipo);
+      setPdfError(null);
+      try {
+         if (tipo === "factura") {
+            await generateProyectoFacturaPDF(proyecto, conduces);
+         } else {
+            await generateProyectoInternoPDF(proyecto, conduces);
+         }
+      } catch (error) {
+         console.error("Error al generar el PDF del proyecto:", error);
+         setPdfError("No se pudo generar el PDF. Intenta de nuevo.");
+      } finally {
+         setPdfLoading(null);
+      }
    }
 
    async function handleCreateConduce(data: CreateConduceForm) {
@@ -145,7 +165,13 @@ export default function ProyectoDetailPage() {
                      </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                     Proyecto · {new Date(proyecto.fecha_inicio).toLocaleDateString("es-DO")}
+                     <span className="font-mono font-medium text-brand-blue dark:text-blue-400">
+                        {proyecto.codigoReferencia}
+                     </span>
+                     {" · "}
+                     {proyecto.nombre}
+                     {" · "}
+                     {new Date(proyecto.fecha_inicio).toLocaleDateString("es-DO")}
                   </p>
                </div>
             </div>
@@ -177,6 +203,12 @@ export default function ProyectoDetailPage() {
                </Button>
             </div>
          </div>
+
+         {pdfError && (
+            <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+               {pdfError}
+            </p>
+         )}
 
          {/* Sistema de Tabs */}
          <Tabs defaultValue="general" className="space-y-4">

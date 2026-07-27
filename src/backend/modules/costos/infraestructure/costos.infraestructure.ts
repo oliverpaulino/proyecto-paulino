@@ -23,7 +23,9 @@ export class KyselyCostoRepository implements ICostoRepository {
          orden_compra_codigo_referencia: row.orden_compra_codigo_referencia 
             ? this.buildCodigoReferencia("OC", row.orden_compra_codigo_referencia) 
             : null,
-         proyecto_codigo_referencia: row.proyecto_codigo_referencia || null,
+         proyecto_codigo_referencia: row.proyecto_codigo_referencia
+            ? this.buildCodigoReferencia("PRO", row.proyecto_codigo_referencia)
+            : null,
          monto_total: Number(row.monto_total),
          fecha: new Date(row.fecha),
          created_at: new Date(row.created_at),
@@ -54,7 +56,7 @@ export class KyselyCostoRepository implements ICostoRepository {
          .selectAll("costo")
          .select([
             "orden_compra.referencia as orden_compra_codigo_referencia",
-            "proyecto.id as proyecto_codigo_referencia",
+            "proyecto.referencia as proyecto_codigo_referencia",
          ]);
 
       if (isDeleted) {
@@ -118,7 +120,7 @@ export class KyselyCostoRepository implements ICostoRepository {
          .selectAll("costo")
          .select([
             "orden_compra.referencia as orden_compra_codigo_referencia",
-            "proyecto.id as proyecto_codigo_referencia",
+            "proyecto.referencia as proyecto_codigo_referencia",
          ])
          .where("costo.id", "=", id)
          .where("costo.deleted_at", "is", null)
@@ -136,7 +138,7 @@ export class KyselyCostoRepository implements ICostoRepository {
          .selectAll("costo")
          .select([
             "orden_compra.referencia as orden_compra_codigo_referencia",
-            "proyecto.id as proyecto_codigo_referencia",
+            "proyecto.referencia as proyecto_codigo_referencia",
          ])
          .where("costo.id", "=", id)
          .where("costo.deleted_at", "is not", null)

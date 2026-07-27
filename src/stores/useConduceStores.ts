@@ -25,6 +25,12 @@ type ConduceStore = {
    SetFiltros: (filtros: ConduceFiltros) => void;
    GetConduces: (filtros?: ConduceFiltros) => Promise<void>;
    GetConducesByProyecto: (proyectoId: string) => Promise<void>;
+   /**
+    * Trae TODOS los conduces que cumplen un filtro, sin paginar y sin tocar el
+    * estado del listado. Es lo que necesita el PDF: el listado en pantalla solo
+    * tiene la página visible, e imprimir 25 de 300 sería un reporte incorrecto.
+    */
+   FetchConducesParaReporte: (filtros: ConduceFiltros) => Promise<ConduceDTO[]>;
    /** Trae conduces eliminados (fuerza eliminado=true sin importar lo que le pases). */
    GetConducesEliminados: (filtros?: Omit<ConduceFiltros, "eliminado">) => Promise<void>;
    CreateConduce: (form: CreateConduceForm) => Promise<ConduceDTO | Error>;
@@ -92,6 +98,28 @@ export const useConduceStore = create<ConduceStore>((set, get) => ({
       } finally {
          set({ loading: false });
       }
+   },
+
+   // Para imprimir. Pide páginas grandes en bucle hasta agotar el total, así
+   // el reporte cubre todo el filtro aunque en pantalla solo se vean 25.
+   FetchConducesParaReporte: async (filtros) => {
+      const PAGE_SIZE = 500;
+      const LIMITE_PAGINAS = 40; // ~20 000 conduces; tope para no colgar el navegador
+      const acumulado: ConduceDTO[] = [];
+
+      for (let page = 1; page <= LIMITE_PAGINAS; page++) {
+         // page/pageSize se fijan aquí, después de esparcir los filtros, para
+         // que la paginación del listado no se cuele en el reporte.
+         const qs = buildQuery({ ...filtros, page, pageSize: PAGE_SIZE });
+         const res = await fetch(`/api/conduces?${qs}`);
+         if (!res.ok) throw new Error("Error al cargar conduces para el reporte");
+         const data: ConduceListResult = await res.json();
+
+         acumulado.push(...data.data);
+         if (acumulado.length >= data.total || data.data.length < PAGE_SIZE) break;
+      }
+
+      return acumulado;
    },
 
    // Para el apartado de "Conduces eliminados". Usa su propio slice de

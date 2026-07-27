@@ -252,7 +252,15 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
          cliente_telefono: clienteTelefono || null,
          operador_id: operadorId,
          equipo_id: equipoId,
-         categoria_equipo_tarifa_id: categoriaEquipoTarifaId,
+         /*
+            En captura manual no hay tarifa del catálogo: se OMITE el campo en
+            vez de mandar "". Mandarlo vacío guardaba la fila con el nombre
+            puesto y el id en NULL, que es justo el estado que la nómina no
+            puede cobrar ni corregir.
+         */
+         ...(categoriaEquipoTarifaId
+            ? { categoria_equipo_tarifa_id: categoriaEquipoTarifaId }
+            : {}),
          medida_cobro_id: medidaCobroId,
          medida_cobro_nombre: getNombreMedidaCobro(medidaCobroId) || null,
          categoria_equipo_tarifa_nombre: categoriaEquipoTarifaNombre || null,

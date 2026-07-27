@@ -77,6 +77,50 @@ export interface TarifaDesglose {
    cantidad: number;
    monto_pago: number; // precio unitario AL CHOFER
    subtotal: number; // cantidad × monto_pago
+
+   /*
+      Solo para las tarifas huérfanas (`categoria_equipo_tarifa_id` en NULL).
+      Dice si el nombre snapshoteado corresponde HOY a una categoría viva, que
+      es lo que decide si su precio se puede corregir desde la nómina:
+
+        - "vinculable"  → hay exactamente una categoría con ese nombre. Se
+                          puede editar: al guardar se usa `rescate_id`.
+        - "ambigua"     → hay varias categorías con ese nombre. NO se re-vincula
+                          sola: elegir mal sería pagarle al chofer la tarifa
+                          equivocada, así que se pide desambiguar.
+        - "sin_categoria" → no existe ninguna. Es el caso legítimo del snapshot
+                          histórico: la categoría se borró y solo queda el nombre.
+
+      `undefined` en las tarifas que sí tienen id: no hay nada que rescatar.
+   */
+   rescate?: "vinculable" | "ambigua" | "sin_categoria";
+   /** Id al que re-vincular, solo cuando `rescate === "vinculable"`. */
+   rescate_id?: string | null;
+   /** Cuántas categorías vivas comparten el nombre (para explicar la ambigüedad). */
+   rescate_candidatas?: number;
+
+   /**
+    * `true` si este `monto_pago` viene de un precio escrito a mano para este
+    * ciclo, y no del catálogo. La UI lo marca: un monto manual no se explica
+    * por la configuración del empleado, así que hay que poder distinguirlo.
+    */
+   precio_manual?: boolean;
+   /** Por qué se puso a mano, si se anotó. */
+   precio_manual_nota?: string | null;
+}
+
+/**
+ * Precio escrito a mano para una tarifa que la nómina no puede resolver sola.
+ * Aplica a UN empleado en UN ciclo; ver la migración 014.
+ */
+export interface PrecioManualProps {
+   id: string;
+   cycle_id: string;
+   empleado_id: string;
+   tarifa_nombre: string;
+   monto_pago: number;
+   nota: string | null;
+   created_by: string | null;
 }
 
 // ─── Línea de nómina (un empleado dentro del ciclo) ──────────────────────────
@@ -125,7 +169,17 @@ export interface PayrollCycleEmployeeProps {
    updated_at: Date;
 
    tarifas?: TarifaDesglose[];
-   /** Deducciones concretas que componen el monto de `deducciones`. */
+   /**
+    * Cuántas deducciones componen el monto de `deducciones`. Es un COUNT
+    * agregado, no las filas: el listado del ciclo solo necesita el número
+    * para la fila colapsada ("N conceptos").
+    */
+   deducciones_count: number;
+   /**
+    * Deducciones concretas que componen el monto. NO viene en el listado del
+    * ciclo — traerlas para todos sería una query por empleado. Se pide aparte
+    * con `listDeduccionesDelPeriodo` al expandir la fila.
+    */
    detalle_deducciones?: DeduccionDelPeriodo[];
 }
 
@@ -254,6 +308,41 @@ export interface INominaRepository {
    /** Mapa `categoria_equipo_tarifa_id → monto_pago` para un empleado. */
    getTarifasEmpleado(empleadoId: string): Promise<Map<string, number>>;
 
+   /**
+    * Mapa `nombre normalizado → id` de las categorías de tarifa cuyo nombre es
+    * ÚNICO. Sirve para rescatar conduces que guardaron el nombre pero no el id:
+    * sin esto se les paga RD$ 0 aunque la categoría exista.
+    *
+    * Los nombres repetidos se omiten a propósito: con dos categorías llamadas
+    * igual no se puede saber cuál le toca al chofer, y adivinar sería pagarle
+    * una tarifa que no es.
+    */
+   getTarifasPorNombreUnico(): Promise<Map<string, string>>;
+
+   /**
+    * Precios manuales del ciclo, indexados por `empleado_id` y nombre de
+    * tarifa normalizado. Son la última palabra sobre lo que se le paga a ese
+    * chofer por esa tarifa en ese ciclo.
+    */
+   getPreciosManuales(cycleId: string): Promise<Map<string, PrecioManualProps>>;
+
+   /** Fija (o corrige) el precio manual de una tarifa. Idempotente. */
+   upsertPrecioManual(data: {
+      cycle_id: string;
+      empleado_id: string;
+      tarifa_nombre: string;
+      monto_pago: number;
+      nota?: string | null;
+      created_by?: string | null;
+   }): Promise<PrecioManualProps>;
+
+   /** Quita el precio manual: la tarifa vuelve a valer lo que diga el catálogo. */
+   deletePrecioManual(
+      cycleId: string,
+      empleadoId: string,
+      tarifaNombre: string
+   ): Promise<boolean>;
+
    /** Suma de deducciones cuya `fecha` cae dentro del período. */
    getDeduccionesDelPeriodo(empleadoId: string, desde: Date, hasta: Date): Promise<number>;
 
@@ -262,12 +351,25 @@ export interface INominaRepository {
 
    /** Reemplaza el resumen del empleado en el ciclo (idempotente). */
    upsertCycleEmployee(
-      row: Omit<PayrollCycleEmployeeProps, "id" | "created_at" | "updated_at" | "tarifas">,
+      // `deducciones_count` no se guarda: se deriva al leer, contando la tabla
+      // `deduccion`. Pedirlo aquí obligaría a calcularlo para escribirlo.
+      row: Omit<
+         PayrollCycleEmployeeProps,
+         "id" | "created_at" | "updated_at" | "tarifas" | "deducciones_count"
+      >,
       tarifas: TarifaDesglose[]
    ): Promise<PayrollCycleEmployeeProps>;
 
+   /**
+    * Resumen de todos los empleados del ciclo. Incluye el desglose de tarifas
+    * (una sola query para todo el ciclo) y el CONTEO de deducciones, pero no
+    * el detalle de estas: ese se pide por empleado al expandir la fila.
+    */
    listCycleEmployees(cycleId: string): Promise<PayrollCycleEmployeeProps[]>;
    findCycleEmployee(cycleId: string, empleadoId: string): Promise<PayrollCycleEmployeeProps | null>;
+
+   /** Solo el `seguro` ya guardado, para no releer la fila entera al calcular. */
+   getSeguroActual(cycleId: string, empleadoId: string): Promise<number | null>;
 
    /** Seguro es un campo libre: se edita a mano y se recalcula el neto. */
    updateSeguro(cycleEmployeeId: string, seguro: number): Promise<PayrollCycleEmployeeProps | null>;

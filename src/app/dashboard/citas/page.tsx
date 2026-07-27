@@ -95,6 +95,5 @@ export default function CitasPageWrapper() {
             </DialogContent>
          </Dialog>
       </div>
-      </PermissionGuard>
    );
 }

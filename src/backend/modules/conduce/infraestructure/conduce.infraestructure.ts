@@ -236,14 +236,20 @@ export class KyselyConduceRepository implements IConduceRepository {
          operador_id: data.operador_id,
          categoria_equipo_id: equipo.categoria_id,
          categoria_equipo_tarifa_id: categoriaEquipoTarifaId,
+         // El snapshot describe la tarifa que de verdad se guardó, así que
+         // manda el lookup por id y no lo que mandó el cliente. Al revés se
+         // podían crear filas mintiendo: nombre "Bote" con el id vacío, que
+         // luego la nómina no puede ni cobrar ni corregir.
+         // El texto del cliente solo se usa cuando NO hay tarifa (captura
+         // manual), que es el único caso en que no hay id del cual derivarlo.
          categoria_equipo_tarifa_nombre:
-            data.categoria_equipo_tarifa_nombre ??
             tarifa?.nombre ??
+            data.categoria_equipo_tarifa_nombre ??
             null,
 
          medida_cobro_nombre:
-            data.medida_cobro_nombre ??
             tarifa?.medida_cobro_nombre ??
+            data.medida_cobro_nombre ??
             null,
          es_cobrable: data.es_cobrable,
          observaciones: data.observaciones ?? null,
@@ -340,16 +346,20 @@ export class KyselyConduceRepository implements IConduceRepository {
          }
       }
 
+      // El re-snapshot manda sobre el texto del cliente: si la tarifa cambió,
+      // el nombre guardado es el de la tarifa nueva, no el que venga escrito
+      // en el payload. Confiar primero en el cliente permitía guardar un
+      // nombre que no corresponde al id de la fila.
       const nombresSnapshot = {
          categoria_equipo_tarifa_nombre:
-            data.categoria_equipo_tarifa_nombre ??
             refrescoTarifa.categoria_equipo_tarifa_nombre ??
+            data.categoria_equipo_tarifa_nombre ??
             current.categoria_equipo_tarifa_nombre ??
             null,
 
          medida_cobro_nombre:
-            data.medida_cobro_nombre ??
             refrescoTarifa.medida_cobro_nombre ??
+            data.medida_cobro_nombre ??
             current.medida_cobro_nombre ??
             null,
       };

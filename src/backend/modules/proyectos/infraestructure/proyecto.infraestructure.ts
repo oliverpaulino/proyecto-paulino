@@ -14,12 +14,34 @@ export class KyselyProyectoRepository implements IProyectoRepository {
 
    constructor(private readonly db: Kysely<DB>) { }
 
+   // Mismo formato que cliente (CLI-001), gasto (GAS-001), equipo (EQU-001):
+   // el entero vive en la columna `referencia` y el código se arma aquí, para
+   // poder cambiar el formato sin migrar datos.
+   private buildCodigoReferencia(referencia: number): string {
+      const ref = String(referencia).padStart(3, "0");
+      return `PRO-${ref}`;
+   }
+
+   // Acepta "PRO-007", "pro-7" o "7" y devuelve el entero a buscar.
+   // Devuelve null para todo lo que no sea un número completo — incluido el
+   // "PRO-" a medio teclear, que si no se colaba como `referencia = 0` y
+   // escondía la lista entera mientras el usuario seguía escribiendo.
+   private safeParseReferencia(search: string): number | null {
+      const text = search.trim().toUpperCase();
+      const digits = text.startsWith("PRO-") ? text.slice(4) : text;
+
+      if (!/^\d+$/.test(digits)) return null;
+
+      return Number(digits);
+   }
+
    async findAll(search?: string, pagination?: { page: number, limit: number }): Promise<ProyectoProps[]> {
       let query = this.db
          .selectFrom("proyecto")
          .leftJoin("cliente", "cliente.id", "proyecto.cliente_id")
          .select([
             "proyecto.id",
+            "proyecto.referencia",
             "proyecto.estado",
             "proyecto.cliente_id",
             "proyecto.nombre",
@@ -39,7 +61,7 @@ export class KyselyProyectoRepository implements IProyectoRepository {
 
 
       if (search) {
-         query = query.where("proyecto.nombre", "ilike", `%${search}%`);
+         query = this.#applySearch(query, search);
       }
 
       if (pagination) {
@@ -60,6 +82,7 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          .leftJoin("cliente", "cliente.id", "proyecto.cliente_id")
          .select([
             "proyecto.id",
+            "proyecto.referencia",
             "proyecto.estado",
             "proyecto.cliente_id",
             "proyecto.nombre",
@@ -98,6 +121,7 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          .leftJoin("cliente", "cliente.id", "proyecto.cliente_id")
          .select([
             "proyecto.id",
+            "proyecto.referencia",
             "proyecto.estado",
             "proyecto.cliente_id",
             "proyecto.nombre",
@@ -116,7 +140,7 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          .where("proyecto.cliente_id", "=", clienteId)
          .orderBy("proyecto.created_at", "desc")
       if (search) {
-         query = query.where("proyecto.nombre", "ilike", `%${search}%`);
+         query = this.#applySearch(query, search);
       }
       if (pagination) {
          const { page, limit } = pagination;
@@ -257,6 +281,26 @@ export class KyselyProyectoRepository implements IProyectoRepository {
       return { total_cobrable, total_gasto_interno, total_equipos, rentabilidad };
    }
 
+   // ─── Búsqueda: por nombre o por código de referencia ───────────────────────
+   // Sin esto, teclear "PRO-007" en el buscador no encontraba nada, que es
+   // justo lo que la gente va a intentar ahora que el código se muestra.
+   #applySearch<Q extends { where: any }>(query: Q, search: string): Q {
+      const searchLike = `%${search.trim()}%`;
+      const refNumber = this.safeParseReferencia(search);
+
+      return query.where((eb: any) => {
+         const conditions = [eb("proyecto.nombre", "ilike", searchLike)];
+
+         if (refNumber !== null) {
+            conditions.push(
+               eb(eb.cast("proyecto.referencia", "text"), "=", String(refNumber))
+            );
+         }
+
+         return eb.or(conditions);
+      });
+   }
+
    // ─── Mapper privado ────────────────────────────────────────────────────────
    #mapRow(
       row: Record<string, unknown>,
@@ -278,6 +322,7 @@ export class KyselyProyectoRepository implements IProyectoRepository {
 
       const base = {
          id: row.id as string,
+         codigoReferencia: this.buildCodigoReferencia(Number(row.referencia)),
          estado: row.estado as ProyectoProps["estado"],
          cliente_id: row.cliente_id as string,
          tarifa_servicio: Number(row.tarifa_servicio),

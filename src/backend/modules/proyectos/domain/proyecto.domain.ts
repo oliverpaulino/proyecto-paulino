@@ -23,6 +23,8 @@ export interface ProyectoDetalleProps {
 // que era código muerto. Si la necesitas para otra cosa, dímelo y la regreso.
 export type ProyectoProps = {
    id: string;
+   /** Código legible tipo `PRO-001`, derivado de `proyecto.referencia`. */
+   codigoReferencia: string;
    estado: EstadoProyecto;
    tarifa_servicio: number;
    nombre: string;

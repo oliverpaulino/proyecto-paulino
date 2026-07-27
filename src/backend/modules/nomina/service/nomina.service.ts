@@ -144,10 +144,30 @@ export class NominaService {
          throw new Error(`El ciclo está ${ciclo.estado}: sus montos están congelados`);
       }
 
-      const [empleados, conduces] = await Promise.all([
+      const [empleados, conduces, tarifasPorNombre, preciosManuales] = await Promise.all([
          this.repo.listEmpleadosParaNomina(),
          this.repo.listConducesDelPeriodo(ciclo.fecha_inicio, ciclo.fecha_fin),
+         this.repo.getTarifasPorNombreUnico(),
+         this.repo.getPreciosManuales(cycleId),
       ]);
+
+      /** Precio escrito a mano para este empleado y esta tarifa, si lo hay. */
+      const manualDe = (empleadoId: string, nombre: string) =>
+         preciosManuales.get(`${empleadoId}::${(nombre ?? "").trim().toLowerCase()}`);
+
+      /*
+         Algunos conduces guardaron el nombre de la tarifa pero no su id. Si la
+         categoría existe y su nombre es único, se recupera el id: si no, se le
+         pagaría RD$ 0 al chofer por un trabajo que sí hizo y cuya tarifa sí
+         está configurada.
+
+         Con el nombre repetido NO se resuelve: no hay forma de saber cuál de
+         las dos le toca, y pagarle la equivocada es peor que reportarlo.
+      */
+      const idEfectivo = (c: (typeof conduces)[number]): string | null =>
+         c.categoria_equipo_tarifa_id ??
+         tarifasPorNombre.get((c.categoria_equipo_tarifa_nombre ?? "").trim().toLowerCase()) ??
+         null;
 
       // Agrupa los conduces por empleado.
       const porEmpleado = new Map<string, typeof conduces>();
@@ -179,16 +199,32 @@ export class NominaService {
          for (const c of suyos) {
             if (c.inferido) inferidos++;
 
-            // El monto que se le paga AL CHOFER por esta tarifa. Si no la
-            // tiene asignada, no se le puede pagar: cuenta 0 pero se reporta.
-            const montoPago = c.categoria_equipo_tarifa_id
-               ? tarifasEmpleado.get(c.categoria_equipo_tarifa_id) ?? 0
-               : 0;
+            // Id de la tarifa, recuperado por nombre si el conduce lo perdió.
+            const tarifaId = idEfectivo(c);
+
+            // El monto que se le paga AL CHOFER por esta tarifa, según el
+            // catálogo. Si no la tiene asignada, no se le puede pagar.
+            const delCatalogo = tarifaId ? tarifasEmpleado.get(tarifaId) ?? 0 : 0;
+
+            /*
+               El precio manual es la salida para lo que el catálogo no puede
+               resolver: sustituye al del catálogo SOLO cuando este da 0. Así
+               un precio bien configurado nunca queda pisado en silencio por un
+               monto viejo escrito a mano, y el manual deja de aplicar solo en
+               cuanto la tarifa se arregla de verdad.
+            */
+            const manual = delCatalogo === 0
+               ? manualDe(emp.id, c.categoria_equipo_tarifa_nombre)
+               : undefined;
+
+            const montoPago = manual ? manual.monto_pago : delCatalogo;
+            // Sigue contando como "sin tarifa" solo si nadie lo resolvió.
             if (montoPago === 0) conducesSinTarifa++;
 
-            // Clave por tarifa; si el id se perdió (hard-replace) se agrupa
-            // por el nombre snapshoteado.
-            const clave = c.categoria_equipo_tarifa_id ?? `nombre:${c.categoria_equipo_tarifa_nombre}`;
+            // Clave por tarifa; si el id se perdió y no se pudo recuperar
+            // (nombre ambiguo o categoría borrada) se agrupa por el nombre
+            // snapshoteado.
+            const clave = tarifaId ?? `nombre:${c.categoria_equipo_tarifa_nombre}`;
             const previo = acumulado.get(clave);
 
             if (previo) {
@@ -196,9 +232,15 @@ export class NominaService {
                previo.subtotal = previo.cantidad * previo.monto_pago;
             } else {
                acumulado.set(clave, {
-                  categoria_equipo_tarifa_id: c.categoria_equipo_tarifa_id,
+                  // El id recuperado, para que el snapshot del ciclo quede
+                  // vinculado y la nómina pueda editar su precio.
+                  categoria_equipo_tarifa_id: tarifaId,
                   categoria_equipo_tarifa_nombre: c.categoria_equipo_tarifa_nombre,
                   medida_cobro_nombre: c.medida_cobro_nombre,
+                  // Se marca para que la UI distinga un monto escrito a mano
+                  // de uno que sale de la configuración del empleado.
+                  precio_manual: Boolean(manual),
+                  precio_manual_nota: manual?.nota ?? null,
                   cantidad: c.cantidad,
                   monto_pago: montoPago,
                   subtotal: c.cantidad * montoPago,
@@ -235,9 +277,10 @@ export class NominaService {
          ]);
 
          // El seguro es un campo libre: al recalcular se respeta el valor que
-         // el usuario ya haya puesto para este empleado en este ciclo.
-         const existente = await this.repo.findCycleEmployee(cycleId, emp.id);
-         const seguro = existente?.seguro ?? 0;
+         // el usuario ya haya puesto para este empleado en este ciclo. Se lee
+         // solo esa columna: traer la fila entera (con tarifas y deducciones)
+         // en cada vuelta del loop era gratis con 5 empleados y caro con 100.
+         const seguro = (await this.repo.getSeguroActual(cycleId, emp.id)) ?? 0;
 
          const neto = calcularNeto(devengado, complemento, seguro, deducciones);
 
@@ -287,6 +330,79 @@ export class NominaService {
 
    async listCycleEmployees(cycleId: string): Promise<PayrollCycleEmployeeProps[]> {
       return await this.repo.listCycleEmployees(cycleId);
+   }
+
+   /**
+    * Fija a mano lo que se le paga a un chofer por una tarifa que la nómina no
+    * puede resolver sola (el conduce guardó el nombre pero no el id, y ese
+    * nombre no existe ya o corresponde a varias categorías).
+    *
+    * Aplica SOLO a este empleado en este ciclo, y recalcula para que el monto
+    * se refleje: guardarlo sin recalcular dejaría la nómina mostrando el RD$ 0
+    * de antes.
+    *
+    * No escribe en el catálogo a propósito: con un nombre ambiguo no se sabe a
+    * qué categoría pertenece, así que propagarlo sería adivinar.
+    */
+   async fijarPrecioManual(
+      cycleId: string,
+      empleadoId: string,
+      data: { tarifa_nombre: string; monto_pago: number; nota?: string | null; created_by?: string | null }
+   ): Promise<ResultadoCalculo> {
+      const ciclo = await this.repo.findCycleById(cycleId);
+      if (!ciclo) throw new Error("Ciclo no encontrado");
+      if (!cicloEsEditable(ciclo.estado)) {
+         throw new Error(`El ciclo está ${ciclo.estado}: sus montos están congelados`);
+      }
+      if (!data.tarifa_nombre?.trim()) {
+         throw new Error("Debe indicar a qué tarifa aplica el precio");
+      }
+      if (!Number.isFinite(data.monto_pago) || data.monto_pago < 0) {
+         throw new Error("El precio debe ser un número mayor o igual a 0");
+      }
+
+      await this.repo.upsertPrecioManual({
+         cycle_id: cycleId,
+         empleado_id: empleadoId,
+         tarifa_nombre: data.tarifa_nombre,
+         monto_pago: data.monto_pago,
+         nota: data.nota ?? null,
+         created_by: data.created_by ?? null,
+      });
+
+      return await this.calcularCiclo(cycleId);
+   }
+
+   /** Quita el precio manual: la tarifa vuelve a valer lo que diga el catálogo. */
+   async quitarPrecioManual(
+      cycleId: string,
+      empleadoId: string,
+      tarifaNombre: string
+   ): Promise<ResultadoCalculo> {
+      const ciclo = await this.repo.findCycleById(cycleId);
+      if (!ciclo) throw new Error("Ciclo no encontrado");
+      if (!cicloEsEditable(ciclo.estado)) {
+         throw new Error(`El ciclo está ${ciclo.estado}: sus montos están congelados`);
+      }
+
+      await this.repo.deletePrecioManual(cycleId, empleadoId, tarifaNombre);
+      return await this.calcularCiclo(cycleId);
+   }
+
+   /**
+    * Detalle de UN empleado del ciclo: su desglose de tarifas y las
+    * deducciones concretas que componen su descuento.
+    *
+    * Existe aparte del listado a propósito. El listado devuelve el monto y el
+    * conteo de deducciones, que es todo lo que la fila colapsada muestra;
+    * traer también el detalle de cada uno costaba una query por empleado. El
+    * detalle se pide cuando se abre la fila, que es cuando se necesita.
+    */
+   async getDetalleEmpleado(
+      cycleId: string,
+      empleadoId: string
+   ): Promise<PayrollCycleEmployeeProps | null> {
+      return await this.repo.findCycleEmployee(cycleId, empleadoId);
    }
 
    async updateSeguro(
