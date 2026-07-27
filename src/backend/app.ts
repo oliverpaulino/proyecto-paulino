@@ -30,6 +30,7 @@ import deduccionesRoute from "./modules/deducciones/routes/deducciones.routes";
 import pagosRoute from "./modules/pagos/routes/pagos.routes";
 import payrollConceptsRoute from "./modules/payroll-concepts/routes/payroll-concepts";
 import nominaRoute from "./modules/nomina/routes/nomina.routes";
+import cuentasPorPagarRoute from "./modules/cuentas-por-pagar/routes/cuentas-por-pagar.routes";
 
 const app = new Hono().basePath("/api");
 
@@ -93,6 +94,7 @@ app.route("/roles", rolesRoute);
 app.route("/conduces", conducesRoute);
 app.route("/payroll", payrollConceptsRoute);
 app.route("/nomina", nominaRoute);
+app.route("/cuentas-por-pagar", cuentasPorPagarRoute);
 
 app.get("/dgii/:rnc", async (c) => {
    const rnc = c.req.param("rnc");
