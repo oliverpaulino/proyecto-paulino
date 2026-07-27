@@ -655,6 +655,7 @@ export interface DB {
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    }
+
    gasto: {
       id: Generated<string>;
       referencia: Generated<number>;
@@ -693,6 +694,7 @@ export interface DB {
       id: Generated<string>;
       empleado_id: string;
       equipo_id: string | null;
+      gasto_id: string | null;
       monto_total: number;
       concepto: string;
       balance_pendiente: number | null;

@@ -209,6 +209,12 @@ export function DeduccionDetail({ deduccion, onRefresh }: { deduccion: Deduccion
                               value={deduccion.equipo_codigo_referencia || "No vinculado a un equipo en específico"} 
                            />
                         </div>
+                        <div className="sm:col-span-2">
+                           <InfoField 
+                              label="Gasto Asociado" 
+                              value={deduccion.gasto_codigo_referencia || "No vinculado a un gasto en específico"} 
+                           />
+                        </div>
                      </div>
                   </CardContent>
                </Card>
