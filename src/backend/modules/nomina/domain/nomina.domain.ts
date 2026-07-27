@@ -39,6 +39,11 @@ export interface PayrollCycleProps {
    estado: EstadoCiclo;
    closed_at: Date | null;
    closed_by: string | null;
+   /**
+    * Gasto generado al cerrar el ciclo, por el total neto a pagar. `null`
+    * mientras el ciclo no se haya cerrado.
+    */
+   gasto_id: string | null;
    created_at: Date;
    updated_at: Date;
 }
@@ -232,4 +237,18 @@ export interface INominaRepository {
 
    /** Borra los resúmenes del ciclo antes de recalcular. */
    clearCycleEmployees(cycleId: string): Promise<void>;
+
+   /**
+    * Crea el gasto de la nómina al cerrar el ciclo y lo enlaza en
+    * `payroll_cycles.gasto_id`. Devuelve el id del gasto.
+    */
+   crearGastoDeNomina(data: {
+      cycleId: string;
+      monto_total: number;
+      concepto: string;
+      fecha: Date;
+   }): Promise<string>;
+
+   /** Id de la categoría de gasto usada para la nómina, si existe. */
+   getCategoriaGastoNomina(): Promise<string | null>;
 }

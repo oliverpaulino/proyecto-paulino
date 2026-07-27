@@ -385,6 +385,9 @@ export interface DB {
       estado: Generated<string>; // ABIERTO | CALCULADO | CERRADO | PAGADO
       closed_at: Date | null;
       closed_by: string | null;
+      // Gasto generado al cerrar el ciclo (ver migración 009). NULL mientras
+      // no se haya cerrado; sirve de candado de idempotencia.
+      gasto_id: string | null;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };

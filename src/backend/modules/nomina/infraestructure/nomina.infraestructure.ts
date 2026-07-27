@@ -37,6 +37,7 @@ function mapCycle(row: any): PayrollCycleProps {
       estado: row.estado as EstadoCiclo,
       closed_at: row.closed_at ?? null,
       closed_by: row.closed_by ?? null,
+      gasto_id: row.gasto_id ?? null,
       created_at: row.created_at,
       updated_at: row.updated_at,
    };
@@ -499,6 +500,64 @@ export class KyselyNominaRepository implements INominaRepository {
       }
 
       return cambiadas;
+   }
+
+   /**
+    * Busca la categoría de gasto de la nómina. La siembra la migración 009,
+    * pero `categoria_gasto` es editable por el usuario: puede haberla
+    * renombrado o borrado, así que esto puede devolver null.
+    */
+   async getCategoriaGastoNomina(): Promise<string | null> {
+      const row = await this.db
+         .selectFrom("categoria_gasto")
+         .select("id")
+         .where(sql<boolean>`lower(nombre) like '%nómina%' or lower(nombre) like '%nomina%'`)
+         .executeTakeFirst();
+      return row?.id ?? null;
+   }
+
+   /**
+    * Crea el gasto de la nómina y lo enlaza al ciclo, en una transacción para
+    * que no quede un gasto huérfano si falla el enlace.
+    */
+   async crearGastoDeNomina(data: {
+      cycleId: string;
+      monto_total: number;
+      concepto: string;
+      fecha: Date;
+   }): Promise<string> {
+      const categoriaId = await this.getCategoriaGastoNomina();
+      if (!categoriaId) {
+         throw new Error(
+            'No existe una categoría de gasto para la nómina. Cree una llamada "Nómina" en Categorías de Gastos.'
+         );
+      }
+
+      return await this.db.transaction().execute(async (trx) => {
+         const gasto = await trx
+            .insertInto("gasto")
+            .values({
+               monto_total: data.monto_total,
+               concepto: data.concepto,
+               // La nómina no tiene comprobante fiscal de proveedor.
+               ncf: null,
+               categoria_gasto_id: categoriaId,
+               orden_compra_id: null,
+               proyecto_id: null,
+               equipo_id: null,
+               fecha: aFechaISO(data.fecha) as any,
+            })
+            .returning("id")
+            .executeTakeFirstOrThrow();
+
+         await trx
+            .updateTable("payroll_cycles")
+            .set({ gasto_id: gasto.id, updated_at: new Date() } as any)
+            .where("id", "=", data.cycleId)
+            .execute();
+
+         return gasto.id;
+      });
    }
 
    async clearCycleEmployees(cycleId: string): Promise<void> {

@@ -19,7 +19,8 @@ import {
    DialogTitle,
    DialogTrigger,
 } from "@/components/ui/dialog";
-import { Calculator, Plus, Lock, Loader2, TriangleAlert, RefreshCw } from "lucide-react";
+import { Calculator, Plus, Lock, Loader2, TriangleAlert, RefreshCw, Receipt } from "lucide-react";
+import Link from "next/link";
 import { useNominaStore, type EstadoCiclo } from "@/stores/useNominaStore";
 import { NominaTable } from "./components/nomina-table";
 import { CycleForm } from "./components/cycle-form";
@@ -159,6 +160,15 @@ export default function NominaPage() {
                            {fecha(selectedCycle.fecha_inicio)} — {fecha(selectedCycle.fecha_fin)} ·{" "}
                            {selectedCycle.frecuencia}
                         </p>
+                        {selectedCycle.gasto_id && (
+                           <Link
+                              href={`/dashboard/gastos/${selectedCycle.gasto_id}`}
+                              className="mt-1 inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                           >
+                              <Receipt className="size-3" />
+                              Ver el gasto generado
+                           </Link>
+                        )}
                      </div>
 
                      <div className="flex gap-2">
@@ -207,7 +217,14 @@ export default function NominaPage() {
                            className="gap-2"
                            disabled={cerrado || empleados.length === 0}
                            onClick={() => {
-                              if (confirm("¿Cerrar el ciclo? Los montos quedarán congelados.")) {
+                              const total = empleados.reduce((s, e) => s + e.neto_pagar, 0);
+                              if (
+                                 confirm(
+                                    `¿Cerrar el ciclo?\n\n` +
+                                       `Los montos quedarán congelados y se creará un gasto de ` +
+                                       `${money(total)} por la nómina.`
+                                 )
+                              ) {
                                  CerrarCiclo(selectedCycle.id);
                               }
                            }}

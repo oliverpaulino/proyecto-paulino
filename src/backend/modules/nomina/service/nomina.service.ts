@@ -68,12 +68,45 @@ export class NominaService {
       return await this.repo.deleteCycle(id);
    }
 
+   /**
+    * Cierra el ciclo y genera el GASTO de la nómina por el total neto a pagar,
+    * para que entre en la contabilidad como cualquier otro egreso. A ese gasto
+    * se le pueden registrar pagos vía `pago.gasto_empresa_id`.
+    *
+    * El gasto se crea ANTES de marcar CERRADO: si falla (p.ej. no existe la
+    * categoría), el ciclo queda como estaba en vez de cerrarse sin registro
+    * contable.
+    */
    async cerrarCiclo(id: string, closedBy?: string): Promise<PayrollCycleProps | null> {
       const ciclo = await this.repo.findCycleById(id);
       if (!ciclo) return null;
       if (ciclo.estado === "CERRADO" || ciclo.estado === "PAGADO") {
          throw new Error(`El ciclo ya está ${ciclo.estado}`);
       }
+
+      const empleados = await this.repo.listCycleEmployees(id);
+      if (empleados.length === 0) {
+         throw new Error("No se puede cerrar un ciclo sin nómina calculada");
+      }
+
+      const totalNeto = empleados.reduce((s, e) => s + e.neto_pagar, 0);
+
+      // `gasto_id` es el candado de idempotencia: si el cierre falló a medias
+      // y se reintenta, no se duplica el gasto.
+      if (!ciclo.gasto_id) {
+         if (totalNeto > 0) {
+            await this.repo.crearGastoDeNomina({
+               cycleId: id,
+               monto_total: totalNeto,
+               concepto: `Nómina ${ciclo.nombre}`,
+               // El gasto se fecha al cierre del período, no al día de hoy.
+               fecha: new Date(ciclo.fecha_fin),
+            });
+         }
+         // Con neto 0 no se crea gasto: un egreso de RD$0 solo ensucia la
+         // contabilidad.
+      }
+
       return await this.repo.updateCycle(id, { estado: "CERRADO" });
    }
 

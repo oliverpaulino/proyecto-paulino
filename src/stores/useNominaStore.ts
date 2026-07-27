@@ -11,6 +11,8 @@ export interface PayrollCycle {
    fecha_fin: string;
    fecha_pago: string | null;
    estado: EstadoCiclo;
+   /** Gasto generado al cerrar el ciclo. null si aún no se ha cerrado. */
+   gasto_id: string | null;
    created_at: string;
 }
 
