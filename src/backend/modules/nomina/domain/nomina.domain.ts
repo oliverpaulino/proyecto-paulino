@@ -139,6 +139,46 @@ export function calcularComplemento(devengado: number, minimo: number): number {
    return Math.max(0, minimo - devengado);
 }
 
+/**
+ * Cuántos períodos de esa frecuencia caben en un mes. Sirve para convertir un
+ * salario expresado en una frecuencia al monto que toca en otra.
+ *
+ * SEMANAL usa 4.33 (52 semanas / 12 meses), no 4: con 4 se le pagaría de menos
+ * al empleado unas 4 semanas al año.
+ */
+const PERIODOS_POR_MES: Record<FrecuenciaPago, number> = {
+   SEMANAL: 52 / 12,
+   QUINCENAL: 2,
+   MENSUAL: 1,
+};
+
+/**
+ * Convierte el salario del empleado al monto que le corresponde por el ciclo
+ * que se está pagando.
+ *
+ *   salario mensual 30,000 en ciclo QUINCENAL  → 15,000
+ *   salario quincenal 15,000 en ciclo MENSUAL  → 30,000
+ *   salario mensual 30,000 en ciclo SEMANAL    → 6,928.57  (30,000 / 4.33)
+ *
+ * Si el empleado no tiene `frecuencia_pago` registrada se asume que su salario
+ * está expresado en la misma frecuencia del ciclo, es decir, no se prorratea.
+ * Es la suposición conservadora: pagar el monto tal cual, no inventar una
+ * división que nadie configuró.
+ */
+export function salarioDelPeriodo(
+   salario: number,
+   frecuenciaEmpleado: string | null | undefined,
+   frecuenciaCiclo: FrecuenciaPago
+): number {
+   const fEmp = (frecuenciaEmpleado ?? "").toUpperCase() as FrecuenciaPago;
+   if (!FRECUENCIAS_PAGO.includes(fEmp)) return salario;
+   if (fEmp === frecuenciaCiclo) return salario;
+
+   // Se pasa por el mensual como unidad común.
+   const mensual = salario * PERIODOS_POR_MES[fEmp];
+   return mensual / PERIODOS_POR_MES[frecuenciaCiclo];
+}
+
 /** Neto a pagar. Puede dar negativo si los descuentos superan al bruto. */
 export function calcularNeto(
    devengado: number,

@@ -12,6 +12,7 @@ import {
    calcularComplemento,
    calcularNeto,
    cicloEsEditable,
+   salarioDelPeriodo,
 } from "../domain/nomina.domain";
 
 export interface ResultadoCalculo {
@@ -121,11 +122,15 @@ export class NominaService {
     *
     *   PRODUCCION (choferes, rol OPERADOR)
     *     devengado   = Σ (cantidad × monto_pago del chofer para esa tarifa)
-    *     complemento = MAX(0, salario − devengado)   ← piso garantizado
+    *     complemento = MAX(0, salario del período − devengado)  ← piso
     *
     *   FIJO (resto del personal)
     *     devengado   = 0 (no tienen conduces)
     *     complemento = salario del período           ← el sueldo íntegro
+    *
+    * `salario del período` prorratea el sueldo del empleado (que está en SU
+    * frecuencia) a la frecuencia del ciclo: un mensual de 30,000 en una
+    * quincena son 15,000.
     *
     *   Ambas: neto = devengado + complemento − seguro − deducciones
     *
@@ -204,7 +209,20 @@ export class NominaService {
          const tarifas = [...acumulado.values()];
          const devengado = tarifas.reduce((s, t) => s + t.subtotal, 0);
 
-         const minimo = emp.salario ?? 0;
+         // El salario del empleado está expresado en SU frecuencia (mensual,
+         // quincenal…), que no tiene por qué coincidir con la del ciclo que se
+         // está pagando. Se prorratea al período: un sueldo mensual de 30,000
+         // en una quincena son 15,000, no 30,000.
+         //
+         // Aplica a AMBAS modalidades: para un asalariado es lo que cobra, y
+         // para un chofer es el piso que se le garantiza — un mínimo mensual
+         // completo en una quincena le regalaría medio sueldo.
+         const minimo = salarioDelPeriodo(
+            emp.salario ?? 0,
+            emp.frecuencia_pago,
+            ciclo.frecuencia
+         );
+
          // PRODUCCION: lo que falte para llegar al piso garantizado.
          // FIJO: el sueldo íntegro (devengado siempre es 0). Se reusa la misma
          // columna a propósito — `bruto = devengado + complemento` funciona
