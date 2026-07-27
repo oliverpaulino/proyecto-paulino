@@ -400,6 +400,10 @@ export interface DB {
       empleado_id: string;
       empleado_nombre: string | null;
       frecuencia_pago: string | null;
+      rol: string | null; // snapshot al momento del cálculo
+      // PRODUCCION = cobra conduces con mínimo garantizado (choferes);
+      // FIJO = cobra su salario del período (resto del personal).
+      modalidad: Generated<string>;
       minimo_garantizado: Generated<number>; // empleado.salario
       devengado_tarifas: Generated<number>; // Σ conduces × monto_pago
       complemento_minimo: Generated<number>; // MAX(0, mínimo − devengado)

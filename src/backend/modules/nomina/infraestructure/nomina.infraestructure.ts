@@ -10,6 +10,7 @@ import type {
    ConduceParaNomina,
    DeduccionDelPeriodo,
    EmpleadoParaNomina,
+   ModalidadPago,
    EstadoCiclo,
    FrecuenciaPago,
 } from "../domain/nomina.domain";
@@ -50,6 +51,8 @@ function mapCycleEmployee(row: any): PayrollCycleEmployeeProps {
       empleado_id: row.empleado_id,
       empleado_nombre: row.empleado_nombre ?? null,
       frecuencia_pago: row.frecuencia_pago ?? null,
+      rol: row.rol ?? null,
+      modalidad: (row.modalidad ?? "PRODUCCION") as ModalidadPago,
       minimo_garantizado: num(row.minimo_garantizado),
       devengado_tarifas: num(row.devengado_tarifas),
       complemento_minimo: num(row.complemento_minimo),
@@ -132,18 +135,24 @@ export class KyselyNominaRepository implements INominaRepository {
 
    // ── Empleados candidatos ─────────────────────────────────────────────────
 
-   async listEmpleadosOperadores(): Promise<EmpleadoParaNomina[]> {
+   /**
+    * Todos los empleados activos. La modalidad se deriva del rol: solo los
+    * OPERADOR cobran por producción (conduces); el resto del personal cobra
+    * su salario fijo del período.
+    */
+   async listEmpleadosParaNomina(): Promise<EmpleadoParaNomina[]> {
       const rows = await this.db
          .selectFrom("empleado")
-         .select(["id", "nombre", "salario", "frecuencia_pago"])
+         .select(["id", "nombre", "rol", "salario", "frecuencia_pago"])
          .where("activo", "=", true)
-         .where("rol", "=", "OPERADOR")
          .orderBy("nombre", "asc")
          .execute();
 
       return rows.map((r) => ({
          id: r.id,
          nombre: r.nombre,
+         rol: r.rol,
+         modalidad: r.rol === "OPERADOR" ? "PRODUCCION" : "FIJO",
          salario: num(r.salario),
          frecuencia_pago: r.frecuencia_pago ?? null,
       }));
@@ -265,6 +274,8 @@ export class KyselyNominaRepository implements INominaRepository {
                empleado_id: row.empleado_id,
                empleado_nombre: row.empleado_nombre,
                frecuencia_pago: row.frecuencia_pago,
+               rol: row.rol,
+               modalidad: row.modalidad,
                minimo_garantizado: row.minimo_garantizado,
                devengado_tarifas: row.devengado_tarifas,
                complemento_minimo: row.complemento_minimo,
@@ -280,6 +291,8 @@ export class KyselyNominaRepository implements INominaRepository {
                oc.columns(["cycle_id", "empleado_id"]).doUpdateSet({
                   empleado_nombre: row.empleado_nombre,
                   frecuencia_pago: row.frecuencia_pago,
+                  rol: row.rol,
+                  modalidad: row.modalidad,
                   minimo_garantizado: row.minimo_garantizado,
                   devengado_tarifas: row.devengado_tarifas,
                   complemento_minimo: row.complemento_minimo,

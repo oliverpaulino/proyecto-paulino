@@ -90,10 +90,10 @@ export default function NominaPage() {
          <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
             <div className="flex flex-wrap items-center justify-between gap-3">
                <div>
-                  <h1 className="text-xl font-bold">Nómina de choferes</h1>
+                  <h1 className="text-xl font-bold">Nómina</h1>
                   <p className="text-sm text-muted-foreground">
-                     Se paga la producción de los conduces; si no alcanza el salario mínimo del
-                     período, se completa la diferencia.
+                     Los choferes cobran la producción de sus conduces, con el salario como
+                     mínimo garantizado. El resto del personal cobra su salario del período.
                   </p>
                </div>
 
@@ -243,7 +243,14 @@ export default function NominaPage() {
                   {ultimoCalculo && (
                      <div className="flex flex-wrap gap-4 rounded-lg border bg-background p-3 text-sm">
                         <span>
-                           <strong>{ultimoCalculo.empleados_procesados}</strong> choferes procesados
+                           <strong>{ultimoCalculo.empleados_procesados}</strong> empleados
+                           {" ("}
+                           {ultimoCalculo.choferes} chofer
+                           {ultimoCalculo.choferes === 1 ? "" : "es"}
+                           {", "}
+                           {ultimoCalculo.asalariados} asalariado
+                           {ultimoCalculo.asalariados === 1 ? "" : "s"}
+                           {")"}
                         </span>
                         <span>
                            Neto total: <strong>{money(ultimoCalculo.total_neto)}</strong>

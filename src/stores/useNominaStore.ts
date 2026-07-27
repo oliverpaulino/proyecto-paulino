@@ -32,11 +32,16 @@ export interface DeduccionDelPeriodo {
    fecha: string;
 }
 
+export type ModalidadPago = "PRODUCCION" | "FIJO";
+
 export interface NominaEmpleado {
    id: string;
    cycle_id: string;
    empleado_id: string;
    empleado_nombre: string | null;
+   rol: string | null;
+   /** PRODUCCION = chofer (cobra conduces); FIJO = asalariado. */
+   modalidad: ModalidadPago;
    minimo_garantizado: number;
    devengado_tarifas: number;
    complemento_minimo: number;
@@ -55,6 +60,8 @@ export interface NominaEmpleado {
 
 export interface ResultadoCalculo {
    empleados_procesados: number;
+   choferes: number;
+   asalariados: number;
    total_neto: number;
    empleados_con_inferencia: number;
    conduces_sin_tarifa: number;

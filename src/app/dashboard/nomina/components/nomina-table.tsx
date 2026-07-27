@@ -18,6 +18,10 @@ const money = (n: number) =>
  * no, se muestra "Varios" y se puede desplegar el desglose.
  */
 function PrecioUnitario({ empleado }: { empleado: NominaEmpleado }) {
+   // Un asalariado no cobra por viaje ni por hora: cobra su sueldo.
+   if (empleado.modalidad === "FIJO") {
+      return <span className="text-muted-foreground">Sueldo fijo</span>;
+   }
    const tarifas = empleado.tarifas ?? [];
    if (tarifas.length === 0) return <span className="text-muted-foreground">—</span>;
 
@@ -31,8 +35,58 @@ function PrecioUnitario({ empleado }: { empleado: NominaEmpleado }) {
    );
 }
 
+function DetalleDeducciones({ empleado }: { empleado: NominaEmpleado }) {
+   if ((empleado.detalle_deducciones?.length ?? 0) === 0) return null;
+   return (
+      <div className="mt-4 border-t pt-3">
+         <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
+            Deducciones del período
+         </p>
+         <table className="w-full text-sm">
+            <tbody>
+               {empleado.detalle_deducciones!.map((d) => (
+                  <tr key={d.id} className="border-t border-border/50">
+                     <td className="py-2 text-muted-foreground">
+                        {new Date(`${String(d.fecha).slice(0, 10)}T12:00:00`).toLocaleDateString("es-DO")}
+                     </td>
+                     <td className="py-2">{d.concepto}</td>
+                     <td className="py-2 text-right font-medium text-destructive">
+                        − {money(d.monto_total)}
+                     </td>
+                  </tr>
+               ))}
+            </tbody>
+         </table>
+      </div>
+   );
+}
+
 function FilaDesglose({ empleado }: { empleado: NominaEmpleado }) {
    const tarifas = empleado.tarifas ?? [];
+
+   if (empleado.modalidad === "FIJO") {
+      return (
+         <div className="px-6 py-4">
+            <table className="w-full text-sm">
+               <tbody>
+                  <tr>
+                     <td className="py-2">
+                        Salario del período
+                        {empleado.rol && (
+                           <span className="text-muted-foreground"> · {empleado.rol}</span>
+                        )}
+                     </td>
+                     <td className="py-2 text-right font-semibold">
+                        {money(empleado.complemento_minimo)}
+                     </td>
+                  </tr>
+               </tbody>
+            </table>
+            <DetalleDeducciones empleado={empleado} />
+         </div>
+      );
+   }
+
    if (tarifas.length === 0) {
       return (
          <div className="px-6 py-4 text-sm text-muted-foreground">
@@ -94,28 +148,7 @@ function FilaDesglose({ empleado }: { empleado: NominaEmpleado }) {
             </tbody>
          </table>
 
-         {(empleado.detalle_deducciones?.length ?? 0) > 0 && (
-            <div className="mt-4 border-t pt-3">
-               <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
-                  Deducciones del período
-               </p>
-               <table className="w-full text-sm">
-                  <tbody>
-                     {empleado.detalle_deducciones!.map((d) => (
-                        <tr key={d.id} className="border-t border-border/50">
-                           <td className="py-2 text-muted-foreground">
-                              {new Date(`${String(d.fecha).slice(0, 10)}T12:00:00`).toLocaleDateString("es-DO")}
-                           </td>
-                           <td className="py-2">{d.concepto}</td>
-                           <td className="py-2 text-right font-medium text-destructive">
-                              − {money(d.monto_total)}
-                           </td>
-                        </tr>
-                     ))}
-                  </tbody>
-               </table>
-            </div>
-         )}
+         <DetalleDeducciones empleado={empleado} />
       </div>
    );
 }
@@ -211,12 +244,19 @@ export function NominaTable({ readOnly = false }: { readOnly?: boolean }) {
                                  )}
                               </div>
                               <div className="pl-6 text-xs text-muted-foreground">
-                                 {e.total_conduces} conduce{e.total_conduces === 1 ? "" : "s"}
-                                 {e.complemento_minimo > 0 && (
-                                    <span className="text-blue-600">
-                                       {" "}
-                                       · complementado al mínimo
-                                    </span>
+                                 {e.modalidad === "FIJO" ? (
+                                    <>Salario fijo{e.rol ? ` · ${e.rol}` : ""}</>
+                                 ) : (
+                                    <>
+                                       {e.total_conduces} conduce
+                                       {e.total_conduces === 1 ? "" : "s"}
+                                       {e.complemento_minimo > 0 && (
+                                          <span className="text-blue-600">
+                                             {" "}
+                                             · complementado al mínimo
+                                          </span>
+                                       )}
+                                    </>
                                  )}
                               </div>
                            </td>

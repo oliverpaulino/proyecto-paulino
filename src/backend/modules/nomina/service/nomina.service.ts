@@ -17,6 +17,10 @@ import {
 export interface ResultadoCalculo {
    cycle_id: string;
    empleados_procesados: number;
+   /** Choferes que cobran por conduces. */
+   choferes: number;
+   /** Personal que cobra salario fijo. */
+   asalariados: number;
    total_neto: number;
    /** Empleados con al menos un conduce atribuido por inferencia. */
    empleados_con_inferencia: number;
@@ -113,12 +117,17 @@ export class NominaService {
    // ── Cálculo ──────────────────────────────────────────────────────────────
 
    /**
-    * Calcula (o recalcula) el ciclo completo.
+    * Calcula (o recalcula) el ciclo completo, con las dos modalidades:
     *
-    *   devengado   = Σ (cantidad × monto_pago del chofer para esa tarifa)
-    *   mínimo      = empleado.salario
-    *   complemento = MAX(0, mínimo − devengado)
-    *   neto        = devengado + complemento − seguro − deducciones
+    *   PRODUCCION (choferes, rol OPERADOR)
+    *     devengado   = Σ (cantidad × monto_pago del chofer para esa tarifa)
+    *     complemento = MAX(0, salario − devengado)   ← piso garantizado
+    *
+    *   FIJO (resto del personal)
+    *     devengado   = 0 (no tienen conduces)
+    *     complemento = salario del período           ← el sueldo íntegro
+    *
+    *   Ambas: neto = devengado + complemento − seguro − deducciones
     *
     * Es idempotente: se puede correr las veces que haga falta mientras el
     * ciclo esté ABIERTO o CALCULADO. El `seguro` NO se pisa (campo libre).
@@ -131,7 +140,7 @@ export class NominaService {
       }
 
       const [empleados, conduces] = await Promise.all([
-         this.repo.listEmpleadosOperadores(),
+         this.repo.listEmpleadosParaNomina(),
          this.repo.listConducesDelPeriodo(ciclo.fecha_inicio, ciclo.fecha_fin),
       ]);
 
@@ -146,10 +155,17 @@ export class NominaService {
       let totalNeto = 0;
       let empleadosConInferencia = 0;
       let conducesSinTarifa = 0;
+      let choferes = 0;
+      let asalariados = 0;
 
       for (const emp of empleados) {
-         const suyos = porEmpleado.get(emp.id) ?? [];
-         const tarifasEmpleado = await this.repo.getTarifasEmpleado(emp.id);
+         const esProduccion = emp.modalidad === "PRODUCCION";
+         // Solo los choferes cobran conduces. Un asalariado con conduces
+         // atribuidos por error no debe cobrarlos como producción.
+         const suyos = esProduccion ? porEmpleado.get(emp.id) ?? [] : [];
+         const tarifasEmpleado = esProduccion
+            ? await this.repo.getTarifasEmpleado(emp.id)
+            : new Map<string, number>();
 
          // Agrupa por tarifa para el desglose ("precio por viaje u hora").
          const acumulado = new Map<string, TarifaDesglose>();
@@ -189,6 +205,10 @@ export class NominaService {
          const devengado = tarifas.reduce((s, t) => s + t.subtotal, 0);
 
          const minimo = emp.salario ?? 0;
+         // PRODUCCION: lo que falte para llegar al piso garantizado.
+         // FIJO: el sueldo íntegro (devengado siempre es 0). Se reusa la misma
+         // columna a propósito — `bruto = devengado + complemento` funciona
+         // igual para ambos, y la UI la etiqueta según la modalidad.
          const complemento = calcularComplemento(devengado, minimo);
 
          const [deducciones, deudaTotal] = await Promise.all([
@@ -209,6 +229,8 @@ export class NominaService {
                empleado_id: emp.id,
                empleado_nombre: emp.nombre,
                frecuencia_pago: emp.frecuencia_pago,
+               rol: emp.rol,
+               modalidad: emp.modalidad,
                minimo_garantizado: minimo,
                devengado_tarifas: devengado,
                complemento_minimo: complemento,
@@ -226,6 +248,8 @@ export class NominaService {
 
          totalNeto += neto;
          if (inferidos > 0) empleadosConInferencia++;
+         if (esProduccion) choferes++;
+         else asalariados++;
       }
 
       await this.repo.updateCycle(cycleId, { estado: "CALCULADO" });
@@ -233,6 +257,8 @@ export class NominaService {
       return {
          cycle_id: cycleId,
          empleados_procesados: empleados.length,
+         choferes,
+         asalariados,
          total_neto: totalNeto,
          empleados_con_inferencia: empleadosConInferencia,
          conduces_sin_tarifa: conducesSinTarifa,

@@ -87,7 +87,14 @@ export interface PayrollCycleEmployeeProps {
    empleado_id: string;
    empleado_nombre: string | null;
    frecuencia_pago: string | null;
+   /** Rol del empleado al momento del cálculo (snapshot). */
+   rol: string | null;
+   /** PRODUCCION (choferes) o FIJO (asalariados). */
+   modalidad: ModalidadPago;
 
+   /**
+    * Para PRODUCCION es el piso garantizado; para FIJO es el sueldo mismo.
+    */
    minimo_garantizado: number;
    devengado_tarifas: number;
    complemento_minimo: number;
@@ -165,9 +172,20 @@ export interface DeduccionDelPeriodo {
    fecha: Date;
 }
 
+/**
+ * Cómo se le paga a este empleado:
+ *   - PRODUCCION: choferes/operadores. Cobran por conduces, con `salario`
+ *     como piso garantizado.
+ *   - FIJO: el resto del personal. Cobra su `salario` del período; no tiene
+ *     conduces y por tanto tampoco complemento.
+ */
+export type ModalidadPago = "PRODUCCION" | "FIJO";
+
 export interface EmpleadoParaNomina {
    id: string;
    nombre: string;
+   rol: string;
+   modalidad: ModalidadPago;
    salario: number;
    frecuencia_pago: string | null;
 }
@@ -179,8 +197,12 @@ export interface INominaRepository {
    listCycles(): Promise<PayrollCycleProps[]>;
    deleteCycle(id: string): Promise<boolean>;
 
-   /** Choferes activos (rol OPERADOR) candidatos a nómina. */
-   listEmpleadosOperadores(): Promise<EmpleadoParaNomina[]>;
+   /**
+    * Todos los empleados activos, con su modalidad de pago resuelta:
+    * OPERADOR → PRODUCCION (cobra conduces con mínimo garantizado);
+    * el resto → FIJO (cobra su salario del período).
+    */
+   listEmpleadosParaNomina(): Promise<EmpleadoParaNomina[]>;
 
    /**
     * Conduces del período con el empleado ya resuelto y la cantidad
