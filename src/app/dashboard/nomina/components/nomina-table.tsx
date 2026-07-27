@@ -10,6 +10,13 @@ const money = (n: number) =>
    `RD$ ${n.toLocaleString("es-DO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /**
+ * Lo que efectivamente se le descuenta: el ajuste manual si lo hay, si no lo
+ * que suman sus deducciones del período. `null` ≠ `0` — 0 es "no le cobres
+ * nada este ciclo".
+ */
+const aplicada = (e: NominaEmpleado) => e.deducciones_ajuste ?? e.deducciones;
+
+/**
  * "Precio por viaje u hora" no es un solo número: un chofer puede tener varias
  * tarifas en el mismo ciclo. Si todas coinciden se muestra un único precio; si
  * no, se muestra "Varios" y se puede desplegar el desglose.
@@ -95,9 +102,10 @@ function FilaDesglose({ empleado }: { empleado: NominaEmpleado }) {
 }
 
 export function NominaTable({ readOnly = false }: { readOnly?: boolean }) {
-   const { empleados, loading, UpdateSeguro } = useNominaStore();
+   const { empleados, loading, UpdateSeguro, UpdateDeduccion } = useNominaStore();
    const [abierto, setAbierto] = useState<string | null>(null);
    const [editando, setEditando] = useState<Record<string, string>>({});
+   const [editandoDed, setEditandoDed] = useState<Record<string, string>>({});
 
    if (loading) {
       return (
@@ -120,7 +128,8 @@ export function NominaTable({ readOnly = false }: { readOnly?: boolean }) {
          devengado: acc.devengado + e.devengado_tarifas,
          complemento: acc.complemento + e.complemento_minimo,
          seguro: acc.seguro + e.seguro,
-         deducciones: acc.deducciones + e.deducciones,
+         // Lo que realmente se cobra: el ajuste manual si existe.
+         deducciones: acc.deducciones + aplicada(e),
          neto: acc.neto + e.neto_pagar,
       }),
       { devengado: 0, complemento: 0, seguro: 0, deducciones: 0, neto: 0 }
@@ -137,6 +146,26 @@ export function NominaTable({ readOnly = false }: { readOnly?: boolean }) {
       });
       if (!Number.isFinite(n) || n < 0 || n === emp.seguro) return;
       await UpdateSeguro(emp.id, n);
+   }
+
+   async function guardarDeduccion(emp: NominaEmpleado) {
+      const valor = editandoDed[emp.id];
+      if (valor === undefined) return;
+      setEditandoDed((prev) => {
+         const copia = { ...prev };
+         delete copia[emp.id];
+         return copia;
+      });
+
+      // Vacío = quitar el ajuste y volver al monto calculado.
+      if (valor.trim() === "") {
+         if (emp.deducciones_ajuste !== null) await UpdateDeduccion(emp.id, null);
+         return;
+      }
+
+      const n = Number(valor);
+      if (!Number.isFinite(n) || n < 0 || n === emp.deducciones_ajuste) return;
+      await UpdateDeduccion(emp.id, n);
    }
 
    return (
@@ -225,8 +254,52 @@ export function NominaTable({ readOnly = false }: { readOnly?: boolean }) {
                            <td className="px-3 py-3 text-right whitespace-nowrap">
                               {money(e.deuda_total)}
                            </td>
-                           <td className="px-3 py-3 text-right whitespace-nowrap text-destructive">
-                              {e.deducciones > 0 ? `− ${money(e.deducciones)}` : "—"}
+                           <td
+                              className="px-3 py-3 text-right"
+                              onClick={(ev) => ev.stopPropagation()}
+                           >
+                              {readOnly ? (
+                                 <span className="text-destructive">
+                                    {aplicada(e) > 0 ? `− ${money(aplicada(e))}` : "—"}
+                                 </span>
+                              ) : (
+                                 <div className="flex flex-col items-end gap-0.5">
+                                    <Input
+                                       type="number"
+                                       step="0.01"
+                                       min="0"
+                                       className={`h-8 w-28 text-right ${
+                                          e.deducciones_ajuste !== null
+                                             ? "border-amber-400 bg-amber-50/50"
+                                             : ""
+                                       }`}
+                                       placeholder={String(e.deducciones)}
+                                       title={
+                                          e.deducciones_ajuste !== null
+                                             ? `Ajustado a mano. Sus deducciones del período suman ${money(e.deducciones)}. Vacía el campo para volver a ese monto.`
+                                             : "Monto calculado desde sus deducciones del período. Escribe otro para ajustarlo."
+                                       }
+                                       value={
+                                          editandoDed[e.id] ??
+                                          (e.deducciones_ajuste !== null
+                                             ? String(e.deducciones_ajuste)
+                                             : String(e.deducciones))
+                                       }
+                                       onChange={(ev) =>
+                                          setEditandoDed((p) => ({ ...p, [e.id]: ev.target.value }))
+                                       }
+                                       onBlur={() => guardarDeduccion(e)}
+                                       onKeyDown={(ev) => {
+                                          if (ev.key === "Enter") ev.currentTarget.blur();
+                                       }}
+                                    />
+                                    {e.deducciones_ajuste !== null && (
+                                       <span className="text-[10px] text-amber-600">
+                                          ajustado · real {money(e.deducciones)}
+                                       </span>
+                                    )}
+                                 </div>
+                              )}
                            </td>
                            <td className="px-3 py-3 text-right whitespace-nowrap text-muted-foreground">
                               {money(e.deuda_pendiente)}

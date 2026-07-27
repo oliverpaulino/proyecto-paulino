@@ -401,7 +401,11 @@ export interface DB {
       devengado_tarifas: Generated<number>; // Σ conduces × monto_pago
       complemento_minimo: Generated<number>; // MAX(0, mínimo − devengado)
       seguro: Generated<number>; // campo libre editable
+      // Suma real de las deducciones del período (se recalcula).
       deducciones: Generated<number>;
+      // Override manual de cuánto cobrarle en este ciclo. NULL = usar
+      // `deducciones`. No se pisa al recalcular (ver migración 008).
+      deducciones_ajuste: number | null;
       deuda_total: Generated<number>;
       deuda_pendiente: Generated<number>;
       neto_pagar: Generated<number>;

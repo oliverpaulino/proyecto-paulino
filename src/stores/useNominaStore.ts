@@ -32,7 +32,10 @@ export interface NominaEmpleado {
    devengado_tarifas: number;
    complemento_minimo: number;
    seguro: number;
+   /** Suma real de las deducciones del período. */
    deducciones: number;
+   /** Override manual. null = usar `deducciones`. */
+   deducciones_ajuste: number | null;
    deuda_total: number;
    deuda_pendiente: number;
    neto_pagar: number;
@@ -65,6 +68,8 @@ interface NominaState {
    CalcularCiclo: (cycleId: string) => Promise<void>;
    CerrarCiclo: (cycleId: string) => Promise<void>;
    UpdateSeguro: (cycleEmployeeId: string, seguro: number) => Promise<void>;
+   UpdateDeduccion: (cycleEmployeeId: string, ajuste: number | null) => Promise<void>;
+   RefrescarDeducciones: (cycleId: string) => Promise<number>;
 }
 
 async function pedir<T>(url: string, init?: RequestInit): Promise<T> {
@@ -184,6 +189,46 @@ export const useNominaStore = create<NominaState>((set, get) => ({
          });
       } catch (e: any) {
          set({ error: e.message });
+      }
+   },
+
+   /** `null` restaura el monto calculado desde las deducciones del período. */
+   UpdateDeduccion: async (cycleEmployeeId, ajuste) => {
+      try {
+         const row = await pedir<NominaEmpleado>(
+            `/api/nomina/cycle-employees/${cycleEmployeeId}/deduccion`,
+            { method: "PATCH", body: JSON.stringify({ ajuste }) }
+         );
+         set({
+            empleados: get().empleados.map((e) =>
+               e.id === cycleEmployeeId
+                  ? {
+                       ...e,
+                       deducciones_ajuste: row.deducciones_ajuste,
+                       deuda_pendiente: row.deuda_pendiente,
+                       neto_pagar: row.neto_pagar,
+                    }
+                  : e
+            ),
+         });
+      } catch (e: any) {
+         set({ error: e.message });
+      }
+   },
+
+   /** Recoge deducciones creadas a mano tras el cálculo. */
+   RefrescarDeducciones: async (cycleId) => {
+      set({ error: null });
+      try {
+         const r = await pedir<{ actualizados: number }>(
+            `/api/nomina/cycles/${cycleId}/refrescar-deducciones`,
+            { method: "POST" }
+         );
+         await get().GetEmpleados(cycleId);
+         return r.actualizados;
+      } catch (e: any) {
+         set({ error: e.message });
+         return 0;
       }
    },
 }));

@@ -88,7 +88,13 @@ export interface PayrollCycleEmployeeProps {
    complemento_minimo: number;
 
    seguro: number;
+   /** Suma real de las deducciones del período (se recalcula). */
    deducciones: number;
+   /**
+    * Override manual de cuánto cobrarle en este ciclo. `null` = usar
+    * `deducciones`. Se conserva al recalcular, igual que `seguro`.
+    */
+   deducciones_ajuste: number | null;
 
    deuda_total: number;
    deuda_pendiente: number;
@@ -118,6 +124,18 @@ export function calcularBruto(devengado: number, complemento: number): number {
 /** Lo que falta para llegar al mínimo garantizado (0 si ya lo superó). */
 export function calcularComplemento(devengado: number, minimo: number): number {
    return Math.max(0, minimo - devengado);
+}
+
+/**
+ * Cuánto se le descuenta realmente: el ajuste manual si existe, si no lo
+ * calculado. Se distingue `null` de `0` a propósito — 0 es "no le cobres nada
+ * este ciclo", null es "usa lo que suman sus deducciones".
+ */
+export function deduccionAplicada(
+   deducciones: number,
+   ajuste: number | null | undefined
+): number {
+   return ajuste ?? deducciones;
 }
 
 /** Neto a pagar. Puede dar negativo si los descuentos superan al bruto. */
@@ -189,6 +207,22 @@ export interface INominaRepository {
 
    /** Seguro es un campo libre: se edita a mano y se recalcula el neto. */
    updateSeguro(cycleEmployeeId: string, seguro: number): Promise<PayrollCycleEmployeeProps | null>;
+
+   /**
+    * Ajusta a mano cuánto se le descuenta en el ciclo. `null` restaura el
+    * monto calculado desde sus deducciones del período.
+    */
+   updateDeduccionAjuste(
+      cycleEmployeeId: string,
+      ajuste: number | null
+   ): Promise<PayrollCycleEmployeeProps | null>;
+
+   /**
+    * Vuelve a leer las deducciones del período (para recoger las que se
+    * crearon a mano después de calcular) sin tocar el resto del cálculo ni
+    * los ajustes manuales.
+    */
+   refrescarDeducciones(cycleId: string): Promise<number>;
 
    /** Borra los resúmenes del ciclo antes de recalcular. */
    clearCycleEmployees(cycleId: string): Promise<void>;

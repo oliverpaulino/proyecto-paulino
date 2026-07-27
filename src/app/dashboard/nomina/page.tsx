@@ -19,7 +19,7 @@ import {
    DialogTitle,
    DialogTrigger,
 } from "@/components/ui/dialog";
-import { Calculator, Plus, Lock, Loader2, TriangleAlert } from "lucide-react";
+import { Calculator, Plus, Lock, Loader2, TriangleAlert, RefreshCw } from "lucide-react";
 import { useNominaStore, type EstadoCiclo } from "@/stores/useNominaStore";
 import { NominaTable } from "./components/nomina-table";
 import { CycleForm } from "./components/cycle-form";
@@ -50,9 +50,12 @@ export default function NominaPage() {
       GetEmpleados,
       CalcularCiclo,
       CerrarCiclo,
+      RefrescarDeducciones,
    } = useNominaStore();
 
    const [dialogAbierto, setDialogAbierto] = useState(false);
+   const [refrescando, setRefrescando] = useState(false);
+   const [avisoRefresco, setAvisoRefresco] = useState<string | null>(null);
 
    useEffect(() => {
       GetCycles();
@@ -172,6 +175,33 @@ export default function NominaPage() {
                            {calculando ? "Calculando..." : "Calcular nómina"}
                         </Button>
 
+                        {/*
+                           Recoge las deducciones que se hayan creado a mano
+                           después de calcular, sin rehacer la producción ni
+                           perder los ajustes manuales.
+                        */}
+                        <Button
+                           variant="outline"
+                           className="gap-2"
+                           disabled={cerrado || empleados.length === 0 || refrescando}
+                           onClick={async () => {
+                              setRefrescando(true);
+                              const n = await RefrescarDeducciones(selectedCycle.id);
+                              setRefrescando(false);
+                              setAvisoRefresco(
+                                 n === 0
+                                    ? "Las deducciones ya estaban al día."
+                                    : `${n} chofer(es) actualizados.`
+                              );
+                              setTimeout(() => setAvisoRefresco(null), 4000);
+                           }}
+                        >
+                           <RefreshCw
+                              className={`size-4 ${refrescando ? "animate-spin" : ""}`}
+                           />
+                           Refrescar deducciones
+                        </Button>
+
                         <Button
                            variant="outline"
                            className="gap-2"
@@ -186,6 +216,12 @@ export default function NominaPage() {
                         </Button>
                      </div>
                   </div>
+
+                  {avisoRefresco && (
+                     <div className="rounded-md bg-blue-50 p-3 text-sm font-medium text-blue-800">
+                        {avisoRefresco}
+                     </div>
+                  )}
 
                   {ultimoCalculo && (
                      <div className="flex flex-wrap gap-4 rounded-lg border bg-background p-3 text-sm">

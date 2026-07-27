@@ -12,6 +12,7 @@ import type {
    EstadoCiclo,
    FrecuenciaPago,
 } from "../domain/nomina.domain";
+import { deduccionAplicada } from "../domain/nomina.domain";
 
 const num = (v: unknown): number => (v == null ? 0 : Number(v));
 
@@ -53,6 +54,8 @@ function mapCycleEmployee(row: any): PayrollCycleEmployeeProps {
       complemento_minimo: num(row.complemento_minimo),
       seguro: num(row.seguro),
       deducciones: num(row.deducciones),
+      // null ≠ 0: null = "usa el calculado", 0 = "no le cobres nada".
+      deducciones_ajuste: row.deducciones_ajuste == null ? null : num(row.deducciones_ajuste),
       deuda_total: num(row.deuda_total),
       deuda_pendiente: num(row.deuda_pendiente),
       neto_pagar: num(row.neto_pagar),
@@ -268,6 +271,7 @@ export class KyselyNominaRepository implements INominaRepository {
                complemento_minimo: row.complemento_minimo,
                seguro: row.seguro,
                deducciones: row.deducciones,
+               deducciones_ajuste: row.deducciones_ajuste,
                deuda_total: row.deuda_total,
                deuda_pendiente: row.deuda_pendiente,
                neto_pagar: row.neto_pagar,
@@ -281,8 +285,9 @@ export class KyselyNominaRepository implements INominaRepository {
                   minimo_garantizado: row.minimo_garantizado,
                   devengado_tarifas: row.devengado_tarifas,
                   complemento_minimo: row.complemento_minimo,
-                  // `seguro` NO se pisa al recalcular: es un campo libre que
-                  // el usuario edita a mano.
+                  // `seguro` y `deducciones_ajuste` NO se pisan al recalcular:
+                  // son ediciones manuales del usuario. `deducciones` sí, que
+                  // es el monto real de sus deducciones del período.
                   deducciones: row.deducciones,
                   deuda_total: row.deuda_total,
                   deuda_pendiente: row.deuda_pendiente,
@@ -378,7 +383,11 @@ export class KyselyNominaRepository implements INominaRepository {
       if (!actual) return null;
 
       const bruto = num(actual.devengado_tarifas) + num(actual.complemento_minimo);
-      const neto = bruto - seguro - num(actual.deducciones);
+      const descuento = deduccionAplicada(
+         num(actual.deducciones),
+         actual.deducciones_ajuste == null ? null : num(actual.deducciones_ajuste)
+      );
+      const neto = bruto - seguro - descuento;
 
       const row = await this.db
          .updateTable("payroll_cycle_employees")
@@ -387,6 +396,84 @@ export class KyselyNominaRepository implements INominaRepository {
          .returningAll()
          .executeTakeFirst();
       return row ? mapCycleEmployee(row) : null;
+   }
+
+   async updateDeduccionAjuste(
+      cycleEmployeeId: string,
+      ajuste: number | null
+   ): Promise<PayrollCycleEmployeeProps | null> {
+      const actual = await this.db
+         .selectFrom("payroll_cycle_employees")
+         .selectAll()
+         .where("id", "=", cycleEmployeeId)
+         .executeTakeFirst();
+      if (!actual) return null;
+
+      const bruto = num(actual.devengado_tarifas) + num(actual.complemento_minimo);
+      const descuento = deduccionAplicada(num(actual.deducciones), ajuste);
+      const neto = bruto - num(actual.seguro) - descuento;
+
+      const row = await this.db
+         .updateTable("payroll_cycle_employees")
+         .set({
+            deducciones_ajuste: ajuste,
+            // Lo que queda debiendo tras cobrar lo de este ciclo.
+            deuda_pendiente: Math.max(0, num(actual.deuda_total) - descuento),
+            neto_pagar: neto,
+            updated_at: new Date(),
+         } as any)
+         .where("id", "=", cycleEmployeeId)
+         .returningAll()
+         .executeTakeFirst();
+      return row ? mapCycleEmployee(row) : null;
+   }
+
+   /**
+    * Relee las deducciones del período para recoger las que se crearon a mano
+    * DESPUÉS de calcular el ciclo. No toca la producción ni los ajustes
+    * manuales: solo actualiza `deducciones`, `deuda_*` y el neto resultante.
+    * Devuelve cuántas filas cambiaron de monto.
+    */
+   async refrescarDeducciones(cycleId: string): Promise<number> {
+      const ciclo = await this.findCycleById(cycleId);
+      if (!ciclo) return 0;
+
+      const filas = await this.db
+         .selectFrom("payroll_cycle_employees")
+         .selectAll()
+         .where("cycle_id", "=", cycleId)
+         .execute();
+
+      let cambiadas = 0;
+
+      for (const f of filas) {
+         const [periodo, total] = await Promise.all([
+            this.getDeduccionesDelPeriodo(f.empleado_id, ciclo.fecha_inicio, ciclo.fecha_fin),
+            this.getDeudaTotal(f.empleado_id),
+         ]);
+
+         if (periodo === num(f.deducciones) && total === num(f.deuda_total)) continue;
+
+         const ajuste = f.deducciones_ajuste == null ? null : num(f.deducciones_ajuste);
+         const descuento = deduccionAplicada(periodo, ajuste);
+         const bruto = num(f.devengado_tarifas) + num(f.complemento_minimo);
+
+         await this.db
+            .updateTable("payroll_cycle_employees")
+            .set({
+               deducciones: periodo,
+               deuda_total: total,
+               deuda_pendiente: Math.max(0, total - descuento),
+               neto_pagar: bruto - num(f.seguro) - descuento,
+               updated_at: new Date(),
+            } as any)
+            .where("id", "=", f.id)
+            .execute();
+
+         cambiadas++;
+      }
+
+      return cambiadas;
    }
 
    async clearCycleEmployees(cycleId: string): Promise<void> {

@@ -12,6 +12,7 @@ import {
    calcularComplemento,
    calcularNeto,
    cicloEsEditable,
+   deduccionAplicada,
 } from "../domain/nomina.domain";
 
 export interface ResultadoCalculo {
@@ -163,12 +164,16 @@ export class NominaService {
             this.repo.getDeudaTotal(emp.id),
          ]);
 
-         // El seguro es un campo libre: al recalcular se respeta el valor que
-         // el usuario ya haya puesto para este empleado en este ciclo.
+         // El seguro y el ajuste de deducción son campos libres: al recalcular
+         // se respeta lo que el usuario ya haya puesto para este empleado.
          const existente = await this.repo.findCycleEmployee(cycleId, emp.id);
          const seguro = existente?.seguro ?? 0;
+         const ajuste = existente?.deducciones_ajuste ?? null;
 
-         const neto = calcularNeto(devengado, complemento, seguro, deducciones);
+         // Lo que efectivamente se le descuenta: el ajuste manual si existe,
+         // si no lo que suman sus deducciones del período.
+         const descuento = deduccionAplicada(deducciones, ajuste);
+         const neto = calcularNeto(devengado, complemento, seguro, descuento);
 
          await this.repo.upsertCycleEmployee(
             {
@@ -181,9 +186,10 @@ export class NominaService {
                complemento_minimo: complemento,
                seguro,
                deducciones,
+               deducciones_ajuste: ajuste,
                deuda_total: deudaTotal,
                // Lo que queda debiendo tras cobrar lo de este período.
-               deuda_pendiente: Math.max(0, deudaTotal - deducciones),
+               deuda_pendiente: Math.max(0, deudaTotal - descuento),
                neto_pagar: neto,
                total_conduces: suyos.length,
                conduces_inferidos: inferidos,
@@ -220,5 +226,34 @@ export class NominaService {
          throw new Error("El seguro debe ser un número mayor o igual a 0");
       }
       return await this.repo.updateSeguro(cycleEmployeeId, seguro);
+   }
+
+   /**
+    * Ajusta cuánto se le descuenta en este ciclo. Pasar `null` restaura el
+    * monto calculado desde sus deducciones del período.
+    */
+   async updateDeduccionAjuste(
+      cycleEmployeeId: string,
+      ajuste: number | null
+   ): Promise<PayrollCycleEmployeeProps | null> {
+      if (ajuste !== null) {
+         if (!Number.isFinite(ajuste) || ajuste < 0) {
+            throw new Error("El monto a deducir debe ser mayor o igual a 0");
+         }
+      }
+      return await this.repo.updateDeduccionAjuste(cycleEmployeeId, ajuste);
+   }
+
+   /**
+    * Recoge las deducciones creadas a mano después de calcular el ciclo, sin
+    * recalcular la producción ni perder los ajustes manuales.
+    */
+   async refrescarDeducciones(cycleId: string): Promise<{ actualizados: number }> {
+      const ciclo = await this.repo.findCycleById(cycleId);
+      if (!ciclo) throw new Error("Ciclo no encontrado");
+      if (!cicloEsEditable(ciclo.estado)) {
+         throw new Error(`El ciclo está ${ciclo.estado}: sus montos están congelados`);
+      }
+      return { actualizados: await this.repo.refrescarDeducciones(cycleId) };
    }
 }

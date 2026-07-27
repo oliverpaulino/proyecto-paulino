@@ -103,4 +103,33 @@ nominaRoute.patch("/cycle-employees/:id/seguro", async (c) => {
    }
 });
 
+/**
+ * Ajusta cuánto se le descuenta al chofer en este ciclo.
+ * Body: `{ ajuste: number }` para fijar un monto, `{ ajuste: null }` para
+ * volver a usar el total de sus deducciones del período.
+ */
+nominaRoute.patch("/cycle-employees/:id/deduccion", async (c) => {
+   try {
+      const { ajuste } = await c.req.json();
+      const valor = ajuste === null || ajuste === "" || ajuste === undefined ? null : Number(ajuste);
+      const row = await service.updateDeduccionAjuste(c.req.param("id"), valor);
+      if (!row) return c.json({ error: "Registro no encontrado" }, 404);
+      return c.json(row);
+   } catch (err) {
+      return fail(c, err, "Error al ajustar la deducción");
+   }
+});
+
+/**
+ * Relee las deducciones del período para recoger las que se crearon a mano
+ * después de calcular. No toca la producción ni los ajustes manuales.
+ */
+nominaRoute.post("/cycles/:id/refrescar-deducciones", async (c) => {
+   try {
+      return c.json(await service.refrescarDeducciones(c.req.param("id")));
+   } catch (err) {
+      return fail(c, err, "Error al refrescar las deducciones");
+   }
+});
+
 export default nominaRoute;
