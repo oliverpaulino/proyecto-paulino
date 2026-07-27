@@ -87,6 +87,30 @@ conducesRoute.post("/", async (c) => {
    }
 });
 
+// PATCH /api/conduces/bulk-cobrable — toggle es_cobrable en lote
+// DEBE ir ANTES de /:id para que Hono no lo capture como parámetro.
+conducesRoute.patch("/bulk-cobrable", async (c) => {
+   try {
+      const session = await auth.api.getSession({ headers: c.req.raw.headers });
+      if (!session?.user) return c.json({ error: "No autenticado" }, 401);
+
+      const body = await c.req.json();
+      const { ids, es_cobrable } = body as { ids: string[]; es_cobrable: boolean };
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+         return c.json({ error: "Se requiere al menos un ID" }, 400);
+      }
+      if (typeof es_cobrable !== "boolean") {
+         return c.json({ error: "es_cobrable debe ser boolean" }, 400);
+      }
+
+      await service.bulkToggleCobrable(ids, es_cobrable);
+      return c.json({ success: true });
+   } catch (err: unknown) {
+      return c.json({ error: err instanceof Error ? err.message : "Error al actualizar conduces" }, 500);
+   }
+});
+
 // PATCH /api/conduces/:id
 // body puede incluir `proyecto_id_anterior` para recalcular ambos proyectos
 // si el conduce se reasignó de un proyecto a otro (o se desasignó).
@@ -108,29 +132,6 @@ conducesRoute.patch("/:id", async (c) => {
       return c.json(conduce);
    } catch (err: unknown) {
       return c.json({ error: err instanceof Error ? err.message : "Error al actualizar conduce" }, 400);
-   }
-});
-
-// PATCH /api/conduces/bulk-cobrable — toggle es_cobrable en lote
-conducesRoute.patch("/bulk-cobrable", async (c) => {
-   try {
-      const session = await auth.api.getSession({ headers: c.req.raw.headers });
-      if (!session?.user) return c.json({ error: "No autenticado" }, 401);
-
-      const body = await c.req.json();
-      const { ids, es_cobrable } = body as { ids: string[]; es_cobrable: boolean };
-
-      if (!Array.isArray(ids) || ids.length === 0) {
-         return c.json({ error: "Se requiere al menos un ID" }, 400);
-      }
-      if (typeof es_cobrable !== "boolean") {
-         return c.json({ error: "es_cobrable debe ser boolean" }, 400);
-      }
-
-      await service.bulkToggleCobrable(ids, es_cobrable);
-      return c.json({ success: true });
-   } catch (err: unknown) {
-      return c.json({ error: err instanceof Error ? err.message : "Error al actualizar conduces" }, 500);
    }
 });
 

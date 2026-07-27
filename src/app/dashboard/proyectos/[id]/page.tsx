@@ -117,7 +117,11 @@ export default function ProyectoDetailPage() {
          } else if (tipo === "factura") {
             await generateProyectoFacturaPDF(proyecto);
          } else {
-            await generateConducesProyectoPDF(proyecto, conducesCobrables);
+            // PDF de conduces: usar los seleccionados, o todos los cobrables si no hay selección
+            const conducesParaPDF = selectedConduceIds.size > 0
+               ? conduces.filter((c) => selectedConduceIds.has(c.id))
+               : conducesCobrables;
+            await generateConducesProyectoPDF(proyecto, conducesParaPDF);
          }
       } finally {
          setPdfLoading(null);
@@ -189,7 +193,10 @@ export default function ProyectoDetailPage() {
                (c.operador_nombre ?? "").toLowerCase().includes(q);
             if (!match) return false;
          }
-         if (conduceFilterCategoria !== "all" && c.categoria_equipo_tarifa_nombre !== conduceFilterCategoria) return false;
+         if (conduceFilterCategoria !== "all") {
+            const catNombre = c.categoria_equipo_tarifa_nombre || "Sin categoría";
+            if (catNombre !== conduceFilterCategoria) return false;
+         }
          if (conduceFilterCobrable === "cobrable" && !c.es_cobrable) return false;
          if (conduceFilterCobrable === "no_cobrable" && c.es_cobrable) return false;
          if (conduceFilterTipo !== "all" && c.tipo_conduce !== conduceFilterTipo) return false;
@@ -197,10 +204,13 @@ export default function ProyectoDetailPage() {
       });
    }, [conduces, conduceSearch, conduceFilterCategoria, conduceFilterCobrable, conduceFilterTipo]);
 
-   const categorias = useMemo(() => {
-      const cats = new Set(conduces.map((c) => c.categoria_equipo_tarifa_nombre).filter(Boolean));
-      return [...cats].sort();
-   }, [conduces]);
+    const categorias = useMemo(() => {
+       const cats = new Set(
+          conduces
+             .map((c) => c.categoria_equipo_tarifa_nombre || "Sin categoría")
+       );
+       return [...cats].sort();
+    }, [conduces]);
 
    // Agrupar conduces filtrados por categoría
    const conducesGrouped = useMemo(() => {
@@ -480,7 +490,9 @@ export default function ProyectoDetailPage() {
                            ) : (
                               <FileText className="mr-2 size-4" />
                            )}
-                           PDF Cobrables
+                           {selectedConduceIds.size > 0
+                              ? `PDF Seleccionados (${selectedConduceIds.size})`
+                              : "PDF Cobrables"}
                         </Button>
                      </div>
 
