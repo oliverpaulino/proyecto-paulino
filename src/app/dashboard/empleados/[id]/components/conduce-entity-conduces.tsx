@@ -201,10 +201,21 @@ export function ConduceEntityConduces({ filtroKey, filtroValue, ocultarProyecto 
                <p className="text-[10px] font-semibold uppercase text-muted-foreground">Horas Trabajadas</p>
                <p className="text-lg font-bold">{resumen.totalHoras.toFixed(2)}</p>
             </div>
+            {/*
+               OJO: esto es lo FACTURADO AL CLIENTE (conduce.subtotal =
+               precio_unitario × cantidad), NO lo que se le paga al chofer.
+               El pago al chofer usa `empleado_categoria_tarifa.monto_pago`
+               y se calcula en Nómina (/dashboard/nomina).
+            */}
             <div className="border-l pl-4">
-               <p className="text-[10px] font-semibold uppercase text-brand-blue">Producción Bruta</p>
+               <p className="text-[10px] font-semibold uppercase text-brand-blue">
+                  Facturado al cliente
+               </p>
                <p className="text-lg font-bold text-brand-blue">
                   RD$ {resumen.produccionBruta.toLocaleString("es-DO")}
+               </p>
+               <p className="text-[10px] text-muted-foreground">
+                  No es el pago al empleado
                </p>
             </div>
          </div>
