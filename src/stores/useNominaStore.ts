@@ -23,6 +23,13 @@ export interface TarifaDesglose {
    subtotal: number;
 }
 
+export interface DeduccionDelPeriodo {
+   id: string;
+   concepto: string;
+   monto_total: number;
+   fecha: string;
+}
+
 export interface NominaEmpleado {
    id: string;
    cycle_id: string;
@@ -32,10 +39,10 @@ export interface NominaEmpleado {
    devengado_tarifas: number;
    complemento_minimo: number;
    seguro: number;
-   /** Suma real de las deducciones del período. */
+   /** Suma de las deducciones del período. */
    deducciones: number;
-   /** Override manual. null = usar `deducciones`. */
-   deducciones_ajuste: number | null;
+   /** Las deducciones concretas que componen ese monto. */
+   detalle_deducciones?: DeduccionDelPeriodo[];
    deuda_total: number;
    deuda_pendiente: number;
    neto_pagar: number;
@@ -68,7 +75,11 @@ interface NominaState {
    CalcularCiclo: (cycleId: string) => Promise<void>;
    CerrarCiclo: (cycleId: string) => Promise<void>;
    UpdateSeguro: (cycleEmployeeId: string, seguro: number) => Promise<void>;
-   UpdateDeduccion: (cycleEmployeeId: string, ajuste: number | null) => Promise<void>;
+   AgregarDeduccion: (
+      cycleId: string,
+      empleadoId: string,
+      data: { monto: number; concepto: string; fecha?: string }
+   ) => Promise<boolean>;
    RefrescarDeducciones: (cycleId: string) => Promise<number>;
 }
 
@@ -192,27 +203,19 @@ export const useNominaStore = create<NominaState>((set, get) => ({
       }
    },
 
-   /** `null` restaura el monto calculado desde las deducciones del período. */
-   UpdateDeduccion: async (cycleEmployeeId, ajuste) => {
+   /** Crea una deducción NUEVA; no modifica las existentes. */
+   AgregarDeduccion: async (cycleId, empleadoId, data) => {
+      set({ error: null });
       try {
-         const row = await pedir<NominaEmpleado>(
-            `/api/nomina/cycle-employees/${cycleEmployeeId}/deduccion`,
-            { method: "PATCH", body: JSON.stringify({ ajuste }) }
-         );
-         set({
-            empleados: get().empleados.map((e) =>
-               e.id === cycleEmployeeId
-                  ? {
-                       ...e,
-                       deducciones_ajuste: row.deducciones_ajuste,
-                       deuda_pendiente: row.deuda_pendiente,
-                       neto_pagar: row.neto_pagar,
-                    }
-                  : e
-            ),
+         await pedir(`/api/nomina/cycles/${cycleId}/empleados/${empleadoId}/deducciones`, {
+            method: "POST",
+            body: JSON.stringify(data),
          });
+         await get().GetEmpleados(cycleId);
+         return true;
       } catch (e: any) {
          set({ error: e.message });
+         return false;
       }
    },
 

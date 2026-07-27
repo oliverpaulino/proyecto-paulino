@@ -88,13 +88,12 @@ export interface PayrollCycleEmployeeProps {
    complemento_minimo: number;
 
    seguro: number;
-   /** Suma real de las deducciones del período (se recalcula). */
-   deducciones: number;
    /**
-    * Override manual de cuánto cobrarle en este ciclo. `null` = usar
-    * `deducciones`. Se conserva al recalcular, igual que `seguro`.
+    * Suma de las deducciones del período. Siempre se recalcula desde la tabla
+    * `deduccion`: para descontar más se CREA una deducción nueva, nunca se
+    * sobrescribe este monto.
     */
-   deducciones_ajuste: number | null;
+   deducciones: number;
 
    deuda_total: number;
    deuda_pendiente: number;
@@ -114,6 +113,8 @@ export interface PayrollCycleEmployeeProps {
    updated_at: Date;
 
    tarifas?: TarifaDesglose[];
+   /** Deducciones concretas que componen el monto de `deducciones`. */
+   detalle_deducciones?: DeduccionDelPeriodo[];
 }
 
 /** Bruto antes de descuentos. */
@@ -124,18 +125,6 @@ export function calcularBruto(devengado: number, complemento: number): number {
 /** Lo que falta para llegar al mínimo garantizado (0 si ya lo superó). */
 export function calcularComplemento(devengado: number, minimo: number): number {
    return Math.max(0, minimo - devengado);
-}
-
-/**
- * Cuánto se le descuenta realmente: el ajuste manual si existe, si no lo
- * calculado. Se distingue `null` de `0` a propósito — 0 es "no le cobres nada
- * este ciclo", null es "usa lo que suman sus deducciones".
- */
-export function deduccionAplicada(
-   deducciones: number,
-   ajuste: number | null | undefined
-): number {
-   return ajuste ?? deducciones;
 }
 
 /** Neto a pagar. Puede dar negativo si los descuentos superan al bruto. */
@@ -161,6 +150,14 @@ export interface ConduceParaNomina {
    medida_cobro_nombre: string | null;
    /** Viajes/botes para CAMION, horas para EQUIPO_PESADO. */
    cantidad: number;
+}
+
+/** Una deducción concreta que cae dentro del período del ciclo. */
+export interface DeduccionDelPeriodo {
+   id: string;
+   concepto: string;
+   monto_total: number;
+   fecha: Date;
 }
 
 export interface EmpleadoParaNomina {
@@ -209,20 +206,29 @@ export interface INominaRepository {
    updateSeguro(cycleEmployeeId: string, seguro: number): Promise<PayrollCycleEmployeeProps | null>;
 
    /**
-    * Ajusta a mano cuánto se le descuenta en el ciclo. `null` restaura el
-    * monto calculado desde sus deducciones del período.
+    * Crea una deducción nueva para el empleado y devuelve su id. La nómina la
+    * recogerá como cualquier otra: no se toca el monto ya calculado, se añade
+    * un descuento con su propio concepto y fecha.
     */
-   updateDeduccionAjuste(
-      cycleEmployeeId: string,
-      ajuste: number | null
-   ): Promise<PayrollCycleEmployeeProps | null>;
+   crearDeduccion(data: {
+      empleado_id: string;
+      monto_total: number;
+      concepto: string;
+      fecha: Date;
+   }): Promise<string>;
 
    /**
     * Vuelve a leer las deducciones del período (para recoger las que se
-    * crearon a mano después de calcular) sin tocar el resto del cálculo ni
-    * los ajustes manuales.
+    * crearon a mano después de calcular) sin tocar el resto del cálculo.
     */
    refrescarDeducciones(cycleId: string): Promise<number>;
+
+   /** Detalle de las deducciones del período, para mostrarlas en la nómina. */
+   listDeduccionesDelPeriodo(
+      empleadoId: string,
+      desde: Date,
+      hasta: Date
+   ): Promise<DeduccionDelPeriodo[]>;
 
    /** Borra los resúmenes del ciclo antes de recalcular. */
    clearCycleEmployees(cycleId: string): Promise<void>;

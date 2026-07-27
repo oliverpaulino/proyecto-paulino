@@ -2,19 +2,15 @@
 
 import { Fragment, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronDown, ChevronRight, TriangleAlert, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronRight, TriangleAlert, Loader2, Plus } from "lucide-react";
 import { useNominaStore, type NominaEmpleado } from "@/stores/useNominaStore";
+import { AgregarDeduccionDialog } from "./agregar-deduccion-dialog";
 
 const money = (n: number) =>
    `RD$ ${n.toLocaleString("es-DO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-/**
- * Lo que efectivamente se le descuenta: el ajuste manual si lo hay, si no lo
- * que suman sus deducciones del período. `null` ≠ `0` — 0 es "no le cobres
- * nada este ciclo".
- */
-const aplicada = (e: NominaEmpleado) => e.deducciones_ajuste ?? e.deducciones;
 
 /**
  * "Precio por viaje u hora" no es un solo número: un chofer puede tener varias
@@ -97,15 +93,38 @@ function FilaDesglose({ empleado }: { empleado: NominaEmpleado }) {
                )}
             </tbody>
          </table>
+
+         {(empleado.detalle_deducciones?.length ?? 0) > 0 && (
+            <div className="mt-4 border-t pt-3">
+               <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
+                  Deducciones del período
+               </p>
+               <table className="w-full text-sm">
+                  <tbody>
+                     {empleado.detalle_deducciones!.map((d) => (
+                        <tr key={d.id} className="border-t border-border/50">
+                           <td className="py-2 text-muted-foreground">
+                              {new Date(`${String(d.fecha).slice(0, 10)}T12:00:00`).toLocaleDateString("es-DO")}
+                           </td>
+                           <td className="py-2">{d.concepto}</td>
+                           <td className="py-2 text-right font-medium text-destructive">
+                              − {money(d.monto_total)}
+                           </td>
+                        </tr>
+                     ))}
+                  </tbody>
+               </table>
+            </div>
+         )}
       </div>
    );
 }
 
 export function NominaTable({ readOnly = false }: { readOnly?: boolean }) {
-   const { empleados, loading, UpdateSeguro, UpdateDeduccion } = useNominaStore();
+   const { empleados, loading, UpdateSeguro } = useNominaStore();
    const [abierto, setAbierto] = useState<string | null>(null);
    const [editando, setEditando] = useState<Record<string, string>>({});
-   const [editandoDed, setEditandoDed] = useState<Record<string, string>>({});
+   const [agregandoA, setAgregandoA] = useState<NominaEmpleado | null>(null);
 
    if (loading) {
       return (
@@ -128,8 +147,7 @@ export function NominaTable({ readOnly = false }: { readOnly?: boolean }) {
          devengado: acc.devengado + e.devengado_tarifas,
          complemento: acc.complemento + e.complemento_minimo,
          seguro: acc.seguro + e.seguro,
-         // Lo que realmente se cobra: el ajuste manual si existe.
-         deducciones: acc.deducciones + aplicada(e),
+         deducciones: acc.deducciones + e.deducciones,
          neto: acc.neto + e.neto_pagar,
       }),
       { devengado: 0, complemento: 0, seguro: 0, deducciones: 0, neto: 0 }
@@ -146,26 +164,6 @@ export function NominaTable({ readOnly = false }: { readOnly?: boolean }) {
       });
       if (!Number.isFinite(n) || n < 0 || n === emp.seguro) return;
       await UpdateSeguro(emp.id, n);
-   }
-
-   async function guardarDeduccion(emp: NominaEmpleado) {
-      const valor = editandoDed[emp.id];
-      if (valor === undefined) return;
-      setEditandoDed((prev) => {
-         const copia = { ...prev };
-         delete copia[emp.id];
-         return copia;
-      });
-
-      // Vacío = quitar el ajuste y volver al monto calculado.
-      if (valor.trim() === "") {
-         if (emp.deducciones_ajuste !== null) await UpdateDeduccion(emp.id, null);
-         return;
-      }
-
-      const n = Number(valor);
-      if (!Number.isFinite(n) || n < 0 || n === emp.deducciones_ajuste) return;
-      await UpdateDeduccion(emp.id, n);
    }
 
    return (
@@ -254,50 +252,36 @@ export function NominaTable({ readOnly = false }: { readOnly?: boolean }) {
                            <td className="px-3 py-3 text-right whitespace-nowrap">
                               {money(e.deuda_total)}
                            </td>
+                           {/*
+                              El monto NO se edita: sale de sumar las
+                              deducciones del período. Para descontar más se
+                              agrega una deducción nueva, con su concepto.
+                           */}
                            <td
                               className="px-3 py-3 text-right"
                               onClick={(ev) => ev.stopPropagation()}
                            >
-                              {readOnly ? (
-                                 <span className="text-destructive">
-                                    {aplicada(e) > 0 ? `− ${money(aplicada(e))}` : "—"}
+                              <div className="flex items-center justify-end gap-1">
+                                 <span className="text-destructive whitespace-nowrap">
+                                    {e.deducciones > 0 ? `− ${money(e.deducciones)}` : "—"}
                                  </span>
-                              ) : (
-                                 <div className="flex flex-col items-end gap-0.5">
-                                    <Input
-                                       type="number"
-                                       step="0.01"
-                                       min="0"
-                                       className={`h-8 w-28 text-right ${
-                                          e.deducciones_ajuste !== null
-                                             ? "border-amber-400 bg-amber-50/50"
-                                             : ""
-                                       }`}
-                                       placeholder={String(e.deducciones)}
-                                       title={
-                                          e.deducciones_ajuste !== null
-                                             ? `Ajustado a mano. Sus deducciones del período suman ${money(e.deducciones)}. Vacía el campo para volver a ese monto.`
-                                             : "Monto calculado desde sus deducciones del período. Escribe otro para ajustarlo."
-                                       }
-                                       value={
-                                          editandoDed[e.id] ??
-                                          (e.deducciones_ajuste !== null
-                                             ? String(e.deducciones_ajuste)
-                                             : String(e.deducciones))
-                                       }
-                                       onChange={(ev) =>
-                                          setEditandoDed((p) => ({ ...p, [e.id]: ev.target.value }))
-                                       }
-                                       onBlur={() => guardarDeduccion(e)}
-                                       onKeyDown={(ev) => {
-                                          if (ev.key === "Enter") ev.currentTarget.blur();
-                                       }}
-                                    />
-                                    {e.deducciones_ajuste !== null && (
-                                       <span className="text-[10px] text-amber-600">
-                                          ajustado · real {money(e.deducciones)}
-                                       </span>
-                                    )}
+                                 {!readOnly && (
+                                    <Button
+                                       type="button"
+                                       variant="ghost"
+                                       size="icon"
+                                       className="size-6 text-muted-foreground hover:text-foreground"
+                                       title="Agregar una deducción a este chofer"
+                                       onClick={() => setAgregandoA(e)}
+                                    >
+                                       <Plus className="size-4" />
+                                    </Button>
+                                 )}
+                              </div>
+                              {(e.detalle_deducciones?.length ?? 0) > 0 && (
+                                 <div className="text-[10px] text-muted-foreground">
+                                    {e.detalle_deducciones!.length} concepto
+                                    {e.detalle_deducciones!.length > 1 ? "s" : ""}
                                  </div>
                               )}
                            </td>
@@ -336,6 +320,13 @@ export function NominaTable({ readOnly = false }: { readOnly?: boolean }) {
                </tr>
             </tfoot>
          </table>
+
+         {agregandoA && (
+            <AgregarDeduccionDialog
+               empleado={agregandoA}
+               onClose={() => setAgregandoA(null)}
+            />
+         )}
       </div>
    );
 }

@@ -1,26 +1,18 @@
 -- ─────────────────────────────────────────────────────────────────────────────
--- 008_nomina_deduccion_ajustada.sql
+-- 008_nomina_deduccion_ajustada.sql  — REVERTIDA
 --
--- Permite AJUSTAR a mano cuánto se le descuenta al chofer en el ciclo, sin
--- perder el dato de cuánto suman realmente sus deducciones del período.
+-- Esta migración añadía `payroll_cycle_employees.deducciones_ajuste` para
+-- poder sobrescribir a mano cuánto se le descontaba al chofer en el ciclo.
 --
---   deducciones          → lo que suman las deducciones del período (calculado)
---   deducciones_ajuste   → override manual; NULL = "usa el calculado"
---   deducciones_aplicadas = COALESCE(deducciones_ajuste, deducciones)
+-- Era el diseño equivocado: modificaba el monto cobrado sin dejar rastro de
+-- POR QUÉ. Lo correcto es CREAR una deducción nueva (con su concepto y su
+-- fecha) y que la nómina la sume como cualquier otra — así el descuento
+-- siempre tiene un origen auditable en la tabla `deduccion`.
 --
--- Se guardan las dos por separado a propósito: si solo se guardara el monto
--- final no habría forma de saber si 3,000 es lo que realmente debía o lo que
--- alguien decidió cobrarle, ni de detectar que sus deducciones cambiaron
--- después del ajuste.
+-- Ver 009_nomina_deducciones_desde_nomina.sql.
 --
--- Igual que `seguro`, el ajuste NO se pisa al recalcular el ciclo.
+-- Se deja el DROP por si la 008 llegó a aplicarse en algún ambiente.
 -- ─────────────────────────────────────────────────────────────────────────────
 
 ALTER TABLE public.payroll_cycle_employees
-   ADD COLUMN IF NOT EXISTS deducciones_ajuste numeric(12,2) NULL;
-
-COMMENT ON COLUMN public.payroll_cycle_employees.deducciones IS
-   'Suma real de las deducciones del período (recalculado, no editable).';
-
-COMMENT ON COLUMN public.payroll_cycle_employees.deducciones_ajuste IS
-   'Override manual de cuánto cobrarle en este ciclo. NULL = usar `deducciones`.';
+   DROP COLUMN IF EXISTS deducciones_ajuste;
