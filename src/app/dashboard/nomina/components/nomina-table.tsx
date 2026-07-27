@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ChevronDown, ChevronRight, TriangleAlert, Loader2 } from "lucide-react";
@@ -157,9 +157,10 @@ export function NominaTable({ readOnly = false }: { readOnly?: boolean }) {
                {empleados.map((e) => {
                   const expandido = abierto === e.id;
                   return (
-                     <>
+                     // La key va en el Fragment (hijo directo del map), no en
+                     // el <tr>: cada empleado renderiza DOS filas.
+                     <Fragment key={e.id}>
                         <tr
-                           key={e.id}
                            className="border-t hover:bg-muted/20 cursor-pointer"
                            onClick={() => setAbierto(expandido ? null : e.id)}
                         >
@@ -236,13 +237,13 @@ export function NominaTable({ readOnly = false }: { readOnly?: boolean }) {
                         </tr>
 
                         {expandido && (
-                           <tr key={`${e.id}-detalle`} className="bg-muted/10">
+                           <tr className="bg-muted/10">
                               <td colSpan={7} className="p-0">
                                  <FilaDesglose empleado={e} />
                               </td>
                            </tr>
                         )}
-                     </>
+                     </Fragment>
                   );
                })}
             </tbody>
