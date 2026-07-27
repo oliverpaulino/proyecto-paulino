@@ -19,10 +19,11 @@ import {
    DialogTitle,
    DialogTrigger,
 } from "@/components/ui/dialog";
-import { Calculator, Plus, Lock, Loader2, TriangleAlert, RefreshCw, Receipt } from "lucide-react";
+import { Calculator, Plus, Lock, Loader2, TriangleAlert, RefreshCw, Receipt, FileDown } from "lucide-react";
 import Link from "next/link";
 import { useNominaStore, type EstadoCiclo } from "@/stores/useNominaStore";
 import { NominaTable } from "./components/nomina-table";
+import { generateNominaPDF } from "@/lib/pdf/nomina-pdf";
 import { CycleForm } from "./components/cycle-form";
 
 const ESTADO_STYLE: Record<EstadoCiclo, string> = {
@@ -56,6 +57,8 @@ export default function NominaPage() {
 
    const [dialogAbierto, setDialogAbierto] = useState(false);
    const [refrescando, setRefrescando] = useState(false);
+   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
+   const [generandoPdf, setGenerandoPdf] = useState(false);
    const [avisoRefresco, setAvisoRefresco] = useState<string | null>(null);
 
    useEffect(() => {
@@ -64,9 +67,37 @@ export default function NominaPage() {
 
    useEffect(() => {
       if (selectedCycle) GetEmpleados(selectedCycle.id);
+      setSeleccionados(new Set());
    }, [selectedCycle, GetEmpleados]);
 
    const cerrado = selectedCycle?.estado === "CERRADO" || selectedCycle?.estado === "PAGADO";
+
+   function toggle(id: string) {
+      setSeleccionados((prev) => {
+         const s = new Set(prev);
+         s.has(id) ? s.delete(id) : s.add(id);
+         return s;
+      });
+   }
+
+   function toggleTodos(marcar: boolean) {
+      setSeleccionados(marcar ? new Set(empleados.map((e) => e.id)) : new Set());
+   }
+
+   /** Sin selección se exporta el ciclo completo; con selección, solo esos. */
+   async function descargarPdf() {
+      if (!selectedCycle) return;
+      const elegidos =
+         seleccionados.size > 0 ? empleados.filter((e) => seleccionados.has(e.id)) : empleados;
+      if (elegidos.length === 0) return;
+
+      setGenerandoPdf(true);
+      try {
+         await generateNominaPDF(selectedCycle, elegidos);
+      } finally {
+         setGenerandoPdf(false);
+      }
+   }
 
    return (
       <>
@@ -212,6 +243,24 @@ export default function NominaPage() {
                            Refrescar deducciones
                         </Button>
 
+                        {/* Sin selección exporta el ciclo entero; con
+                            selección, solo los marcados. */}
+                        <Button
+                           variant="outline"
+                           className="gap-2"
+                           disabled={empleados.length === 0 || generandoPdf}
+                           onClick={descargarPdf}
+                        >
+                           {generandoPdf ? (
+                              <Loader2 className="size-4 animate-spin" />
+                           ) : (
+                              <FileDown className="size-4" />
+                           )}
+                           {seleccionados.size > 0
+                              ? `PDF (${seleccionados.size})`
+                              : "PDF del ciclo"}
+                        </Button>
+
                         <Button
                            variant="outline"
                            className="gap-2"
@@ -272,7 +321,12 @@ export default function NominaPage() {
                      </div>
                   )}
 
-                  <NominaTable readOnly={cerrado} />
+                  <NominaTable
+                     readOnly={cerrado}
+                     seleccionados={seleccionados}
+                     onToggle={toggle}
+                     onToggleTodos={toggleTodos}
+                  />
                </>
             )}
          </div>

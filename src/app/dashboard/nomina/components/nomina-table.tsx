@@ -4,6 +4,7 @@ import { Fragment, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronDown, ChevronRight, TriangleAlert, Loader2, Plus } from "lucide-react";
 import { useNominaStore, type NominaEmpleado } from "@/stores/useNominaStore";
 import { AgregarDeduccionDialog } from "./agregar-deduccion-dialog";
@@ -153,7 +154,17 @@ function FilaDesglose({ empleado }: { empleado: NominaEmpleado }) {
    );
 }
 
-export function NominaTable({ readOnly = false }: { readOnly?: boolean }) {
+export function NominaTable({
+   readOnly = false,
+   seleccionados,
+   onToggle,
+   onToggleTodos,
+}: {
+   readOnly?: boolean;
+   seleccionados: Set<string>;
+   onToggle: (id: string) => void;
+   onToggleTodos: (marcar: boolean) => void;
+}) {
    const { empleados, loading, UpdateSeguro } = useNominaStore();
    const [abierto, setAbierto] = useState<string | null>(null);
    const [editando, setEditando] = useState<Record<string, string>>({});
@@ -174,6 +185,8 @@ export function NominaTable({ readOnly = false }: { readOnly?: boolean }) {
          </div>
       );
    }
+
+   const todosMarcados = empleados.length > 0 && empleados.every((e) => seleccionados.has(e.id));
 
    const totales = empleados.reduce(
       (acc, e) => ({
@@ -204,6 +217,13 @@ export function NominaTable({ readOnly = false }: { readOnly?: boolean }) {
          <table className="w-full text-sm">
             <thead>
                <tr className="border-b bg-muted/40 text-xs uppercase text-muted-foreground">
+                  <th className="w-9 px-3 py-3">
+                     <Checkbox
+                        aria-label="Seleccionar todos"
+                        checked={todosMarcados}
+                        onCheckedChange={(v) => onToggleTodos(v === true)}
+                     />
+                  </th>
                   <th className="px-3 py-3 text-left font-semibold">Nombre</th>
                   <th className="px-3 py-3 text-right font-semibold">Precio viaje/hora</th>
                   <th className="px-3 py-3 text-right font-semibold">Seguro</th>
@@ -224,6 +244,13 @@ export function NominaTable({ readOnly = false }: { readOnly?: boolean }) {
                            className="border-t hover:bg-muted/20 cursor-pointer"
                            onClick={() => setAbierto(expandido ? null : e.id)}
                         >
+                           <td className="px-3 py-3" onClick={(ev) => ev.stopPropagation()}>
+                              <Checkbox
+                                 aria-label={`Seleccionar ${e.empleado_nombre ?? "empleado"}`}
+                                 checked={seleccionados.has(e.id)}
+                                 onCheckedChange={() => onToggle(e.id)}
+                              />
+                           </td>
                            <td className="px-3 py-3">
                               <div className="flex items-center gap-2">
                                  {expandido ? (
@@ -335,7 +362,7 @@ export function NominaTable({ readOnly = false }: { readOnly?: boolean }) {
 
                         {expandido && (
                            <tr className="bg-muted/10">
-                              <td colSpan={7} className="p-0">
+                              <td colSpan={8} className="p-0">
                                  <FilaDesglose empleado={e} />
                               </td>
                            </tr>
@@ -346,6 +373,7 @@ export function NominaTable({ readOnly = false }: { readOnly?: boolean }) {
             </tbody>
             <tfoot>
                <tr className="border-t-2 bg-muted/30 font-bold">
+                  <td className="px-3 py-3" />
                   <td className="px-3 py-3">Totales ({empleados.length})</td>
                   <td className="px-3 py-3 text-right text-xs text-muted-foreground">
                      Bruto {money(totales.devengado + totales.complemento)}
