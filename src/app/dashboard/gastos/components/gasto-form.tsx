@@ -4,10 +4,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SelectBuscadorCategoriaGasto } from "@/components/shared/selectBuscadorCategoriaGasto";
 import { SelectBuscadorProyecto } from "@/components/shared/selectBuscadorProyecto";
 import { SelectBuscadorOrdenCompra } from "@/components/shared/selectBuscadorOrdenCompra";
 import { SelectBuscadorEquipo } from "@/components/shared/selectBuscadorEquipo";
+import { CategoriaGastoForm } from "../../categorias-gastos/components/categoria-gasto-form";
+import { useCategoriaGastoStore } from "@/stores/useCategoriaGastoStore";
 import type { CreateGastoForm } from "@/dtos/gastos.dto";
 
 interface GastoFormProps {
@@ -22,6 +25,12 @@ const INPUT_CLASS = "h-9 w-full rounded-md border border-input bg-input/30 px-3 
 const TEXTAREA_CLASS = "min-h-[80px] w-full rounded-md border border-input bg-input/30 px-3 py-2 text-sm outline-none disabled:opacity-60 disabled:bg-muted resize-none";
 
 export function GastoForm({ initialData, predefinedValues, onSubmit, onCancel, loading }: GastoFormProps) {
+   const { CreateCategoria } = useCategoriaGastoStore();
+   const [isCategoriaModalOpen, setIsCategoriaModalOpen] = useState(false);
+   const [newCategoriaInitialName, setNewCategoriaInitialName] = useState("");
+   const [isCreatingCategoria, setIsCreatingCategoria] = useState(false);
+   const [categoriaGastoNombre, setCategoriaGastoNombre] = useState(initialData?.categoria_gasto_nombre ?? "");
+
    const [values, setValues] = useState({
       monto_total: initialData?.monto_total ?? predefinedValues?.monto_total ?? "",
       concepto: initialData?.concepto ?? predefinedValues?.concepto ?? "",
@@ -89,6 +98,7 @@ export function GastoForm({ initialData, predefinedValues, onSubmit, onCancel, l
    }
 
    return (
+      <>
       <form onSubmit={handleSubmit} className="flex flex-col gap-5 py-2 px-3 overflow-y-auto">
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -96,9 +106,13 @@ export function GastoForm({ initialData, predefinedValues, onSubmit, onCancel, l
                     <Label>Categoría de Gasto *</Label>
                     <SelectBuscadorCategoriaGasto 
                     value={values.categoria_gasto_id} 
-                    initialLabel={initialData?.categoria_gasto_nombre ?? ""} 
+                    initialLabel={categoriaGastoNombre} 
                     onChange={(id) => set("categoria_gasto_id", id)} 
-                    disabled={isDisabled("categoria_gasto_id")} 
+                    disabled={isDisabled("categoria_gasto_id")}
+                    onCreateNew={(term) => {
+                       setNewCategoriaInitialName(term);
+                       setIsCategoriaModalOpen(true);
+                    }}
                     />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -178,5 +192,41 @@ export function GastoForm({ initialData, predefinedValues, onSubmit, onCancel, l
             <Button type="submit" disabled={loading}>{loading ? "Guardando..." : "Guardar Gasto"}</Button>
          </div>
       </form>
+
+      <Dialog open={isCategoriaModalOpen} onOpenChange={setIsCategoriaModalOpen}>
+         <DialogContent className="max-w-md">
+            <DialogHeader>
+               <DialogTitle>Crear Nueva Categoría de Gasto</DialogTitle>
+            </DialogHeader>
+            <CategoriaGastoForm
+               initialData={{ nombre: newCategoriaInitialName }}
+               loading={isCreatingCategoria}
+               onSubmit={async (data) => {
+                  setIsCreatingCategoria(true);
+                  try {
+                     const result = await CreateCategoria({
+                        nombre: data.nombre,
+                        grupo: data.grupo,
+                     });
+
+                     if (result instanceof Error) throw result;
+
+                     if (result && result.id) {
+                        set("categoria_gasto_id", result.id);
+                        setCategoriaGastoNombre(result.nombre || data.nombre);
+                     }
+
+                     setIsCategoriaModalOpen(false);
+                  } catch (error) {
+                     console.error("Error al crear categoría de gasto", error);
+                  } finally {
+                     setIsCreatingCategoria(false);
+                  }
+               }}
+               onCancel={() => setIsCategoriaModalOpen(false)}
+            />
+         </DialogContent>
+      </Dialog>
+      </>
    );
 }

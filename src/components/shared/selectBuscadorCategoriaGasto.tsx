@@ -12,6 +12,7 @@ interface SelectBuscadorCategoriaGastoProps {
    onChange: (categoriaId: string | null) => void;
    placeholder?: string;
    disabled?: boolean;
+   onCreateNew?: (inputValue: string) => void;
 }
 
 export function SelectBuscadorCategoriaGasto({
@@ -20,6 +21,7 @@ export function SelectBuscadorCategoriaGasto({
    onChange,
    placeholder = "Buscar categoría por nombre...",
    disabled = false,
+   onCreateNew,
 }: SelectBuscadorCategoriaGastoProps) {
    const { Categorias, loading, GetCategorias } = useCategoriaGastoStore();
    const [isOpen, setIsOpen] = useState(false);
@@ -96,26 +98,40 @@ export function SelectBuscadorCategoriaGasto({
          </div>
 
          {isOpen && (
-            <div className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-md p-1">
-               {loading && Categorias.length === 0 ? (
-                  <div className="p-4 text-center text-sm text-muted-foreground">Buscando categorías...</div>
-               ) : Categorias.length > 0 ? (
-                  Categorias.map((categoria) => (
-                     <div
-                        key={categoria.id}
-                        onClick={() => handleSelect(categoria)}
-                        className="flex cursor-pointer flex-col gap-1 rounded-sm px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
-                     >
-                        <div className="flex justify-between items-center">
-                           <span className="font-medium truncate">{categoria.nombre}</span>
-                           <span className="text-[10px] uppercase font-semibold bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">
-                              {categoria.grupo}
-                           </span>
+            <div className="absolute z-50 mt-1 max-h-72 w-full flex flex-col overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md">
+               <div className="overflow-y-auto max-h-60 p-1">
+                  {loading && Categorias.length === 0 ? (
+                     <div className="p-4 text-center text-sm text-muted-foreground">Buscando categorías...</div>
+                  ) : Categorias.length > 0 ? (
+                     Categorias.map((categoria) => (
+                        <div
+                           key={categoria.id}
+                           onClick={() => handleSelect(categoria)}
+                           className="flex cursor-pointer flex-col gap-1 rounded-sm px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                        >
+                           <div className="flex justify-between items-center">
+                              <span className="font-medium truncate">{categoria.nombre}</span>
+                              <span className="text-[10px] uppercase font-semibold bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">
+                                 {categoria.grupo}
+                              </span>
+                           </div>
                         </div>
-                     </div>
-                  ))
-               ) : (
-                  <div className="p-4 text-center text-sm text-muted-foreground">No se encontraron categorías.</div>
+                     ))
+                  ) : (
+                     <div className="p-4 text-center text-sm text-muted-foreground">No se encontraron categorías.</div>
+                  )}
+               </div>
+
+               {onCreateNew && (
+                  <div
+                     onClick={() => {
+                        onCreateNew(inputValue);
+                        setIsOpen(false);
+                     }}
+                     className="border-t border-border bg-muted/30 p-2 text-center text-sm font-medium text-blue-600 hover:bg-accent hover:text-blue-700 cursor-pointer transition-colors"
+                  >
+                     + Crear nueva categoría
+                  </div>
                )}
             </div>
          )}
