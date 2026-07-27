@@ -123,7 +123,7 @@ export class KyselyCuentasPorPagarRepository implements ICuentasPorPagarReposito
                dias_transcurridos: diasDesde(r.fecha),
                categoria_gasto_nombre: r.categoria_gasto_nombre ?? null,
                proyecto_id: null,
-               proyecto_codigo_referencia: null,
+               proyecto_nombre: null,
                orden_compra_id: r.orden_compra_id ?? null,
                orden_compra_codigo_referencia: r.oc_referencia
                   ? `OC-${String(r.oc_referencia).padStart(3, "0")}`
@@ -149,7 +149,8 @@ export class KyselyCuentasPorPagarRepository implements ICuentasPorPagarReposito
                "costo.monto_total",
                "costo.proyecto_id",
                "costo.orden_compra_id",
-               "proyecto.referencia as proyecto_referencia",
+               // `proyecto` no tiene columna `referencia`: se identifica por nombre.
+               "proyecto.nombre as proyecto_nombre",
                "orden_compra.referencia as oc_referencia",
                pagadoDe("costo_cliente_id", "costo.id").as("pagado"),
                ultimoPagoDe("costo_cliente_id", "costo.id").as("ultimo_pago_fecha"),
@@ -191,9 +192,7 @@ export class KyselyCuentasPorPagarRepository implements ICuentasPorPagarReposito
                dias_transcurridos: diasDesde(r.fecha),
                categoria_gasto_nombre: null,
                proyecto_id: r.proyecto_id ?? null,
-               proyecto_codigo_referencia: r.proyecto_referencia
-                  ? `PRO-${String(r.proyecto_referencia).padStart(3, "0")}`
-                  : null,
+               proyecto_nombre: r.proyecto_nombre ?? null,
                orden_compra_id: r.orden_compra_id ?? null,
                orden_compra_codigo_referencia: r.oc_referencia
                   ? `OC-${String(r.oc_referencia).padStart(3, "0")}`

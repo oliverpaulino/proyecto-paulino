@@ -51,7 +51,8 @@ export interface CuentaPorPagar {
    // Contexto según el tipo
    categoria_gasto_nombre: string | null; // solo GASTO
    proyecto_id: string | null; // solo COSTO
-   proyecto_codigo_referencia: string | null;
+   /** `proyecto` no tiene columna de referencia: se identifica por nombre. */
+   proyecto_nombre: string | null;
    orden_compra_id: string | null;
    orden_compra_codigo_referencia: string | null;
 

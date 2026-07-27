@@ -18,7 +18,7 @@ export interface CuentaPorPagar {
    dias_transcurridos: number;
    categoria_gasto_nombre: string | null;
    proyecto_id: string | null;
-   proyecto_codigo_referencia: string | null;
+   proyecto_nombre: string | null;
    orden_compra_id: string | null;
    orden_compra_codigo_referencia: string | null;
    ultimo_pago_fecha: string | null;

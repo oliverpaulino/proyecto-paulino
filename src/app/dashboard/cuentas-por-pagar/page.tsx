@@ -279,7 +279,7 @@ export default function CuentasPorPagarPage() {
                               </div>
                               <div className="text-xs text-muted-foreground">
                                  {c.categoria_gasto_nombre ??
-                                    c.proyecto_codigo_referencia ??
+                                    c.proyecto_nombre ??
                                     "—"}
                                  {c.ncf ? ` · NCF ${c.ncf}` : ""}
                               </div>
