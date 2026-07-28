@@ -23,6 +23,7 @@ export class KyselyPagoRepository implements IPagoRepository {
          gasto_codigo_referencia: row.gasto_referencia ? this.buildCodigoReferencia("GAS", row.gasto_referencia) : null,
          costo_codigo_referencia: row.costo_referencia ? this.buildCodigoReferencia("COS", row.costo_referencia) : null,
          deduccion_codigo_referencia: row.deduccion_referencia ? this.buildCodigoReferencia("DED", row.deduccion_referencia) : null,
+         proyecto_codigo_referencia: row.proyecto_referencia ? this.buildCodigoReferencia("PRO", row.proyecto_referencia) : null,
          monto_pagado: Number(row.monto_pagado),
          fecha: new Date(row.fecha),
          created_at: new Date(row.created_at),
@@ -48,11 +49,13 @@ export class KyselyPagoRepository implements IPagoRepository {
          .leftJoin("gasto", "gasto.id", "pago.gasto_empresa_id")
          .leftJoin("costo", "costo.id", "pago.costo_cliente_id")
          .leftJoin("deduccion", "deduccion.id", "pago.deduccion_empleado_id")
+         .leftJoin("proyecto", "proyecto.id", "pago.proyecto_id")
          .selectAll("pago")
          .select([
             "gasto.referencia as gasto_referencia",
             "costo.referencia as costo_referencia",
             "deduccion.referencia as deduccion_referencia",
+            "proyecto.referencia as proyecto_referencia",
          ]);
 
       if (isDeleted) {
@@ -86,6 +89,7 @@ export class KyselyPagoRepository implements IPagoRepository {
       if (params?.gasto_empresa_id) query = query.where("pago.gasto_empresa_id", "=", params.gasto_empresa_id);
       if (params?.costo_cliente_id) query = query.where("pago.costo_cliente_id", "=", params.costo_cliente_id);
       if (params?.deduccion_empleado_id) query = query.where("pago.deduccion_empleado_id", "=", params.deduccion_empleado_id);
+      if (params?.proyecto_id) query = query.where("pago.proyecto_id", "=", params.proyecto_id);
 
       return query;
    }
@@ -119,11 +123,13 @@ export class KyselyPagoRepository implements IPagoRepository {
          .leftJoin("gasto", "gasto.id", "pago.gasto_empresa_id")
          .leftJoin("costo", "costo.id", "pago.costo_cliente_id")
          .leftJoin("deduccion", "deduccion.id", "pago.deduccion_empleado_id")
+         .leftJoin("proyecto", "proyecto.id", "pago.proyecto_id")
          .selectAll("pago")
          .select([
             "gasto.referencia as gasto_referencia",
             "costo.referencia as costo_referencia",
             "deduccion.referencia as deduccion_referencia",
+            "proyecto.referencia as proyecto_referencia",
          ])
          .where("pago.id", "=", id)
          .where("pago.deleted_at", "is", null)
@@ -139,11 +145,13 @@ export class KyselyPagoRepository implements IPagoRepository {
          .leftJoin("gasto", "gasto.id", "pago.gasto_empresa_id")
          .leftJoin("costo", "costo.id", "pago.costo_cliente_id")
          .leftJoin("deduccion", "deduccion.id", "pago.deduccion_empleado_id")
+         .leftJoin("proyecto", "proyecto.id", "pago.proyecto_id")
          .selectAll("pago")
          .select([
             "gasto.referencia as gasto_referencia",
             "costo.referencia as costo_referencia",
             "deduccion.referencia as deduccion_referencia",
+            "proyecto.referencia as proyecto_referencia",
          ])
          .where("pago.id", "=", id)
          .where("pago.deleted_at", "is not", null)
@@ -165,6 +173,7 @@ export class KyselyPagoRepository implements IPagoRepository {
             gasto_empresa_id: data.gasto_empresa_id ?? null,
             costo_cliente_id: data.costo_cliente_id ?? null,
             deduccion_empleado_id: data.deduccion_empleado_id ?? null,
+            proyecto_id: data.proyecto_id ?? null,
             created_at: new Date(),
             updated_at: new Date(),
          })

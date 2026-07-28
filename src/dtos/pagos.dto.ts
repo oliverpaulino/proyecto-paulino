@@ -33,6 +33,9 @@ export const PagoDTO = z.object({
 
    deduccion_empleado_id: z.string().uuid().nullable(),
    deduccion_codigo_referencia: z.string().nullable(),
+
+   proyecto_id: z.string().uuid().nullable(),
+   proyecto_codigo_referencia: z.string().nullable(),
    
    fecha: z.coerce.date(),
    created_at: z.coerce.date(),
@@ -43,7 +46,7 @@ export const PagoDTO = z.object({
 });
 
 const ExclusivityRefinement = (data: any) => {
-   const count = [data.gasto_empresa_id, data.costo_cliente_id, data.deduccion_empleado_id].filter(Boolean).length;
+   const count = [data.gasto_empresa_id, data.costo_cliente_id, data.deduccion_empleado_id, data.proyecto_id].filter(Boolean).length;
    return count === 1;
 };
 
@@ -56,15 +59,16 @@ export const BasePagoSchema = z.object({
    gasto_empresa_id: z.string().uuid().optional().nullable(),
    costo_cliente_id: z.string().uuid().optional().nullable(),
    deduccion_empleado_id: z.string().uuid().optional().nullable(),
+   proyecto_id: z.string().uuid().optional().nullable(),
 });
 
 export const CreatePagoSchema = BasePagoSchema.refine(ExclusivityRefinement, {
-   message: "Debe proveer exactamente un destino (Gasto, Costo o Deducción)",
+   message: "Debe proveer exactamente un destino (Gasto, Costo, Deducción o Proyecto)",
    path: ["concepto"]
 });
 
 export const UpdatePagoSchema = BasePagoSchema.partial().refine(ExclusivityRefinement, {
-   message: "Debe proveer exactamente un destino (Gasto, Costo o Deducción)",
+   message: "Debe proveer exactamente un destino (Gasto, Costo, Deducción o Proyecto)",
    path: ["concepto"]
 });
 

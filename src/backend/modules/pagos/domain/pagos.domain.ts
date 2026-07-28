@@ -22,6 +22,10 @@ export interface PagoProps {
    // join
    deduccion_codigo_referencia: string | null;
 
+   proyecto_id: string | null;
+   // join
+   proyecto_codigo_referencia: string | null;
+
    fecha: Date;
    created_at: Date;
    updated_at: Date;
@@ -53,6 +57,8 @@ export class Pago {
    get costo_codigo_referencia() { return this.props.costo_codigo_referencia; }
    get deduccion_empleado_id() { return this.props.deduccion_empleado_id; }
    get deduccion_codigo_referencia() { return this.props.deduccion_codigo_referencia; }
+   get proyecto_id() { return this.props.proyecto_id; }
+   get proyecto_codigo_referencia() { return this.props.proyecto_codigo_referencia; }
    get fecha() { return this.props.fecha }
    get created_at() { return this.props.created_at; }
    get updated_at() { return this.props.updated_at; }
@@ -74,6 +80,7 @@ export interface CreatePagoDTO {
    gasto_empresa_id?: string | null;
    costo_cliente_id?: string | null;
    deduccion_empleado_id?: string | null;
+   proyecto_id?: string | null;
 }
 
 export type UpdatePagoDTO = Partial<CreatePagoDTO>;
@@ -91,7 +98,8 @@ export interface IPagoRepository {
                      end?: Date; 
                      gasto_empresa_id?: string | null;
                      costo_cliente_id?: string | null;
-                     deduccion_empleado_id?: string | null; }): Promise<Pago[]>;
+                     deduccion_empleado_id?: string | null;
+                     proyecto_id?: string | null; }): Promise<Pago[]>;
 
    findAllDeleted( params?: { page?: number; 
                      limit?: number; 
@@ -100,7 +108,8 @@ export interface IPagoRepository {
                      end?: Date; 
                      gasto_empresa_id?: string | null;
                      costo_cliente_id?: string | null;
-                     deduccion_empleado_id?: string | null; }): Promise<Pago[]>;
+                     deduccion_empleado_id?: string | null;
+                     proyecto_id?: string | null; }): Promise<Pago[]>;
 
    findById(id: string): Promise<Pago | null>;
    findDeletedById(id: string): Promise<Pago | null>;

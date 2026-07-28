@@ -10,9 +10,9 @@ export class PagoService {
    constructor(private readonly repo: IPagoRepository) { }
 
    private validarExclusividad(data: Partial<CreatePagoDTO>) {
-      const count = [data.gasto_empresa_id, data.costo_cliente_id, data.deduccion_empleado_id].filter(Boolean).length;
+      const count = [data.gasto_empresa_id, data.costo_cliente_id, data.deduccion_empleado_id, data.proyecto_id].filter(Boolean).length;
       if (count !== 1) {
-         throw new Error("El pago debe estar asociado a exactamente un origen (Gasto, Costo o Deducción).");
+         throw new Error("El pago debe estar asociado a exactamente un origen (Gasto, Costo, Deducción o Proyecto).");
       }
    }
 
@@ -56,6 +56,7 @@ export class PagoService {
          gasto_empresa_id: data.gasto_empresa_id !== undefined ? data.gasto_empresa_id : current.gasto_empresa_id,
          costo_cliente_id: data.costo_cliente_id !== undefined ? data.costo_cliente_id : current.costo_cliente_id,
          deduccion_empleado_id: data.deduccion_empleado_id !== undefined ? data.deduccion_empleado_id : current.deduccion_empleado_id,
+         proyecto_id: data.proyecto_id !== undefined ? data.proyecto_id : current.proyecto_id,
       };
 
       this.validarExclusividad(mergeData);
