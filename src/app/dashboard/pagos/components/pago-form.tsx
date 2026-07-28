@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { SelectBuscadorGasto } from "@/components/shared/SelectBuscadorGasto";
 import { SelectBuscadorCosto } from "@/components/shared/SelectBuscadorCosto";
 import { SelectBuscadorDeduccion } from "@/components/shared/SelectBuscadorDeduccion";
+import { SelectBuscadorProyecto } from "@/components/shared/selectBuscadorProyecto";
 import { 
    CreatePagoForm, 
    MetodoPago, 
@@ -40,6 +41,7 @@ export function PagoForm({ initialData, predefinedValues, onSubmit, onCancel, lo
       if (initialData?.gasto_empresa_id || predefinedValues?.gasto_empresa_id) return 'GASTO';
       if (initialData?.costo_cliente_id || predefinedValues?.costo_cliente_id) return 'COSTO';
       if (initialData?.deduccion_empleado_id || predefinedValues?.deduccion_empleado_id) return 'DEDUCCION';
+      if (initialData?.proyecto_id || predefinedValues?.proyecto_id) return 'PROYECTO';
       return '';
    };
 
@@ -57,6 +59,7 @@ export function PagoForm({ initialData, predefinedValues, onSubmit, onCancel, lo
       gasto_empresa_id: initialData?.gasto_empresa_id ?? predefinedValues?.gasto_empresa_id ?? null,
       costo_cliente_id: initialData?.costo_cliente_id ?? predefinedValues?.costo_cliente_id ?? null,
       deduccion_empleado_id: initialData?.deduccion_empleado_id ?? predefinedValues?.deduccion_empleado_id ?? null,
+      proyecto_id: initialData?.proyecto_id ?? predefinedValues?.proyecto_id ?? null,
    });
 
    const [error, setError] = useState<string | null>(null);
@@ -74,6 +77,7 @@ export function PagoForm({ initialData, predefinedValues, onSubmit, onCancel, lo
          gasto_empresa_id: null,
          costo_cliente_id: null,
          deduccion_empleado_id: null,
+         proyecto_id: null,
       }));
    };
 
@@ -105,9 +109,9 @@ export function PagoForm({ initialData, predefinedValues, onSubmit, onCancel, lo
 
       if (Number(values.monto_pagado) <= 0) return setError("El monto debe ser mayor a 0.");
       
-      const count = [values.gasto_empresa_id, values.costo_cliente_id, values.deduccion_empleado_id].filter(Boolean).length;
+      const count = [values.gasto_empresa_id, values.costo_cliente_id, values.deduccion_empleado_id, values.proyecto_id].filter(Boolean).length;
       if (count !== 1) {
-         return setError("Debe proveer exactamente una referencia de destino válida (Gasto, Costo o Deducción).");
+         return setError("Debe proveer exactamente una referencia de destino válida (Gasto, Costo, Deducción o Proyecto).");
       }
 
       try {
@@ -120,6 +124,7 @@ export function PagoForm({ initialData, predefinedValues, onSubmit, onCancel, lo
             gasto_empresa_id: values.gasto_empresa_id,
             costo_cliente_id: values.costo_cliente_id,
             deduccion_empleado_id: values.deduccion_empleado_id,
+            proyecto_id: values.proyecto_id,
          });
       } catch (err: any) {
          setError(err.message || "Error al procesar el formulario");
@@ -192,6 +197,7 @@ export function PagoForm({ initialData, predefinedValues, onSubmit, onCancel, lo
                         <option value="GASTO">Gasto</option>
                         <option value="COSTO">Costo</option>
                         <option value="DEDUCCION">Deducción</option>
+                        <option value="PROYECTO">Proyecto</option>
                     </select>
                 </div>
                 
@@ -224,6 +230,14 @@ export function PagoForm({ initialData, predefinedValues, onSubmit, onCancel, lo
                            initialLabel={initialData?.deduccion_codigo_referencia ?? ""} 
                            onChange={(id) => set("deduccion_empleado_id", id)} 
                            disabled={isDisabled("deduccion_empleado_id")} 
+                        />
+                    )}
+                    {destinoTipo === 'PROYECTO' && (
+                        <SelectBuscadorProyecto 
+                           value={values.proyecto_id}
+                           initialLabel={initialData?.proyecto_codigo_referencia ?? ""} 
+                           onChange={(id) => set("proyecto_id", id)} 
+                           disabled={isDisabled("proyecto_id")} 
                         />
                     )}
                 </div>
