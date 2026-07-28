@@ -10,7 +10,9 @@ import {
    DialogTitle,
    DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, ArrowDownRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, ArrowDownRight, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { useSession } from "@/lib/auth-client";
 import { useDeduccionStore } from "@/stores/useDeduccionStore";
 import type { CreateDeduccionForm } from "@/dtos/deducciones.dto";
 import { DeduccionForm } from "./components/deduccion-form";
@@ -108,7 +110,16 @@ export default function DeduccionesPage() {
                   </div>
                </div>
             </div>
-         )}
+          )}
+ 
+          {useSession().data?.user?.role === "administrador" && (
+             <Button asChild variant="outline" className="font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive">
+                <Link href="/dashboard/deducciones/anuladas">
+                   <Trash2 className="size-4 mr-2" />
+                   Deducciones Anuladas
+                </Link>
+             </Button>
+          )}
       </div>
    );
 }
