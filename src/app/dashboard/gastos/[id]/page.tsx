@@ -53,7 +53,7 @@ export default function GastoDetailPage() {
    }
 
    return (
-      <div className="p-6 max-w-5xl mx-auto">
+      <div className="p-6 max-w-5xl mx-auto w-full">
          <GastoDetail gasto={gasto} onRefresh={fetchGasto} />
       </div>
    );

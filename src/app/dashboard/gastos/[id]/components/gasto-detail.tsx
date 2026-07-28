@@ -151,7 +151,7 @@ export function GastoDetail({ gasto, onRefresh }: { gasto: Gasto; onRefresh: () 
                   Detalles del Gasto
                </TabsTrigger>
                <TabsTrigger value="clasificacion" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
-                  Clasificación y Auditoría
+                  Auditoría
                </TabsTrigger>
             </TabsList>
 
@@ -196,7 +196,7 @@ export function GastoDetail({ gasto, onRefresh }: { gasto: Gasto; onRefresh: () 
                   </CardHeader>
                   <CardContent>
                      <div className="grid gap-4 sm:grid-cols-2">
-                        <InfoField label="Número de Comprobante Fiscal (NCF)" value={gasto.ncf} />
+                        <InfoField label="Número de Comprobante Fiscal (NCF)" value={gasto.ncf || "──"} />
                         <InfoField label="Referencia Interna" value={gasto.codigoReferencia} />
                      </div>
                   </CardContent>
@@ -220,12 +220,10 @@ export function GastoDetail({ gasto, onRefresh }: { gasto: Gasto; onRefresh: () 
                      </div>
                   </CardContent>
                </Card>
-            </TabsContent>
 
-            {/* ── CLASIFICACIÓN Y AUDITORÍA ── */}
-            <TabsContent value="clasificacion" className="space-y-4">
-               {/*<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">*/}
-                  <Card className="w-full">
+
+               {/* Clasificacion del Gasto */}
+               <Card className="w-full">
                      <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                            <Tag className="size-5 text-brand-blue" />
@@ -258,7 +256,11 @@ export function GastoDetail({ gasto, onRefresh }: { gasto: Gasto; onRefresh: () 
                         </div>
                      </CardContent>
                   </Card>
+            </TabsContent>
 
+            {/* ── AUDITORÍA ── */}
+            <TabsContent value="clasificacion" className="space-y-4">
+               {/*<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">*/}
                   <Card className="w-full">
                      <CardHeader>
                         <CardTitle className="flex items-center gap-2">

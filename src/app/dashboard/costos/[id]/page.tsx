@@ -53,7 +53,7 @@ export default function CostoDetailPage() {
    }
 
    return (
-      <div className="p-6 max-w-5xl mx-auto">
+      <div className="p-6 max-w-5xl mx-auto w-full">
          <CostoDetail costo={costo} onRefresh={fetchCosto} />
       </div>
    );
