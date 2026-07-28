@@ -53,7 +53,7 @@ export default function DeduccionDetailPage() {
    }
 
    return (
-      <div className="p-6 max-w-5xl mx-auto">
+      <div className="p-6 max-w-5xl mx-auto w-full">
          <DeduccionDetail deduccion={deduccion} onRefresh={fetchDeduccion} />
       </div>
    );

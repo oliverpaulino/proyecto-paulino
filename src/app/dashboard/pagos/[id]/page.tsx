@@ -53,7 +53,7 @@ export default function PagoDetailPage() {
    }
 
    return (
-      <div className="p-6 max-w-5xl mx-auto">
+      <div className="p-6 max-w-5xl mx-auto w-full">
          <PagoDetail pago={pago} onRefresh={fetchPago} />
       </div>
    );
