@@ -10,7 +10,9 @@ import {
    DialogTitle,
    DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Receipt, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Receipt, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { useSession } from "@/lib/auth-client";
 import { useCostoStore } from "@/stores/useCostoStore";
 import type { CreateCostoForm } from "@/dtos/costos.dto";
 import { CostoForm } from "./components/costo-form";
@@ -108,7 +110,16 @@ export default function CostosPage() {
                   </div>
                </div>
             </div>
-         )}
+          )}
+ 
+          {useSession().data?.user?.role === "administrador" && (
+             <Button asChild variant="outline" className="font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive">
+                <Link href="/dashboard/costos/anulados">
+                   <Trash2 className="size-4 mr-2" />
+                   Costos Anulados
+                </Link>
+             </Button>
+          )}
       </div>
    );
 }
