@@ -36,20 +36,8 @@ const c = StyleSheet.create({
    anexoSub: { width: 68, textAlign: "right" },
 });
 
-/**
- * Factura para el cliente. Solo incluye lo cobrable: conduces cobrables
- * agrupados por equipo/tarifa, la tarifa del servicio y los cargos cobrables.
- * Los gastos internos nunca aparecen aquí — van en el PDF interno.
- */
-function ProyectoFacturaDocument({
-   proyecto,
-   conduces,
-   incluirAnexo,
-}: {
-   proyecto: Proyecto;
-   conduces: ConduceDTO[];
-   incluirAnexo: boolean;
-}) {
+function ProyectoFacturaDocument({ proyecto }: { proyecto: Proyecto }) {
+   const equiposCobrables = proyecto?.conduces?.filter((e) => e.es_cobrable);
    const cargosCobrables = proyecto.detalle.filter((d) => d.es_cobrable);
    const conducesCobrables = conduces.filter((cc) => cc.es_cobrable);
    const grupos = agruparConduces(conducesCobrables);
@@ -103,19 +91,14 @@ function ProyectoFacturaDocument({
                      </View>
                   )}
 
-                  {/* Conduces agrupados: una línea por equipo + tarifa */}
-                  {grupos.map((g, i) => (
-                     <View key={g.clave} style={[s.tableRow, i % 2 !== 0 ? s.tableRowAlt : {}]}>
-                        <Text style={[s.tableCell, c.colDesc]}>
-                           {g.equipo_nombre}
-                           {g.tarifa_nombre ? ` — ${g.tarifa_nombre}` : ""} ({g.unidad})
-                           {g.conduces.length > 1 ? `  ·  ${g.conduces.length} conduces` : ""}
+                  {equiposCobrables?.map((e, i) => (
+                     <View key={e.id} style={[s.tableRow, i % 2 !== 0 ? s.tableRowAlt : {}]}>
+                        <Text style={[s.tableCell, s.colDesc]}>
+                           {e.equipo_nombre ?? "Equipo"} ({e.medida_cobro_nombre ?? "unidad"})
                         </Text>
-                        <Text style={[s.tableCell, c.colQty]}>{fmtNum(g.cantidad)}</Text>
-                        <Text style={[s.tableCell, c.colPrice]}>
-                           {g.precioVariable ? "Varios" : fmt(g.precio_unitario)}
-                        </Text>
-                        <Text style={[s.tableCell, c.colSub]}>{fmt(g.subtotal)}</Text>
+                        <Text style={[s.tableCell, s.colQty]}>{e.tipo_conduce === "CAMION" ? e.cantidad : e.total_horas}</Text>
+                        <Text style={[s.tableCell, s.colPrice]}>{fmt(e.precio_unitario)}</Text>
+                        <Text style={[s.tableCell, s.colSub]}>{fmt(e.subtotal)}</Text>
                      </View>
                   ))}
 

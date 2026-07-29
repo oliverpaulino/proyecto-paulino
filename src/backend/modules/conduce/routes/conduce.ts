@@ -30,6 +30,8 @@ conducesRoute.get("/", async (c) => {
          fecha_hasta: q.fecha_hasta || undefined,
          busqueda: q.busqueda || undefined,
          eliminado: q.eliminado === "true" ? true : undefined,
+         categoria_equipo_tarifa_nombre: q.categoria_equipo_tarifa_nombre || undefined,
+         categoria_equipo_tarifa_null: q.categoria_equipo_tarifa_null === "true" ? true : undefined,
          page: q.page ? Number(q.page) : undefined,
          pageSize: q.pageSize ? Number(q.pageSize) : undefined,
       };
@@ -38,6 +40,18 @@ conducesRoute.get("/", async (c) => {
       return c.json(resultado);
    } catch (err: unknown) {
       return c.json({ error: err instanceof Error ? err.message : "Error al obtener conduces" }, 500);
+   }
+});
+
+// GET /api/conduces/categorias?proyecto_id= — categorías con conteo (ligero, sin detalles)
+conducesRoute.get("/categorias", async (c) => {
+   try {
+      const proyectoId = c.req.query("proyecto_id");
+      if (!proyectoId) return c.json({ error: "proyecto_id es requerido" }, 400);
+      const categorias = await service.getCategoriasByProyecto(proyectoId);
+      return c.json(categorias);
+   } catch (err: unknown) {
+      return c.json({ error: err instanceof Error ? err.message : "Error al obtener categorías" }, 500);
    }
 });
 
@@ -73,8 +87,6 @@ conducesRoute.post("/", async (c) => {
          const conduce = await service.create({
             ...body,
             fecha: new Date(body.fecha),
-            // Antes se pedía la sesión solo para el chequeo de auth y nunca
-            // se guardaba quién creó el registro.
             created_by: session.user.id,
             created_by_name: session.user.name,
          } as any);
@@ -84,6 +96,30 @@ conducesRoute.post("/", async (c) => {
       }
    } catch (err: unknown) {
       return c.json({ error: err instanceof Error ? err.message : "Error al registrar conduce" }, 500);
+   }
+});
+
+// PATCH /api/conduces/bulk-cobrable — toggle es_cobrable en lote
+// DEBE ir ANTES de /:id para que Hono no lo capture como parámetro.
+conducesRoute.patch("/bulk-cobrable", async (c) => {
+   try {
+      const session = await auth.api.getSession({ headers: c.req.raw.headers });
+      if (!session?.user) return c.json({ error: "No autenticado" }, 401);
+
+      const body = await c.req.json();
+      const { ids, es_cobrable } = body as { ids: string[]; es_cobrable: boolean };
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+         return c.json({ error: "Se requiere al menos un ID" }, 400);
+      }
+      if (typeof es_cobrable !== "boolean") {
+         return c.json({ error: "es_cobrable debe ser boolean" }, 400);
+      }
+
+      await service.bulkToggleCobrable(ids, es_cobrable);
+      return c.json({ success: true });
+   } catch (err: unknown) {
+      return c.json({ error: err instanceof Error ? err.message : "Error al actualizar conduces" }, 500);
    }
 });
 

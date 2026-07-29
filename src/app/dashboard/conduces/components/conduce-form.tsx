@@ -39,6 +39,8 @@ interface Props {
    onCancel: () => void;
    loading: boolean;
    fixedProyectoId?: string;
+   fixedClienteId?: string;
+   fixedClienteNombre?: string;
 }
 
 function ayerISO() {
@@ -58,7 +60,7 @@ function calcularHoras(inicio?: string, fin?: string): number {
    return minutos > 0 ? Math.round((minutos / 60) * 100) / 100 : 0;
 }
 
-export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Props) {
+export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId, fixedClienteId, fixedClienteNombre }: Props) {
    const { Clients, GetClients, CreateClient } = useClientStore();
    const { GetEquipos } = useEquipoStore();
    const { CategoriaEquipos, GetCategoriaEquipos } = useCategoriaEquipoStore();
@@ -89,6 +91,15 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
    useEffect(() => {
       if (clienteId) { GetProyectosByClientId(clienteId); }
    }, [clienteId]);
+
+   // Auto-completar cliente cuando viene desde un proyecto
+   useEffect(() => {
+      if (!fixedClienteId || Clients.length === 0) return;
+      const cliente = Clients.find((c) => c.id === fixedClienteId);
+      setClienteId(fixedClienteId);
+      setClienteNombre(fixedClienteNombre ?? cliente?.nombre ?? "");
+      if (cliente?.telefono) setClienteTelefono(cliente.telefono);
+   }, [fixedClienteId, fixedClienteNombre, Clients]);
 
    const [tipoConduce, setTipoConduce] = useState<TipoConduce>("CAMION");
 
@@ -467,6 +478,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
                      value={clienteId}
                      onChange={(e) => handleClienteChange(e || "")}
                      initialLabel={clienteNombre}
+                     disabled={!!fixedClienteId}
                      onCreateNew={(term) => {
                         setNewClientInitialName(term);
                         setIsClientModalOpen(true);

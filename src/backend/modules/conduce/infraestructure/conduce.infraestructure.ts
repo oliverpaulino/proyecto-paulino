@@ -130,6 +130,12 @@ export class KyselyConduceRepository implements IConduceRepository {
 
             .$if(!!filtros.tipo_conduce, (q: any) => q.where("conduce.tipo_conduce", "=", filtros.tipo_conduce))
             .$if(filtros.es_cobrable !== undefined, (q: any) => q.where("conduce.es_cobrable", "=", filtros.es_cobrable))
+            .$if(!!filtros.categoria_equipo_tarifa_nombre, (q: any) =>
+               q.where("conduce.categoria_equipo_tarifa_nombre", "=", filtros.categoria_equipo_tarifa_nombre)
+            )
+            .$if(filtros.categoria_equipo_tarifa_null === true, (q: any) =>
+               q.where("conduce.categoria_equipo_tarifa_nombre", "is", null)
+            )
             // ── Fechas ──────────────────────────────────────────────────
             // Antes esto llegaba como `new Date(q.fecha_desde)` desde la ruta
             // y Kysely lo mandaba a Postgres como timestamp con 'Z' (UTC).
@@ -151,6 +157,9 @@ export class KyselyConduceRepository implements IConduceRepository {
                   eb.or([
                      eb("conduce.numero_referencia", "ilike", `%${filtros.busqueda}%`),
                      eb("equipo.nombre", "ilike", `%${filtros.busqueda}%`),
+                     eb("empleado.nombre", "ilike", `%${filtros.busqueda}%`),
+                     eb("cliente.nombre", "ilike", `%${filtros.busqueda}%`),
+                     eb("conduce.categoria_equipo_tarifa_nombre", "ilike", `%${filtros.busqueda}%`),
                   ])
                )
             )
@@ -160,6 +169,7 @@ export class KyselyConduceRepository implements IConduceRepository {
             // "ver eliminados".
             .$if(filtros.eliminado !== true, (q: any) => q.where("conduce.deleted_at", "is", null))
             .$if(filtros.eliminado === true, (q: any) => q.where("conduce.deleted_at", "is not", null));
+      console.log("filtros", filtros);
 
       const query = aplicarFiltros(this.#baseQuery())
          .orderBy("conduce.fecha", "desc")
@@ -171,6 +181,8 @@ export class KyselyConduceRepository implements IConduceRepository {
          this.db
             .selectFrom("conduce")
             .leftJoin("equipo", "equipo.id", "conduce.equipo_id")
+            .leftJoin("empleado", "empleado.id", "conduce.operador_id")
+            .leftJoin("cliente", "cliente.id", "conduce.cliente_id")
             .leftJoin("operador", "operador.id", "conduce.operador_id")
             .select(sql<number>`count(*)`.as("count"))
       );
@@ -183,6 +195,30 @@ export class KyselyConduceRepository implements IConduceRepository {
          page,
          pageSize,
       };
+   }
+
+   async findCategoriasByProyecto(proyectoId: string): Promise<Array<{ nombre: string; count: number; subtotal: number; subtotalCobrable: number; cobrable_count: number }>> {
+      const rows = await this.db
+         .selectFrom("conduce")
+         .select([
+            "conduce.categoria_equipo_tarifa_nombre as nombre",
+            sql<number>`count(*)::int`.as("count"),
+            sql<number>`coalesce(sum(subtotal), 0)`.as("subtotal"),
+            sql<number>`coalesce(sum(case when es_cobrable then subtotal else 0 end), 0)`.as("subtotal_cobrable"),
+            sql<number>`coalesce(sum(case when es_cobrable then 1 else 0 end), 0)::int`.as("cobrable_count"),
+         ])
+         .where("conduce.proyecto_id", "=", proyectoId)
+         .where("conduce.deleted_at", "is", null)
+         .groupBy("conduce.categoria_equipo_tarifa_nombre")
+         .orderBy("conduce.categoria_equipo_tarifa_nombre", "asc")
+         .execute();
+      return rows.map((r) => ({
+         nombre: r.nombre ?? "Sin categoría",
+         count: Number(r.count),
+         subtotal: Number(r.subtotal),
+         subtotalCobrable: Number(r.subtotal_cobrable),
+         cobrable_count: Number(r.cobrable_count),
+      }));
    }
 
    async findByProyectoId(proyectoId: string): Promise<ConduceProps[]> {
@@ -410,6 +446,15 @@ export class KyselyConduceRepository implements IConduceRepository {
          .execute();
    }
 
+   async bulkToggleCobrable(ids: string[], es_cobrable: boolean): Promise<void> {
+      if (ids.length === 0) return;
+      await this.db
+         .updateTable("conduce")
+         .set({ es_cobrable, updated_at: new Date() } as any)
+         .where("id", "in", ids)
+         .execute();
+   }
+
    #mapRow(r: Record<string, unknown>): ConduceProps {
       const base = {
          id: r.id as string,
@@ -420,6 +465,7 @@ export class KyselyConduceRepository implements IConduceRepository {
          cliente_id: r.cliente_id as string,
          cliente_nombre: (r.cliente_nombre as string) ?? undefined,
          cliente_telefono: r.cliente_telefono as string | null,
+         empleado_id: r.empleado_id as string,
          equipo_id: r.equipo_id as string,
          equipo_nombre: (r.equipo_nombre as string) ?? undefined,
          operador_id: r.operador_id as string,

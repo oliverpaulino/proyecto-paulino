@@ -28,6 +28,10 @@ export class ConduceService {
       return this.repo.findByProyectoId(proyectoId);
    }
 
+   async getCategoriasByProyecto(proyectoId: string): Promise<Array<{ nombre: string; count: number; subtotal: number; subtotalCobrable: number; cobrable_count: number }>> {
+      return this.repo.findCategoriasByProyecto(proyectoId);
+   }
+
    async create(data: CreateConduceDTO): Promise<ConduceProps> {
       this.#validate(data);
       const conduce = await this.repo.create(data);
@@ -78,17 +82,32 @@ export class ConduceService {
       if (existing.proyecto_id) await this.proyectoRepo.recalcularTotales(existing.proyecto_id);
    }
 
-   /** Revierte una eliminación lógica y recalcula el proyecto si aplica. */
-   async restore(id: string): Promise<ConduceProps> {
-      const existing = await this.repo.findById(id);
-      if (!existing) throw new Error("Conduce no encontrado");
-      if (!existing.deleted_at) throw new Error("Este conduce no está eliminado");
+    /** Revierte una eliminación lógica y recalcula el proyecto si aplica. */
+    async restore(id: string): Promise<ConduceProps> {
+       const existing = await this.repo.findById(id);
+       if (!existing) throw new Error("Conduce no encontrado");
+       if (!existing.deleted_at) throw new Error("Este conduce no está eliminado");
 
-      await this.repo.restore(id);
-      const restored = await this.repo.findById(id);
-      if (restored?.proyecto_id) await this.proyectoRepo.recalcularTotales(restored.proyecto_id);
-      return restored!;
-   }
+       await this.repo.restore(id);
+       const restored = await this.repo.findById(id);
+       if (restored?.proyecto_id) await this.proyectoRepo.recalcularTotales(restored.proyecto_id);
+       return restored!;
+    }
+
+    async bulkToggleCobrable(ids: string[], es_cobrable: boolean): Promise<void> {
+       if (ids.length === 0) return;
+       await this.repo.bulkToggleCobrable(ids, es_cobrable);
+
+       // Recalcular totales de todos los proyectos afectados
+       const proyectosIds = new Set<string>();
+       for (const id of ids) {
+          const c = await this.repo.findById(id);
+          if (c?.proyecto_id) proyectosIds.add(c.proyecto_id);
+       }
+       await Promise.all(
+          [...proyectosIds].map((pid) => this.proyectoRepo.recalcularTotales(pid))
+       );
+    }
 
    #validate(data: CreateConduceDTO): void {
       if (!data.cliente_id) throw new Error("El cliente es requerido");
