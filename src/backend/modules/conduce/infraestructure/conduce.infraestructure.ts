@@ -104,6 +104,12 @@ export class KyselyConduceRepository implements IConduceRepository {
 
             .$if(!!filtros.tipo_conduce, (q: any) => q.where("conduce.tipo_conduce", "=", filtros.tipo_conduce))
             .$if(filtros.es_cobrable !== undefined, (q: any) => q.where("conduce.es_cobrable", "=", filtros.es_cobrable))
+            .$if(!!filtros.categoria_equipo_tarifa_nombre, (q: any) =>
+               q.where("conduce.categoria_equipo_tarifa_nombre", "=", filtros.categoria_equipo_tarifa_nombre)
+            )
+            .$if(filtros.categoria_equipo_tarifa_null === true, (q: any) =>
+               q.where("conduce.categoria_equipo_tarifa_nombre", "is", null)
+            )
             // ── Fechas ──────────────────────────────────────────────────
             // Antes esto llegaba como `new Date(q.fecha_desde)` desde la ruta
             // y Kysely lo mandaba a Postgres como timestamp con 'Z' (UTC).
@@ -157,6 +163,21 @@ export class KyselyConduceRepository implements IConduceRepository {
          page,
          pageSize,
       };
+   }
+
+   async findCategoriasByProyecto(proyectoId: string): Promise<Array<{ nombre: string; count: number }>> {
+      const rows = await this.db
+         .selectFrom("conduce")
+         .select([
+            "conduce.categoria_equipo_tarifa_nombre as nombre",
+            sql<number>`count(*)::int`.as("count"),
+         ])
+         .where("conduce.proyecto_id", "=", proyectoId)
+         .where("conduce.deleted_at", "is", null)
+         .groupBy("conduce.categoria_equipo_tarifa_nombre")
+         .orderBy("conduce.categoria_equipo_tarifa_nombre", "asc")
+         .execute();
+      return rows.map((r) => ({ nombre: r.nombre ?? "Sin categoría", count: Number(r.count) }));
    }
 
    async findByProyectoId(proyectoId: string): Promise<ConduceProps[]> {

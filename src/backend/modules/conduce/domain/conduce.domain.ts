@@ -147,6 +147,8 @@ export interface ConduceFiltros {
    cliente_id?: string;
    tipo_conduce?: TipoConduce;
    es_cobrable?: boolean;
+   categoria_equipo_tarifa_nombre?: string;
+   categoria_equipo_tarifa_null?: boolean;
    // "YYYY-MM-DD" (igual al value de un <input type="date">). A propósito
    // NO es `Date`: convertir a Date en el backend fue la causa del bug de
    // "el filtro de fecha no funciona" (corrimiento de un día por timezone
@@ -171,6 +173,7 @@ export interface ConduceListResult {
 
 export interface IConduceRepository {
    findAll(filtros: ConduceFiltros): Promise<ConduceListResult>;
+   findCategoriasByProyecto(proyectoId: string): Promise<Array<{ nombre: string; count: number }>>;
    findByProyectoId(proyectoId: string, search?: string, pagination?: { page: number, limit: number }): Promise<ConduceProps[]>;
    findById(id: string): Promise<ConduceProps | null>;
    create(data: CreateConduceDTO): Promise<ConduceProps>;

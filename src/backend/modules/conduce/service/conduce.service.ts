@@ -28,6 +28,10 @@ export class ConduceService {
       return this.repo.findByProyectoId(proyectoId);
    }
 
+   async getCategoriasByProyecto(proyectoId: string): Promise<Array<{ nombre: string; count: number }>> {
+      return this.repo.findCategoriasByProyecto(proyectoId);
+   }
+
    async create(data: CreateConduceDTO): Promise<ConduceProps> {
       this.#validate(data);
       const conduce = await this.repo.create(data);

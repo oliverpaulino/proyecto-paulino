@@ -41,6 +41,18 @@ conducesRoute.get("/", async (c) => {
    }
 });
 
+// GET /api/conduces/categorias?proyecto_id= — categorías con conteo (ligero, sin detalles)
+conducesRoute.get("/categorias", async (c) => {
+   try {
+      const proyectoId = c.req.query("proyecto_id");
+      if (!proyectoId) return c.json({ error: "proyecto_id es requerido" }, 400);
+      const categorias = await service.getCategoriasByProyecto(proyectoId);
+      return c.json(categorias);
+   } catch (err: unknown) {
+      return c.json({ error: err instanceof Error ? err.message : "Error al obtener categorías" }, 500);
+   }
+});
+
 // GET /api/conduces/:id
 conducesRoute.get("/:id", async (c) => {
    try {

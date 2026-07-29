@@ -14,6 +14,14 @@ type ConduceStore = {
    loading: boolean;
    filtros: ConduceFiltros;
 
+   // ── Categorías por proyecto (carga ligera) ───────────────────────────
+   categorias: Array<{ nombre: string; count: number }>;
+   categoriasLoading: boolean;
+
+   // ── Conduces por categoría dentro de un proyecto ─────────────────────
+   conducesPorCategoria: Record<string, ConduceDTO[]>;
+   categoriaLoading: string | null; // nombre de la categoría que está cargando
+
    // ── Eliminados ──────────────────────────────────────────────────────
    // Estado APARTE de `conduces` a propósito: así el apartado de
    // "eliminados" no pisa la lista activa que esté viendo otra pantalla al
@@ -25,6 +33,10 @@ type ConduceStore = {
    SetFiltros: (filtros: ConduceFiltros) => void;
    GetConduces: (filtros?: ConduceFiltros) => Promise<void>;
    GetConducesByProyecto: (proyectoId: string) => Promise<void>;
+   /** Trae solo los nombres+conteo de categorías de un proyecto (ligero). */
+   GetCategoriasByProyecto: (proyectoId: string) => Promise<void>;
+   /** Trae los conduces de una categoría específica de un proyecto. */
+   GetConducesByCategoria: (proyectoId: string, categoria: string) => Promise<void>;
    /** Trae conduces eliminados (fuerza eliminado=true sin importar lo que le pases). */
    GetConducesEliminados: (filtros?: Omit<ConduceFiltros, "eliminado">) => Promise<void>;
    CreateConduce: (form: CreateConduceForm) => Promise<ConduceDTO | Error>;
@@ -56,6 +68,12 @@ export const useConduceStore = create<ConduceStore>((set, get) => ({
    loading: false,
    filtros: {},
 
+   categorias: [],
+   categoriasLoading: false,
+
+   conducesPorCategoria: {},
+   categoriaLoading: null,
+
    eliminados: [],
    totalEliminados: 0,
    loadingEliminados: false,
@@ -81,19 +99,57 @@ export const useConduceStore = create<ConduceStore>((set, get) => ({
       }
    },
 
-   // Usado en la página de detalle de un proyecto: trae todos los conduces
-   // de ese proyecto (sin paginar, normalmente son pocos por proyecto).
-   GetConducesByProyecto: async (proyectoId) => {
-      set({ loading: true });
-      try {
-         const res = await fetch(`/api/conduces?proyecto_id=${proyectoId}&pageSize=500`);
-         if (!res.ok) throw new Error("Error al cargar conduces");
-         const data: ConduceListResult = await res.json();
-         set({ conduces: data.data, total: data.total });
-      } finally {
-         set({ loading: false });
-      }
-   },
+    // Usado en la página de detalle de un proyecto: trae todos los conduces
+    // de ese proyecto (sin paginar, normalmente son pocos por proyecto).
+    GetConducesByProyecto: async (proyectoId) => {
+       set({ loading: true });
+       try {
+          const res = await fetch(`/api/conduces?proyecto_id=${proyectoId}&pageSize=500`);
+          if (!res.ok) throw new Error("Error al cargar conduces");
+          const data: ConduceListResult = await res.json();
+          set({ conduces: data.data, total: data.total });
+       } finally {
+          set({ loading: false });
+       }
+    },
+
+    // Trae solo nombres y conteo de categorías (ligero, sin detalles).
+    GetCategoriasByProyecto: async (proyectoId) => {
+       set({ categoriasLoading: true });
+       try {
+          const res = await fetch(`/api/conduces/categorias?proyecto_id=${proyectoId}`);
+          if (!res.ok) throw new Error("Error al cargar categorías de conduces");
+          const data: Array<{ nombre: string; count: number }> = await res.json();
+          set({ categorias: data });
+       } catch (error) {
+          console.error("Error fetching categorias:", error);
+       } finally {
+          set({ categoriasLoading: false });
+       }
+    },
+
+    // Trae los conduces de una categoría específica de un proyecto.
+    GetConducesByCategoria: async (proyectoId, categoria) => {
+       set({ categoriaLoading: categoria });
+       try {
+          const params = new URLSearchParams({ proyecto_id: proyectoId, pageSize: "500" });
+          if (categoria === "Sin categoría") {
+             params.set("categoria_equipo_tarifa_null", "true");
+          } else {
+             params.set("categoria_equipo_tarifa_nombre", categoria);
+          }
+          const res = await fetch(`/api/conduces?${params.toString()}`);
+          if (!res.ok) throw new Error("Error al cargar conduces");
+          const data: ConduceListResult = await res.json();
+          set((s) => ({
+             conducesPorCategoria: { ...s.conducesPorCategoria, [categoria]: data.data },
+          }));
+       } catch (error) {
+          console.error(`Error fetching conduces for categoria "${categoria}":`, error);
+       } finally {
+          set({ categoriaLoading: null });
+       }
+    },
 
    // Para el apartado de "Conduces eliminados". Usa su propio slice de
    // estado (eliminados/totalEliminados/loadingEliminados) para no chocar
@@ -208,12 +264,18 @@ export const useConduceStore = create<ConduceStore>((set, get) => ({
              const errorText = await res.text();
              throw new Error(`Error ${res.status}: ${errorText}`);
           }
-          // Actualizar el estado local de los conduces modificados
-          set((s) => ({
-             conduces: s.conduces.map((c) =>
-                ids.includes(c.id) ? { ...c, es_cobrable } : c
-             ),
-          }));
+           // Actualizar el estado local de los conduces modificados
+           set((s) => ({
+              conduces: s.conduces.map((c) =>
+                 ids.includes(c.id) ? { ...c, es_cobrable } : c
+              ),
+              conducesPorCategoria: Object.fromEntries(
+                 Object.entries(s.conducesPorCategoria).map(([cat, items]) => [
+                    cat,
+                    items.map((c) => (ids.includes(c.id) ? { ...c, es_cobrable } : c)),
+                 ])
+              ),
+           }));
           return true;
        } catch (error) {
           return error as Error;
