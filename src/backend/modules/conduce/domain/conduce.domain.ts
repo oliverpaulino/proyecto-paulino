@@ -173,7 +173,7 @@ export interface ConduceListResult {
 
 export interface IConduceRepository {
    findAll(filtros: ConduceFiltros): Promise<ConduceListResult>;
-   findCategoriasByProyecto(proyectoId: string): Promise<Array<{ nombre: string; count: number }>>;
+   findCategoriasByProyecto(proyectoId: string): Promise<Array<{ nombre: string; count: number; subtotal: number; subtotalCobrable: number }>>;
    findByProyectoId(proyectoId: string, search?: string, pagination?: { page: number, limit: number }): Promise<ConduceProps[]>;
    findById(id: string): Promise<ConduceProps | null>;
    create(data: CreateConduceDTO): Promise<ConduceProps>;

@@ -15,7 +15,7 @@ type ConduceStore = {
    filtros: ConduceFiltros;
 
    // ── Categorías por proyecto (carga ligera) ───────────────────────────
-   categorias: Array<{ nombre: string; count: number }>;
+   categorias: Array<{ nombre: string; count: number; subtotal: number; subtotalCobrable: number }>;
    categoriasLoading: boolean;
 
    // ── Conduces por categoría dentro de un proyecto ─────────────────────
@@ -119,7 +119,7 @@ export const useConduceStore = create<ConduceStore>((set, get) => ({
        try {
           const res = await fetch(`/api/conduces/categorias?proyecto_id=${proyectoId}`);
           if (!res.ok) throw new Error("Error al cargar categorías de conduces");
-          const data: Array<{ nombre: string; count: number }> = await res.json();
+           const data: Array<{ nombre: string; count: number; subtotal: number; subtotalCobrable: number }> = await res.json();
           set({ categorias: data });
        } catch (error) {
           console.error("Error fetching categorias:", error);

@@ -28,7 +28,7 @@ export class ConduceService {
       return this.repo.findByProyectoId(proyectoId);
    }
 
-   async getCategoriasByProyecto(proyectoId: string): Promise<Array<{ nombre: string; count: number }>> {
+   async getCategoriasByProyecto(proyectoId: string): Promise<Array<{ nombre: string; count: number; subtotal: number; subtotalCobrable: number }>> {
       return this.repo.findCategoriasByProyecto(proyectoId);
    }
 

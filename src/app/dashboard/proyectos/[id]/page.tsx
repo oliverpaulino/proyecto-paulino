@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
    Card, CardContent, CardHeader, CardTitle,
@@ -26,6 +26,7 @@ import ConfiguracionTab from "./components/Configuracion-tab";
 export default function ProyectoDetailPage() {
    const params = useParams();
    const router = useRouter();
+   const searchParams = useSearchParams();
    const proyectoId = params.id as string;
 
    const { ToggleDetalleCobrable } = useProyectoStore();
@@ -36,6 +37,14 @@ export default function ProyectoDetailPage() {
 
    const [selectedDetalleIds, setSelectedDetalleIds] = useState<Set<string>>(new Set());
    const [toggleDetalleLoading, setToggleDetalleLoading] = useState(false);
+
+   // Tab sincronizado con URL (?tab=)
+   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "general");
+
+   const handleTabChange = useCallback((value: string) => {
+      setActiveTab(value);
+      router.replace(`/dashboard/proyectos/${proyectoId}?tab=${value}`, { scroll: false });
+   }, [proyectoId, router]);
 
    async function loadProyecto() {
       const res = await fetch(`/api/proyectos/${proyectoId}`);
@@ -111,7 +120,7 @@ export default function ProyectoDetailPage() {
       <div className="flex flex-col gap-6 p-6">
          <ProyectoHeader proyecto={proyecto} pdfLoading={pdfLoading} onPDF={handleGenerarPDF} onBack={() => router.push("/dashboard/proyectos")} />
 
-         <Tabs defaultValue="general" className="space-y-4">
+         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
             <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 lg:w-auto">
                <TabsTrigger value="general">General</TabsTrigger>
                <TabsTrigger value="configuracion">Configuracion</TabsTrigger>

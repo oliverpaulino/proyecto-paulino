@@ -94,38 +94,6 @@ export function ConducesTab({
    // ── Conduces derivados ──────────────────────────────────────────────
    const allConduces = useMemo(() => Object.values(conducesPorCategoria).flat(), [conducesPorCategoria]);
 
-   const conducesFiltrados = useMemo(() => {
-      return allConduces.filter((c) => {
-         if (conduceSearch) {
-            const q = conduceSearch.toLowerCase();
-            const match =
-               c.numero_referencia.toLowerCase().includes(q) ||
-               (c.equipo_nombre ?? "").toLowerCase().includes(q) ||
-               (c.categoria_equipo_tarifa_nombre ?? "").toLowerCase().includes(q) ||
-               (c.operador_nombre ?? "").toLowerCase().includes(q);
-            if (!match) return false;
-         }
-         if (conduceFilterCategoria !== "all") {
-            const catNombre = c.categoria_equipo_tarifa_nombre || "Sin categoría";
-            if (catNombre !== conduceFilterCategoria) return false;
-         }
-         if (conduceFilterCobrable === "cobrable" && !c.es_cobrable) return false;
-         if (conduceFilterCobrable === "no_cobrable" && c.es_cobrable) return false;
-         if (conduceFilterTipo !== "all" && c.tipo_conduce !== conduceFilterTipo) return false;
-         return true;
-      });
-   }, [allConduces, conduceSearch, conduceFilterCategoria, conduceFilterCobrable, conduceFilterTipo]);
-
-   const conducesGrouped = useMemo(() => {
-      const groups: Record<string, ConduceDTO[]> = {};
-      for (const c of conducesFiltrados) {
-         const cat = c.categoria_equipo_tarifa_nombre || "Sin categoría";
-         if (!groups[cat]) groups[cat] = [];
-         groups[cat].push(c);
-      }
-      return groups;
-   }, [conducesFiltrados]);
-
    const conducesCobrables = allConduces.filter((c) => c.es_cobrable);
    const conducesInternos = allConduces.filter((c) => !c.es_cobrable);
 
@@ -349,35 +317,32 @@ export function ConducesTab({
                <div className="flex items-center justify-center p-8 text-sm text-muted-foreground">
                   No hay conduces en este proyecto.
                </div>
-            ) : conducesFiltrados.length === 0 && expandedCategories.length > 0 ? (
-               <div className="flex items-center justify-center p-8 text-sm text-muted-foreground">
-                  No hay conduces con los filtros actuales.
-               </div>
-            ) : (
-               <Accordion
-                  type="multiple"
-                  value={expandedCategories}
-                  onValueChange={handleAccordionChange}
-                  className="space-y-0"
-               >
-                  {Object.entries(conducesGrouped).map(([categoria, items]) => (
-                     <ConduceCategoryGroup
-                        key={categoria}
-                        categoria={categoria}
-                        items={items}
-                        loadingCategoria={categoriaLoading === categoria}
-                        selectedIds={selectedConduceIds}
-                        onSelectIds={setSelectedConduceIds}
-                        onToggleCategory={handleToggleCategory}
-                        onDetail={setConduceDetalle}
-                        onEdit={setConduceAEditar}
-                        onDelete={setConduceAEliminar}
-                        onToggleOne={handleToggleOneConduce}
-                        toggleLoading={toggleConduceLoading}
-                     />
-                  ))}
-               </Accordion>
-            )}
+             ) : (
+                <Accordion
+                   type="multiple"
+                   value={expandedCategories}
+                   onValueChange={handleAccordionChange}
+                   className="space-y-0"
+                >
+                   {categorias.map(({ nombre, subtotal, subtotalCobrable, count }) => (
+                      <ConduceCategoryGroup
+                         key={nombre}
+                         categoria={nombre}
+                         items={conducesPorCategoria[nombre] ?? []}
+                         loadingCategoria={categoriaLoading === nombre}
+                         resumen={{ subtotal, subtotalCobrable, count }}
+                         selectedIds={selectedConduceIds}
+                         onSelectIds={setSelectedConduceIds}
+                         onToggleCategory={handleToggleCategory}
+                         onDetail={setConduceDetalle}
+                         onEdit={setConduceAEditar}
+                         onDelete={setConduceAEliminar}
+                         onToggleOne={handleToggleOneConduce}
+                         toggleLoading={toggleConduceLoading}
+                      />
+                   ))}
+                </Accordion>
+             )}
          </CardContent>
       </Card>
 

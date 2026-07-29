@@ -28,9 +28,11 @@ conducesRoute.get("/", async (c) => {
          // para el porqué (evita el corrimiento de un día por timezone).
          fecha_desde: q.fecha_desde || undefined,
          fecha_hasta: q.fecha_hasta || undefined,
-         busqueda: q.busqueda || undefined,
-         eliminado: q.eliminado === "true" ? true : undefined,
-         page: q.page ? Number(q.page) : undefined,
+          busqueda: q.busqueda || undefined,
+          eliminado: q.eliminado === "true" ? true : undefined,
+          categoria_equipo_tarifa_nombre: q.categoria_equipo_tarifa_nombre || undefined,
+          categoria_equipo_tarifa_null: q.categoria_equipo_tarifa_null === "true" ? true : undefined,
+          page: q.page ? Number(q.page) : undefined,
          pageSize: q.pageSize ? Number(q.pageSize) : undefined,
       };
 

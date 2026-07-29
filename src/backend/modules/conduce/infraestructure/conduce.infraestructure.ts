@@ -165,19 +165,26 @@ export class KyselyConduceRepository implements IConduceRepository {
       };
    }
 
-   async findCategoriasByProyecto(proyectoId: string): Promise<Array<{ nombre: string; count: number }>> {
+   async findCategoriasByProyecto(proyectoId: string): Promise<Array<{ nombre: string; count: number; subtotal: number; subtotalCobrable: number }>> {
       const rows = await this.db
          .selectFrom("conduce")
          .select([
             "conduce.categoria_equipo_tarifa_nombre as nombre",
             sql<number>`count(*)::int`.as("count"),
+            sql<number>`coalesce(sum(subtotal), 0)`.as("subtotal"),
+            sql<number>`coalesce(sum(case when es_cobrable then subtotal else 0 end), 0)`.as("subtotal_cobrable"),
          ])
          .where("conduce.proyecto_id", "=", proyectoId)
          .where("conduce.deleted_at", "is", null)
          .groupBy("conduce.categoria_equipo_tarifa_nombre")
          .orderBy("conduce.categoria_equipo_tarifa_nombre", "asc")
          .execute();
-      return rows.map((r) => ({ nombre: r.nombre ?? "Sin categoría", count: Number(r.count) }));
+      return rows.map((r) => ({
+         nombre: r.nombre ?? "Sin categoría",
+         count: Number(r.count),
+         subtotal: Number(r.subtotal),
+         subtotalCobrable: Number(r.subtotal_cobrable),
+      }));
    }
 
    async findByProyectoId(proyectoId: string): Promise<ConduceProps[]> {
