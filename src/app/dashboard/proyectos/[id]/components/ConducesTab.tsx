@@ -234,11 +234,13 @@ export function ConducesTab({
                            Queda asignado directamente a este proyecto.
                         </DialogDescription>
                      </DialogHeader>
-                     <ConduceForm
-                        fixedProyectoId={proyecto.id}
-                        onSubmit={handleCreateConduce}
-                        onCancel={() => setConduceDialogOpen(false)}
-                        loading={conduceLoading}
+                      <ConduceForm
+                         fixedProyectoId={proyecto.id}
+                         fixedClienteId={proyecto.cliente_id}
+                         fixedClienteNombre={proyecto.cliente_nombre}
+                         onSubmit={handleCreateConduce}
+                         onCancel={() => setConduceDialogOpen(false)}
+                         loading={conduceLoading}
                      />
                   </DialogContent>
                </Dialog>

@@ -28,11 +28,11 @@ conducesRoute.get("/", async (c) => {
          // para el porqué (evita el corrimiento de un día por timezone).
          fecha_desde: q.fecha_desde || undefined,
          fecha_hasta: q.fecha_hasta || undefined,
-          busqueda: q.busqueda || undefined,
-          eliminado: q.eliminado === "true" ? true : undefined,
-          categoria_equipo_tarifa_nombre: q.categoria_equipo_tarifa_nombre || undefined,
-          categoria_equipo_tarifa_null: q.categoria_equipo_tarifa_null === "true" ? true : undefined,
-          page: q.page ? Number(q.page) : undefined,
+         busqueda: q.busqueda || undefined,
+         eliminado: q.eliminado === "true" ? true : undefined,
+         categoria_equipo_tarifa_nombre: q.categoria_equipo_tarifa_nombre || undefined,
+         categoria_equipo_tarifa_null: q.categoria_equipo_tarifa_null === "true" ? true : undefined,
+         page: q.page ? Number(q.page) : undefined,
          pageSize: q.pageSize ? Number(q.pageSize) : undefined,
       };
 
@@ -87,8 +87,6 @@ conducesRoute.post("/", async (c) => {
          const conduce = await service.create({
             ...body,
             fecha: new Date(body.fecha),
-            // Antes se pedía la sesión solo para el chequeo de auth y nunca
-            // se guardaba quién creó el registro.
             created_by: session.user.id,
             created_by_name: session.user.name,
          } as any);
