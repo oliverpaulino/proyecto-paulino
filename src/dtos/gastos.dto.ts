@@ -6,7 +6,7 @@ export const GastoDTO = z.object({
    codigoReferencia: z.string(),
    monto_total: z.number(),
    concepto: z.string(),
-   ncf: z.string(),
+   ncf: z.string().nullable(),
 
    categoria_gasto_id: z.uuid(),
    //join categoria
@@ -36,7 +36,7 @@ export const GastoDTO = z.object({
 export const CreateGastoSchema = z.object({
    monto_total: z.coerce.number().min(0.01, "El monto debe ser mayor a 0"),
    concepto: z.string().min(1, "El concepto es requerido"),
-   ncf: z.string().min(1, "El NCF es requerido"),
+   ncf: z.string().nullable(),
    fecha: z.coerce.date(),
    categoria_gasto_id: z.uuid("ID de categoría inválido"),
    orden_compra_id: z.uuid().optional().nullable(),

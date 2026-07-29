@@ -23,7 +23,9 @@ export class KyselyGastoRepository implements IGastoRepository {
          orden_compra_codigo_referencia: row.orden_compra_codigo_referencia 
             ? this.buildCodigoReferencia("OC", row.orden_compra_codigo_referencia) 
             : null,
-         proyecto_codigo_referencia: row.proyecto_codigo_referencia || null,
+         proyecto_codigo_referencia: row.proyecto_codigo_referencia
+            ? this.buildCodigoReferencia("PRO", row.proyecto_codigo_referencia)
+            : null,
          equipo_codigo_referencia: row.equipo_codigo_referencia 
             ? this.buildCodigoReferencia("EQU", row.equipo_codigo_referencia) 
             : null,
@@ -61,7 +63,7 @@ export class KyselyGastoRepository implements IGastoRepository {
             "categoria_gasto.nombre as categoria_gasto_nombre",
             "categoria_gasto.grupo as categoria_gasto_grupo",
             "orden_compra.referencia as orden_compra_codigo_referencia",
-            "proyecto.id as proyecto_codigo_referencia",
+            "proyecto.referencia as proyecto_codigo_referencia",
             "equipo.referencia as equipo_codigo_referencia",
          ]);
 
@@ -80,11 +82,8 @@ export class KyselyGastoRepository implements IGastoRepository {
             const conditions: any[] = [
                eb("gasto.concepto", "ilike", searchLike),
                eb("gasto.ncf", "ilike", searchLike),
+               eb(eb.cast("gasto.referencia", "text"), "ilike", `%${refNumber}%`),
             ];
-
-            if (refNumber !== null) {
-               conditions.push(eb("gasto.referencia", "=", refNumber));
-            }
 
             return eb.or(conditions);
          });
@@ -136,7 +135,7 @@ export class KyselyGastoRepository implements IGastoRepository {
             "categoria_gasto.nombre as categoria_gasto_nombre",
             "categoria_gasto.grupo as categoria_gasto_grupo",
             "orden_compra.referencia as orden_compra_codigo_referencia",
-            "proyecto.id as proyecto_codigo_referencia",
+            "proyecto.referencia as proyecto_codigo_referencia",
             "equipo.referencia as equipo_codigo_referencia",
          ])
          .where("gasto.id", "=", id)
@@ -159,7 +158,7 @@ export class KyselyGastoRepository implements IGastoRepository {
             "categoria_gasto.nombre as categoria_gasto_nombre",
             "categoria_gasto.grupo as categoria_gasto_grupo",
             "orden_compra.referencia as orden_compra_codigo_referencia",
-            "proyecto.id as proyecto_codigo_referencia",
+            "proyecto.referencia as proyecto_codigo_referencia",
             "equipo.referencia as equipo_codigo_referencia",
          ])
          .where("gasto.id", "=", id)

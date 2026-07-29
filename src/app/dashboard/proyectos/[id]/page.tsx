@@ -45,6 +45,10 @@ export default function ProyectoDetailPage() {
       setActiveTab(value);
       router.replace(`/dashboard/proyectos/${proyectoId}?tab=${value}`, { scroll: false });
    }, [proyectoId, router]);
+   const [pdfError, setPdfError] = useState<string | null>(null);
+   const [conduceDialogOpen, setConduceDialogOpen] = useState(false);
+   const [conduceLoading, setConduceLoading] = useState(false);
+   const [deletingConduceId, setDeletingConduceId] = useState<string | null>(null);
 
    async function loadProyecto() {
       const res = await fetch(`/api/proyectos/${proyectoId}`);
@@ -67,6 +71,11 @@ export default function ProyectoDetailPage() {
       // eslint-disable-next-line react-hooks/exhaustive-deps
    }, [proyectoId]);
 
+   /*
+      Los conduces se pasan explícitamente desde el store: `proyecto.conduces`
+      puede venir vacío según el endpoint, y el store ya los tiene cargados y
+      frescos para esta pantalla.
+   */
    async function handleGenerarPDF(tipo: "interno" | "factura") {
       if (!proyecto) return;
       setPdfLoading(tipo);

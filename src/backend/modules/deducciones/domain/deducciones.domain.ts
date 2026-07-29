@@ -8,11 +8,16 @@ export interface DeduccionProps {
    
    empleado_id: string;
    //join empleado
+   empleado_codigo_referencia: string | null;
    empleado_nombre: string | null;
 
    equipo_id: string | null;
    //join equipo
    equipo_codigo_referencia: string | null;
+
+   gasto_id: string | null;
+   //join gasto
+   gasto_codigo_referencia: string | null;
 
    fecha: Date;
    created_at: Date;
@@ -39,10 +44,13 @@ export class Deduccion {
    get balance_pendiente() { return this.props.balance_pendiente; }
    get concepto() { return this.props.concepto; }
    get empleado_id() { return this.props.empleado_id; }
+   get empleado_codigo_referencia() { return this.props.empleado_codigo_referencia; }
    get empleado_nombre() { return this.props.empleado_nombre; }
    get equipo_id() { return this.props.equipo_id; }
    get equipo_codigo_referencia() { return this.props.equipo_codigo_referencia; }
-   get fecha() { return this.props.fecha }
+   get gasto_id() { return this.props.gasto_id; }
+   get gasto_codigo_referencia() { return this.props.gasto_codigo_referencia; }
+   get fecha() { return this.props.fecha; }
    get created_at() { return this.props.created_at; }
    get updated_at() { return this.props.updated_at; }
    get deleted_by() { return this.props.deleted_by; }
@@ -57,6 +65,7 @@ export class Deduccion {
 export interface CreateDeduccionDTO {
    empleado_id: string;
    equipo_id?: string | null;
+   gasto_id?: string | null;
    monto_total: number;
    balance_pendiente?: number | null;
    concepto: string;

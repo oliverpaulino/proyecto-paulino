@@ -24,9 +24,11 @@ import {
    History,
    Loader2,
    Pencil,
+   Plus,
    ShoppingCart,
    Truck,
    UserRound,
+   Wrench,
 } from "lucide-react";
 import type {
    Equipo,
@@ -47,6 +49,18 @@ import { CategoriaEquipo } from "@/dtos/categoria-equipo.dto";
 import { OperadorAsignable } from "@/dtos/employee.dto";
 import { CategoriaEquipoManager } from "../components/categoria-equipo-manager";
 import { EquipoConduces } from "./components/equipo-conduce";
+import { useMantenimientoStore } from "@/stores/useMantenimientoStore";
+import {
+   ESTADO_MANTENIMIENTO_BADGE,
+   ESTADO_MANTENIMIENTO_LABEL,
+   TIPO_MANTENIMIENTO_BADGE,
+   TIPO_MANTENIMIENTO_LABEL,
+   type CloseMantenimientoForm,
+   type CreateMantenimientoForm,
+   type Mantenimiento,
+} from "@/dtos/mantenimiento.dto";
+import { CerrarMantenimientoDialog } from "../../mantenimientos/components/cerrar-mantenimiento-dialog";
+import { MantenimientoFormDialog } from "../../mantenimientos/components/mantenimiento-form-dialog";
 
 const SELECT_CLASS =
    "h-9 w-full rounded-4xl border border-input bg-input/30 px-3 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 text-foreground";
@@ -97,12 +111,14 @@ function EquipoDetailContent() {
    const currentTab = searchParams.get("tab") || "general";
 
    const { ChangeEstado, UpdateEquipo, GetCategoriasEquipoByEquipoId, GetOperadorByEquipoId } = useEquipoStore();
+   const { CreateMantenimiento, CloseMantenimiento } = useMantenimientoStore();
 
    const [equipo, setEquipo] = useState<Equipo | null>(null);
    const [categoria, setCategoria] = useState<CategoriaEquipo | null>(null);
    const [operador, setOperador] = useState<OperadorAsignable | null>(null);
    const [compras, setCompras] = useState<EquipoCompraItem[]>([]);
    const [historial, setHistorial] = useState<EquipoEstadoHistorial[]>([]);
+   const [mantenimientos, setMantenimientos] = useState<Mantenimiento[]>([]);
    const [loading, setLoading] = useState(true);
    const [estadoLoading, setEstadoLoading] = useState(false);
    const [estadoError, setEstadoError] = useState<string | null>(null);
@@ -110,17 +126,31 @@ function EquipoDetailContent() {
    const [editLoading, setEditLoading] = useState(false);
    const [manageOpen, setManageOpen] = useState(false);
 
+   // Diálogos de mantenimiento disparados por el cambio de estado.
+   const [abrirMantOpen, setAbrirMantOpen] = useState(false);
+   const [cerrarMantOpen, setCerrarMantOpen] = useState(false);
+   const [mantAbierto, setMantAbierto] = useState<Mantenimiento | null>(null);
+   const [mantLoading, setMantLoading] = useState(false);
+   const [mantError, setMantError] = useState<string | null>(null);
+   // Cuando el diálogo se abre por un cambio de estado, este flag dice que al
+   // terminar hay que aplicar además la transición del equipo.
+   const [pendingEstado, setPendingEstado] = useState<EstadoEquipo | null>(null);
+
+   const mantenimientoAbierto = mantenimientos.find((m) => m.fecha_fin === null) ?? null;
+
    async function loadAll(active = { value: true }) {
       try {
-         const [equipoRes, comprasRes, historialRes] = await Promise.all([
+         const [equipoRes, comprasRes, historialRes, mantRes] = await Promise.all([
             fetch(`/api/equipos/${equipoId}`),
             fetch(`/api/equipos/${equipoId}/compras`),
             fetch(`/api/equipos/${equipoId}/historial`),
+            fetch(`/api/equipos/${equipoId}/mantenimientos`),
          ]);
          if (!equipoRes.ok) throw new Error("Not found");
          const equipoData: Equipo = await equipoRes.json();
          const comprasData: EquipoCompraItem[] = comprasRes.ok ? await comprasRes.json() : [];
          const historialData: EquipoEstadoHistorial[] = historialRes.ok ? await historialRes.json() : [];
+         const mantData: Mantenimiento[] = mantRes.ok ? await mantRes.json() : [];
          const categoria = await GetCategoriasEquipoByEquipoId(equipoId);
          setCategoria(categoria);
          const operadors = await GetOperadorByEquipoId(equipoId);
@@ -129,6 +159,7 @@ function EquipoDetailContent() {
             setEquipo(equipoData);
             setCompras(comprasData);
             setHistorial(historialData);
+            setMantenimientos(mantData);
          }
       } catch {
          if (active.value) setEquipo(null);
@@ -158,18 +189,83 @@ function EquipoDetailContent() {
       router.replace(`${pathname}?${newParams.toString()}`);
    };
 
+   /** Aplica la transición de estado sin pasar por los diálogos. */
+   async function applyEstado(nuevoEstado: EstadoEquipo) {
+      const result = await ChangeEstado(equipoId, nuevoEstado);
+      if (result instanceof Error) throw result;
+      await loadAll();
+   }
+
    async function handleEstadoChange(nuevoEstado: EstadoEquipo) {
       if (!equipo || nuevoEstado === equipo.estado) return;
-      setEstadoLoading(true);
       setEstadoError(null);
+      setMantError(null);
+
+      // Entrar a mantenimiento abre un registro (si no hay uno ya abierto).
+      if (nuevoEstado === "EN_MANTENIMIENTO" && !mantenimientoAbierto) {
+         setPendingEstado(nuevoEstado);
+         setAbrirMantOpen(true);
+         return;
+      }
+
+      // Salir de mantenimiento exige cerrar el registro abierto: el diálogo es
+      // obligatorio y el backend rechaza la transición si se intenta saltar.
+      if (nuevoEstado === "ACTIVO" && equipo.estado === "EN_MANTENIMIENTO" && mantenimientoAbierto) {
+         setMantAbierto(mantenimientoAbierto);
+         setPendingEstado(nuevoEstado);
+         setCerrarMantOpen(true);
+         return;
+      }
+
+      setEstadoLoading(true);
       try {
-         const result = await ChangeEstado(equipoId, nuevoEstado);
-         if (result instanceof Error) throw result;
-         await loadAll();
+         await applyEstado(nuevoEstado);
       } catch (err) {
          setEstadoError(err instanceof Error ? err.message : "Error al cambiar el estado");
       } finally {
          setEstadoLoading(false);
+      }
+   }
+
+   async function handleAbrirMantenimiento(data: CreateMantenimientoForm) {
+      setMantLoading(true);
+      setMantError(null);
+      try {
+         const result = await CreateMantenimiento(data);
+         if (result instanceof Error) throw result;
+
+         // Sólo mueve el equipo si el diálogo vino de un cambio de estado.
+         if (pendingEstado) await applyEstado(pendingEstado);
+         else await loadAll();
+
+         setAbrirMantOpen(false);
+         setPendingEstado(null);
+      } catch (err) {
+         setMantError(err instanceof Error ? err.message : "Error al registrar el mantenimiento");
+      } finally {
+         setMantLoading(false);
+      }
+   }
+
+   async function handleCerrarMantenimiento(data: CloseMantenimientoForm) {
+      if (!mantAbierto) return;
+      setMantLoading(true);
+      setMantError(null);
+      try {
+         const result = await CloseMantenimiento(mantAbierto.id, data);
+         if (result instanceof Error) throw result;
+
+         // El cierre es requisito de la reactivación: recién ahora pasa a ACTIVO.
+         if (pendingEstado) await applyEstado(pendingEstado);
+         else await loadAll();
+
+         setCerrarMantOpen(false);
+         setMantAbierto(null);
+         setPendingEstado(null);
+      } catch (err) {
+         setMantError(err instanceof Error ? err.message : "Error al cerrar el mantenimiento");
+      } finally {
+         setMantLoading(false);
       }
    }
 
@@ -370,6 +466,122 @@ function EquipoDetailContent() {
                      </CardContent>
                   </Card>
 
+                  {/* Historial de mantenimientos */}
+                  <Card>
+                     <CardHeader className="flex flex-row items-start justify-between gap-4">
+                        <div className="space-y-1.5">
+                           <CardTitle className="flex items-center gap-2">
+                              <Wrench className="size-5 text-brand-blue" />
+                              Historial de mantenimientos
+                           </CardTitle>
+                           <CardDescription>
+                              Mantenimientos registrados para este equipo.
+                           </CardDescription>
+                        </div>
+                        <PermissionGuard resource="machinery" action="update">
+                           <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                 setPendingEstado(null);
+                                 setMantError(null);
+                                 setAbrirMantOpen(true);
+                              }}
+                              disabled={!!mantenimientoAbierto}
+                              title={
+                                 mantenimientoAbierto
+                                    ? "Ya hay un mantenimiento abierto para este equipo"
+                                    : undefined
+                              }
+                           >
+                              <Plus className="mr-2 size-4" />
+                              Registrar
+                           </Button>
+                        </PermissionGuard>
+                     </CardHeader>
+                     <CardContent>
+                        {mantenimientos.length === 0 ? (
+                           <div className="flex items-center justify-center p-8 text-sm text-muted-foreground">
+                              Aún no hay mantenimientos registrados.
+                           </div>
+                        ) : (
+                           <ul className="flex flex-col gap-3">
+                              {mantenimientos.map((m) => (
+                                 <li
+                                    key={m.id}
+                                    className="flex flex-col gap-2 rounded-lg border border-border bg-muted/20 p-3"
+                                 >
+                                    <div className="flex flex-wrap items-center gap-2">
+                                       <span className="font-mono text-xs text-muted-foreground">
+                                          {m.codigoReferencia}
+                                       </span>
+                                       <span
+                                          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${TIPO_MANTENIMIENTO_BADGE[m.tipo]}`}
+                                       >
+                                          {TIPO_MANTENIMIENTO_LABEL[m.tipo]}
+                                       </span>
+                                       <span
+                                          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${ESTADO_MANTENIMIENTO_BADGE[m.estado]}`}
+                                       >
+                                          {ESTADO_MANTENIMIENTO_LABEL[m.estado]}
+                                       </span>
+                                       {m.costo != null && (
+                                          <span className="text-xs font-semibold">
+                                             {formatMoney(m.costo)}
+                                          </span>
+                                       )}
+                                       {m.gastos.map((g) => (
+                                          <Link
+                                             key={g.id}
+                                             href={`/dashboard/gastos`}
+                                             className="text-xs text-brand-blue hover:underline"
+                                          >
+                                             {g.codigoReferencia}
+                                          </Link>
+                                       ))}
+                                    </div>
+
+                                    <p className="text-sm font-medium">{m.descripcion}</p>
+                                    {m.trabajo_realizado && (
+                                       <p className="text-sm text-muted-foreground">
+                                          Trabajo: {m.trabajo_realizado}
+                                       </p>
+                                    )}
+
+                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                                       <span>
+                                          {formatDate(m.fecha_inicio)} →{" "}
+                                          {m.fecha_fin ? formatDate(m.fecha_fin) : "En proceso"}
+                                       </span>
+                                       {m.taller && <span>· {m.taller}</span>}
+                                       {m.created_by_name && <span>· {m.created_by_name}</span>}
+                                    </div>
+
+                                    {m.fecha_fin === null && (
+                                       <PermissionGuard resource="machinery" action="update">
+                                          <div>
+                                             <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => {
+                                                   setMantAbierto(m);
+                                                   setPendingEstado(null);
+                                                   setMantError(null);
+                                                   setCerrarMantOpen(true);
+                                                }}
+                                             >
+                                                Cerrar mantenimiento
+                                             </Button>
+                                          </div>
+                                       </PermissionGuard>
+                                    )}
+                                 </li>
+                              ))}
+                           </ul>
+                        )}
+                     </CardContent>
+                  </Card>
+
                   {/* Estado history */}
                   <Card>
                      <CardHeader>
@@ -442,6 +654,55 @@ function EquipoDetailContent() {
             </Dialog>
 
             <CategoriaEquipoManager open={manageOpen} onOpenChange={setManageOpen} />
+
+            {/* Abrir mantenimiento — al entrar a EN_MANTENIMIENTO o desde el botón. */}
+            <MantenimientoFormDialog
+               open={abrirMantOpen}
+               onOpenChange={(open) => {
+                  if (!open) {
+                     setAbrirMantOpen(false);
+                     // Cancelar aquí cancela también el cambio de estado.
+                     setPendingEstado(null);
+                     setMantError(null);
+                  }
+               }}
+               onSubmit={handleAbrirMantenimiento}
+               loading={mantLoading}
+               error={mantError}
+               equipoId={equipoId}
+               equipoNombre={equipo.nombre}
+               description={
+                  pendingEstado === "EN_MANTENIMIENTO"
+                     ? "El equipo pasará a mantenimiento. Registra de qué se trata."
+                     : "Abre un registro de mantenimiento para este equipo."
+               }
+               submitLabel={
+                  pendingEstado === "EN_MANTENIMIENTO" ? "Registrar y enviar a mantenimiento" : "Registrar"
+               }
+            />
+
+            {/* Cerrar mantenimiento — obligatorio para volver a ACTIVO. */}
+            <CerrarMantenimientoDialog
+               open={cerrarMantOpen}
+               onOpenChange={(open) => {
+                  if (!open) {
+                     setCerrarMantOpen(false);
+                     setMantAbierto(null);
+                     setPendingEstado(null);
+                     setMantError(null);
+                  }
+               }}
+               mantenimiento={mantAbierto}
+               onSubmit={handleCerrarMantenimiento}
+               loading={mantLoading}
+               error={mantError}
+               description={
+                  pendingEstado === "ACTIVO"
+                     ? "Para reactivar el equipo primero debes cerrar el mantenimiento abierto."
+                     : "Registra qué se hizo para cerrar este mantenimiento."
+               }
+               submitLabel={pendingEstado === "ACTIVO" ? "Cerrar y activar" : "Cerrar mantenimiento"}
+            />
          </div>
       </PermissionGuard>
    );

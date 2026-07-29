@@ -56,7 +56,21 @@ export interface ConduceTable {
    cliente_telefono: string | null;
 
    equipo_id: string;
-   operador_id: string;
+
+   // ── Persona que operó el equipo ────────────────────────────────────────
+   // Hay DOS columnas y AMBAS son nullable (FK ON DELETE SET NULL):
+   //   - empleado_id → empleado.id   (referencia directa)
+   //   - operador_id → operador.id   (perfil de operador; empleado vía
+   //                                  operador.empleado_id)
+   // En los datos actuales son mutuamente excluyentes: unas filas traen
+   // empleado_id, otras operador_id, y muchas NINGUNA de las dos.
+   // Para resolver el empleado real SIEMPRE usa:
+   //   COALESCE(conduce.empleado_id, operador.empleado_id)
+   // con LEFT JOIN operador ON operador.id = conduce.operador_id.
+   // Filtrar solo por `operador.empleado_id` deja fuera los conduces que
+   // traen empleado_id directo.
+   empleado_id: string | null;
+   operador_id: string | null;
    categoria_equipo_id: string; // snapshot, vía equipo.categoria_id
 
    categoria_equipo_tarifa_id: string | null; // best-effort, puede quedar NULL (ver nota arriba)
@@ -326,6 +340,43 @@ export interface DB {
       created_at: Generated<Date>;
    };
 
+   /**
+    * Bitácora de mantenimientos. Una fila está ABIERTA mientras `fecha_fin`
+    * sea null — es el estado en que queda el equipo al pasar a
+    * EN_MANTENIMIENTO, y se cierra al devolverlo a ACTIVO.
+    * `gasto_id` enlaza el costo con el módulo de gastos (creado o existente).
+    */
+   mantenimiento: {
+      id: Generated<string>;
+      referencia: Generated<number>;
+      equipo_id: string;
+      tipo: Generated<string>;
+      estado: Generated<string>;
+      descripcion: string;
+      taller: string | null;
+      trabajo_realizado: string | null;
+      /**
+       * Costo declarado. Con gastos enlazados la app lo mantiene igual a la
+       * suma de `mantenimiento_gasto`; sin ellos se captura a mano.
+       */
+      costo: number | null;
+      fecha_inicio: Generated<Date>;
+      fecha_fin: Date | null;
+      created_by: string | null;
+      created_by_name: string | null;
+      closed_by: string | null;
+      closed_by_name: string | null;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+
+   /** Un mantenimiento puede tener varios gastos (repuestos, mano de obra…). */
+   mantenimiento_gasto: {
+      mantenimiento_id: string;
+      gasto_id: string;
+      created_at: Generated<Date>;
+   };
+
    payroll_concepts: {
       id: Generated<string>;
       organization_id: string | null;
@@ -353,6 +404,98 @@ export interface DB {
       priority: number;
       project_location_filter: string | null;
       is_active: boolean;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+
+   // ── Nómina: ciclo (período que se paga) ──────────────────────────────────
+   // Ver migración 007_payroll_cycles.sql. `payroll_items.cycle_id` ya
+   // apuntaba aquí desde el código antes de que la tabla existiera.
+   payroll_cycles: {
+      id: Generated<string>;
+      organization_id: string | null;
+      nombre: string;
+      frecuencia: string; // SEMANAL | QUINCENAL | MENSUAL
+      fecha_inicio: Date;
+      fecha_fin: Date;
+      fecha_pago: Date | null;
+      estado: Generated<string>; // ABIERTO | CALCULADO | CERRADO | PAGADO
+      closed_at: Date | null;
+      closed_by: string | null;
+      // Gasto generado al cerrar el ciclo (ver migración 009). NULL mientras
+      // no se haya cerrado; sirve de candado de idempotencia.
+      gasto_id: string | null;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+
+   // Snapshot congelado por empleado dentro del ciclo. Una vez CERRADO, estos
+   // montos no se recalculan aunque cambien tarifas, salario o conduces.
+   payroll_cycle_employees: {
+      id: Generated<string>;
+      cycle_id: string;
+      empleado_id: string;
+      empleado_nombre: string | null;
+      frecuencia_pago: string | null;
+      rol: string | null; // snapshot al momento del cálculo
+      // PRODUCCION = cobra conduces con mínimo garantizado (choferes);
+      // FIJO = cobra su salario del período (resto del personal).
+      modalidad: Generated<string>;
+      minimo_garantizado: Generated<number>; // empleado.salario
+      devengado_tarifas: Generated<number>; // Σ conduces × monto_pago
+      complemento_minimo: Generated<number>; // MAX(0, mínimo − devengado)
+      seguro: Generated<number>; // campo libre editable
+      // Suma de las deducciones del período. Siempre se recalcula desde la
+      // tabla `deduccion`: para descontar más, se CREA una deducción nueva,
+      // nunca se sobrescribe este monto.
+      deducciones: Generated<number>;
+      deuda_total: Generated<number>;
+      deuda_pendiente: Generated<number>;
+      neto_pagar: Generated<number>;
+      total_conduces: Generated<number>;
+      // Conduces sin persona que se atribuyeron infiriendo por
+      // `equipo.operador_id`. Si > 0 la UI debe marcar la fila: es una
+      // suposición, no un dato duro.
+      conduces_inferidos: Generated<number>;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+
+   // Desglose por tarifa: un chofer puede tener varias tarifas distintas en un
+   // mismo ciclo ("Arena - Viaje" 350, "Grava - Bote" 500).
+   payroll_cycle_employee_tarifas: {
+      id: Generated<string>;
+      cycle_employee_id: string;
+      categoria_equipo_tarifa_id: string | null; // best-effort (hard-replace)
+      categoria_equipo_tarifa_nombre: string; // snapshot
+      medida_cobro_nombre: string | null;
+      cantidad: Generated<number>;
+      monto_pago: Generated<number>; // precio unitario AL CHOFER
+      subtotal: Generated<number>;
+      created_at: Generated<Date>;
+   };
+
+   /*
+      Precio escrito a mano para una tarifa que la nómina no puede resolver
+      sola (el conduce guardó el nombre pero no el id, y ese nombre o no existe
+      ya en el catálogo o corresponde a varias categorías).
+
+      Aplica SOLO a ese empleado en ESE ciclo. Vive fuera de
+      `payroll_cycle_employee_tarifas` porque ese snapshot se borra y reescribe
+      en cada recálculo; aquí el precio sobrevive, que es el punto.
+
+      Se indexa por nombre normalizado porque estas filas, por definición, no
+      tienen `categoria_equipo_tarifa_id`.
+   */
+   payroll_cycle_precio_manual: {
+      id: Generated<string>;
+      cycle_id: string;
+      empleado_id: string;
+      tarifa_nombre_norm: string;
+      tarifa_nombre: string;
+      monto_pago: Generated<number>;
+      nota: string | null;
+      created_by: string | null;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
@@ -431,6 +574,7 @@ export interface DB {
 
    proyecto: {
       id: Generated<string>;
+      referencia: Generated<number>; // se muestra como PRO-001 (ver proyecto.infraestructure)
       nombre: string;
       estado: string;       // 'BORRADOR' | 'COMPLETADO' | 'CANCELADO' | 'EN PROGRESO'
       cliente_id: string;
@@ -511,12 +655,13 @@ export interface DB {
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    }
+
    gasto: {
       id: Generated<string>;
       referencia: Generated<number>;
       monto_total: number;
       concepto: string;
-      ncf: string;
+      ncf: string | null;
       categoria_gasto_id: string;
       orden_compra_id: string | null;
       proyecto_id: string | null;
@@ -534,7 +679,7 @@ export interface DB {
       proyecto_id: string,
       monto_total: number,
       concepto: string,
-      ncf: string;
+      ncf: string | null;
       orden_compra_id: string | null;
       referencia: Generated<number>;
       fecha: Date;
@@ -549,6 +694,7 @@ export interface DB {
       id: Generated<string>;
       empleado_id: string;
       equipo_id: string | null;
+      gasto_id: string | null;
       monto_total: number;
       concepto: string;
       balance_pendiente: number | null;
@@ -571,6 +717,7 @@ export interface DB {
       gasto_empresa_id: string | null;
       costo_cliente_id: string | null;
       deduccion_empleado_id: string | null;
+      proyecto_id: string | null;
       fecha: Date;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;

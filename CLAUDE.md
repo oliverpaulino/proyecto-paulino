@@ -43,3 +43,23 @@ The dashboard layout (`src/app/dashboard/page.tsx`) uses `SidebarProvider` + `Ap
 ### Path aliases
 
 `@/` maps to `src/` (configured in `tsconfig.json`).
+
+### Nómina e ISR (República Dominicana)
+
+`src/backend/modules/nomina/` calcula la nómina de choferes: se les paga por
+producción (conduces × la tarifa del empleado) con un mínimo garantizado por
+período.
+
+**Antes de tocar cualquier cálculo de ISR, retención, impuesto, AFP, SFS o base
+imponible, lee el skill `nomina-isr-rd`** (`.claude/skills/nomina-isr-rd/`).
+Las cifras fiscales caducan por año: la escala del ISR de 2027 (Ley 30-26) ya
+está legislada y tiene cinco tramos en vez de cuatro. El skill dice qué
+verificar en dgii.gov.do y por qué la escala debe vivir en datos, no
+hardcodeada.
+
+Dos cosas que no son obvias del código:
+- `conduce.subtotal` es lo que se le **factura al cliente**, no lo que se le
+  paga al chofer. El pago sale de `empleado_categoria_tarifa.monto_pago`.
+- El empleado de un conduce se resuelve en tres niveles:
+  `conduce.empleado_id` → `operador.empleado_id` → inferido por
+  `equipo.operador_id` (este último es una suposición y se marca como tal).

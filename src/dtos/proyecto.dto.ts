@@ -49,6 +49,7 @@ export interface ProyectoDetalle {
 
 interface ProyectoBase {
    id: string;
+   codigoReferencia: string; // PRO-001
    estado: EstadoProyecto;
    nombre: string;
    cliente_id: string;

@@ -1,0 +1,470 @@
+import type {
+   INominaRepository,
+   CreateCycleDTO,
+   UpdateCycleDTO,
+   PayrollCycleProps,
+   PayrollCycleEmployeeProps,
+   TarifaDesglose,
+   FrecuenciaPago,
+} from "../domain/nomina.domain";
+import {
+   FRECUENCIAS_PAGO,
+   calcularComplemento,
+   calcularNeto,
+   cicloEsEditable,
+   salarioDelPeriodo,
+} from "../domain/nomina.domain";
+
+export interface ResultadoCalculo {
+   cycle_id: string;
+   empleados_procesados: number;
+   /** Choferes que cobran por conduces. */
+   choferes: number;
+   /** Personal que cobra salario fijo. */
+   asalariados: number;
+   total_neto: number;
+   /** Empleados con al menos un conduce atribuido por inferencia. */
+   empleados_con_inferencia: number;
+   /** Conduces del período cuya tarifa no está asignada al chofer. */
+   conduces_sin_tarifa: number;
+}
+
+export class NominaService {
+   constructor(private readonly repo: INominaRepository) {}
+
+   // ── Ciclos ───────────────────────────────────────────────────────────────
+
+   async createCycle(dto: CreateCycleDTO): Promise<PayrollCycleProps> {
+      if (!dto.nombre?.trim()) throw new Error("El nombre del ciclo es obligatorio");
+      if (!FRECUENCIAS_PAGO.includes(dto.frecuencia as FrecuenciaPago)) {
+         throw new Error(`Frecuencia inválida. Use: ${FRECUENCIAS_PAGO.join(", ")}`);
+      }
+      const inicio = new Date(dto.fecha_inicio);
+      const fin = new Date(dto.fecha_fin);
+      if (Number.isNaN(inicio.getTime()) || Number.isNaN(fin.getTime())) {
+         throw new Error("Fechas inválidas");
+      }
+      if (fin < inicio) throw new Error("La fecha final no puede ser anterior a la inicial");
+
+      return await this.repo.createCycle(dto);
+   }
+
+   async updateCycle(id: string, dto: UpdateCycleDTO): Promise<PayrollCycleProps | null> {
+      const ciclo = await this.repo.findCycleById(id);
+      if (!ciclo) return null;
+      if (!cicloEsEditable(ciclo.estado) && dto.estado === undefined) {
+         throw new Error(`El ciclo está ${ciclo.estado} y no puede modificarse`);
+      }
+      return await this.repo.updateCycle(id, dto);
+   }
+
+   async listCycles(): Promise<PayrollCycleProps[]> {
+      return await this.repo.listCycles();
+   }
+
+   async getCycle(id: string): Promise<PayrollCycleProps | null> {
+      return await this.repo.findCycleById(id);
+   }
+
+   async deleteCycle(id: string): Promise<boolean> {
+      const ciclo = await this.repo.findCycleById(id);
+      if (!ciclo) return false;
+      if (ciclo.estado === "PAGADO") throw new Error("No se puede eliminar un ciclo ya pagado");
+      return await this.repo.deleteCycle(id);
+   }
+
+   /**
+    * Cierra el ciclo y genera el GASTO de la nómina por el total neto a pagar,
+    * para que entre en la contabilidad como cualquier otro egreso. A ese gasto
+    * se le pueden registrar pagos vía `pago.gasto_empresa_id`.
+    *
+    * El gasto se crea ANTES de marcar CERRADO: si falla (p.ej. no existe la
+    * categoría), el ciclo queda como estaba en vez de cerrarse sin registro
+    * contable.
+    */
+   async cerrarCiclo(id: string, closedBy?: string): Promise<PayrollCycleProps | null> {
+      const ciclo = await this.repo.findCycleById(id);
+      if (!ciclo) return null;
+      if (ciclo.estado === "CERRADO" || ciclo.estado === "PAGADO") {
+         throw new Error(`El ciclo ya está ${ciclo.estado}`);
+      }
+
+      const empleados = await this.repo.listCycleEmployees(id);
+      if (empleados.length === 0) {
+         throw new Error("No se puede cerrar un ciclo sin nómina calculada");
+      }
+
+      const totalNeto = empleados.reduce((s, e) => s + e.neto_pagar, 0);
+
+      // `gasto_id` es el candado de idempotencia: si el cierre falló a medias
+      // y se reintenta, no se duplica el gasto.
+      if (!ciclo.gasto_id) {
+         if (totalNeto > 0) {
+            await this.repo.crearGastoDeNomina({
+               cycleId: id,
+               monto_total: totalNeto,
+               concepto: `Nómina ${ciclo.nombre}`,
+               // El gasto se fecha al cierre del período, no al día de hoy.
+               fecha: new Date(ciclo.fecha_fin),
+            });
+         }
+         // Con neto 0 no se crea gasto: un egreso de RD$0 solo ensucia la
+         // contabilidad.
+      }
+
+      return await this.repo.updateCycle(id, { estado: "CERRADO" });
+   }
+
+   // ── Cálculo ──────────────────────────────────────────────────────────────
+
+   /**
+    * Calcula (o recalcula) el ciclo completo, con las dos modalidades:
+    *
+    *   PRODUCCION (choferes, rol OPERADOR)
+    *     devengado   = Σ (cantidad × monto_pago del chofer para esa tarifa)
+    *     complemento = MAX(0, salario del período − devengado)  ← piso
+    *
+    *   FIJO (resto del personal)
+    *     devengado   = 0 (no tienen conduces)
+    *     complemento = salario del período           ← el sueldo íntegro
+    *
+    * `salario del período` prorratea el sueldo del empleado (que está en SU
+    * frecuencia) a la frecuencia del ciclo: un mensual de 30,000 en una
+    * quincena son 15,000.
+    *
+    *   Ambas: neto = devengado + complemento − seguro − deducciones
+    *
+    * Es idempotente: se puede correr las veces que haga falta mientras el
+    * ciclo esté ABIERTO o CALCULADO. El `seguro` NO se pisa (campo libre).
+    */
+   async calcularCiclo(cycleId: string): Promise<ResultadoCalculo> {
+      const ciclo = await this.repo.findCycleById(cycleId);
+      if (!ciclo) throw new Error("Ciclo no encontrado");
+      if (!cicloEsEditable(ciclo.estado)) {
+         throw new Error(`El ciclo está ${ciclo.estado}: sus montos están congelados`);
+      }
+
+      const [empleados, conduces, tarifasPorNombre, preciosManuales] = await Promise.all([
+         this.repo.listEmpleadosParaNomina(),
+         this.repo.listConducesDelPeriodo(ciclo.fecha_inicio, ciclo.fecha_fin),
+         this.repo.getTarifasPorNombreUnico(),
+         this.repo.getPreciosManuales(cycleId),
+      ]);
+
+      /** Precio escrito a mano para este empleado y esta tarifa, si lo hay. */
+      const manualDe = (empleadoId: string, nombre: string) =>
+         preciosManuales.get(`${empleadoId}::${(nombre ?? "").trim().toLowerCase()}`);
+
+      /*
+         Algunos conduces guardaron el nombre de la tarifa pero no su id. Si la
+         categoría existe y su nombre es único, se recupera el id: si no, se le
+         pagaría RD$ 0 al chofer por un trabajo que sí hizo y cuya tarifa sí
+         está configurada.
+
+         Con el nombre repetido NO se resuelve: no hay forma de saber cuál de
+         las dos le toca, y pagarle la equivocada es peor que reportarlo.
+      */
+      const idEfectivo = (c: (typeof conduces)[number]): string | null =>
+         c.categoria_equipo_tarifa_id ??
+         tarifasPorNombre.get((c.categoria_equipo_tarifa_nombre ?? "").trim().toLowerCase()) ??
+         null;
+
+      // Agrupa los conduces por empleado.
+      const porEmpleado = new Map<string, typeof conduces>();
+      for (const c of conduces) {
+         const lista = porEmpleado.get(c.empleado_id) ?? [];
+         lista.push(c);
+         porEmpleado.set(c.empleado_id, lista);
+      }
+
+      let totalNeto = 0;
+      let empleadosConInferencia = 0;
+      let conducesSinTarifa = 0;
+      let choferes = 0;
+      let asalariados = 0;
+
+      for (const emp of empleados) {
+         const esProduccion = emp.modalidad === "PRODUCCION";
+         // Solo los choferes cobran conduces. Un asalariado con conduces
+         // atribuidos por error no debe cobrarlos como producción.
+         const suyos = esProduccion ? porEmpleado.get(emp.id) ?? [] : [];
+         const tarifasEmpleado = esProduccion
+            ? await this.repo.getTarifasEmpleado(emp.id)
+            : new Map<string, number>();
+
+         // Agrupa por tarifa para el desglose ("precio por viaje u hora").
+         const acumulado = new Map<string, TarifaDesglose>();
+         let inferidos = 0;
+
+         for (const c of suyos) {
+            if (c.inferido) inferidos++;
+
+            // Id de la tarifa, recuperado por nombre si el conduce lo perdió.
+            const tarifaId = idEfectivo(c);
+
+            // El monto que se le paga AL CHOFER por esta tarifa, según el
+            // catálogo. Si no la tiene asignada, no se le puede pagar.
+            const delCatalogo = tarifaId ? tarifasEmpleado.get(tarifaId) ?? 0 : 0;
+
+            /*
+               El precio manual es la salida para lo que el catálogo no puede
+               resolver: sustituye al del catálogo SOLO cuando este da 0. Así
+               un precio bien configurado nunca queda pisado en silencio por un
+               monto viejo escrito a mano, y el manual deja de aplicar solo en
+               cuanto la tarifa se arregla de verdad.
+            */
+            const manual = delCatalogo === 0
+               ? manualDe(emp.id, c.categoria_equipo_tarifa_nombre)
+               : undefined;
+
+            const montoPago = manual ? manual.monto_pago : delCatalogo;
+            // Sigue contando como "sin tarifa" solo si nadie lo resolvió.
+            if (montoPago === 0) conducesSinTarifa++;
+
+            // Clave por tarifa; si el id se perdió y no se pudo recuperar
+            // (nombre ambiguo o categoría borrada) se agrupa por el nombre
+            // snapshoteado.
+            const clave = tarifaId ?? `nombre:${c.categoria_equipo_tarifa_nombre}`;
+            const previo = acumulado.get(clave);
+
+            if (previo) {
+               previo.cantidad += c.cantidad;
+               previo.subtotal = previo.cantidad * previo.monto_pago;
+            } else {
+               acumulado.set(clave, {
+                  // El id recuperado, para que el snapshot del ciclo quede
+                  // vinculado y la nómina pueda editar su precio.
+                  categoria_equipo_tarifa_id: tarifaId,
+                  categoria_equipo_tarifa_nombre: c.categoria_equipo_tarifa_nombre,
+                  medida_cobro_nombre: c.medida_cobro_nombre,
+                  // Se marca para que la UI distinga un monto escrito a mano
+                  // de uno que sale de la configuración del empleado.
+                  precio_manual: Boolean(manual),
+                  precio_manual_nota: manual?.nota ?? null,
+                  cantidad: c.cantidad,
+                  monto_pago: montoPago,
+                  subtotal: c.cantidad * montoPago,
+               });
+            }
+         }
+
+         const tarifas = [...acumulado.values()];
+         const devengado = tarifas.reduce((s, t) => s + t.subtotal, 0);
+
+         // El salario del empleado está expresado en SU frecuencia (mensual,
+         // quincenal…), que no tiene por qué coincidir con la del ciclo que se
+         // está pagando. Se prorratea al período: un sueldo mensual de 30,000
+         // en una quincena son 15,000, no 30,000.
+         //
+         // Aplica a AMBAS modalidades: para un asalariado es lo que cobra, y
+         // para un chofer es el piso que se le garantiza — un mínimo mensual
+         // completo en una quincena le regalaría medio sueldo.
+         const minimo = salarioDelPeriodo(
+            emp.salario ?? 0,
+            emp.frecuencia_pago,
+            ciclo.frecuencia
+         );
+
+         // PRODUCCION: lo que falte para llegar al piso garantizado.
+         // FIJO: el sueldo íntegro (devengado siempre es 0). Se reusa la misma
+         // columna a propósito — `bruto = devengado + complemento` funciona
+         // igual para ambos, y la UI la etiqueta según la modalidad.
+         const complemento = calcularComplemento(devengado, minimo);
+
+         const [deducciones, deudaTotal] = await Promise.all([
+            this.repo.getDeduccionesDelPeriodo(emp.id, ciclo.fecha_inicio, ciclo.fecha_fin),
+            this.repo.getDeudaTotal(emp.id),
+         ]);
+
+         // El seguro es un campo libre: al recalcular se respeta el valor que
+         // el usuario ya haya puesto para este empleado en este ciclo. Se lee
+         // solo esa columna: traer la fila entera (con tarifas y deducciones)
+         // en cada vuelta del loop era gratis con 5 empleados y caro con 100.
+         const seguro = (await this.repo.getSeguroActual(cycleId, emp.id)) ?? 0;
+
+         const neto = calcularNeto(devengado, complemento, seguro, deducciones);
+
+         await this.repo.upsertCycleEmployee(
+            {
+               cycle_id: cycleId,
+               empleado_id: emp.id,
+               empleado_nombre: emp.nombre,
+               frecuencia_pago: emp.frecuencia_pago,
+               rol: emp.rol,
+               modalidad: emp.modalidad,
+               minimo_garantizado: minimo,
+               devengado_tarifas: devengado,
+               complemento_minimo: complemento,
+               seguro,
+               deducciones,
+               deuda_total: deudaTotal,
+               // Lo que queda debiendo tras cobrar lo de este período.
+               deuda_pendiente: Math.max(0, deudaTotal - deducciones),
+               neto_pagar: neto,
+               total_conduces: suyos.length,
+               conduces_inferidos: inferidos,
+            },
+            tarifas
+         );
+
+         totalNeto += neto;
+         if (inferidos > 0) empleadosConInferencia++;
+         if (esProduccion) choferes++;
+         else asalariados++;
+      }
+
+      await this.repo.updateCycle(cycleId, { estado: "CALCULADO" });
+
+      return {
+         cycle_id: cycleId,
+         empleados_procesados: empleados.length,
+         choferes,
+         asalariados,
+         total_neto: totalNeto,
+         empleados_con_inferencia: empleadosConInferencia,
+         conduces_sin_tarifa: conducesSinTarifa,
+      };
+   }
+
+   // ── Consulta / edición ───────────────────────────────────────────────────
+
+   async listCycleEmployees(cycleId: string): Promise<PayrollCycleEmployeeProps[]> {
+      return await this.repo.listCycleEmployees(cycleId);
+   }
+
+   /**
+    * Fija a mano lo que se le paga a un chofer por una tarifa que la nómina no
+    * puede resolver sola (el conduce guardó el nombre pero no el id, y ese
+    * nombre no existe ya o corresponde a varias categorías).
+    *
+    * Aplica SOLO a este empleado en este ciclo, y recalcula para que el monto
+    * se refleje: guardarlo sin recalcular dejaría la nómina mostrando el RD$ 0
+    * de antes.
+    *
+    * No escribe en el catálogo a propósito: con un nombre ambiguo no se sabe a
+    * qué categoría pertenece, así que propagarlo sería adivinar.
+    */
+   async fijarPrecioManual(
+      cycleId: string,
+      empleadoId: string,
+      data: { tarifa_nombre: string; monto_pago: number; nota?: string | null; created_by?: string | null }
+   ): Promise<ResultadoCalculo> {
+      const ciclo = await this.repo.findCycleById(cycleId);
+      if (!ciclo) throw new Error("Ciclo no encontrado");
+      if (!cicloEsEditable(ciclo.estado)) {
+         throw new Error(`El ciclo está ${ciclo.estado}: sus montos están congelados`);
+      }
+      if (!data.tarifa_nombre?.trim()) {
+         throw new Error("Debe indicar a qué tarifa aplica el precio");
+      }
+      if (!Number.isFinite(data.monto_pago) || data.monto_pago < 0) {
+         throw new Error("El precio debe ser un número mayor o igual a 0");
+      }
+
+      await this.repo.upsertPrecioManual({
+         cycle_id: cycleId,
+         empleado_id: empleadoId,
+         tarifa_nombre: data.tarifa_nombre,
+         monto_pago: data.monto_pago,
+         nota: data.nota ?? null,
+         created_by: data.created_by ?? null,
+      });
+
+      return await this.calcularCiclo(cycleId);
+   }
+
+   /** Quita el precio manual: la tarifa vuelve a valer lo que diga el catálogo. */
+   async quitarPrecioManual(
+      cycleId: string,
+      empleadoId: string,
+      tarifaNombre: string
+   ): Promise<ResultadoCalculo> {
+      const ciclo = await this.repo.findCycleById(cycleId);
+      if (!ciclo) throw new Error("Ciclo no encontrado");
+      if (!cicloEsEditable(ciclo.estado)) {
+         throw new Error(`El ciclo está ${ciclo.estado}: sus montos están congelados`);
+      }
+
+      await this.repo.deletePrecioManual(cycleId, empleadoId, tarifaNombre);
+      return await this.calcularCiclo(cycleId);
+   }
+
+   /**
+    * Detalle de UN empleado del ciclo: su desglose de tarifas y las
+    * deducciones concretas que componen su descuento.
+    *
+    * Existe aparte del listado a propósito. El listado devuelve el monto y el
+    * conteo de deducciones, que es todo lo que la fila colapsada muestra;
+    * traer también el detalle de cada uno costaba una query por empleado. El
+    * detalle se pide cuando se abre la fila, que es cuando se necesita.
+    */
+   async getDetalleEmpleado(
+      cycleId: string,
+      empleadoId: string
+   ): Promise<PayrollCycleEmployeeProps | null> {
+      return await this.repo.findCycleEmployee(cycleId, empleadoId);
+   }
+
+   async updateSeguro(
+      cycleEmployeeId: string,
+      seguro: number
+   ): Promise<PayrollCycleEmployeeProps | null> {
+      if (!Number.isFinite(seguro) || seguro < 0) {
+         throw new Error("El seguro debe ser un número mayor o igual a 0");
+      }
+      return await this.repo.updateSeguro(cycleEmployeeId, seguro);
+   }
+
+   /**
+    * Crea una deducción nueva para el chofer dentro del ciclo y devuelve la
+    * nómina ya actualizada. No modifica las deducciones existentes: añade una
+    * más, con su concepto y su fecha, igual que si se creara desde el módulo
+    * de deducciones.
+    */
+   async agregarDeduccion(
+      cycleId: string,
+      empleadoId: string,
+      data: { monto: number; concepto: string; fecha?: Date | string }
+   ): Promise<PayrollCycleEmployeeProps | null> {
+      const ciclo = await this.repo.findCycleById(cycleId);
+      if (!ciclo) throw new Error("Ciclo no encontrado");
+      if (!cicloEsEditable(ciclo.estado)) {
+         throw new Error(`El ciclo está ${ciclo.estado}: sus montos están congelados`);
+      }
+      if (!Number.isFinite(data.monto) || data.monto <= 0) {
+         throw new Error("El monto de la deducción debe ser mayor a 0");
+      }
+      if (!data.concepto?.trim()) {
+         throw new Error("Debe indicar el concepto de la deducción");
+      }
+
+      // La fecha debe caer dentro del ciclo, si no la deducción se crearía
+      // pero no la recogería esta nómina.
+      const fecha = data.fecha ? new Date(data.fecha) : new Date(ciclo.fecha_fin);
+      const dentro =
+         fecha >= new Date(ciclo.fecha_inicio) && fecha <= new Date(ciclo.fecha_fin);
+
+      await this.repo.crearDeduccion({
+         empleado_id: empleadoId,
+         monto_total: data.monto,
+         concepto: data.concepto.trim(),
+         fecha: dentro ? fecha : new Date(ciclo.fecha_fin),
+      });
+
+      await this.repo.refrescarDeducciones(cycleId);
+      return await this.repo.findCycleEmployee(cycleId, empleadoId);
+   }
+
+   /**
+    * Recoge las deducciones creadas a mano después de calcular el ciclo, sin
+    * recalcular la producción ni perder los ajustes manuales.
+    */
+   async refrescarDeducciones(cycleId: string): Promise<{ actualizados: number }> {
+      const ciclo = await this.repo.findCycleById(cycleId);
+      if (!ciclo) throw new Error("Ciclo no encontrado");
+      if (!cicloEsEditable(ciclo.estado)) {
+         throw new Error(`El ciclo está ${ciclo.estado}: sus montos están congelados`);
+      }
+      return { actualizados: await this.repo.refrescarDeducciones(cycleId) };
+   }
+}

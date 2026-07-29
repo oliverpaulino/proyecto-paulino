@@ -5,11 +5,14 @@ import { KyselyEquipoRepository } from "../infraestructure/equipo.infraestructur
 import { EquipoService } from "../service/equipo.service";
 import { EmployeeService } from "../../employees/service/employees.service";
 import { KyselyEmployeeRepository } from "../../employees/infraestructure/employees.infraestructure";
+import { KyselyMantenimientoRepository } from "../../mantenimientos/infraestructure/mantenimiento.infraestructure";
+import { MantenimientoService } from "../../mantenimientos/service/mantenimiento.service";
 
 const equiposRoute = new Hono();
 const repo = new KyselyEquipoRepository(db);
 const employeeRepo = new KyselyEmployeeRepository(db);
 const service = new EquipoService(repo, employeeRepo);
+const mantenimientoService = new MantenimientoService(new KyselyMantenimientoRepository(db));
 
 // GET /api/equipos
 equiposRoute.get("/", async (c) => {
@@ -39,6 +42,19 @@ equiposRoute.get("/:id/compras", async (c) => {
    return c.json(items);
 });
 
+// GET /api/equipos/:id/mantenimientos — bitácora de mantenimientos del equipo
+equiposRoute.get("/:id/mantenimientos", async (c) => {
+   const items = await mantenimientoService.getByEquipoId(c.req.param("id"));
+   return c.json(items);
+});
+
+// GET /api/equipos/:id/mantenimiento-abierto — el registro que el diálogo de
+// reactivación debe cerrar (null si no hay ninguno abierto).
+equiposRoute.get("/:id/mantenimiento-abierto", async (c) => {
+   const abierto = await mantenimientoService.getAbiertoByEquipoId(c.req.param("id"));
+   return c.json(abierto);
+});
+
 // POST /api/equipos/:id/estado — change estado + record history
 equiposRoute.post("/:id/estado", async (c) => {
    let body: { estado?: string; nota?: string };
@@ -54,6 +70,26 @@ equiposRoute.post("/:id/estado", async (c) => {
    const session = await auth.api.getSession({ headers: c.req.raw.headers });
    const userId = session?.user?.id ?? null;
    const userName = session?.user?.name ?? null;
+
+   // Salir de mantenimiento exige cerrar el registro abierto primero. La UI ya
+   // muestra el diálogo, pero la regla se aplica aquí para que no se pueda
+   // saltar llamando la API directo.
+   if (body.estado === "ACTIVO") {
+      const equipoActual = await service.getById(c.req.param("id"));
+      if (equipoActual?.estado === "EN_MANTENIMIENTO") {
+         const abierto = await mantenimientoService.getAbiertoByEquipoId(c.req.param("id"));
+         if (abierto) {
+            return c.json(
+               {
+                  error:
+                     "Debes cerrar el mantenimiento abierto antes de reactivar el equipo.",
+                  mantenimiento_abierto: abierto,
+               },
+               409
+            );
+         }
+      }
+   }
 
    try {
       const equipo = await service.changeEstado(

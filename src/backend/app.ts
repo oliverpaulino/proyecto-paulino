@@ -8,6 +8,7 @@ import employeesRoute from "@/backend/modules/employees/routes/employees";
 import suppliersRoute from "@/backend/modules/suppliers/routes/suppliers";
 import purchaseOrdersRoute from "./modules/purchase-orders/routes/purchase-orders";
 import proyectosRoute from "./modules/proyectos/routes/proyectos";
+import proyectoTarifasRoute from "./modules/proyectos/routes/proyecto-tarifa";
 import appointmentsRoute from "./modules/appointments/routes/appointments.routes";
 import servicesRoute from "@/backend/modules/services/routes/services";
 import tareasRoute from "@/backend/modules/tareas/routes/tareas";
@@ -25,9 +26,13 @@ import { requireResourcePermission } from "./shared/require-permission";
 import conducesRoute from "./modules/conduce/routes/conduce";
 import categoriaGastosRoute from "./modules/categoria-gastos/routes/categoria-gastos.routes";
 import gastosRoute from "./modules/gastos/routes/gastos.routes";
+import mantenimientosRoute from "./modules/mantenimientos/routes/mantenimientos.routes";
 import costosRoute from "./modules/costos/routes/costos.routes";
 import deduccionesRoute from "./modules/deducciones/routes/deducciones.routes";
 import pagosRoute from "./modules/pagos/routes/pagos.routes";
+import payrollConceptsRoute from "./modules/payroll-concepts/routes/payroll-concepts";
+import nominaRoute from "./modules/nomina/routes/nomina.routes";
+import cuentasPorPagarRoute from "./modules/cuentas-por-pagar/routes/cuentas-por-pagar.routes";
 
 const app = new Hono().basePath("/api");
 
@@ -60,6 +65,7 @@ app.use("/services/*", requireResourcePermission("service"));
 app.use("/tareas/*", requireResourcePermission("task"));
 app.use("/equipos/*", requireResourcePermission("machinery"));
 app.use("/categoria-equipos/*", requireResourcePermission("machinery"));
+app.use("/mantenimientos/*", requireResourcePermission("machinery"));
 app.use("/tipo-items/*", requireResourcePermission("inventory"));
 app.use("/items/*", requireResourcePermission("inventory"));
 app.use("/units/*", requireResourcePermission("inventory"));
@@ -70,6 +76,7 @@ app.route("/employees", employeesRoute);
 app.route("/suppliers", suppliersRoute);
 app.route("/purchase-orders", purchaseOrdersRoute);
 app.route("/proyectos", proyectosRoute);
+app.route("/proyecto-tarifas", proyectoTarifasRoute);
 app.route("/appointments", appointmentsRoute);
 app.route("/services", servicesRoute);
 app.route("/medida-cobros", medidaCobroRoute);
@@ -77,6 +84,7 @@ app.route("/tareas", tareasRoute);
 app.route("/equipos", equiposRoute);
 app.route("/categoria-equipos", categoriaEquiposRoute);
 app.route("/gastos", gastosRoute);
+app.route("/mantenimientos", mantenimientosRoute);
 app.route("/costos", costosRoute);
 app.route("/pagos", pagosRoute);
 app.route("/deducciones", deduccionesRoute);
@@ -89,6 +97,9 @@ app.route("/user-employee-links", userEmployeeLinksRoute);
 app.route("/roles", rolesRoute);
 
 app.route("/conduces", conducesRoute);
+app.route("/payroll", payrollConceptsRoute);
+app.route("/nomina", nominaRoute);
+app.route("/cuentas-por-pagar", cuentasPorPagarRoute);
 
 app.get("/dgii/:rnc", async (c) => {
    const rnc = c.req.param("rnc");

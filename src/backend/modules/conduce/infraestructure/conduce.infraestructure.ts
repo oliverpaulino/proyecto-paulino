@@ -21,6 +21,10 @@ const SELECT_COLUMNS = [
    "conduce.cliente_telefono",
    "conduce.equipo_id",
    "equipo.nombre as equipo_nombre",
+   // Persona que operó el equipo. Hay dos columnas y ambas son nullable;
+   // el empleado real se resuelve con COALESCE (ver `empleado_efectivo_id`
+   // más abajo y la nota en database.ts).
+   "conduce.empleado_id",
    "conduce.operador_id",
    "empleado.nombre as operador_nombre",
    "conduce.categoria_equipo_id",
@@ -85,7 +89,18 @@ export class KyselyConduceRepository implements IConduceRepository {
          .leftJoin("equipo", "equipo.id", "conduce.equipo_id")
          .leftJoin("operador", "operador.id", "conduce.operador_id")
          // Puente para mostrar el nombre de la persona que operó el equipo.
-         .leftJoin("empleado", "empleado.id", "operador.empleado_id")
+         // El empleado puede venir por DOS caminos (ambas columnas son
+         // nullable y en la práctica son mutuamente excluyentes):
+         //   - `conduce.empleado_id` directo
+         //   - `conduce.operador_id` → `operador.empleado_id`
+         // Se une por COALESCE para no perder el nombre en ninguno de los dos.
+         .leftJoin("empleado", (join) =>
+            join.onRef(
+               "empleado.id",
+               "=",
+               sql<string>`coalesce(${sql.ref("conduce.empleado_id")}, ${sql.ref("operador.empleado_id")})` as any
+            )
+         )
          .leftJoin("categoria_equipo", "categoria_equipo.id", "conduce.categoria_equipo_id")
          .select(SELECT_COLUMNS);
    }
@@ -99,7 +114,20 @@ export class KyselyConduceRepository implements IConduceRepository {
             .$if(!!filtros.proyecto_id, (q: any) => q.where("conduce.proyecto_id", "=", filtros.proyecto_id))
             .$if(!!filtros.cliente_id, (q: any) => q.where("conduce.cliente_id", "=", filtros.cliente_id))
             .$if(!!filtros.equipo_id, (q: any) => q.where("conduce.equipo_id", "=", filtros.equipo_id))
-            .$if(!!filtros.empleado_id, (q: any) => q.where("operador.empleado_id", "=", filtros.empleado_id))
+
+            // El empleado puede estar en `conduce.empleado_id` (directo) o
+            // detrás de `conduce.operador_id` → `operador.empleado_id`.
+            // Filtrar solo por el segundo dejaba invisibles los conduces que
+            // traen el empleado directo.
+            .$if(!!filtros.empleado_id, (q: any) =>
+               q.where((eb: any) =>
+                  eb.or([
+                     eb("conduce.empleado_id", "=", filtros.empleado_id),
+                     eb("operador.empleado_id", "=", filtros.empleado_id),
+                  ])
+               )
+            )
+
             .$if(!!filtros.tipo_conduce, (q: any) => q.where("conduce.tipo_conduce", "=", filtros.tipo_conduce))
             .$if(filtros.es_cobrable !== undefined, (q: any) => q.where("conduce.es_cobrable", "=", filtros.es_cobrable))
             .$if(!!filtros.categoria_equipo_tarifa_nombre, (q: any) =>
@@ -244,14 +272,20 @@ export class KyselyConduceRepository implements IConduceRepository {
          operador_id: data.operador_id,
          categoria_equipo_id: equipo.categoria_id,
          categoria_equipo_tarifa_id: categoriaEquipoTarifaId,
+         // El snapshot describe la tarifa que de verdad se guardó, así que
+         // manda el lookup por id y no lo que mandó el cliente. Al revés se
+         // podían crear filas mintiendo: nombre "Bote" con el id vacío, que
+         // luego la nómina no puede ni cobrar ni corregir.
+         // El texto del cliente solo se usa cuando NO hay tarifa (captura
+         // manual), que es el único caso en que no hay id del cual derivarlo.
          categoria_equipo_tarifa_nombre:
-            data.categoria_equipo_tarifa_nombre ??
             tarifa?.nombre ??
+            data.categoria_equipo_tarifa_nombre ??
             null,
 
          medida_cobro_nombre:
-            data.medida_cobro_nombre ??
             tarifa?.medida_cobro_nombre ??
+            data.medida_cobro_nombre ??
             null,
          es_cobrable: data.es_cobrable,
          observaciones: data.observaciones ?? null,
@@ -348,16 +382,20 @@ export class KyselyConduceRepository implements IConduceRepository {
          }
       }
 
+      // El re-snapshot manda sobre el texto del cliente: si la tarifa cambió,
+      // el nombre guardado es el de la tarifa nueva, no el que venga escrito
+      // en el payload. Confiar primero en el cliente permitía guardar un
+      // nombre que no corresponde al id de la fila.
       const nombresSnapshot = {
          categoria_equipo_tarifa_nombre:
-            data.categoria_equipo_tarifa_nombre ??
             refrescoTarifa.categoria_equipo_tarifa_nombre ??
+            data.categoria_equipo_tarifa_nombre ??
             current.categoria_equipo_tarifa_nombre ??
             null,
 
          medida_cobro_nombre:
-            data.medida_cobro_nombre ??
             refrescoTarifa.medida_cobro_nombre ??
+            data.medida_cobro_nombre ??
             current.medida_cobro_nombre ??
             null,
       };
@@ -427,6 +465,7 @@ export class KyselyConduceRepository implements IConduceRepository {
          cliente_id: r.cliente_id as string,
          cliente_nombre: (r.cliente_nombre as string) ?? undefined,
          cliente_telefono: r.cliente_telefono as string | null,
+         empleado_id: r.empleado_id as string,
          equipo_id: r.equipo_id as string,
          equipo_nombre: (r.equipo_nombre as string) ?? undefined,
          operador_id: r.operador_id as string,

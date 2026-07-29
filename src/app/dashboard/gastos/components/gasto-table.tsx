@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Eye, ReceiptText, Edit2, Trash2, Pencil } from "lucide-react";
+import { Eye, ReceiptText, Edit2, Trash2, Pencil, FileDown, Loader2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { generateGastosReportePDF } from "@/lib/pdf/gastos-reporte-pdf";
 import type { Gasto, UpdateGastoForm } from "@/dtos/gastos.dto";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -17,6 +20,34 @@ export function GastoTable({ gastos }: { gastos: Gasto[] }) {
    const [editingGasto, setEditingGasto] = useState<Gasto | null>(null);
    const [deletingGasto, setDeletingGasto] = useState<Gasto | null>(null);
    const [actionLoading, setActionLoading] = useState(false);
+   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
+   const [generandoPdf, setGenerandoPdf] = useState(false);
+
+   const todosMarcados = gastos.length > 0 && gastos.every((g) => seleccionados.has(g.id));
+
+   function toggle(id: string) {
+      setSeleccionados((prev) => {
+         const copia = new Set(prev);
+         copia.has(id) ? copia.delete(id) : copia.add(id);
+         return copia;
+      });
+   }
+
+   /** Sin selección se exportan los gastos visibles; con selección, solo esos. */
+   async function descargarPdf() {
+      const elegidos = seleccionados.size > 0 ? gastos.filter((g) => seleccionados.has(g.id)) : gastos;
+      if (elegidos.length === 0) return;
+      setGenerandoPdf(true);
+      try {
+         await generateGastosReportePDF(elegidos);
+      } finally {
+         setGenerandoPdf(false);
+      }
+   }
+
+   const totalSeleccionado = gastos
+      .filter((g) => seleccionados.has(g.id))
+      .reduce((a, g) => a + g.monto_total, 0);
 
    const handleEdit = async (data: UpdateGastoForm) => {
       if (!editingGasto) return;
@@ -51,10 +82,49 @@ export function GastoTable({ gastos }: { gastos: Gasto[] }) {
 
    return (
       <>
+         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+               {seleccionados.size > 0
+                  ? `${seleccionados.size} seleccionado${seleccionados.size === 1 ? "" : "s"} · $${totalSeleccionado.toLocaleString("en-US", { minimumFractionDigits: 2 })}`
+                  : "Selecciona gastos para incluirlos en el reporte."}
+            </p>
+            <div className="flex items-center gap-2">
+               {seleccionados.size > 0 && (
+                  <Button variant="ghost" size="sm" onClick={() => setSeleccionados(new Set())}>
+                     Limpiar
+                  </Button>
+               )}
+               <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  disabled={generandoPdf}
+                  onClick={descargarPdf}
+               >
+                  {generandoPdf ? (
+                     <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                     <FileDown className="size-4" />
+                  )}
+                  {seleccionados.size > 0 ? `Reporte (${seleccionados.size})` : "Reporte"}
+               </Button>
+            </div>
+         </div>
+
          <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
             <table className="w-full text-sm">
                <thead>
                   <tr className="bg-brand-blue">
+                     <th className="w-10 px-4 py-3">
+                        <Checkbox
+                           aria-label="Seleccionar todos"
+                           className="border-blue-200 data-[state=checked]:bg-white data-[state=checked]:text-brand-blue"
+                           checked={todosMarcados}
+                           onCheckedChange={(v) =>
+                              setSeleccionados(v === true ? new Set(gastos.map((g) => g.id)) : new Set())
+                           }
+                        />
+                     </th>
                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Referencia</th>
                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Fecha</th>
                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Concepto</th>
@@ -65,7 +135,19 @@ export function GastoTable({ gastos }: { gastos: Gasto[] }) {
                </thead>
                <tbody>
                   {gastos.map((g) => (
-                     <tr key={g.id} className="border-b border-border/50 hover:bg-brand-blue/5 transition-colors">
+                     <tr
+                        key={g.id}
+                        className={`border-b border-border/50 transition-colors ${
+                           seleccionados.has(g.id) ? "bg-brand-blue/5" : "hover:bg-brand-blue/5"
+                        }`}
+                     >
+                        <td className="px-4 py-3">
+                           <Checkbox
+                              aria-label={`Seleccionar ${g.codigoReferencia}`}
+                              checked={seleccionados.has(g.id)}
+                              onCheckedChange={() => toggle(g.id)}
+                           />
+                        </td>
                         <td className="px-4 py-3 font-mono font-medium text-brand-blue">
                            {g.codigoReferencia}
                         </td>

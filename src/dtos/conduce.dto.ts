@@ -10,7 +10,16 @@ const camposComunes = {
    cliente_telefono: z.string().nullable().optional(),
    equipo_id: z.string().min(1, "El equipo es requerido"),
    operador_id: z.string().min(1, "El operador es requerido"),
-   categoria_equipo_tarifa_id: z.string().optional(),
+   /*
+      Opcional porque existe la captura manual (sin tarifa del catálogo), pero
+      si viene tiene que ser un id de verdad: `""` se colaba y terminaba como
+      NULL en la fila, conservando el nombre. Esa combinación —nombre puesto,
+      id vacío— es la que la nómina no puede cobrar ni corregir.
+   */
+   categoria_equipo_tarifa_id: z
+      .string()
+      .min(1, "La tarifa no puede venir vacía: envíe un id válido u omita el campo")
+      .optional(),
    categoria_equipo_tarifa_nombre: z.string().nullable().optional(),
    medida_cobro_nombre: z.string().nullable().optional(),
    es_cobrable: z.boolean(),

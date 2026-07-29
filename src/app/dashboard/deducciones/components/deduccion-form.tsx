@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { SelectBuscadorEmployee } from "@/components/shared/selectBuscadorEmployee";
 import { SelectBuscadorEquipo } from "@/components/shared/selectBuscadorEquipo";
 import type { CreateDeduccionForm } from "@/dtos/deducciones.dto";
+import { SelectBuscadorGasto } from "@/components/shared/SelectBuscadorGasto";
 
 interface DeduccionFormProps {
    initialData?: any;
@@ -23,6 +24,7 @@ export function DeduccionForm({ initialData, predefinedValues, onSubmit, onCance
    const [values, setValues] = useState({
       empleado_id: initialData?.empleado_id ?? predefinedValues?.empleado_id ?? null,
       equipo_id: initialData?.equipo_id ?? predefinedValues?.equipo_id ?? null,
+      gasto_id: initialData?.gasto_id ?? predefinedValues?.gasto_id ?? null,
       monto_total: initialData?.monto_total ?? predefinedValues?.monto_total ?? "",
       balance_pendiente: initialData?.balance_pendiente ?? predefinedValues?.balance_pendiente ?? "",
       concepto: initialData?.concepto ?? predefinedValues?.concepto ?? "",
@@ -70,6 +72,7 @@ export function DeduccionForm({ initialData, predefinedValues, onSubmit, onCance
          await onSubmit({
             empleado_id: values.empleado_id,
             equipo_id: values.equipo_id,
+            gasto_id: values.gasto_id,
             monto_total: Number(values.monto_total),
             balance_pendiente: values.balance_pendiente ? Number(values.balance_pendiente) : null,
             concepto: values.concepto,
@@ -82,6 +85,28 @@ export function DeduccionForm({ initialData, predefinedValues, onSubmit, onCance
 
    return (
       <form onSubmit={handleSubmit} className="flex flex-col gap-5 py-2 px-3 overflow-y-auto">
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+               <div className="flex flex-col gap-1.5">
+                     <Label>Gasto Asociado (Opcional)</Label>
+                     <SelectBuscadorGasto 
+                        value={values.gasto_id}
+                        initialLabel={initialData?.gasto_codigo_referencia ?? ""} 
+                        onChange={(id) => set("gasto_id", id)} 
+                        disabled={isDisabled("gasto_id")} 
+                     />
+                     
+               </div>
+               <div className="flex flex-col gap-1.5">
+                     <Label>Equipo Asociado (Opcional)</Label>
+                     <SelectBuscadorEquipo 
+                        value={values.equipo_id} 
+                        initialLabel={initialData?.equipo_codigo_referencia ?? ""} 
+                        onChange={(id) => set("equipo_id", id)} 
+                        disabled={isDisabled("equipo_id")} 
+                     />
+               </div>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
@@ -114,18 +139,6 @@ export function DeduccionForm({ initialData, predefinedValues, onSubmit, onCance
                 <div className="flex flex-col gap-1.5">
                     <Label>Balance Pendiente ($)</Label>
                     <Input type="number" step="0.01" value={values.balance_pendiente} onChange={(e) => set("balance_pendiente", e.target.value)} disabled={isDisabled("balance_pendiente")} className={INPUT_CLASS} placeholder="Dejar vacío si no aplica" />
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4">
-                <div className="flex flex-col gap-1.5">
-                    <Label>Equipo Asociado (Opcional)</Label>
-                    <SelectBuscadorEquipo 
-                        value={values.equipo_id} 
-                        initialLabel={initialData?.equipo_codigo_referencia ?? ""} 
-                        onChange={(id) => set("equipo_id", id)} 
-                        disabled={isDisabled("equipo_id")} 
-                    />
                 </div>
             </div>
 

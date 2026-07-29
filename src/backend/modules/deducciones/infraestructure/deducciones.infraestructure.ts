@@ -21,8 +21,14 @@ export class KyselyDeduccionRepository implements IDeduccionRepository {
          ...row,
          codigoReferencia: this.buildCodigoReferencia("DED", row.referencia),
          empleado_nombre: row.empleado_nombre || null,
+         empleado_codigo_referenciar: row.empleado_referencia
+            ? this.buildCodigoReferencia("EMP", row.empleado_referencia) 
+            : null,
          equipo_codigo_referencia: row.equipo_referencia 
             ? this.buildCodigoReferencia("EQU", row.equipo_referencia) 
+            : null,
+         gasto_codigo_referencia: row.gasto_referencia
+            ? this.buildCodigoReferencia("GAS", row.gasto_referencia) 
             : null,
          monto_total: Number(row.monto_total),
          balance_pendiente: row.balance_pendiente != null ? Number(row.balance_pendiente) : null,
@@ -49,10 +55,13 @@ export class KyselyDeduccionRepository implements IDeduccionRepository {
          .selectFrom("deduccion")
          .innerJoin("empleado", "empleado.id", "deduccion.empleado_id")
          .leftJoin("equipo", "equipo.id", "deduccion.equipo_id")
+         .leftJoin("gasto", "gasto.id", "deduccion.gasto_id")
          .selectAll("deduccion")
          .select([
             "empleado.nombre as empleado_nombre",
+            "empleado.referencia as empleado_referencia",
             "equipo.referencia as equipo_referencia",
+            "gasto.referencia as gasto_referencia",
          ]);
 
       if (isDeleted) {
@@ -116,10 +125,13 @@ export class KyselyDeduccionRepository implements IDeduccionRepository {
          .selectFrom("deduccion")
          .innerJoin("empleado", "empleado.id", "deduccion.empleado_id")
          .leftJoin("equipo", "equipo.id", "deduccion.equipo_id")
+         .leftJoin("gasto", "gasto.id", "deduccion.gasto_id")
          .selectAll("deduccion")
          .select([
             "empleado.nombre as empleado_nombre",
+            "empleado.referencia as empleado_referencia",
             "equipo.referencia as equipo_referencia",
+            "gasto.referencia as gasto_referencia",
          ])
          .where("deduccion.id", "=", id)
          .where("deduccion.deleted_at", "is", null)
@@ -153,6 +165,7 @@ export class KyselyDeduccionRepository implements IDeduccionRepository {
          .values({
             empleado_id: data.empleado_id,
             equipo_id: data.equipo_id ?? null,
+            gasto_id: data.gasto_id ?? null,
             monto_total: data.monto_total,
             balance_pendiente: data.balance_pendiente ?? null,
             concepto: data.concepto,

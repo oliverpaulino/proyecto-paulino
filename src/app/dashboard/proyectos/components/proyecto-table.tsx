@@ -30,6 +30,7 @@ export function ProyectoTable({ proyectos }: Props) {
          <Table>
             <TableHeader>
                <TableRow className="bg-muted/40">
+                  <TableHead>Código</TableHead>
                   <TableHead>Nombre del Proyecto</TableHead>
                   <TableHead className="text-right">Tarifa Servicio</TableHead>
                   <TableHead className="text-right">Total en Camiones</TableHead>
@@ -51,6 +52,9 @@ export function ProyectoTable({ proyectos }: Props) {
 
                   return (
                      <TableRow key={p.id}>
+                        <TableCell className="font-mono font-medium text-brand-blue whitespace-nowrap">
+                           {p.codigoReferencia}
+                        </TableCell>
                         <TableCell className="font-medium text-blue-600 text-ellipsis overflow-hidden whitespace-nowrap">
                            {p.nombre}
                         </TableCell>

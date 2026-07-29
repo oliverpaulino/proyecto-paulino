@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/sidebar"
 import { useSession } from "@/lib/auth-client"
 import { useNotificationStore } from "@/stores/useNotificationStore"
+import { usePermissions } from "@/hooks/usePermissions"
 
 const ROLE_HIERARCHY: Record<string, number> = {
   usuario: 1,
@@ -51,6 +52,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const roleLevel = ROLE_HIERARCHY[role ?? ""] ?? 0
   const isAdmin = roleLevel >= ROLE_HIERARCHY["administrador"]
   const unreadCount = useNotificationStore((s) => s.unreadCount)
+  // Permiso real, no la escala de roles: los roles creados en la base no
+  // aparecen en ROLE_HIERARCHY y quedarían en nivel 0.
+  const { canPerform: puedeVerNomina } = usePermissions({
+    resource: "payroll",
+    action: "read",
+  })
 
   const contactos = [
     {
@@ -117,15 +124,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         { id: "fin-compras", title: "Compras", url: "/dashboard/compras" },
         ...(isAdmin ? [{ id: "fin-aprobadores", title: "Firmantes de Compras", url: "/dashboard/compras/aprobadores" }] : []),
         ...(isAdmin ? [{ id: "fin-compras-eliminadas", title: "Compras eliminadas", url: "/dashboard/compras/eliminadas" }] : []),
+        { id: "fin-cuentas-por-pagar", title: "Cuentas por Pagar", url: "/dashboard/cuentas-por-pagar" },
         { id: "fin-gastos", title: "Gastos", url: "/dashboard/gastos" },
-        { id: "fin-gastos-anulados", title: "Gastos anulados", url: "/dashboard/gastos/anulados" },
         { id: "fin-categorias-gastos", title: "Categorías de Gastos", url: "/dashboard/categorias-gastos" },
         { id: "fin-costos", title: "Costos", url: "/dashboard/costos" },
-        { id: "fin-costos-anulados", title: "Costos anulados", url: "/dashboard/costos/anulados" },
         { id: "fin-deducciones", title: "Deducciones", url: "/dashboard/deducciones" },
-        { id: "fin-deducciones-anuladas", title: "Deducciones anuladas", url: "/dashboard/deducciones/anuladas" },
         { id: "fin-pagos", title: "Pagos", url: "/dashboard/pagos" },
-        { id: "fin-pagos-anulados", title: "Pagos anulados", url: "/dashboard/pagos/anulados" },
 
       ],
     },
@@ -136,7 +140,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       icon: HardHat,
       items: [
         { id: "rh-empleados", title: "Empleados", url: "/dashboard/empleados" },
-        { id: "rh-nomina", title: "Nómina", url: "/dashboard/nomina" },
+        /*
+           Se oculta sin permiso en vez de mostrarlo y que el middleware
+           rebote al dashboard: un link que siempre falla es peor que no
+           tenerlo. Usa el permiso real (`payroll`), no la escala de roles de
+           arriba, que da nivel 0 a los roles creados en la base.
+        */
+        ...(puedeVerNomina
+          ? [{ id: "rh-nomina", title: "Nómina", url: "/dashboard/nomina" }]
+          : []),
       ],
     },
     {

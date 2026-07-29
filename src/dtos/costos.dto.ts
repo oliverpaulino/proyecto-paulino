@@ -6,7 +6,7 @@ export const CostoDTO = z.object({
    codigoReferencia: z.string(),
    monto_total: z.number(),
    concepto: z.string(),
-   ncf: z.string(),
+   ncf: z.string().nullable(),
 
    proyecto_id: z.string().uuid(),
    //join proyecto
@@ -28,7 +28,7 @@ export const CreateCostoSchema = z.object({
    proyecto_id: z.string().uuid("ID de proyecto inválido"),
    monto_total: z.coerce.number().min(0.01, "El monto debe ser mayor a 0"),
    concepto: z.string().min(1, "El concepto es requerido"),
-   ncf: z.string().min(1, "El NCF es requerido"),
+   ncf: z.string().nullable(),
    fecha: z.coerce.date(),
    orden_compra_id: z.string().uuid().optional().nullable(),
 });

@@ -30,7 +30,12 @@ interface ConduceBaseProps {
    // Persona que operó el equipo en este conduce (chofer/operador). Antes se
    // hacía join a `operador` solo para poder filtrar por empleado_id, pero
    // nunca se exponía el nombre — se agrega aquí para poder mostrarlo.
-   operador_id: string;
+   // Ambas columnas son nullable y en la práctica mutuamente excluyentes.
+   // Para saber a QUIÉN se le paga usa siempre:
+   //   empleado_id ?? (operador → operador.empleado_id)
+   // y como último recurso la inferencia por `equipo.operador_id`.
+   empleado_id: string | null;
+   operador_id: string | null;
    operador_nombre?: string;
    categoria_equipo_id: string; // snapshot, vía equipo.categoria_id
    categoria_equipo_nombre?: string;
