@@ -99,9 +99,7 @@ export class KyselyConduceRepository implements IConduceRepository {
             .$if(!!filtros.proyecto_id, (q: any) => q.where("conduce.proyecto_id", "=", filtros.proyecto_id))
             .$if(!!filtros.cliente_id, (q: any) => q.where("conduce.cliente_id", "=", filtros.cliente_id))
             .$if(!!filtros.equipo_id, (q: any) => q.where("conduce.equipo_id", "=", filtros.equipo_id))
-
             .$if(!!filtros.empleado_id, (q: any) => q.where("operador.empleado_id", "=", filtros.empleado_id))
-
             .$if(!!filtros.tipo_conduce, (q: any) => q.where("conduce.tipo_conduce", "=", filtros.tipo_conduce))
             .$if(filtros.es_cobrable !== undefined, (q: any) => q.where("conduce.es_cobrable", "=", filtros.es_cobrable))
             .$if(!!filtros.categoria_equipo_tarifa_nombre, (q: any) =>
@@ -126,17 +124,17 @@ export class KyselyConduceRepository implements IConduceRepository {
             // llegara a tener componente de hora.
             .$if(!!filtros.fecha_desde, (q: any) => q.where("conduce.fecha", ">=", filtros.fecha_desde))
             .$if(!!filtros.fecha_hasta, (q: any) => q.where("conduce.fecha", "<", siguienteDiaISO(filtros.fecha_hasta!)))
-             .$if(!!filtros.busqueda, (q: any) =>
-                q.where((eb: any) =>
-                   eb.or([
-                      eb("conduce.numero_referencia", "ilike", `%${filtros.busqueda}%`),
-                      eb("equipo.nombre", "ilike", `%${filtros.busqueda}%`),
-                      eb("operador.nombre", "ilike", `%${filtros.busqueda}%`),
-                      eb("cliente.nombre", "ilike", `%${filtros.busqueda}%`),
-                      eb("conduce.categoria_equipo_tarifa_nombre", "ilike", `%${filtros.busqueda}%`),
-                   ])
-                )
-             )
+            .$if(!!filtros.busqueda, (q: any) =>
+               q.where((eb: any) =>
+                  eb.or([
+                     eb("conduce.numero_referencia", "ilike", `%${filtros.busqueda}%`),
+                     eb("equipo.nombre", "ilike", `%${filtros.busqueda}%`),
+                     eb("empleado.nombre", "ilike", `%${filtros.busqueda}%`),
+                     eb("cliente.nombre", "ilike", `%${filtros.busqueda}%`),
+                     eb("conduce.categoria_equipo_tarifa_nombre", "ilike", `%${filtros.busqueda}%`),
+                  ])
+               )
+            )
             // ── Eliminación lógica ─────────────────────────────────────
             // Por defecto (eliminado=false/undefined) solo activos. Con
             // eliminado=true, solo eliminados — para el futuro apartado de
@@ -155,6 +153,8 @@ export class KyselyConduceRepository implements IConduceRepository {
          this.db
             .selectFrom("conduce")
             .leftJoin("equipo", "equipo.id", "conduce.equipo_id")
+            .leftJoin("empleado", "empleado.id", "conduce.operador_id")
+            .leftJoin("cliente", "cliente.id", "conduce.cliente_id")
             .leftJoin("operador", "operador.id", "conduce.operador_id")
             .select(sql<number>`count(*)`.as("count"))
       );
