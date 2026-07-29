@@ -187,6 +187,18 @@ export default function ProyectoDetailPage() {
       }
    }, [selectedConduceIds, BulkToggleCobrable, proyectoId]);
 
+   // ── Conduces: toggle individual ────────────────────────────────────────
+   const handleToggleOneConduce = useCallback(async (conduceId: string, esCobrable: boolean) => {
+      setToggleConduceLoading(true);
+      try {
+         const result = await BulkToggleCobrable([conduceId], esCobrable);
+         if (result instanceof Error) throw result;
+         await loadProyecto();
+      } finally {
+         setToggleConduceLoading(false);
+      }
+   }, [BulkToggleCobrable, proyectoId]);
+
    // ── Conduces: filtros ─────────────────────────────────────────────────
    const conducesFiltrados = useMemo(() => {
       return conduces.filter((c) => {
@@ -523,9 +535,10 @@ export default function ProyectoDetailPage() {
                                  onToggleCategory={handleToggleCategory}
                                  onDetail={setConduceDetalle}
                                  onEdit={setConduceAEditar}
-                                 onDelete={setConduceAEliminar} onToggleOne={function (id: string, esCobrable: boolean): void {
-                                    throw new Error("Function not implemented.");
-                                 }} toggleLoading={false} />
+                                 onDelete={setConduceAEliminar}
+                                 onToggleOne={handleToggleOneConduce}
+                                 toggleLoading={toggleConduceLoading}
+                              />
                            ))}
                         </Accordion>
                      )}
@@ -741,15 +754,15 @@ function ConduceCategoryGroup({
 
    return (
       <AccordionItem value={categoria} className="border rounded-lg mb-2">
-         <div className="flex items-center bg-muted/30">
-            <div className="pl-4 py-3">
-               <Checkbox
-                  checked={allSelected ? true : someSelected ? "indeterminate" : false}
-                  onCheckedChange={(checked) => onToggleCategory(categoria, checked === true)}
-               />
-            </div>
-            <AccordionTrigger className="flex-1 py-3 pr-4 hover:no-underline [&[data-state=open]]:border-b">
-               <div className="flex items-center gap-3 flex-1 min-w-0">
+         <AccordionTrigger className="bg-muted/30 hover:no-underline [&[data-state=open]]:border-b w-full px-0 py-0 items-center pr-2">
+            <div className="flex items-center w-full">
+               <div className="px-4 py-3">
+                  <Checkbox
+                     checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                     onCheckedChange={(checked) => onToggleCategory(categoria, checked === true)}
+                  />
+               </div>
+               <div className="flex items-center gap-3 flex-1 min-w-0 py-3 pr-4">
                   <span className="font-semibold text-sm truncate">{categoria}</span>
                   <Badge variant="outline" className="text-xs shrink-0">{items.length}</Badge>
                   <span className="text-xs text-muted-foreground shrink-0">
@@ -761,8 +774,8 @@ function ConduceCategoryGroup({
                      </span>
                   )}
                </div>
-            </AccordionTrigger>
-         </div>
+            </div>
+         </AccordionTrigger>
          <AccordionContent className="px-0 pb-0">
             <div className="overflow-x-auto">
                <table className="w-full text-sm">
@@ -828,12 +841,17 @@ function ConduceCategoryGroup({
                               RD$ {c.subtotal.toLocaleString("es-DO")}
                            </td>
                            <td className="px-4 py-2 text-center">
-                              <Switch
-                                 size="sm"
-                                 checked={c.es_cobrable}
-                                 disabled={toggleLoading}
-                                 onCheckedChange={(checked) => onToggleOne(c.id, checked)}
-                              />
+                              {toggleLoading ? (
+                                 <Loader2 className="size-4 animate-spin text-muted-foreground m-auto" />
+                              ) : (
+                                 <Switch
+                                    size="sm"
+                                    className="cursor-pointer"
+                                    checked={c.es_cobrable}
+                                    disabled={toggleLoading}
+                                    onCheckedChange={(checked) => onToggleOne(c.id, checked)}
+                                 />
+                              )}
                            </td>
                            <td className="px-4 py-2">
                               <div className="flex items-center justify-end gap-1">
