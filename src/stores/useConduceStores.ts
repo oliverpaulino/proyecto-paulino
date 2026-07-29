@@ -15,12 +15,14 @@ type ConduceStore = {
    filtros: ConduceFiltros;
 
    // ── Categorías por proyecto (carga ligera) ───────────────────────────
-   categorias: Array<{ nombre: string; count: number; subtotal: number; subtotalCobrable: number }>;
+   categorias: Array<{ nombre: string; count: number; subtotal: number; subtotalCobrable: number; cobrable_count: number }>;
    categoriasLoading: boolean;
 
    // ── Conduces por categoría dentro de un proyecto ─────────────────────
    conducesPorCategoria: Record<string, ConduceDTO[]>;
    categoriaLoading: string | null; // nombre de la categoría que está cargando
+   /** true mientras se hace la búsqueda global con debounce */
+   conducesGlobalLoading: boolean;
 
    // ── Eliminados ──────────────────────────────────────────────────────
    // Estado APARTE de `conduces` a propósito: así el apartado de
@@ -45,10 +47,14 @@ type ConduceStore = {
       form: Partial<CreateConduceForm>,
       proyectoIdAnterior?: string | null
    ) => Promise<ConduceDTO | Error>;
-   /** Eliminación lógica — motivo es opcional. */
-   DeleteConduce: (id: string, motivo?: string) => Promise<true | Error>;
-    /** Revierte una eliminación lógica y lo quita de `eliminados` si estaba ahí. */
-    RestoreConduce: (id: string) => Promise<ConduceDTO | Error>;
+    /** Eliminación lógica — motivo es opcional. */
+    DeleteConduce: (id: string, motivo?: string) => Promise<true | Error>;
+     /** Revierte una eliminación lógica y lo quita de `eliminados` si estaba ahí. */
+     RestoreConduce: (id: string) => Promise<ConduceDTO | Error>;
+     /** Trae TODOS los conduces de un proyecto, opcionalmente filtrados (búsqueda global, reemplaza la carga per-categoría). */
+    GetAllConducesByProyecto: (proyectoId: string, filtros?: { busqueda?: string; es_cobrable?: string; tipo_conduce?: string; categoria?: string }) => Promise<void>;
+    /** Limpia conducesPorCategoria (vuelve a lazy loading per-categoría). */
+    ClearConducesPorCategoria: () => void;
     BulkToggleCobrable: (ids: string[], es_cobrable: boolean) => Promise<true | Error>;
 };
 
@@ -73,6 +79,7 @@ export const useConduceStore = create<ConduceStore>((set, get) => ({
 
    conducesPorCategoria: {},
    categoriaLoading: null,
+   conducesGlobalLoading: false,
 
    eliminados: [],
    totalEliminados: 0,
@@ -119,7 +126,7 @@ export const useConduceStore = create<ConduceStore>((set, get) => ({
        try {
           const res = await fetch(`/api/conduces/categorias?proyecto_id=${proyectoId}`);
           if (!res.ok) throw new Error("Error al cargar categorías de conduces");
-           const data: Array<{ nombre: string; count: number; subtotal: number; subtotalCobrable: number }> = await res.json();
+            const data: Array<{ nombre: string; count: number; subtotal: number; subtotalCobrable: number; cobrable_count: number }> = await res.json();
           set({ categorias: data });
        } catch (error) {
           console.error("Error fetching categorias:", error);
@@ -276,9 +283,49 @@ export const useConduceStore = create<ConduceStore>((set, get) => ({
                  ])
               ),
            }));
-          return true;
-       } catch (error) {
-          return error as Error;
-       }
-    },
+           return true;
+        } catch (error) {
+           return error as Error;
+        }
+     },
+
+     GetAllConducesByProyecto: async (proyectoId, filtros) => {
+        set({ conducesGlobalLoading: true });
+        try {
+           const params = new URLSearchParams({ proyecto_id: proyectoId, pageSize: "500" });
+           if (filtros?.busqueda) params.set("busqueda", filtros.busqueda);
+           if (filtros?.es_cobrable && filtros.es_cobrable !== "all") {
+              params.set("es_cobrable", filtros.es_cobrable === "cobrable" ? "true" : "false");
+           }
+           if (filtros?.tipo_conduce && filtros.tipo_conduce !== "all") {
+              params.set("tipo_conduce", filtros.tipo_conduce);
+           }
+           if (filtros?.categoria) {
+              if (filtros.categoria === "Sin categoría") {
+                 params.set("categoria_equipo_tarifa_null", "true");
+              } else {
+                 params.set("categoria_equipo_tarifa_nombre", filtros.categoria);
+              }
+           }
+           const res = await fetch(`/api/conduces?${params.toString()}`);
+           if (!res.ok) throw new Error("Error al cargar conduces");
+           const data: ConduceListResult = await res.json();
+           // Agrupar por categoría
+           const grouped: Record<string, ConduceDTO[]> = {};
+           for (const c of data.data) {
+              const cat = c.categoria_equipo_tarifa_nombre || "Sin categoría";
+              if (!grouped[cat]) grouped[cat] = [];
+              grouped[cat].push(c);
+           }
+           set({ conducesPorCategoria: grouped });
+        } catch (error) {
+           console.error("Error fetching all conduces:", error);
+        } finally {
+           set({ conducesGlobalLoading: false });
+        }
+     },
+
+     ClearConducesPorCategoria: () => {
+        set({ conducesPorCategoria: {} });
+     },
 }));

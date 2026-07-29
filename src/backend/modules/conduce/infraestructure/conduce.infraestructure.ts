@@ -126,20 +126,24 @@ export class KyselyConduceRepository implements IConduceRepository {
             // llegara a tener componente de hora.
             .$if(!!filtros.fecha_desde, (q: any) => q.where("conduce.fecha", ">=", filtros.fecha_desde))
             .$if(!!filtros.fecha_hasta, (q: any) => q.where("conduce.fecha", "<", siguienteDiaISO(filtros.fecha_hasta!)))
-            .$if(!!filtros.busqueda, (q: any) =>
-               q.where((eb: any) =>
-                  eb.or([
-                     eb("conduce.numero_referencia", "ilike", `%${filtros.busqueda}%`),
-                     eb("equipo.nombre", "ilike", `%${filtros.busqueda}%`),
-                  ])
-               )
-            )
+             .$if(!!filtros.busqueda, (q: any) =>
+                q.where((eb: any) =>
+                   eb.or([
+                      eb("conduce.numero_referencia", "ilike", `%${filtros.busqueda}%`),
+                      eb("equipo.nombre", "ilike", `%${filtros.busqueda}%`),
+                      eb("operador.nombre", "ilike", `%${filtros.busqueda}%`),
+                      eb("cliente.nombre", "ilike", `%${filtros.busqueda}%`),
+                      eb("conduce.categoria_equipo_tarifa_nombre", "ilike", `%${filtros.busqueda}%`),
+                   ])
+                )
+             )
             // ── Eliminación lógica ─────────────────────────────────────
             // Por defecto (eliminado=false/undefined) solo activos. Con
             // eliminado=true, solo eliminados — para el futuro apartado de
             // "ver eliminados".
             .$if(filtros.eliminado !== true, (q: any) => q.where("conduce.deleted_at", "is", null))
             .$if(filtros.eliminado === true, (q: any) => q.where("conduce.deleted_at", "is not", null));
+      console.log("filtros", filtros);
 
       const query = aplicarFiltros(this.#baseQuery())
          .orderBy("conduce.fecha", "desc")
@@ -165,7 +169,7 @@ export class KyselyConduceRepository implements IConduceRepository {
       };
    }
 
-   async findCategoriasByProyecto(proyectoId: string): Promise<Array<{ nombre: string; count: number; subtotal: number; subtotalCobrable: number }>> {
+   async findCategoriasByProyecto(proyectoId: string): Promise<Array<{ nombre: string; count: number; subtotal: number; subtotalCobrable: number; cobrable_count: number }>> {
       const rows = await this.db
          .selectFrom("conduce")
          .select([
@@ -173,6 +177,7 @@ export class KyselyConduceRepository implements IConduceRepository {
             sql<number>`count(*)::int`.as("count"),
             sql<number>`coalesce(sum(subtotal), 0)`.as("subtotal"),
             sql<number>`coalesce(sum(case when es_cobrable then subtotal else 0 end), 0)`.as("subtotal_cobrable"),
+            sql<number>`coalesce(sum(case when es_cobrable then 1 else 0 end), 0)::int`.as("cobrable_count"),
          ])
          .where("conduce.proyecto_id", "=", proyectoId)
          .where("conduce.deleted_at", "is", null)
@@ -184,6 +189,7 @@ export class KyselyConduceRepository implements IConduceRepository {
          count: Number(r.count),
          subtotal: Number(r.subtotal),
          subtotalCobrable: Number(r.subtotal_cobrable),
+         cobrable_count: Number(r.cobrable_count),
       }));
    }
 
@@ -388,28 +394,28 @@ export class KyselyConduceRepository implements IConduceRepository {
          .execute();
    }
 
-    async restore(id: string): Promise<void> {
-       await this.db
-          .updateTable("conduce")
-          .set({
-             deleted_at: null,
-             deleted_by: null,
-             deleted_by_name: null,
-             deleted_reason: null,
-             updated_at: new Date(),
-          } as any)
-          .where("id", "=", id)
-          .execute();
-    }
+   async restore(id: string): Promise<void> {
+      await this.db
+         .updateTable("conduce")
+         .set({
+            deleted_at: null,
+            deleted_by: null,
+            deleted_by_name: null,
+            deleted_reason: null,
+            updated_at: new Date(),
+         } as any)
+         .where("id", "=", id)
+         .execute();
+   }
 
-    async bulkToggleCobrable(ids: string[], es_cobrable: boolean): Promise<void> {
-       if (ids.length === 0) return;
-       await this.db
-          .updateTable("conduce")
-          .set({ es_cobrable, updated_at: new Date() } as any)
-          .where("id", "in", ids)
-          .execute();
-    }
+   async bulkToggleCobrable(ids: string[], es_cobrable: boolean): Promise<void> {
+      if (ids.length === 0) return;
+      await this.db
+         .updateTable("conduce")
+         .set({ es_cobrable, updated_at: new Date() } as any)
+         .where("id", "in", ids)
+         .execute();
+   }
 
    #mapRow(r: Record<string, unknown>): ConduceProps {
       const base = {

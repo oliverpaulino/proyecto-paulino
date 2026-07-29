@@ -53,14 +53,14 @@ export function ConduceCategoryGroup({
 
    return (
       <AccordionItem value={categoria} className="border rounded-lg mb-2 w-full">
-         <div className="flex items-center bg-muted/30">
+         <div className="flex items-center bg-muted/30 w-full ">
             <div className="px-4 py-3 shrink-0">
                <Checkbox
                   checked={allSelected ? true : someSelected ? "indeterminate" : false}
                   onCheckedChange={(checked) => onToggleCategory(categoria, checked === true)}
                />
             </div>
-            <AccordionTrigger className="flex-1 hover:no-underline [&[data-state=open]]:border-b px-0 py-3 pr-4">
+            <AccordionTrigger className="flex-1 hover:no-underline [&[data-state=open]]:border-b px-2 py-3 pr-4  hover:bg-black/5 transition-colors">
                <div className="flex items-center gap-3 min-w-0">
                   <span className="font-semibold text-sm truncate">{categoria}</span>
                   <Badge variant="outline" className="text-xs shrink-0">{resumen.count}</Badge>

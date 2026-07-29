@@ -47,8 +47,11 @@ export function ConducesTab({
       categoriasLoading,
       conducesPorCategoria,
       categoriaLoading,
+      conducesGlobalLoading,
       GetCategoriasByProyecto,
       GetConducesByCategoria,
+      GetAllConducesByProyecto,
+      ClearConducesPorCategoria,
       CreateConduce,
       DeleteConduce,
       BulkToggleCobrable,
@@ -58,6 +61,7 @@ export function ConducesTab({
    useEffect(() => {
       GetCategoriasByProyecto(proyecto.id);
    }, [proyecto.id, GetCategoriasByProyecto]);
+
 
    // ── Filtros ─────────────────────────────────────────────────────────
    const [conduceSearch, setConduceSearch] = useState("");
@@ -96,6 +100,35 @@ export function ConducesTab({
 
    const conducesCobrables = allConduces.filter((c) => c.es_cobrable);
    const conducesInternos = allConduces.filter((c) => !c.es_cobrable);
+   const totalConduces = categorias.reduce((s, c) => s + c.count, 0);
+   const totalCobrables = categorias.reduce((s, c) => s + c.cobrable_count, 0);
+   const totalInternos = totalConduces - totalCobrables;
+
+   // ── Debounce de búsqueda ────────────────────────────────────────────
+   const [debouncedSearch, setDebouncedSearch] = useState("");
+   useEffect(() => {
+      const timer = setTimeout(() => setDebouncedSearch(conduceSearch), 300);
+      return () => clearTimeout(timer);
+   }, [conduceSearch]);
+
+   // ── Búsqueda global: cuando hay filtros activos, trae TODOS los       ──
+   //    conduces del backend (para que busque incluso en categorías no      ──
+   //    expandidas). Cuando se limpian los filtros, vuelve a lazy loading. ──
+
+   useEffect(() => {
+      const hasFilters = !!(debouncedSearch || conduceFilterCobrable !== "all" || conduceFilterTipo !== "all");
+      if (hasFilters) {
+         GetAllConducesByProyecto(proyecto.id, {
+            busqueda: debouncedSearch || undefined,
+            es_cobrable: conduceFilterCobrable === "all" ? undefined : conduceFilterCobrable,
+            tipo_conduce: conduceFilterTipo === "all" ? undefined : conduceFilterTipo,
+            categoria: conduceFilterCategoria === "all" ? undefined : conduceFilterCategoria,
+         });
+      } else {
+         ClearConducesPorCategoria();
+      }
+   }, [debouncedSearch, conduceFilterCobrable, conduceFilterTipo, proyecto.id, GetAllConducesByProyecto, ClearConducesPorCategoria]);
+
 
    const handleToggleCategory = useCallback((categoria: string, checked: boolean) => {
       setSelectedConduceIds((prev) => {
@@ -176,193 +209,215 @@ export function ConducesTab({
 
    return (
       <>
-      <Card>
-         <CardHeader className="flex flex-row items-start justify-between gap-4">
-            <div>
-               <CardTitle>Conduces</CardTitle>
-               <CardDescription>
-                  {conducesCobrables.length} cobrables · {conducesInternos.length} solo historial
-               </CardDescription>
-            </div>
-
-            <Dialog open={conduceDialogOpen} onOpenChange={setConduceDialogOpen}>
-               <DialogTrigger asChild>
-                  <Button size="sm" className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold border-0">
-                     <Plus className="size-4 mr-2" />
-                     Registrar Conduce
-                  </Button>
-               </DialogTrigger>
-               <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                     <DialogTitle>Registrar Conduce</DialogTitle>
-                     <DialogDescription>
-                        Queda asignado directamente a este proyecto.
-                     </DialogDescription>
-                  </DialogHeader>
-                  <ConduceForm
-                     fixedProyectoId={proyecto.id}
-                     onSubmit={handleCreateConduce}
-                     onCancel={() => setConduceDialogOpen(false)}
-                     loading={conduceLoading}
-                  />
-               </DialogContent>
-            </Dialog>
-         </CardHeader>
-         <CardContent className="space-y-4">
-            {/* Filtros */}
-            <div className="flex flex-wrap items-center gap-3">
-               <div className="relative flex-1 min-w-[200px]">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                  <Input
-                     placeholder="Buscar por referencia, equipo, tarifa..."
-                     value={conduceSearch}
-                     onChange={(e) => setConduceSearch(e.target.value)}
-                     className="pl-9"
-                  />
+         <Card>
+            <CardHeader className="flex flex-row items-start justify-between gap-4">
+               <div>
+                  <CardTitle>Conduces</CardTitle>
+                  <CardDescription>
+                     {allConduces.length > 0
+                        ? `${conducesCobrables.length} cobrables · ${conducesInternos.length} solo historial`
+                        : `${totalConduces} conduces · ${totalCobrables} cobrables · ${totalInternos} solo historial`}
+                  </CardDescription>
                </div>
-               <Select value={conduceFilterCategoria} onValueChange={setConduceFilterCategoria}>
-                  <SelectTrigger className="w-[180px]">
-                     <SelectValue placeholder="Categoría" />
-                  </SelectTrigger>
-                  <SelectContent>
-                      <SelectItem value="all">Todas las categorías</SelectItem>
-                      {categorias.map(({ nombre }) => (
-                         <SelectItem key={nombre} value={nombre}>{nombre}</SelectItem>
-                      ))}
-                  </SelectContent>
-               </Select>
-               <Select value={conduceFilterCobrable} onValueChange={setConduceFilterCobrable}>
-                  <SelectTrigger className="w-[160px]">
-                     <SelectValue placeholder="Cobrable" />
-                  </SelectTrigger>
-                  <SelectContent>
-                     <SelectItem value="all">Todos</SelectItem>
-                     <SelectItem value="cobrable">Cobrables</SelectItem>
-                     <SelectItem value="no_cobrable">No Cobrables</SelectItem>
-                  </SelectContent>
-               </Select>
-               <Select value={conduceFilterTipo} onValueChange={setConduceFilterTipo}>
-                  <SelectTrigger className="w-[150px]">
-                     <SelectValue placeholder="Tipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                     <SelectItem value="all">Todos</SelectItem>
-                     <SelectItem value="CAMION">Camión</SelectItem>
-                     <SelectItem value="EQUIPO_PESADO">Equipo Pesado</SelectItem>
-                  </SelectContent>
-               </Select>
-            </div>
 
-            {/* Barra de acciones batch */}
-            {selectedConduceIds.size > 0 && (
-               <div className="flex items-center gap-3 rounded-lg border border-brand-blue/20 bg-brand-blue/5 p-3">
-                  <span className="text-sm font-medium text-brand-blue">
-                     {selectedConduceIds.size} seleccionado{selectedConduceIds.size > 1 ? "s" : ""}
-                  </span>
-                  <div className="flex gap-2 ml-auto">
-                     <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleToggleConduces(true)}
-                        disabled={toggleConduceLoading}
-                     >
-                        {toggleConduceLoading ? <Loader2 className="mr-1 size-3 animate-spin" /> : null}
-                        Marcar Cobrable
+               <Dialog open={conduceDialogOpen} onOpenChange={setConduceDialogOpen}>
+                  <DialogTrigger asChild>
+                     <Button size="sm" className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold border-0">
+                        <Plus className="size-4 mr-2" />
+                        Registrar Conduce
                      </Button>
-                     <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleToggleConduces(false)}
-                        disabled={toggleConduceLoading}
-                     >
-                        {toggleConduceLoading ? <Loader2 className="mr-1 size-3 animate-spin" /> : null}
-                        Marcar No Cobrable
-                     </Button>
-                     <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setSelectedConduceIds(new Set())}
-                     >
-                        <X className="size-3" />
-                     </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                     <DialogHeader>
+                        <DialogTitle>Registrar Conduce</DialogTitle>
+                        <DialogDescription>
+                           Queda asignado directamente a este proyecto.
+                        </DialogDescription>
+                     </DialogHeader>
+                     <ConduceForm
+                        fixedProyectoId={proyecto.id}
+                        onSubmit={handleCreateConduce}
+                        onCancel={() => setConduceDialogOpen(false)}
+                        loading={conduceLoading}
+                     />
+                  </DialogContent>
+               </Dialog>
+            </CardHeader>
+            <CardContent className="space-y-4">
+               {/* Filtros */}
+               <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative flex-1 min-w-[200px]">
+                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                     <Input
+                        placeholder="Buscar por referencia, equipo, tarifa..."
+                        value={conduceSearch}
+                        onChange={(e) => setConduceSearch(e.target.value)}
+                        className="pl-9"
+                     />
                   </div>
+                  <Select value={conduceFilterCategoria} onValueChange={setConduceFilterCategoria}>
+                     <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Categoría" />
+                     </SelectTrigger>
+                     <SelectContent>
+                        <SelectItem value="all">Todas las categorías</SelectItem>
+                        {categorias.map(({ nombre }) => (
+                           <SelectItem key={nombre} value={nombre}>{nombre}</SelectItem>
+                        ))}
+                     </SelectContent>
+                  </Select>
+                  <Select value={conduceFilterCobrable} onValueChange={setConduceFilterCobrable}>
+                     <SelectTrigger className="w-[160px]">
+                        <SelectValue placeholder="Cobrable" />
+                     </SelectTrigger>
+                     <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        <SelectItem value="cobrable">Cobrables</SelectItem>
+                        <SelectItem value="no_cobrable">No Cobrables</SelectItem>
+                     </SelectContent>
+                  </Select>
+                  <Select value={conduceFilterTipo} onValueChange={setConduceFilterTipo}>
+                     <SelectTrigger className="w-[150px]">
+                        <SelectValue placeholder="Tipo" />
+                     </SelectTrigger>
+                     <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        <SelectItem value="CAMION">Camión</SelectItem>
+                        <SelectItem value="EQUIPO_PESADO">Equipo Pesado</SelectItem>
+                     </SelectContent>
+                  </Select>
                </div>
-            )}
 
-            {/* Botón PDF */}
-            <div className="flex justify-end">
-               <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handlePDFConduces}
-                  disabled={pdfLoading}
-               >
-                  {pdfLoading ? (
-                     <Loader2 className="mr-2 size-4 animate-spin" />
-                  ) : (
-                     <FileText className="mr-2 size-4" />
-                  )}
-                  {selectedConduceIds.size > 0
-                     ? `PDF Seleccionados (${selectedConduceIds.size})`
-                     : "PDF Cobrables"}
-               </Button>
-            </div>
+               {/* Barra de acciones batch */}
+               {selectedConduceIds.size > 0 && (
+                  <div className="flex items-center gap-3 rounded-lg border border-brand-blue/20 bg-brand-blue/5 p-3">
+                     <span className="text-sm font-medium text-brand-blue">
+                        {selectedConduceIds.size} seleccionado{selectedConduceIds.size > 1 ? "s" : ""}
+                     </span>
+                     <div className="flex gap-2 ml-auto">
+                        <Button
+                           size="sm"
+                           variant="outline"
+                           onClick={() => handleToggleConduces(true)}
+                           disabled={toggleConduceLoading}
+                        >
+                           {toggleConduceLoading ? <Loader2 className="mr-1 size-3 animate-spin" /> : null}
+                           Marcar Cobrable
+                        </Button>
+                        <Button
+                           size="sm"
+                           variant="outline"
+                           onClick={() => handleToggleConduces(false)}
+                           disabled={toggleConduceLoading}
+                        >
+                           {toggleConduceLoading ? <Loader2 className="mr-1 size-3 animate-spin" /> : null}
+                           Marcar No Cobrable
+                        </Button>
+                        <Button
+                           size="sm"
+                           variant="ghost"
+                           onClick={() => setSelectedConduceIds(new Set())}
+                        >
+                           <X className="size-3" />
+                        </Button>
+                     </div>
+                  </div>
+               )}
 
-            {/* Tabla de conduces agrupados */}
-            {categoriasLoading ? (
-               <div className="flex items-center justify-center p-8 text-sm text-muted-foreground">
-                  <Loader2 className="mr-2 size-4 animate-spin" /> Cargando categorías...
+               {/* Botón PDF */}
+               <div className="flex justify-end">
+                  <Button
+                     variant="outline"
+                     size="sm"
+                     onClick={handlePDFConduces}
+                     disabled={pdfLoading}
+                  >
+                     {pdfLoading ? (
+                        <Loader2 className="mr-2 size-4 animate-spin" />
+                     ) : (
+                        <FileText className="mr-2 size-4" />
+                     )}
+                     {selectedConduceIds.size > 0
+                        ? `PDF Seleccionados (${selectedConduceIds.size})`
+                        : "PDF Cobrables"}
+                  </Button>
                </div>
-            ) : categorias.length === 0 ? (
-               <div className="flex items-center justify-center p-8 text-sm text-muted-foreground">
-                  No hay conduces en este proyecto.
-               </div>
-             ) : (
-                <Accordion
-                   type="multiple"
-                   value={expandedCategories}
-                   onValueChange={handleAccordionChange}
-                   className="space-y-0"
-                >
-                   {categorias.map(({ nombre, subtotal, subtotalCobrable, count }) => (
-                      <ConduceCategoryGroup
-                         key={nombre}
-                         categoria={nombre}
-                         items={conducesPorCategoria[nombre] ?? []}
-                         loadingCategoria={categoriaLoading === nombre}
-                         resumen={{ subtotal, subtotalCobrable, count }}
-                         selectedIds={selectedConduceIds}
-                         onSelectIds={setSelectedConduceIds}
-                         onToggleCategory={handleToggleCategory}
-                         onDetail={setConduceDetalle}
-                         onEdit={setConduceAEditar}
-                         onDelete={setConduceAEliminar}
-                         onToggleOne={handleToggleOneConduce}
-                         toggleLoading={toggleConduceLoading}
-                      />
-                   ))}
-                </Accordion>
-             )}
-         </CardContent>
-      </Card>
 
-      {/* Conduce dialogs */}
-      <ConduceDetalleDialog
-         conduce={conduceDetalle}
-         open={!!conduceDetalle}
-         onOpenChange={(v) => !v && setConduceDetalle(null)}
-      />
-      <ConduceEditDialog
-         conduce={conduceAEditar}
-         open={!!conduceAEditar}
-         onOpenChange={(v) => !v && setConduceAEditar(null)}
-      />
-      <ConduceDeleteDialog
-         conduce={conduceAEliminar}
-         open={!!conduceAEliminar}
-         onOpenChange={(v) => !v && setConduceAEliminar(null)}
-         onConfirm={handleDeleteConduce}
-      />
+               {conducesGlobalLoading && (
+                  <div className="flex items-center justify-center py-4 text-sm text-muted-foreground">
+                     <Loader2 className="mr-2 size-4 animate-spin" /> Buscando conduces...
+                  </div>
+               )}
+
+               {/* Tabla de conduces agrupados */}
+               {categoriasLoading ? (
+                  <div className="flex items-center justify-center p-8 text-sm text-muted-foreground">
+                     <Loader2 className="mr-2 size-4 animate-spin" /> Cargando categorías...
+                  </div>
+               ) : categorias.length === 0 ? (
+                  <div className="flex items-center justify-center p-8 text-sm text-muted-foreground">
+                     No hay conduces en este proyecto.
+                  </div>
+               ) : (
+                  <Accordion
+                     type="multiple"
+                     value={expandedCategories}
+                     onValueChange={handleAccordionChange}
+                     className="space-y-0"
+                  >
+                     {categorias.map(({ nombre, subtotal, subtotalCobrable, count }) => {
+                        const items = conducesPorCategoria[nombre] ?? [];
+                        const isLoaded = nombre in conducesPorCategoria;
+                        const hasActiveFilters = !!(debouncedSearch || conduceFilterCategoria !== "all" || conduceFilterCobrable !== "all" || conduceFilterTipo !== "all");
+                        // Con filtros activos, ocultar categorías sin resultados
+                        if (hasActiveFilters && !isLoaded) return null;
+                        const displayCount = isLoaded ? items.length : count;
+                        const displaySubtotal = isLoaded
+                           ? items.reduce((s, c) => s + Number(c.subtotal ?? 0), 0)
+                           : subtotal;
+                        const displaySubtotalCobrable = isLoaded
+                           ? items.reduce((s, c) => s + (c.es_cobrable ? Number(c.subtotal ?? 0) : 0), 0)
+                           : subtotalCobrable;
+                        return (
+                           <ConduceCategoryGroup
+                              key={nombre}
+                              categoria={nombre}
+                              items={items}
+                              loadingCategoria={categoriaLoading === nombre}
+                              resumen={{ subtotal: displaySubtotal, subtotalCobrable: displaySubtotalCobrable, count: displayCount }}
+                              selectedIds={selectedConduceIds}
+                              onSelectIds={setSelectedConduceIds}
+                              onToggleCategory={handleToggleCategory}
+                              onDetail={setConduceDetalle}
+                              onEdit={setConduceAEditar}
+                              onDelete={setConduceAEliminar}
+                              onToggleOne={handleToggleOneConduce}
+                              toggleLoading={toggleConduceLoading}
+                           />
+                        );
+                     })}
+                  </Accordion>
+               )}
+            </CardContent>
+         </Card>
+
+         {/* Conduce dialogs */}
+         <ConduceDetalleDialog
+            conduce={conduceDetalle}
+            open={!!conduceDetalle}
+            onOpenChange={(v) => !v && setConduceDetalle(null)}
+         />
+         <ConduceEditDialog
+            conduce={conduceAEditar}
+            open={!!conduceAEditar}
+            onOpenChange={(v) => !v && setConduceAEditar(null)}
+         />
+         <ConduceDeleteDialog
+            conduce={conduceAEliminar}
+            open={!!conduceAEliminar}
+            onOpenChange={(v) => !v && setConduceAEliminar(null)}
+            onConfirm={handleDeleteConduce}
+         />
       </>
    );
 }
