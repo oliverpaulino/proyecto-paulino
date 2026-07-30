@@ -19,3 +19,22 @@ export interface ProyectoTarifaDTO {
    created_at: string;
    updated_at: string;
 }
+
+export interface TarifaGlobalRowDTO {
+   categoria_equipo_tarifa_id: string;
+   categoria_equipo_tarifa_nombre: string;
+   categoria_equipo_id: string;
+   categoria_equipo_nombre: string;
+   medida_cobro_nombre: string;
+   precio_global: number;
+   precio_proyecto: number | null;
+   proyecto_tarifa_id: string | null;
+}
+
+export interface BulkUpsertTarifaPayload {
+   proyecto_id: string;
+   tarifas: Array<{
+      categoria_equipo_tarifa_id: string;
+      precio_unitario: number;
+   }>;
+}

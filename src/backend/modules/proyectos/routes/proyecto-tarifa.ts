@@ -21,7 +21,24 @@ proyectoTarifasRoute.get("/", async (c) => {
    }
 });
 
-// POST /api/proyecto-tarifas  (upsert: por proyecto+categoría o proyecto+tipo_carga)
+// GET /api/proyecto-tarifas/todas?proyecto_id=xxx&search=yyy&page=1&limit=20
+proyectoTarifasRoute.get("/todas", async (c) => {
+   try {
+      const proyectoId = c.req.query("proyecto_id");
+      if (!proyectoId) return c.json({ error: "proyecto_id es requerido" }, 400);
+
+      const search = c.req.query("search") || "";
+      const page = parseInt(c.req.query("page") || "1", 10);
+      const limit = parseInt(c.req.query("limit") || "20", 10);
+
+      const result = await service.getAllConGlobales(proyectoId, search, page, limit);
+      return c.json(result);
+   } catch (err: unknown) {
+      return c.json({ error: err instanceof Error ? err.message : "Error al obtener tarifas" }, 500);
+   }
+});
+
+// POST /api/proyecto-tarifas  (upsert single)
 proyectoTarifasRoute.post("/", async (c) => {
    try {
       const rawBody = await c.req.json();
@@ -34,6 +51,22 @@ proyectoTarifasRoute.post("/", async (c) => {
       return c.json(tarifa, 201);
    } catch (err: unknown) {
       return c.json({ error: err instanceof Error ? err.message : "Error al guardar la tarifa" }, 400);
+   }
+});
+
+// POST /api/proyecto-tarifas/bulk
+proyectoTarifasRoute.post("/bulk", async (c) => {
+   try {
+      const rawBody = await c.req.json();
+      const { proyecto_id, tarifas } = rawBody as { proyecto_id: string; tarifas: Array<{ categoria_equipo_tarifa_id: string; precio_unitario: number }> };
+
+      if (!proyecto_id) return c.json({ error: "proyecto_id es requerido" }, 400);
+      if (!Array.isArray(tarifas)) return c.json({ error: "tarifas debe ser un array" }, 400);
+
+      await service.bulkUpsert(proyecto_id, tarifas);
+      return c.json({ success: true }, 200);
+   } catch (err: unknown) {
+      return c.json({ error: err instanceof Error ? err.message : "Error al guardar tarifas" }, 400);
    }
 });
 
