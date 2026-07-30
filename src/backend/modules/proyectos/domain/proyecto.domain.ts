@@ -88,16 +88,22 @@ export interface LiquidacionFacade {
    fecha: Date;
 }
 
+export interface UpdateProyectoDTO {
+   nombre?: string;
+   estado?: string;
+   tarifa_servicio?: number;
+   notas?: string | null;
+   fecha_fin?: Date | null;
+}
+
 // ─── Repository Interface ─────────────────────────────────────────────────────
 export interface IProyectoRepository {
    findAll(search?: string, pagination?: { page: number, limit: number }): Promise<ProyectoProps[]>;
    findById(id: string): Promise<ProyectoProps | null>;
    findByClientId(clienteId: string, search?: string, pagination?: { page: number, limit: number }): Promise<ProyectoProps[]>;
    create(data: CreateProyectoDTO): Promise<ProyectoProps>;
+   update(id: string, data: UpdateProyectoDTO): Promise<ProyectoProps | null>;
    getLiquidacion(id: string): Promise<LiquidacionFacade | null>;
-   // ← NUEVO: recalcula y persiste los totales de un proyecto a partir de
-   // proyecto_detalle + conduce. Lo llama ConduceService tras crear/editar/
-   // borrar un conduce, y también se puede llamar tras editar detalle.
    recalcularTotales(proyectoId: string): Promise<ProyectoTotales>;
    toggleDetalleCobrable(ids: string[], es_cobrable: boolean): Promise<void>;
 }

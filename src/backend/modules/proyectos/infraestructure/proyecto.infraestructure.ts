@@ -7,6 +7,7 @@ import type {
    ProyectoTotales,
    LiquidacionFacade,
    CreateProyectoDTO,
+   UpdateProyectoDTO,
 } from "../domain/proyecto.domain";
 import { ConduceProps } from "../../conduce/domain/conduce.domain";
 
@@ -202,6 +203,25 @@ export class KyselyProyectoRepository implements IProyectoRepository {
 
       const proyecto = await this.findById(header.id);
       return proyecto!;
+   }
+
+   async update(id: string, data: UpdateProyectoDTO): Promise<ProyectoProps | null> {
+      const safeData: Record<string, unknown> = {};
+      if (data.nombre !== undefined) safeData.nombre = data.nombre;
+      if (data.estado !== undefined) safeData.estado = data.estado;
+      if (data.tarifa_servicio !== undefined) safeData.tarifa_servicio = data.tarifa_servicio;
+      if (data.notas !== undefined) safeData.notas = data.notas;
+      if (data.fecha_fin !== undefined) safeData.fecha_fin = data.fecha_fin;
+      safeData.updated_at = new Date();
+
+      await this.db
+         .updateTable("proyecto")
+         .set(safeData)
+         .where("id", "=", id)
+         .execute();
+
+      await this.recalcularTotales(id);
+      return this.findById(id);
    }
 
    async getLiquidacion(id: string): Promise<LiquidacionFacade | null> {
