@@ -3,9 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import {
-   Card, CardContent, CardHeader, CardTitle,
-} from "@/components/ui/card";
+
 import {
    Tabs, TabsContent, TabsList, TabsTrigger,
 } from "@/components/ui/tabs";
@@ -143,14 +141,7 @@ export default function ProyectoDetailPage() {
             </TabsContent>
 
             <TabsContent value="configuracion" className="space-y-4">
-               <Card>
-                  <CardHeader>
-                     <CardTitle>Tarifas del Proyecto</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                     <ConfiguracionTab proyectoId={proyectoId} />
-                  </CardContent>
-               </Card>
+               <ConfiguracionTab proyectoId={proyectoId} />
             </TabsContent>
 
             <TabsContent value="conduces" className="space-y-4">
