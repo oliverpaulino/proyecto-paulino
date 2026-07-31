@@ -38,38 +38,22 @@ export function PurchaseOrderPagos({
    estado: string;
    onPaymentsChanged: () => void;
 }) {
-   const { CreatePago, DeletePago } = usePagoStore();
-   const [pagos, setPagos] = useState<Pago[]>([]);
-   const [loading, setLoading] = useState(true);
+   const { Pagos: pagos, loading, CreatePago, DeletePago, GetPagosByOrdenCompra } =
+      usePagoStore();
    const [actionLoading, setActionLoading] = useState(false);
    const [createOpen, setCreateOpen] = useState(false);
    const [deletingPago, setDeletingPago] = useState<Pago | null>(null);
 
    const puedePagarse = ["APROBADA", "RECIBIDA"].includes(estado);
 
-   const loadPagos = useCallback(async () => {
-      setLoading(true);
-      try {
-         const res = await fetch(`/api/pagos?orden_compra_id=${orderId}&limit=50`);
-         if (!res.ok) throw new Error("Error al cargar pagos");
-         const items: Pago[] = await res.json();
-         setPagos(items);
-      } catch (error) {
-         console.error(error);
-         setPagos([]);
-      } finally {
-         setLoading(false);
-      }
-   }, [orderId]);
-
    useEffect(() => {
-      loadPagos();
-   }, [loadPagos]);
+      GetPagosByOrdenCompra(orderId, { force: true });
+   }, [orderId, GetPagosByOrdenCompra]);
 
    const refresh = useCallback(async () => {
-      await loadPagos();
+      await GetPagosByOrdenCompra(orderId, { force: true });
       onPaymentsChanged();
-   }, [loadPagos, onPaymentsChanged]);
+   }, [orderId, GetPagosByOrdenCompra, onPaymentsChanged]);
 
    async function handleCreate(data: any) {
       setActionLoading(true);

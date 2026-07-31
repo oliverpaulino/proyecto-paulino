@@ -35,6 +35,7 @@ type PagoStore = {
    _fetchedDeletedLists: Set<string>;
 
    GetPagos: (params?: PagosFilters & { page?: number; limit?: number; force?: boolean }) => Promise<void>;
+   GetPagosByOrdenCompra: (ordenCompraId: string, params?: { limit?: number; force?: boolean }) => Promise<void>;
    GetDeletedPagos: (params?: PagosFilters & { page?: number; limit?: number; force?: boolean }) => Promise<void>;
 
    CreatePago: (form: CreatePagoForm) => Promise<Pago | Error>;
@@ -139,6 +140,27 @@ export const usePagoStore = create<PagoStore>((set, get) => ({
                hasNext: page < totalPages, hasPrev: page > 1,
             },
             _fetchedDeletedLists: new Set(s._fetchedDeletedLists).add(cacheKey),
+         }));
+      } catch (error) {
+         console.error(error);
+      } finally {
+         set({ loading: false });
+      }
+   },
+
+   GetPagosByOrdenCompra: async (ordenCompraId, { limit = 50, force = false } = {}) => {
+      const cacheKey = `orden-${ordenCompraId}-${limit}`;
+      if (!force && get()._fetchedPagoLists.has(cacheKey)) return;
+
+      set({ loading: true });
+      try {
+         const res = await fetch(`${BASE_URL}?orden_compra_id=${ordenCompraId}&limit=${limit}`);
+         if (!res.ok) throw new Error("Error al cargar pagos de la orden");
+
+         const items: Pago[] = await res.json();
+         set((s) => ({
+            Pagos: items,
+            _fetchedPagoLists: new Set(s._fetchedPagoLists).add(cacheKey),
          }));
       } catch (error) {
          console.error(error);

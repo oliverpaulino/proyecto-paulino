@@ -114,7 +114,7 @@ export default function PurchaseOrderDetail() {
    const searchParams = useSearchParams();
    const orderId = params.id as string;
 
-   const { UpdatePurchaseOrder, ChangeStatus, DeletePurchaseOrder, CheckIsApprover } =
+   const { UpdatePurchaseOrder, ChangeStatus, DeletePurchaseOrder, CheckIsApprover, GetPurchaseOrderById } =
       usePurchaseOrderStore();
 
    const [order, setOrder] = useState<PurchaseOrder | null>(null);
@@ -132,12 +132,10 @@ export default function PurchaseOrderDetail() {
       async function load() {
          setLoading(true);
          try {
-            const [orderRes] = await Promise.all([
-               fetch(`/api/purchase-orders/${orderId}`),
+            const [data] = await Promise.all([
+               GetPurchaseOrderById(orderId),
                CheckIsApprover().then((v) => { if (active) setIsApprover(v); }),
             ]);
-            if (!orderRes.ok) throw new Error("Not found");
-            const data: PurchaseOrder = await orderRes.json();
             if (active) setOrder(data);
          } catch {
             if (active) setOrder(null);
@@ -148,7 +146,7 @@ export default function PurchaseOrderDetail() {
 
       load();
       return () => { active = false; };
-   }, [orderId, CheckIsApprover]);
+   }, [orderId, CheckIsApprover, GetPurchaseOrderById]);
 
    const handleTabChange = useCallback((value: string) => {
       setActiveTab(value);
@@ -156,9 +154,7 @@ export default function PurchaseOrderDetail() {
    }, [orderId, router]);
 
    async function refreshOrder() {
-      const res = await fetch(`/api/purchase-orders/${orderId}`);
-      if (!res.ok) return;
-      const data: PurchaseOrder = await res.json();
+      const data = await GetPurchaseOrderById(orderId);
       setOrder(data);
    }
 

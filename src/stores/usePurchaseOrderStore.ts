@@ -16,6 +16,14 @@ type PurchaseOrderFilters = {
    equipoId?: string;
 };
 
+export type PurchaseOrderApprover = {
+   user_id: string;
+   user_name: string;
+   granted_by: string;
+   granted_at: string;
+   is_protected: boolean;
+};
+
 type PurchaseOrderStore = {
    PurchaseOrders: PaginatedPurchaseOrders;
    PurchaseOrdersDeleted: PaginatedPurchaseOrders;
@@ -38,6 +46,10 @@ type PurchaseOrderStore = {
    DeletePurchaseOrder: (id: string) => Promise<void | Error>;
    GetOrdenesCompraBySupplier: (supplierId: string, params?: { force?: boolean, page?: number, limit?: number, search?: string }) => Promise<void>;
    RestorePurchaseOrder: (id: string) => Promise<void | Error>;
+   GetPurchaseOrderById: (id: string) => Promise<PurchaseOrder | null>;
+   ListApprovers: () => Promise<PurchaseOrderApprover[] | Error>;
+   AddApprover: (userId: string, userName: string) => Promise<void | Error>;
+   RemoveApprover: (userId: string) => Promise<void | Error>;
    CheckIsApprover: () => Promise<boolean>;
    invalidateCache: () => void;
 };
@@ -223,6 +235,53 @@ export const usePurchaseOrderStore = create<PurchaseOrderStore>((set, get) => ({
          return data.isApprover;
       } catch {
          return false;
+      }
+   },
+
+   GetPurchaseOrderById: async (id) => {
+      try {
+         const res = await fetch(`/api/purchase-orders/${id}`);
+         if (!res.ok) return null;
+         const data: PurchaseOrder = await res.json();
+         return data;
+      } catch (error) {
+         console.error("Error fetching purchase order:", error);
+         return null;
+      }
+   },
+
+   ListApprovers: async () => {
+      try {
+         const res = await fetch("/api/purchase-orders/approvers");
+         if (!res.ok) throw new Error("Error al cargar aprobadores");
+         return await res.json() as PurchaseOrderApprover[];
+      } catch (error) {
+         return error as Error;
+      }
+   },
+
+   AddApprover: async (userId, userName) => {
+      try {
+         const res = await fetch("/api/purchase-orders/approvers", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: userId, user_name: userName }),
+         });
+         const data = await res.json() as { error?: string };
+         if (!res.ok) throw new Error(data.error ?? "Error al agregar aprobador");
+      } catch (error) {
+         return error as Error;
+      }
+   },
+
+   RemoveApprover: async (userId) => {
+      try {
+         const res = await fetch(`/api/purchase-orders/approvers/${userId}`, {
+            method: "DELETE",
+         });
+         if (!res.ok) throw new Error("Error al eliminar aprobador");
+      } catch (error) {
+         return error as Error;
       }
    },
 
