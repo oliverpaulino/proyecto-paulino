@@ -112,10 +112,23 @@ export class ProyectoArchivoService {
    /**
     * Renombra el archivo. Solo toca la metadata (nombre_archivo); el binario y
     * el storage_path no cambian. Devuelve null si el archivo no existe.
+    *
+    * La extensión original del archivo (la del storage_path) siempre se
+    * conserva: si el usuario escribe el nombre sin extensión, se le vuelve a
+    * adjuntar. Así la descarga nunca queda con un nombre sin extensión.
     */
    async rename(id: string, nombreArchivo: string): Promise<ProyectoArchivoProps | null> {
+      const meta = await this.repo.findById(id);
+      if (!meta) return null;
+
+      const ext = this.#extensionOf(meta.storage_path);
       const nombre = this.#sanitizeNombre(nombreArchivo);
-      return this.repo.update(id, nombre);
+      const conExtension =
+         ext && !nombre.toLowerCase().endsWith(`.${ext.toLowerCase()}`)
+            ? `${nombre}.${ext}`
+            : nombre;
+
+      return this.repo.update(id, conExtension);
    }
 
    #sanitizeNombre(nombreArchivo: string): string {
@@ -124,6 +137,12 @@ export class ProyectoArchivoService {
       if (nombre.length > 200)
          throw new Error("El nombre no puede superar los 200 caracteres");
       return nombre;
+   }
+
+   /** Extensión (sin el punto) del storage_path, p. ej. "pdf". */
+   #extensionOf(storagePath: string): string {
+      const match = storagePath.match(/\.([a-zA-Z0-9]+)$/);
+      return match ? match[1] : "";
    }
 
    async remove(id: string): Promise<boolean> {

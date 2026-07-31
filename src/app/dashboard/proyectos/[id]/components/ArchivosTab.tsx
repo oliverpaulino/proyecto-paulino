@@ -443,6 +443,15 @@ export function ArchivosTab({ proyectoId }: { proyectoId: string }) {
                      disabled={renameLoading}
                      maxLength={200}
                   />
+                  {renaming && (
+                     <p className="text-xs text-muted-foreground">
+                        Si borras la extensión (p. ej.{" "}
+                        <span className="font-medium">
+                           {renaming.nombre_archivo.split(".").pop()}
+                        </span>
+                        ) se volverá a agregar automáticamente para que la descarga no se dañe.
+                     </p>
+                  )}
                   <div className="flex justify-end gap-2">
                      <Button
                         type="button"
