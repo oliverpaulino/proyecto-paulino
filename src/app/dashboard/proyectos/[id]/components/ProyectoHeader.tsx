@@ -24,6 +24,7 @@ export function ProyectoHeader({
    onPDF: (tipo: "interno" | "factura") => void;
    onBack: () => void;
 }) {
+   const fechaInicioRD = formatFechaRD(proyecto.fecha_inicio);
    return (
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
          <div className="flex items-start gap-4">
@@ -40,7 +41,8 @@ export function ProyectoHeader({
                   </Badge>
                </div>
                <p className="text-sm text-muted-foreground">
-                  {proyecto.cliente_nombre ?? "Cliente"} · {new Date(proyecto.fecha_inicio).toLocaleDateString("es-DO")}
+                  {proyecto.cliente_nombre ?? "Cliente"}
+                  {fechaInicioRD ? ` · ${fechaInicioRD}` : ""}
                </p>
             </div>
          </div>
