@@ -15,6 +15,10 @@ import { usePurchaseOrderStore } from "@/stores/usePurchaseOrderStore";
 import type { PurchaseOrder } from "@/dtos/purchase-order.dto";
 import { PurchaseOrderForm } from "./purchase-order-form";
 import { PurchaseOrderTable } from "./purchase-order-table";
+import {
+   PurchaseOrderFilters,
+   type PurchaseOrderFiltersValues,
+} from "./purchase-order-filters";
 import { DeletePurchaseOrderDialog } from "./delete-purchase-order-dialog";
 import { TableSearch } from "@/components/table-search";
 
@@ -71,6 +75,13 @@ export default function ComprasView() {
    const [page, setPage] = useState(1);
    const limit = 10;
    const [search, setSearch] = useState("");
+   const [filters, setFilters] = useState<PurchaseOrderFiltersValues>({
+      proveedorId: "",
+      estado: "",
+      estadoPago: "",
+      equipoId: "",
+   });
+   const [filtersResetKey, setFiltersResetKey] = useState(0);
    const [createOpen, setCreateOpen] = useState(false);
    const [editTarget, setEditTarget] = useState<PurchaseOrder | null>(null);
    const [deleteTarget, setDeleteTarget] = useState<PurchaseOrder | null>(null);
@@ -81,8 +92,38 @@ export default function ComprasView() {
          page,
          limit,
          search,
+         supplierId: filters.proveedorId || undefined,
+         estado: filters.estado || undefined,
+         estadoPago: filters.estadoPago || undefined,
+         equipoId: filters.equipoId || undefined,
       });
-   }, [GetPurchaseOrders, page, search]);
+   }, [
+      GetPurchaseOrders,
+      page,
+      search,
+      filters.proveedorId,
+      filters.estado,
+      filters.estadoPago,
+      filters.equipoId,
+   ]);
+
+   const hasActiveFilters = !!(
+      filters.proveedorId ||
+      filters.estado ||
+      filters.estadoPago ||
+      filters.equipoId
+   );
+
+   function handleFiltersChange(next: PurchaseOrderFiltersValues) {
+      setFilters(next);
+      setPage(1);
+   }
+
+   function handleClearFilters() {
+      setFilters({ proveedorId: "", estado: "", estadoPago: "", equipoId: "" });
+      setFiltersResetKey((k) => k + 1);
+      setPage(1);
+   }
 
 
    const total = PurchaseOrders.total;
@@ -180,7 +221,7 @@ export default function ComprasView() {
                         Nueva Orden
                      </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
                      <DialogHeader>
                         <DialogTitle>Nueva Orden de Compra</DialogTitle>
                         <DialogDescription>
@@ -196,6 +237,15 @@ export default function ComprasView() {
                </Dialog>
             </div>
          </div>
+
+         {/* Filtros */}
+         <PurchaseOrderFilters
+            values={filters}
+            onChange={handleFiltersChange}
+            onClear={handleClearFilters}
+            hasActiveFilters={hasActiveFilters}
+            resetKey={filtersResetKey}
+         />
 
          {/* Table */}
          {loading ? (
@@ -239,7 +289,7 @@ export default function ComprasView() {
             open={!!editTarget}
             onOpenChange={(open) => { if (!open) setEditTarget(null); }}
          >
-            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
                <DialogHeader>
                   <DialogTitle>Editar Orden de Compra</DialogTitle>
                   <DialogDescription>

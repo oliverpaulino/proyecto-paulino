@@ -5,6 +5,21 @@ export type EstadoOrdenCompra =
    | "RECIBIDA"
    | "CANCELADA";
 
+/**
+ * PENDIENTE = sin un solo pago
+ * PARCIAL   = pagado en parte
+ * PAGADO    = saldado (o sobrepagado)
+ */
+export type EstadoPagoOrden = "PENDIENTE" | "PARCIAL" | "PAGADO";
+
+export function estadoPagoOrden(montoTotal: number, pagado: number): EstadoPagoOrden {
+   // Tolerancia de un centavo: los numeric de Postgres y las sumas de varios
+   // pagos parciales pueden dejar un residuo que no es una deuda real.
+   if (pagado >= montoTotal - 0.01) return "PAGADO";
+   if (pagado > 0.01) return "PARCIAL";
+   return "PENDIENTE";
+}
+
 export interface PurchaseOrderItemProps {
    id: string;
    orden_compra_id: string;
@@ -34,6 +49,7 @@ export interface PurchaseOrderProps {
    proveedor_nombre?: string;
    fecha: Date;
    estado: EstadoOrdenCompra;
+   estado_pago: EstadoPagoOrden;
    notas: string | null;
    total: number;
    approved_by: string | null;
@@ -87,6 +103,7 @@ export class PurchaseOrder {
    get proveedor_nombre(): string | undefined { return this.props.proveedor_nombre; }
    get fecha(): Date { return this.props.fecha; }
    get estado(): EstadoOrdenCompra { return this.props.estado; }
+   get estado_pago(): EstadoPagoOrden { return this.props.estado_pago; }
    get notas(): string | null { return this.props.notas; }
    get total(): number { return this.props.total; }
    get approved_by(): string | null { return this.props.approved_by; }
@@ -131,6 +148,16 @@ export interface UpdatePurchaseOrderDTO {
    items?: PurchaseOrderItemInput[];
 }
 
+export interface PurchaseOrderFilters {
+   supplierId?: string;
+   search?: string;
+   page?: number;
+   limit?: number;
+   estado?: EstadoOrdenCompra;
+   estadoPago?: EstadoPagoOrden;
+   equipoId?: string;
+}
+
 export interface ApproverRecord {
    user_id: string;
    user_name: string;
@@ -139,9 +166,8 @@ export interface ApproverRecord {
 }
 
 export interface IPurchaseOrderRepository {
-   findAll(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<PurchaseOrderPaginatedResult>;
-   findAllDeleted(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<PurchaseOrderPaginatedResult>
-   findAllDeleted(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<PurchaseOrderPaginatedResult>
+   findAll(params: PurchaseOrderFilters): Promise<PurchaseOrderPaginatedResult>;
+   findAllDeleted(params: PurchaseOrderFilters): Promise<PurchaseOrderPaginatedResult>
    findById(id: string): Promise<PurchaseOrder | null>;
    restore(id: string): Promise<PurchaseOrder | null>;
    create(data: CreatePurchaseOrderDTO): Promise<PurchaseOrder>;

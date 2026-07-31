@@ -62,6 +62,25 @@ export function SelectBuscadorOrdenCompra({
       });
    }, [PurchaseOrders, debouncedSearch]);
 
+   const ordenSeleccionada = useMemo(() => {
+      if (!value) return null;
+      return (PurchaseOrders.data || []).find((orden) => orden.id === value) || null;
+   }, [PurchaseOrders.data, value]);
+
+   const getEstadoPagoLabel = (estadoPago: string) => {
+      if (estadoPago === "PENDIENTE") return "Sin pagos";
+      if (estadoPago === "PARCIAL") return "Pago parcial";
+      if (estadoPago === "PAGADO") return "Pagada";
+      return estadoPago;
+   };
+
+   const getEstadoPagoColor = (estadoPago: string) => {
+      if (estadoPago === "PENDIENTE") return "bg-red-500/10 text-red-500";
+      if (estadoPago === "PARCIAL") return "bg-amber-500/10 text-amber-500";
+      if (estadoPago === "PAGADO") return "bg-green-500/10 text-green-500";
+      return "bg-gray-500/10 text-gray-500";
+   };
+
    const getOrdenLabel = (orden: PurchaseOrder) => {
       return `${orden.codigoReferencia} - ${orden.proveedor_nombre || "Sin proveedor"}`;
    };
@@ -106,6 +125,20 @@ export function SelectBuscadorOrdenCompra({
                )}
             </div>
          </div>
+
+         {ordenSeleccionada && (
+            <div className="mt-1 flex items-center justify-between gap-2 rounded-md border border-input/30 bg-muted/30 px-3 py-1.5 text-xs">
+               <span className="text-muted-foreground">
+                  Monto de la orden:{" "}
+                  <span className="font-semibold text-foreground">
+                     RD$ {ordenSeleccionada.total.toFixed(2)}
+                  </span>
+               </span>
+               <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold ${getEstadoPagoColor(ordenSeleccionada.estado_pago)}`}>
+                  {getEstadoPagoLabel(ordenSeleccionada.estado_pago)}
+               </span>
+            </div>
+         )}
 
          {isOpen && (
             <div className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-md p-1">

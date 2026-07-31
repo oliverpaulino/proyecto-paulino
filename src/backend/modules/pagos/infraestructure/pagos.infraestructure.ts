@@ -5,6 +5,7 @@ import {
    DeletePagoDTO,
    Pago,
    IPagoRepository,
+   SaldoPendienteOrdenCompra,
    UpdatePagoDTO,
 } from "../domain/pagos.domain";
 
@@ -16,6 +17,14 @@ export class KyselyPagoRepository implements IPagoRepository {
       return `${prefix}-${ref}`;
     }
 
+    private buildCodigoOrdenCompra(referencia: number, fecha: Date): string {
+      const yy = String(fecha.getFullYear()).slice(-2);
+      const mm = String(fecha.getMonth() + 1).padStart(2, "0");
+      const dd = String(fecha.getDate()).padStart(2, "0");
+      const ref = String(referencia).padStart(3, "0");
+      return `OC-${yy}${mm}${dd}-${ref}`;
+    }
+
    private mapToEntity(row: any): Pago {
       return Pago.create({
          ...row,
@@ -24,6 +33,7 @@ export class KyselyPagoRepository implements IPagoRepository {
          costo_codigo_referencia: row.costo_referencia ? this.buildCodigoReferencia("COS", row.costo_referencia) : null,
          deduccion_codigo_referencia: row.deduccion_referencia ? this.buildCodigoReferencia("DED", row.deduccion_referencia) : null,
          proyecto_codigo_referencia: row.proyecto_referencia ? this.buildCodigoReferencia("PRO", row.proyecto_referencia) : null,
+         orden_compra_codigo_referencia: row.orden_compra_referencia ? this.buildCodigoOrdenCompra(row.orden_compra_referencia, new Date(row.orden_compra_fecha)) : null,
          monto_pagado: Number(row.monto_pagado),
          fecha: new Date(row.fecha),
          created_at: new Date(row.created_at),
@@ -50,12 +60,15 @@ export class KyselyPagoRepository implements IPagoRepository {
          .leftJoin("costo", "costo.id", "pago.costo_cliente_id")
          .leftJoin("deduccion", "deduccion.id", "pago.deduccion_empleado_id")
          .leftJoin("proyecto", "proyecto.id", "pago.proyecto_id")
+         .leftJoin("orden_compra", "orden_compra.id", "pago.orden_compra_id")
          .selectAll("pago")
          .select([
             "gasto.referencia as gasto_referencia",
             "costo.referencia as costo_referencia",
             "deduccion.referencia as deduccion_referencia",
             "proyecto.referencia as proyecto_referencia",
+            "orden_compra.referencia as orden_compra_referencia",
+            "orden_compra.fecha as orden_compra_fecha",
          ]);
 
       if (isDeleted) {
@@ -90,6 +103,7 @@ export class KyselyPagoRepository implements IPagoRepository {
       if (params?.costo_cliente_id) query = query.where("pago.costo_cliente_id", "=", params.costo_cliente_id);
       if (params?.deduccion_empleado_id) query = query.where("pago.deduccion_empleado_id", "=", params.deduccion_empleado_id);
       if (params?.proyecto_id) query = query.where("pago.proyecto_id", "=", params.proyecto_id);
+      if (params?.orden_compra_id) query = query.where("pago.orden_compra_id", "=", params.orden_compra_id);
 
       return query;
    }
@@ -124,12 +138,15 @@ export class KyselyPagoRepository implements IPagoRepository {
          .leftJoin("costo", "costo.id", "pago.costo_cliente_id")
          .leftJoin("deduccion", "deduccion.id", "pago.deduccion_empleado_id")
          .leftJoin("proyecto", "proyecto.id", "pago.proyecto_id")
+         .leftJoin("orden_compra", "orden_compra.id", "pago.orden_compra_id")
          .selectAll("pago")
          .select([
             "gasto.referencia as gasto_referencia",
             "costo.referencia as costo_referencia",
             "deduccion.referencia as deduccion_referencia",
             "proyecto.referencia as proyecto_referencia",
+            "orden_compra.referencia as orden_compra_referencia",
+            "orden_compra.fecha as orden_compra_fecha",
          ])
          .where("pago.id", "=", id)
          .where("pago.deleted_at", "is", null)
@@ -146,12 +163,15 @@ export class KyselyPagoRepository implements IPagoRepository {
          .leftJoin("costo", "costo.id", "pago.costo_cliente_id")
          .leftJoin("deduccion", "deduccion.id", "pago.deduccion_empleado_id")
          .leftJoin("proyecto", "proyecto.id", "pago.proyecto_id")
+         .leftJoin("orden_compra", "orden_compra.id", "pago.orden_compra_id")
          .selectAll("pago")
          .select([
             "gasto.referencia as gasto_referencia",
             "costo.referencia as costo_referencia",
             "deduccion.referencia as deduccion_referencia",
             "proyecto.referencia as proyecto_referencia",
+            "orden_compra.referencia as orden_compra_referencia",
+            "orden_compra.fecha as orden_compra_fecha",
          ])
          .where("pago.id", "=", id)
          .where("pago.deleted_at", "is not", null)
@@ -174,6 +194,7 @@ export class KyselyPagoRepository implements IPagoRepository {
             costo_cliente_id: data.costo_cliente_id ?? null,
             deduccion_empleado_id: data.deduccion_empleado_id ?? null,
             proyecto_id: data.proyecto_id ?? null,
+            orden_compra_id: data.orden_compra_id ?? null,
             created_at: new Date(),
             updated_at: new Date(),
          })
@@ -222,5 +243,29 @@ export class KyselyPagoRepository implements IPagoRepository {
          .executeTakeFirst();
 
       return this.findById(id);
+   }
+
+   async getSaldoPendienteOrdenCompra(ordenCompraId: string): Promise<SaldoPendienteOrdenCompra | null> {
+      const oc = await this.db
+         .selectFrom("orden_compra")
+         .select(["id", "total", "estado"])
+         .where("id", "=", ordenCompraId)
+         .where("deleted_at", "is", null)
+         .executeTakeFirst();
+
+      if (!oc) return null;
+
+      const pagadoRow = await this.db
+         .selectFrom("pago")
+         .select(({ fn }) => fn.sum("pago.monto_pagado").as("pagado"))
+         .where("pago.orden_compra_id", "=", ordenCompraId)
+         .where("pago.deleted_at", "is", null)
+         .executeTakeFirst();
+
+      return {
+         total: Number(oc.total),
+         pagado: Number(pagadoRow?.pagado ?? 0),
+         estado: oc.estado,
+      };
    }
 }

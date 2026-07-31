@@ -4,8 +4,10 @@ import {
    ApproverRecord,
    CreatePurchaseOrderDTO,
    EstadoOrdenCompra,
+   estadoPagoOrden,
    IPurchaseOrderRepository,
    PurchaseOrder,
+   PurchaseOrderFilters,
    PurchaseOrderItemInput,
    PurchaseOrderItemProps,
    PurchaseOrderProps,
@@ -20,22 +22,32 @@ function buildCodigoReferencia(referencia: number, fecha: Date): string {
    return `OC-${yy}${mm}${dd}-${ref}`;
 }
 
+/**
+ * Suma de lo pagado directamente a una orden de compra. Gastos y órdenes de
+ * compra se manejan como obligaciones separadas: pagar el gasto vinculado a la
+ * OC NO paga la OC. Así se evita el doble conteo / sobrepago cuando la OC se
+ * paga directo y además se paga el gasto que la referencia. Los pagos
+ * anulados (`deleted_at`) no cuentan — si se anula un pago, el saldo vuelve a
+ * estar vivo. El estado_pago se deriva luego con `estadoPagoOrden`.
+ */
+const pagadoDeOrden = sql<number>`coalesce((
+   select sum(p.monto_pagado)
+   from pago p
+   where p.orden_compra_id = orden_compra.id
+     and p.deleted_at is null
+), 0)`;
+
 export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
    constructor(private readonly db: Kysely<DB>) { }
 
-   async findAll(params: {
-      supplierId?: string;
-      search?: string;
-      page?: number;
-      limit?: number;
-   }): Promise<{
+   async findAll(params: PurchaseOrderFilters): Promise<{
       data: PurchaseOrder[];
       total: number;
       page: number;
       limit: number;
       totalPages: number;
    }> {
-      const { supplierId = "", search = "", page = 1, limit = 10 } = params;
+      const { supplierId = "", search = "", page = 1, limit = 10, estado, estadoPago, equipoId } = params;
 
       let baseQuery = this.db
          .selectFrom("orden_compra")
@@ -48,6 +60,37 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             "=",
             supplierId
          );
+      }
+
+      if (estado) {
+         baseQuery = baseQuery.where("orden_compra.estado", "=", estado);
+      }
+
+      if (equipoId) {
+         baseQuery = baseQuery.where((eb) =>
+            eb.exists(
+               eb
+                  .selectFrom("orden_compra_item as oci_f")
+                  .select("oci_f.id")
+                  .whereRef("oci_f.orden_compra_id", "=", "orden_compra.id")
+                  .where("oci_f.equipo_id", "=", equipoId)
+            )
+         );
+      }
+
+      if (estadoPago) {
+         baseQuery = baseQuery.where((eb) => {
+            if (estadoPago === "PENDIENTE") {
+               return eb(pagadoDeOrden, "<=", 0.01);
+            }
+            if (estadoPago === "PAGADO") {
+               return eb(pagadoDeOrden, ">=", sql<number>`orden_compra.total - 0.01`);
+            }
+            return eb.and([
+               eb(pagadoDeOrden, ">", 0.01),
+               eb(pagadoDeOrden, "<", sql<number>`orden_compra.total - 0.01`),
+            ]);
+         });
       }
 
       if (search) {
@@ -113,6 +156,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             "proveedor.nombre as proveedor_nombre",
             "orden_compra.fecha",
             "orden_compra.estado",
+            pagadoDeOrden.as("pagado"),
             "orden_compra.notas",
             "orden_compra.total",
             "orden_compra.approved_by",
@@ -165,6 +209,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             proveedor_nombre: row.proveedor_nombre ?? undefined,
             fecha: new Date(row.fecha),
             estado: row.estado as EstadoOrdenCompra,
+            estado_pago: estadoPagoOrden(Number(row.total), Number(row.pagado)),
             notas: row.notas ?? null,
             total: Number(row.total),
             approved_by: row.approved_by ?? null,
@@ -190,14 +235,14 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
       };
    }
 
-   async findAllDeleted(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<{
+   async findAllDeleted(params: PurchaseOrderFilters): Promise<{
       data: PurchaseOrder[];
       total: number;
       page: number;
       limit: number;
       totalPages: number;
    }> {
-      const { supplierId = "", search = "", page = 1, limit = 10 } = params;
+      const { supplierId = "", search = "", page = 1, limit = 10, estado, estadoPago, equipoId } = params;
       let dataQuery = this.db
          .selectFrom("orden_compra")
          .leftJoin("proveedor", "proveedor.id", "orden_compra.proveedor_id")
@@ -208,6 +253,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             "orden_compra.referencia",
             "orden_compra.fecha",
             "orden_compra.estado",
+            pagadoDeOrden.as("pagado"),
             "orden_compra.notas",
             "orden_compra.total",
             "orden_compra.approved_by",
@@ -237,6 +283,59 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             "=",
             supplierId
          );
+      }
+
+      if (estado) {
+         dataQuery = dataQuery.where("orden_compra.estado", "=", estado);
+         countQuery = countQuery.where("orden_compra.estado", "=", estado);
+      }
+
+      if (equipoId) {
+         dataQuery = dataQuery.where((eb) =>
+            eb.exists(
+               eb
+                  .selectFrom("orden_compra_item as oci_f")
+                  .select("oci_f.id")
+                  .whereRef("oci_f.orden_compra_id", "=", "orden_compra.id")
+                  .where("oci_f.equipo_id", "=", equipoId)
+            )
+         );
+         countQuery = countQuery.where((eb) =>
+            eb.exists(
+               eb
+                  .selectFrom("orden_compra_item as oci_f")
+                  .select("oci_f.id")
+                  .whereRef("oci_f.orden_compra_id", "=", "orden_compra.id")
+                  .where("oci_f.equipo_id", "=", equipoId)
+            )
+         );
+      }
+
+      if (estadoPago) {
+         dataQuery = dataQuery.where((eb) => {
+            if (estadoPago === "PENDIENTE") {
+               return eb(pagadoDeOrden, "<=", 0.01);
+            }
+            if (estadoPago === "PAGADO") {
+               return eb(pagadoDeOrden, ">=", sql<number>`orden_compra.total - 0.01`);
+            }
+            return eb.and([
+               eb(pagadoDeOrden, ">", 0.01),
+               eb(pagadoDeOrden, "<", sql<number>`orden_compra.total - 0.01`),
+            ]);
+         });
+         countQuery = countQuery.where((eb) => {
+            if (estadoPago === "PENDIENTE") {
+               return eb(pagadoDeOrden, "<=", 0.01);
+            }
+            if (estadoPago === "PAGADO") {
+               return eb(pagadoDeOrden, ">=", sql<number>`orden_compra.total - 0.01`);
+            }
+            return eb.and([
+               eb(pagadoDeOrden, ">", 0.01),
+               eb(pagadoDeOrden, "<", sql<number>`orden_compra.total - 0.01`),
+            ]);
+         });
       }
 
       if (search) {
@@ -298,6 +397,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             ),
             fecha: new Date(row.fecha),
             estado: row.estado as EstadoOrdenCompra,
+            estado_pago: estadoPagoOrden(Number(row.total), Number(row.pagado)),
             notas: row.notas ?? null,
             total: Number(row.total),
             approved_by: row.approved_by ?? null,
@@ -336,6 +436,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             "proveedor.nombre as proveedor_nombre",
             "orden_compra.fecha",
             "orden_compra.estado",
+            pagadoDeOrden.as("pagado"),
             "orden_compra.notas",
             "orden_compra.total",
             "orden_compra.approved_by",
@@ -389,6 +490,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
          proveedor_nombre: row.proveedor_nombre ?? undefined,
          fecha: new Date(row.fecha),
          estado: row.estado as EstadoOrdenCompra,
+         estado_pago: estadoPagoOrden(Number(row.total), Number(row.pagado)),
          notas: row.notas ?? null,
          total: Number(row.total),
          approved_by: row.approved_by ?? null,

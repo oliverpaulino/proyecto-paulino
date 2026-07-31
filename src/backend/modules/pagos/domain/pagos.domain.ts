@@ -26,6 +26,10 @@ export interface PagoProps {
    // join
    proyecto_codigo_referencia: string | null;
 
+   orden_compra_id: string | null;
+   // join
+   orden_compra_codigo_referencia: string | null;
+
    fecha: Date;
    created_at: Date;
    updated_at: Date;
@@ -59,6 +63,8 @@ export class Pago {
    get deduccion_codigo_referencia() { return this.props.deduccion_codigo_referencia; }
    get proyecto_id() { return this.props.proyecto_id; }
    get proyecto_codigo_referencia() { return this.props.proyecto_codigo_referencia; }
+   get orden_compra_id() { return this.props.orden_compra_id; }
+   get orden_compra_codigo_referencia() { return this.props.orden_compra_codigo_referencia; }
    get fecha() { return this.props.fecha }
    get created_at() { return this.props.created_at; }
    get updated_at() { return this.props.updated_at; }
@@ -81,6 +87,7 @@ export interface CreatePagoDTO {
    costo_cliente_id?: string | null;
    deduccion_empleado_id?: string | null;
    proyecto_id?: string | null;
+   orden_compra_id?: string | null;
 }
 
 export type UpdatePagoDTO = Partial<CreatePagoDTO>;
@@ -89,6 +96,12 @@ export interface DeletePagoDTO {
    deleted_by?: string;
    deleted_reason?: string;
 };
+
+export interface SaldoPendienteOrdenCompra {
+   total: number;
+   pagado: number;
+   estado: string;
+}
 
 export interface IPagoRepository {
    findAll( params?: { page?: number; 
@@ -99,7 +112,8 @@ export interface IPagoRepository {
                      gasto_empresa_id?: string | null;
                      costo_cliente_id?: string | null;
                      deduccion_empleado_id?: string | null;
-                     proyecto_id?: string | null; }): Promise<Pago[]>;
+                     proyecto_id?: string | null;
+                     orden_compra_id?: string | null; }): Promise<Pago[]>;
 
    findAllDeleted( params?: { page?: number; 
                      limit?: number; 
@@ -109,7 +123,8 @@ export interface IPagoRepository {
                      gasto_empresa_id?: string | null;
                      costo_cliente_id?: string | null;
                      deduccion_empleado_id?: string | null;
-                     proyecto_id?: string | null; }): Promise<Pago[]>;
+                     proyecto_id?: string | null;
+                     orden_compra_id?: string | null; }): Promise<Pago[]>;
 
    findById(id: string): Promise<Pago | null>;
    findDeletedById(id: string): Promise<Pago | null>;
@@ -117,4 +132,7 @@ export interface IPagoRepository {
    update(id: string, data: UpdatePagoDTO): Promise<Pago | null>;
    delete(id: string, data: DeletePagoDTO): Promise<boolean>;
    restore(id: string): Promise<Pago | null>;
+
+   /** Total y pagado directo de una OC. `null` si la orden no existe. */
+   getSaldoPendienteOrdenCompra(ordenCompraId: string): Promise<SaldoPendienteOrdenCompra | null>;
 }
