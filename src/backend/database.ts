@@ -744,6 +744,7 @@ export interface DB {
       costo_cliente_id: string | null;
       deduccion_empleado_id: string | null;
       proyecto_id: string | null;
+      orden_compra_id: string | null;
       fecha: Date;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;

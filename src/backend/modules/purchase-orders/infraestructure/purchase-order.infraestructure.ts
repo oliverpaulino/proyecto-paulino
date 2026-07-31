@@ -4,6 +4,7 @@ import {
    ApproverRecord,
    CreatePurchaseOrderDTO,
    EstadoOrdenCompra,
+   estadoPagoOrden,
    IPurchaseOrderRepository,
    PurchaseOrder,
    PurchaseOrderItemInput,
@@ -19,6 +20,23 @@ function buildCodigoReferencia(referencia: number, fecha: Date): string {
    const ref = String(referencia).padStart(3, "0");
    return `OC-${yy}${mm}${dd}-${ref}`;
 }
+
+/**
+ * Suma de lo pagado directamente a una orden de compra. Gastos y órdenes de
+ * compra se manejan como obligaciones separadas: pagar el gasto vinculado a la
+ * OC NO paga la OC. Así se evita el doble conteo / sobrepago cuando la OC se
+ * paga directo y además se paga el gasto que la referencia. Los pagos
+ * anulados (`deleted_at`) no cuentan — si se anula un pago, el saldo vuelve a
+ * estar vivo. El estado_pago se deriva luego con `estadoPagoOrden`.
+ */
+const pagadoDeOrden = sql<number>`(
+   coalesce((
+      select sum(p.monto_pagado)
+      from pago p
+      where p.orden_compra_id = orden_compra.id
+        and p.deleted_at is null
+   ), 0)
+)`;
 
 export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
    constructor(private readonly db: Kysely<DB>) { }
@@ -113,6 +131,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             "proveedor.nombre as proveedor_nombre",
             "orden_compra.fecha",
             "orden_compra.estado",
+            pagadoDeOrden.as("pagado"),
             "orden_compra.notas",
             "orden_compra.total",
             "orden_compra.approved_by",
@@ -165,6 +184,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             proveedor_nombre: row.proveedor_nombre ?? undefined,
             fecha: new Date(row.fecha),
             estado: row.estado as EstadoOrdenCompra,
+            estado_pago: estadoPagoOrden(Number(row.total), Number(row.pagado)),
             notas: row.notas ?? null,
             total: Number(row.total),
             approved_by: row.approved_by ?? null,
@@ -208,6 +228,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             "orden_compra.referencia",
             "orden_compra.fecha",
             "orden_compra.estado",
+            pagadoDeOrden.as("pagado"),
             "orden_compra.notas",
             "orden_compra.total",
             "orden_compra.approved_by",
@@ -298,6 +319,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             ),
             fecha: new Date(row.fecha),
             estado: row.estado as EstadoOrdenCompra,
+            estado_pago: estadoPagoOrden(Number(row.total), Number(row.pagado)),
             notas: row.notas ?? null,
             total: Number(row.total),
             approved_by: row.approved_by ?? null,
@@ -336,6 +358,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             "proveedor.nombre as proveedor_nombre",
             "orden_compra.fecha",
             "orden_compra.estado",
+            pagadoDeOrden.as("pagado"),
             "orden_compra.notas",
             "orden_compra.total",
             "orden_compra.approved_by",
@@ -389,6 +412,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
          proveedor_nombre: row.proveedor_nombre ?? undefined,
          fecha: new Date(row.fecha),
          estado: row.estado as EstadoOrdenCompra,
+         estado_pago: estadoPagoOrden(Number(row.total), Number(row.pagado)),
          notas: row.notas ?? null,
          total: Number(row.total),
          approved_by: row.approved_by ?? null,
