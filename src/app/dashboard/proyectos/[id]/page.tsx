@@ -69,6 +69,13 @@ export default function ProyectoDetailPage() {
       // eslint-disable-next-line react-hooks/exhaustive-deps
    }, [proyectoId]);
 
+   useEffect(() => {
+      if (proyecto && proyecto.nombre) {
+         document.title = `${proyecto.nombre} - ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`;
+      } else {
+         document.title = "Cargando Proyecto...";
+      }
+   }, [proyecto, activeTab]);
    /*
       Los conduces se pasan explícitamente desde el store: `proyecto.conduces`
       puede venir vacío según el endpoint, y el store ya los tiene cargados y
