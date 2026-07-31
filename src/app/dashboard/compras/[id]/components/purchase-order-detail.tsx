@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
    Card,
@@ -111,6 +111,7 @@ interface FormPayload {
 export default function PurchaseOrderDetail() {
    const params = useParams();
    const router = useRouter();
+   const searchParams = useSearchParams();
    const orderId = params.id as string;
 
    const { UpdatePurchaseOrder, ChangeStatus, DeletePurchaseOrder, CheckIsApprover } =
@@ -122,6 +123,7 @@ export default function PurchaseOrderDetail() {
    const [editOpen, setEditOpen] = useState(false);
    const [deleteOpen, setDeleteOpen] = useState(false);
    const [isApprover, setIsApprover] = useState(false);
+   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "detalles")
    const [approveError, setApproveError] = useState<string | null>(null);
 
    useEffect(() => {
@@ -147,6 +149,11 @@ export default function PurchaseOrderDetail() {
       load();
       return () => { active = false; };
    }, [orderId, CheckIsApprover]);
+
+   const handleTabChange = useCallback((value: string) => {
+      setActiveTab(value);
+      router.replace(`/dashboard/compras/${orderId}?tab=${value}`, { scroll: false });
+   }, [orderId, router]);
 
    async function refreshOrder() {
       const res = await fetch(`/api/purchase-orders/${orderId}`);
@@ -339,7 +346,7 @@ export default function PurchaseOrderDetail() {
          </div>
 
          {/* Tabs */}
-         <Tabs defaultValue="detalles" className="space-y-4 w-full">
+         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4 w-full">
             <TabsList className="w-full flex-wrap justify-start gap-1 bg-transparent p-0">
                <TabsTrigger value="detalles" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
                   Detalles
@@ -350,115 +357,115 @@ export default function PurchaseOrderDetail() {
             </TabsList>
 
             <TabsContent value="detalles" className="space-y-4">
-            {/* Order header info */}
-            <Card>
-               <CardHeader>
-                  <CardTitle>Información de la orden</CardTitle>
-                  <CardDescription>Datos generales de la orden de compra.</CardDescription>
-               </CardHeader>
-               <CardContent>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                     <InfoField label="ID" value={order.codigoReferencia} />
-                     <InfoField
-                        label="Proveedor"
-                        value={order.proveedor_nombre ?? order.proveedor_id}
-                     />
-                     <InfoField label="Fecha" value={formatDate(order.fecha)} />
-                     <InfoField
-                        label="Estado"
-                        value={ESTADO_LABEL[order.estado] ?? order.estado}
-                     />
-                     <InfoField
-                        label="Estado de Pago"
-                        value={ESTADO_PAGO_LABEL[order.estado_pago] ?? order.estado_pago}
-                     />
-                     {order.notas && (
-                        <InfoField label="Notas" value={order.notas} />
-                     )}
-                     <InfoField label="Registrado" value={formatDate(order.created_at)} />
-                     {order.approved_by_name && (
+               {/* Order header info */}
+               <Card>
+                  <CardHeader>
+                     <CardTitle>Información de la orden</CardTitle>
+                     <CardDescription>Datos generales de la orden de compra.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                     <div className="grid gap-4 sm:grid-cols-2">
+                        <InfoField label="ID" value={order.codigoReferencia} />
                         <InfoField
-                           label="Aprobado por"
-                           value={order.approved_by_name}
+                           label="Proveedor"
+                           value={order.proveedor_nombre ?? order.proveedor_id}
                         />
-                     )}
-                     {order.approved_at && (
+                        <InfoField label="Fecha" value={formatDate(order.fecha)} />
                         <InfoField
-                           label="Fecha aprobación"
-                           value={formatDate(order.approved_at)}
+                           label="Estado"
+                           value={ESTADO_LABEL[order.estado] ?? order.estado}
                         />
-                     )}
-                  </div>
-               </CardContent>
-            </Card>
-
-            {/* Items table */}
-            <Card>
-               <CardHeader>
-                  <CardTitle>Ítems</CardTitle>
-                  <CardDescription>Líneas de la orden de compra.</CardDescription>
-               </CardHeader>
-               <CardContent className="p-0">
-                  {order.items.length === 0 ? (
-                     <div className="flex items-center justify-center p-8 text-sm text-muted-foreground">
-                        Sin ítems
+                        <InfoField
+                           label="Estado de Pago"
+                           value={ESTADO_PAGO_LABEL[order.estado_pago] ?? order.estado_pago}
+                        />
+                        {order.notas && (
+                           <InfoField label="Notas" value={order.notas} />
+                        )}
+                        <InfoField label="Registrado" value={formatDate(order.created_at)} />
+                        {order.approved_by_name && (
+                           <InfoField
+                              label="Aprobado por"
+                              value={order.approved_by_name}
+                           />
+                        )}
+                        {order.approved_at && (
+                           <InfoField
+                              label="Fecha aprobación"
+                              value={formatDate(order.approved_at)}
+                           />
+                        )}
                      </div>
-                  ) : (
-                     <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                           <thead>
-                              <tr className="bg-muted/40 border-b border-border">
-                                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                    Descripción
-                                 </th>
-                                 <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                    Cantidad
-                                 </th>
-                                 <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                    P. Unitario
-                                 </th>
-                                 <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                    Subtotal
-                                 </th>
-                              </tr>
-                           </thead>
-                           <tbody>
-                              {order.items.map((item) => (
-                                 <tr
-                                    key={item.id}
-                                    className="border-t border-border hover:bg-muted/20"
-                                 >
-                                    <td className="px-4 py-3">{item.descripcion}</td>
-                                    <td className="px-4 py-3 text-right">
-                                       {item.cantidad}
+                  </CardContent>
+               </Card>
+
+               {/* Items table */}
+               <Card>
+                  <CardHeader>
+                     <CardTitle>Ítems</CardTitle>
+                     <CardDescription>Líneas de la orden de compra.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                     {order.items.length === 0 ? (
+                        <div className="flex items-center justify-center p-8 text-sm text-muted-foreground">
+                           Sin ítems
+                        </div>
+                     ) : (
+                        <div className="overflow-x-auto">
+                           <table className="w-full text-sm">
+                              <thead>
+                                 <tr className="bg-muted/40 border-b border-border">
+                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                       Descripción
+                                    </th>
+                                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                       Cantidad
+                                    </th>
+                                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                       P. Unitario
+                                    </th>
+                                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                       Subtotal
+                                    </th>
+                                 </tr>
+                              </thead>
+                              <tbody>
+                                 {order.items.map((item) => (
+                                    <tr
+                                       key={item.id}
+                                       className="border-t border-border hover:bg-muted/20"
+                                    >
+                                       <td className="px-4 py-3">{item.descripcion}</td>
+                                       <td className="px-4 py-3 text-right">
+                                          {item.cantidad}
+                                       </td>
+                                       <td className="px-4 py-3 text-right">
+                                          {formatMoney(item.precio_unitario)}
+                                       </td>
+                                       <td className="px-4 py-3 text-right font-semibold">
+                                          {formatMoney(item.subtotal)}
+                                       </td>
+                                    </tr>
+                                 ))}
+                              </tbody>
+                              <tfoot>
+                                 <tr className="border-t-2 border-brand-blue/20 bg-muted/20">
+                                    <td
+                                       colSpan={3}
+                                       className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                                    >
+                                       Total
                                     </td>
-                                    <td className="px-4 py-3 text-right">
-                                       {formatMoney(item.precio_unitario)}
-                                    </td>
-                                    <td className="px-4 py-3 text-right font-semibold">
-                                       {formatMoney(item.subtotal)}
+                                    <td className="px-4 py-3 text-right text-base font-bold text-brand-blue dark:text-white">
+                                       {formatMoney(order.total)}
                                     </td>
                                  </tr>
-                              ))}
-                           </tbody>
-                           <tfoot>
-                              <tr className="border-t-2 border-brand-blue/20 bg-muted/20">
-                                 <td
-                                    colSpan={3}
-                                    className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                                 >
-                                    Total
-                                 </td>
-                                 <td className="px-4 py-3 text-right text-base font-bold text-brand-blue dark:text-white">
-                                    {formatMoney(order.total)}
-                                 </td>
-                              </tr>
-                           </tfoot>
-                        </table>
-                     </div>
-                  )}
-               </CardContent>
-            </Card>
+                              </tfoot>
+                           </table>
+                        </div>
+                     )}
+                  </CardContent>
+               </Card>
             </TabsContent>
 
             <TabsContent value="pagos" className="space-y-4">
