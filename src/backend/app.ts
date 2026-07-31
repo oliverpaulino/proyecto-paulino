@@ -8,6 +8,7 @@ import employeesRoute from "@/backend/modules/employees/routes/employees";
 import suppliersRoute from "@/backend/modules/suppliers/routes/suppliers";
 import purchaseOrdersRoute from "./modules/purchase-orders/routes/purchase-orders";
 import proyectosRoute from "./modules/proyectos/routes/proyectos";
+import proyectoArchivosRoute from "./modules/proyecto-archivos/routes/proyecto-archivos";
 import proyectoTarifasRoute from "./modules/proyectos/routes/proyecto-tarifa";
 import proyectoTarifasEmpleadoRoute from "./modules/proyectos/routes/proyecto-empleado-tarifa";
 import appointmentsRoute from "./modules/appointments/routes/appointments.routes";
@@ -73,11 +74,18 @@ app.use("/units/*", requireResourcePermission("inventory"));
 app.use("/roles/*", requireResourcePermission("user"));
 app.use("/proyecto-tarifas/*", requireResourcePermission("project"));
 app.use("/proyecto-empleado-tarifas/*", requireResourcePermission("project"));
+// Los archivos de proyecto se sirven desde disco: nunca sin permiso ni sin
+// sesión. Las rutas además validan la sesión a mano (ver módulo).
+app.use("/proyectos/*/archivos", requireResourcePermission("project"));
+app.use("/proyectos/*/archivos/*", requireResourcePermission("project"));
+// GET /api/proyectos/archivos/:id/descargar — signed URLs de 60s.
+app.use("/proyectos/archivos/*", requireResourcePermission("project"));
 
 app.route("/clients", clientsRoute);
 app.route("/employees", employeesRoute);
 app.route("/suppliers", suppliersRoute);
 app.route("/purchase-orders", purchaseOrdersRoute);
+app.route("/proyectos", proyectoArchivosRoute);
 app.route("/proyectos", proyectosRoute);
 app.route("/proyecto-tarifas", proyectoTarifasRoute);
 app.route("/proyecto-empleado-tarifas", proyectoTarifasEmpleadoRoute);
