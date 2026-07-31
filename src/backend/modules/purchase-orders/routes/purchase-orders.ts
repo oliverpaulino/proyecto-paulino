@@ -5,7 +5,7 @@ import { KyselyPurchaseOrderRepository } from "../infraestructure/purchase-order
 import { PurchaseOrderService } from "../service/purchase-order.service";
 import { KyselyNotificationRepository } from "../../notifications/infrastructure/notification.infrastructure";
 import { NotificationService } from "../../notifications/service/notification.service";
-import type { EstadoOrdenCompra } from "../domain/purchase-order.domain";
+import type { EstadoOrdenCompra, EstadoPagoOrden } from "../domain/purchase-order.domain";
 
 const purchaseOrdersRoute = new Hono();
 const repo = new KyselyPurchaseOrderRepository(db);
@@ -18,10 +18,13 @@ purchaseOrdersRoute.get("/", async (c) => {
    try {
       const supplierId = c.req.query("supplierId") as string | undefined;
       const search = c.req.query("search") as string | undefined;
+      const estado = c.req.query("estado") as EstadoOrdenCompra | undefined;
+      const estadoPago = c.req.query("estadoPago") as EstadoPagoOrden | undefined;
+      const equipoId = c.req.query("equipoId") as string | undefined;
       const page = parseInt(c.req.query("page") as string) || 1;
       const limit = parseInt(c.req.query("limit") as string) || 0;
 
-      const orders = await service.getAll({ supplierId, search, page, limit });
+      const orders = await service.getAll({ supplierId, search, estado, estadoPago, equipoId, page, limit });
       return c.json(orders);
    } catch (err: unknown) {
       return c.json(
@@ -36,9 +39,12 @@ purchaseOrdersRoute.get("/deleted", async (c) => {
    try {
       const supplierId = c.req.query("supplierId") as string | undefined;
       const search = c.req.query("search") as string | undefined;
+      const estado = c.req.query("estado") as EstadoOrdenCompra | undefined;
+      const estadoPago = c.req.query("estadoPago") as EstadoPagoOrden | undefined;
+      const equipoId = c.req.query("equipoId") as string | undefined;
       const page = parseInt(c.req.query("page") as string) || 1;
       const limit = parseInt(c.req.query("limit") as string) || 0;
-      const orders = await service.getAllDeleted({ supplierId, search, page, limit });
+      const orders = await service.getAllDeleted({ supplierId, search, estado, estadoPago, equipoId, page, limit });
       return c.json(orders);
    } catch (err: unknown) {
       return c.json(

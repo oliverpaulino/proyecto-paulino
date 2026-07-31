@@ -148,6 +148,16 @@ export interface UpdatePurchaseOrderDTO {
    items?: PurchaseOrderItemInput[];
 }
 
+export interface PurchaseOrderFilters {
+   supplierId?: string;
+   search?: string;
+   page?: number;
+   limit?: number;
+   estado?: EstadoOrdenCompra;
+   estadoPago?: EstadoPagoOrden;
+   equipoId?: string;
+}
+
 export interface ApproverRecord {
    user_id: string;
    user_name: string;
@@ -156,9 +166,8 @@ export interface ApproverRecord {
 }
 
 export interface IPurchaseOrderRepository {
-   findAll(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<PurchaseOrderPaginatedResult>;
-   findAllDeleted(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<PurchaseOrderPaginatedResult>
-   findAllDeleted(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<PurchaseOrderPaginatedResult>
+   findAll(params: PurchaseOrderFilters): Promise<PurchaseOrderPaginatedResult>;
+   findAllDeleted(params: PurchaseOrderFilters): Promise<PurchaseOrderPaginatedResult>
    findById(id: string): Promise<PurchaseOrder | null>;
    restore(id: string): Promise<PurchaseOrder | null>;
    create(data: CreatePurchaseOrderDTO): Promise<PurchaseOrder>;

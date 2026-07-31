@@ -5,6 +5,7 @@ import {
    EstadoOrdenCompra,
    IPurchaseOrderRepository,
    isEditable,
+   PurchaseOrderFilters,
    PurchaseOrderItemInput,
    PurchaseOrderPaginatedResult,
    PurchaseOrderProps,
@@ -14,13 +15,12 @@ import {
 export class PurchaseOrderService {
    constructor(private readonly repo: IPurchaseOrderRepository) { }
 
-   async getAll(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<PurchaseOrderPaginatedResult> {
-      const { supplierId = "", search, page, limit } = params;
-      const orders = await this.repo.findAll({ supplierId, search, page, limit });
+   async getAll(params: PurchaseOrderFilters): Promise<PurchaseOrderPaginatedResult> {
+      const orders = await this.repo.findAll(params);
       return orders
    }
 
-   async getAllDeleted(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<PurchaseOrderPaginatedResult> {
+   async getAllDeleted(params: PurchaseOrderFilters): Promise<PurchaseOrderPaginatedResult> {
       const orders = await this.repo.findAllDeleted(params);
       return orders;
    }
