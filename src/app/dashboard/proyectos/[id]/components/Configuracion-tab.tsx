@@ -108,9 +108,9 @@ export default function ConfiguracionTab({ proyectoId, onProyectoChange }: { pro
    if (!proyecto) return <div>Cargando...</div>;
 
    return (
-      <Accordion type="multiple" className="space-y-2">
+      <Accordion type="multiple" className="space-y-2 ">
          <AccordionItem value="general" className="rounded-lg border bg-card">
-            <AccordionTrigger className="px-4 py-3 text-base font-semibold hover:no-underline">
+            <AccordionTrigger className="px-4 py-3 text-base font-semibold hover:bg-muted-foreground/5 hover:no-underline transition-colors">
                Configuración General
             </AccordionTrigger>
             <AccordionContent className="px-4 pb-4">
@@ -205,7 +205,7 @@ export default function ConfiguracionTab({ proyectoId, onProyectoChange }: { pro
          </AccordionItem>
 
          <AccordionItem value="categorias" className="rounded-lg border bg-card">
-            <AccordionTrigger className="px-4 py-3 text-base font-semibold hover:no-underline">
+            <AccordionTrigger className="px-4 py-3 text-base font-semibold hover:bg-muted-foreground/5 hover:no-underline transition-colors">
                Tarifas por Categoría de Equipo
             </AccordionTrigger>
             <AccordionContent className="px-4 pb-4">
@@ -217,8 +217,8 @@ export default function ConfiguracionTab({ proyectoId, onProyectoChange }: { pro
             </AccordionContent>
          </AccordionItem>
 
-         <AccordionItem value="operadores" className="rounded-lg border bg-card">
-            <AccordionTrigger className="px-4 py-3 text-base font-semibold hover:no-underline">
+         <AccordionItem value="operadores" className="rounded-lg  bg-card !border !border-border">
+            <AccordionTrigger className="px-4 py-3 text-base font-semibold hover:bg-muted-foreground/5 hover:no-underline transition-colors ">
                Pago a Operadores por este Proyecto
             </AccordionTrigger>
             <AccordionContent className="px-4 pb-4">
