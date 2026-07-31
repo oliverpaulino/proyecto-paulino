@@ -8,6 +8,14 @@ import type {
    PaginatedPurchaseOrders,
 } from "@/dtos/purchase-order.dto";
 
+type PurchaseOrderFilters = {
+   search?: string;
+   supplierId?: string;
+   estado?: string;
+   estadoPago?: string;
+   equipoId?: string;
+};
+
 type PurchaseOrderStore = {
    PurchaseOrders: PaginatedPurchaseOrders;
    PurchaseOrdersDeleted: PaginatedPurchaseOrders;
@@ -15,8 +23,8 @@ type PurchaseOrderStore = {
    _fetchedLists: Set<string>;
    _fetchedListsDeleted: Set<string>;
 
-   GetPurchaseOrders: (params?: { force?: boolean, page?: number, limit?: number, search?: string }) => Promise<void>;
-   GetPurchaseOrdersDeleted: (params?: { force?: boolean, page?: number, limit?: number, search?: string }) => Promise<void>;
+   GetPurchaseOrders: (params?: { force?: boolean, page?: number, limit?: number } & PurchaseOrderFilters) => Promise<void>;
+   GetPurchaseOrdersDeleted: (params?: { force?: boolean, page?: number, limit?: number } & PurchaseOrderFilters) => Promise<void>;
 
    CreatePurchaseOrder: (form: PurchaseOrderForm) => Promise<PurchaseOrder | Error>;
    UpdatePurchaseOrder: (
@@ -59,13 +67,29 @@ export const usePurchaseOrderStore = create<PurchaseOrderStore>((set, get) => ({
    },
 
    GetPurchaseOrders: async (params = {}) => {
-      const { force = false, page = 1, limit = 10, search = "" } = params;
-      const cacheKey = "all";
+      const {
+         force = false,
+         page = 1,
+         limit = 10,
+         search = "",
+         supplierId = "",
+         estado = "",
+         estadoPago = "",
+         equipoId = "",
+      } = params;
+      const cacheKey = `all_${search}_${supplierId}_${estado}_${estadoPago}_${equipoId}_${page}_${limit}`;
       if (!force && get()._fetchedLists.has(cacheKey)) return;
 
       set({ loading: true });
       try {
-         const res = await fetch(`/api/purchase-orders?page=${page}&limit=${limit}&search=${search}`);
+         const qs = new URLSearchParams({ page: String(page), limit: String(limit) });
+         if (search) qs.set("search", search);
+         if (supplierId) qs.set("supplierId", supplierId);
+         if (estado) qs.set("estado", estado);
+         if (estadoPago) qs.set("estadoPago", estadoPago);
+         if (equipoId) qs.set("equipoId", equipoId);
+
+         const res = await fetch(`/api/purchase-orders?${qs.toString()}`);
          if (!res.ok) throw new Error("Error al cargar órdenes de compra");
 
          const data: PaginatedPurchaseOrders = await res.json();
@@ -83,13 +107,29 @@ export const usePurchaseOrderStore = create<PurchaseOrderStore>((set, get) => ({
    },
 
    GetPurchaseOrdersDeleted: async (params = {}) => {
-      const { force = false, page = 1, limit = 10, search = "" } = params;
-      const cacheKey = "all";
+      const {
+         force = false,
+         page = 1,
+         limit = 10,
+         search = "",
+         supplierId = "",
+         estado = "",
+         estadoPago = "",
+         equipoId = "",
+      } = params;
+      const cacheKey = `all_${search}_${supplierId}_${estado}_${estadoPago}_${equipoId}_${page}_${limit}`;
       if (!force && get()._fetchedListsDeleted.has(cacheKey)) return;
 
       set({ loading: true });
       try {
-         const res = await fetch(`/api/purchase-orders/deleted?page=${page}&limit=${limit}&search=${search}`);
+         const qs = new URLSearchParams({ page: String(page), limit: String(limit) });
+         if (search) qs.set("search", search);
+         if (supplierId) qs.set("supplierId", supplierId);
+         if (estado) qs.set("estado", estado);
+         if (estadoPago) qs.set("estadoPago", estadoPago);
+         if (equipoId) qs.set("equipoId", equipoId);
+
+         const res = await fetch(`/api/purchase-orders/deleted?${qs.toString()}`);
          if (!res.ok) throw new Error("Error al cargar órdenes de compra eliminadas");
 
          const data: PaginatedPurchaseOrders = await res.json();
