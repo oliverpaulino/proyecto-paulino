@@ -32,6 +32,12 @@ function fmtDate(value: string | Date): string {
    });
 }
 
+const ESTADO_PAGO_LABEL: Record<string, string> = {
+   PENDIENTE: "Sin pagos",
+   PARCIAL: "Pago parcial",
+   PAGADO: "Pagada",
+};
+
 const s = StyleSheet.create({
    page: {
       fontFamily: "Helvetica",
@@ -259,6 +265,10 @@ function PurchaseOrderDocument({ order }: { order: PurchaseOrder }) {
                   <View style={s.metaCell}>
                      <Text style={s.metaLabel}>Estado:</Text>
                      <Text style={s.metaValue}>{order.estado}</Text>
+                  </View>
+                  <View style={s.metaCell}>
+                     <Text style={s.metaLabel}>Estado de Pago:</Text>
+                     <Text style={s.metaValue}>{ESTADO_PAGO_LABEL[order.estado_pago] ?? order.estado_pago}</Text>
                   </View>
                   <View style={s.metaCell}>
                      <Text style={s.metaLabel}>Fecha de Emisión:</Text>

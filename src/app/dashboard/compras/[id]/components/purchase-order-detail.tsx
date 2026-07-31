@@ -17,6 +17,7 @@ import {
    DialogHeader,
    DialogTitle,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
    ArrowLeft,
    Download,
@@ -30,6 +31,7 @@ import { usePurchaseOrderStore } from "@/stores/usePurchaseOrderStore";
 import { DeletePurchaseOrderDialog } from "../../components/delete-purchase-order-dialog";
 import { PurchaseOrderForm } from "../../components/purchase-order-form";
 import { generatePurchaseOrderPDF } from "./purchase-order-pdf";
+import { PurchaseOrderPagos } from "./purchase-order-pagos";
 
 const ESTADO_BADGE: Record<string, string> = {
    BORRADOR:
@@ -50,6 +52,21 @@ const ESTADO_LABEL: Record<string, string> = {
    APROBADA: "Aprobada",
    RECIBIDA: "Recibida",
    CANCELADA: "Cancelada",
+};
+
+const ESTADO_PAGO_BADGE: Record<string, string> = {
+   PENDIENTE:
+      "bg-red-100 text-red-800 border border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700",
+   PARCIAL:
+      "bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700",
+   PAGADO:
+      "bg-green-100 text-green-800 border border-green-300 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700",
+};
+
+const ESTADO_PAGO_LABEL: Record<string, string> = {
+   PENDIENTE: "Sin pagos",
+   PARCIAL: "Pago parcial",
+   PAGADO: "Pagada",
 };
 
 const TRANSITIONS: Record<EstadoOrdenCompra, EstadoOrdenCompra[]> = {
@@ -232,9 +249,16 @@ export default function PurchaseOrderDetail() {
                         Orden {order.codigoReferencia}…
                      </h1>
                      <span
+                        title="Estado logístico"
                         className={`rounded-full px-2.5 py-1 text-xs font-semibold ${ESTADO_BADGE[order.estado] ?? ""}`}
                      >
                         {ESTADO_LABEL[order.estado] ?? order.estado}
+                     </span>
+                     <span
+                        title="Estado financiero"
+                        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${ESTADO_PAGO_BADGE[order.estado_pago] ?? ""}`}
+                     >
+                        {ESTADO_PAGO_LABEL[order.estado_pago] ?? order.estado_pago}
                      </span>
                   </div>
                   <p className="text-sm text-muted-foreground">
@@ -314,111 +338,133 @@ export default function PurchaseOrderDetail() {
             <InfoCard className="bg-brand-yellow " color="text-brand-black" label="Actualizado" value={formatDate(order.updated_at)} />
          </div>
 
-         {/* Order header info */}
-         <Card>
-            <CardHeader>
-               <CardTitle>Información de la orden</CardTitle>
-               <CardDescription>Datos generales de la orden de compra.</CardDescription>
-            </CardHeader>
-            <CardContent>
-               <div className="grid gap-4 sm:grid-cols-2">
-                  <InfoField label="ID" value={order.codigoReferencia} />
-                  <InfoField
-                     label="Proveedor"
-                     value={order.proveedor_nombre ?? order.proveedor_id}
-                  />
-                  <InfoField label="Fecha" value={formatDate(order.fecha)} />
-                  <InfoField
-                     label="Estado"
-                     value={ESTADO_LABEL[order.estado] ?? order.estado}
-                  />
-                  {order.notas && (
-                     <InfoField label="Notas" value={order.notas} />
-                  )}
-                  <InfoField label="Registrado" value={formatDate(order.created_at)} />
-                  {order.approved_by_name && (
-                     <InfoField
-                        label="Aprobado por"
-                        value={order.approved_by_name}
-                     />
-                  )}
-                  {order.approved_at && (
-                     <InfoField
-                        label="Fecha aprobación"
-                        value={formatDate(order.approved_at)}
-                     />
-                  )}
-               </div>
-            </CardContent>
-         </Card>
+         {/* Tabs */}
+         <Tabs defaultValue="detalles" className="space-y-4 w-full">
+            <TabsList className="w-full flex-wrap justify-start gap-1 bg-transparent p-0">
+               <TabsTrigger value="detalles" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                  Detalles
+               </TabsTrigger>
+               <TabsTrigger value="pagos" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                  Pagos
+               </TabsTrigger>
+            </TabsList>
 
-         {/* Items table */}
-         <Card>
-            <CardHeader>
-               <CardTitle>Ítems</CardTitle>
-               <CardDescription>Líneas de la orden de compra.</CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-               {order.items.length === 0 ? (
-                  <div className="flex items-center justify-center p-8 text-sm text-muted-foreground">
-                     Sin ítems
+            <TabsContent value="detalles" className="space-y-4">
+            {/* Order header info */}
+            <Card>
+               <CardHeader>
+                  <CardTitle>Información de la orden</CardTitle>
+                  <CardDescription>Datos generales de la orden de compra.</CardDescription>
+               </CardHeader>
+               <CardContent>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                     <InfoField label="ID" value={order.codigoReferencia} />
+                     <InfoField
+                        label="Proveedor"
+                        value={order.proveedor_nombre ?? order.proveedor_id}
+                     />
+                     <InfoField label="Fecha" value={formatDate(order.fecha)} />
+                     <InfoField
+                        label="Estado"
+                        value={ESTADO_LABEL[order.estado] ?? order.estado}
+                     />
+                     <InfoField
+                        label="Estado de Pago"
+                        value={ESTADO_PAGO_LABEL[order.estado_pago] ?? order.estado_pago}
+                     />
+                     {order.notas && (
+                        <InfoField label="Notas" value={order.notas} />
+                     )}
+                     <InfoField label="Registrado" value={formatDate(order.created_at)} />
+                     {order.approved_by_name && (
+                        <InfoField
+                           label="Aprobado por"
+                           value={order.approved_by_name}
+                        />
+                     )}
+                     {order.approved_at && (
+                        <InfoField
+                           label="Fecha aprobación"
+                           value={formatDate(order.approved_at)}
+                        />
+                     )}
                   </div>
-               ) : (
-                  <div className="overflow-x-auto">
-                     <table className="w-full text-sm">
-                        <thead>
-                           <tr className="bg-muted/40 border-b border-border">
-                              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                 Descripción
-                              </th>
-                              <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                 Cantidad
-                              </th>
-                              <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                 P. Unitario
-                              </th>
-                              <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                 Subtotal
-                              </th>
-                           </tr>
-                        </thead>
-                        <tbody>
-                           {order.items.map((item) => (
-                              <tr
-                                 key={item.id}
-                                 className="border-t border-border hover:bg-muted/20"
-                              >
-                                 <td className="px-4 py-3">{item.descripcion}</td>
-                                 <td className="px-4 py-3 text-right">
-                                    {item.cantidad}
+               </CardContent>
+            </Card>
+
+            {/* Items table */}
+            <Card>
+               <CardHeader>
+                  <CardTitle>Ítems</CardTitle>
+                  <CardDescription>Líneas de la orden de compra.</CardDescription>
+               </CardHeader>
+               <CardContent className="p-0">
+                  {order.items.length === 0 ? (
+                     <div className="flex items-center justify-center p-8 text-sm text-muted-foreground">
+                        Sin ítems
+                     </div>
+                  ) : (
+                     <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                           <thead>
+                              <tr className="bg-muted/40 border-b border-border">
+                                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    Descripción
+                                 </th>
+                                 <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    Cantidad
+                                 </th>
+                                 <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    P. Unitario
+                                 </th>
+                                 <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    Subtotal
+                                 </th>
+                              </tr>
+                           </thead>
+                           <tbody>
+                              {order.items.map((item) => (
+                                 <tr
+                                    key={item.id}
+                                    className="border-t border-border hover:bg-muted/20"
+                                 >
+                                    <td className="px-4 py-3">{item.descripcion}</td>
+                                    <td className="px-4 py-3 text-right">
+                                       {item.cantidad}
+                                    </td>
+                                    <td className="px-4 py-3 text-right">
+                                       {formatMoney(item.precio_unitario)}
+                                    </td>
+                                    <td className="px-4 py-3 text-right font-semibold">
+                                       {formatMoney(item.subtotal)}
+                                    </td>
+                                 </tr>
+                              ))}
+                           </tbody>
+                           <tfoot>
+                              <tr className="border-t-2 border-brand-blue/20 bg-muted/20">
+                                 <td
+                                    colSpan={3}
+                                    className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                                 >
+                                    Total
                                  </td>
-                                 <td className="px-4 py-3 text-right">
-                                    {formatMoney(item.precio_unitario)}
-                                 </td>
-                                 <td className="px-4 py-3 text-right font-semibold">
-                                    {formatMoney(item.subtotal)}
+                                 <td className="px-4 py-3 text-right text-base font-bold text-brand-blue dark:text-white">
+                                    {formatMoney(order.total)}
                                  </td>
                               </tr>
-                           ))}
-                        </tbody>
-                        <tfoot>
-                           <tr className="border-t-2 border-brand-blue/20 bg-muted/20">
-                              <td
-                                 colSpan={3}
-                                 className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                              >
-                                 Total
-                              </td>
-                              <td className="px-4 py-3 text-right text-base font-bold text-brand-blue dark:text-white">
-                                 {formatMoney(order.total)}
-                              </td>
-                           </tr>
-                        </tfoot>
-                     </table>
-                  </div>
-               )}
-            </CardContent>
-         </Card>
+                           </tfoot>
+                        </table>
+                     </div>
+                  )}
+               </CardContent>
+            </Card>
+            </TabsContent>
+
+            <TabsContent value="pagos" className="space-y-4">
+               <PurchaseOrderPagos orderId={order.id} codigoReferencia={order.codigoReferencia} total={order.total} estado={order.estado} onPaymentsChanged={refreshOrder} />
+            </TabsContent>
+         </Tabs>
 
          {/* Edit dialog */}
          <Dialog
