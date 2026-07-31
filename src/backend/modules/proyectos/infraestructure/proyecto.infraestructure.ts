@@ -212,6 +212,11 @@ export class KyselyProyectoRepository implements IProyectoRepository {
       if (data.tarifa_servicio !== undefined) safeData.tarifa_servicio = data.tarifa_servicio;
       if (data.notas !== undefined) safeData.notas = data.notas;
       if (data.fecha_fin !== undefined) safeData.fecha_fin = data.fecha_fin;
+      // fecha_inicio llega como "YYYY-MM-DD" (input date). Se guarda tal cual,
+      // sin pasar por new Date(), para que Postgres no convierta según la zona
+      // horaria del servidor y corra la fecha un día.
+      if (data.fecha_inicio !== undefined) safeData.fecha_inicio = data.fecha_inicio;
+      if (data.cliente_id !== undefined) safeData.cliente_id = data.cliente_id;
       safeData.updated_at = new Date();
 
       await this.db

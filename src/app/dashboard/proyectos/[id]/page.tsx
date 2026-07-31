@@ -27,7 +27,7 @@ export default function ProyectoDetailPage() {
    const searchParams = useSearchParams();
    const proyectoId = params.id as string;
 
-   const { ToggleDetalleCobrable } = useProyectoStore();
+   const { ToggleDetalleCobrable, proyecto: proyectoStore } = useProyectoStore();
 
    const [proyecto, setProyecto] = useState<Proyecto | null>(null);
    const [loading, setLoading] = useState(true);
@@ -76,6 +76,14 @@ export default function ProyectoDetailPage() {
          document.title = "Cargando Proyecto...";
       }
    }, [proyecto, activeTab]);
+
+   // El store es la fuente de verdad cuando cambia (p. ej. ChangeEstado desde Configuración);
+   // así el header refleja el nuevo estado sin depender de refrescar la página.
+   useEffect(() => {
+      if (proyectoStore?.id === proyectoId) {
+         setProyecto(proyectoStore);
+      }
+   }, [proyectoStore, proyectoId]);
    /*
       Los conduces se pasan explícitamente desde el store: `proyecto.conduces`
       puede venir vacío según el endpoint, y el store ya los tiene cargados y
@@ -148,7 +156,7 @@ export default function ProyectoDetailPage() {
             </TabsContent>
 
             <TabsContent value="configuracion" className="space-y-4">
-               <ConfiguracionTab proyectoId={proyectoId} />
+               <ConfiguracionTab proyectoId={proyectoId} onProyectoChange={loadProyecto} />
             </TabsContent>
 
             <TabsContent value="conduces" className="space-y-4">

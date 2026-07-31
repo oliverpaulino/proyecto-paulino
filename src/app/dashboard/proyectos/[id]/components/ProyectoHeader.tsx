@@ -6,6 +6,13 @@ import { ArrowLeft, FileText, Receipt, Loader2 } from "lucide-react";
 import type { Proyecto } from "@/dtos/proyecto.dto";
 import { ESTADO_BADGE } from "./formatMoney";
 
+function formatFechaRD(iso: string | null | undefined): string {
+   if (!iso) return "";
+   const d = new Date(iso);
+   if (isNaN(d.getTime())) return "";
+   return `${d.getUTCDate()}/${d.getUTCMonth() + 1}/${d.getUTCFullYear()}`;
+}
+
 export function ProyectoHeader({
    proyecto,
    pdfLoading,
@@ -25,15 +32,15 @@ export function ProyectoHeader({
             </Button>
             <div className="space-y-1">
                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-2xl font-bold text-brand-blue dark:text-white">
-                     {proyecto.cliente_nombre ?? "Cliente"}
-                  </h1>
+                  <h2 className="text-2xl font-bold text-brand-blue dark:text-white">
+                     {proyecto.nombre ?? "Proyecto sin nombre"}
+                  </h2>
                   <Badge className={`border-0 text-xs font-medium ${ESTADO_BADGE[proyecto.estado] ?? ""}`}>
                      {proyecto.estado}
                   </Badge>
                </div>
                <p className="text-sm text-muted-foreground">
-                  Proyecto · {new Date(proyecto.fecha_inicio).toLocaleDateString("es-DO")}
+                  {proyecto.cliente_nombre ?? "Cliente"} · {new Date(proyecto.fecha_inicio).toLocaleDateString("es-DO")}
                </p>
             </div>
          </div>

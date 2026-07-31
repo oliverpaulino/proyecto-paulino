@@ -94,6 +94,8 @@ export interface UpdateProyectoDTO {
    tarifa_servicio?: number;
    notas?: string | null;
    fecha_fin?: Date | null;
+   fecha_inicio?: Date | string;
+   cliente_id?: string;
 }
 
 // ─── Repository Interface ─────────────────────────────────────────────────────
