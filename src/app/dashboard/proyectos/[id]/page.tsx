@@ -3,9 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import {
-   Card, CardContent, CardHeader, CardTitle,
-} from "@/components/ui/card";
+
 import {
    Tabs, TabsContent, TabsList, TabsTrigger,
 } from "@/components/ui/tabs";
@@ -29,7 +27,7 @@ export default function ProyectoDetailPage() {
    const searchParams = useSearchParams();
    const proyectoId = params.id as string;
 
-   const { ToggleDetalleCobrable } = useProyectoStore();
+   const { ToggleDetalleCobrable, proyecto: proyectoStore } = useProyectoStore();
 
    const [proyecto, setProyecto] = useState<Proyecto | null>(null);
    const [loading, setLoading] = useState(true);
@@ -71,6 +69,21 @@ export default function ProyectoDetailPage() {
       // eslint-disable-next-line react-hooks/exhaustive-deps
    }, [proyectoId]);
 
+   useEffect(() => {
+      if (proyecto && proyecto.nombre) {
+         document.title = `${proyecto.nombre} - ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`;
+      } else {
+         document.title = "Cargando Proyecto...";
+      }
+   }, [proyecto, activeTab]);
+
+   // El store es la fuente de verdad cuando cambia (p. ej. ChangeEstado desde Configuración);
+   // así el header refleja el nuevo estado sin depender de refrescar la página.
+   useEffect(() => {
+      if (proyectoStore?.id === proyectoId) {
+         setProyecto(proyectoStore);
+      }
+   }, [proyectoStore, proyectoId]);
    /*
       Los conduces se pasan explícitamente desde el store: `proyecto.conduces`
       puede venir vacío según el endpoint, y el store ya los tiene cargados y
@@ -143,14 +156,7 @@ export default function ProyectoDetailPage() {
             </TabsContent>
 
             <TabsContent value="configuracion" className="space-y-4">
-               <Card>
-                  <CardHeader>
-                     <CardTitle>Tarifas del Proyecto</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                     <ConfiguracionTab proyectoId={proyectoId} />
-                  </CardContent>
-               </Card>
+               <ConfiguracionTab proyectoId={proyectoId} onProyectoChange={loadProyecto} />
             </TabsContent>
 
             <TabsContent value="conduces" className="space-y-4">

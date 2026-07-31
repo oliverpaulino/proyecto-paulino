@@ -618,6 +618,19 @@ export interface DB {
    servicio_tarifas: ServicioTarifaTable;
    conduce: ConduceTable; // ← NUEVO
    proyecto_tarifa: ProyectoTarifaTable; // ← NUEVO (tarifas propias del proyecto)
+
+   // Tarifas de empleado por proyecto — sobreescribe lo que gana un empleado
+   // para una tarifa específica dentro de un proyecto concreto (CON-223).
+   proyecto_empleado_tarifa: {
+      id: Generated<string>;
+      proyecto_id: string;
+      empleado_id: string;
+      categoria_equipo_tarifa_id: string;
+      monto_pago: number;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+   };
+
    // El viejo proyecto_tarifas (ligado a proyecto_equipos) y proyecto_equipos
    // se ELIMINARON — reemplazados por `conduce` + este `proyecto_tarifa`.
 

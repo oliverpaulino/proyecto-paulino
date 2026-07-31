@@ -40,12 +40,19 @@ export function SelectBuscadorClient({
       function handleClickOutside(event: MouseEvent) {
          if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
             setIsOpen(false);
-            if (!value) setInputValue("");
+
+            // FIX: Si hay un cliente seleccionado, revertimos el texto a su nombre real
+            // para no dejar texto "basura" que el usuario escribió pero no seleccionó.
+            if (value) {
+               setInputValue(initialLabel);
+            } else {
+               setInputValue("");
+            }
          }
       }
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
-   }, [value]);
+   }, [value, initialLabel]); // Añadir initialLabel a las dependencias
 
    useEffect(() => {
       if (!isOpen) return;

@@ -1,7 +1,7 @@
 import { IConduceRepository } from "../../conduce/domain/conduce.domain";
 import type {
    IProyectoRepository, ProyectoProps, ProyectoTotales,
-   CreateProyectoDTO,
+   CreateProyectoDTO, UpdateProyectoDTO,
    LiquidacionFacade
 } from "../domain/proyecto.domain";
 
@@ -34,6 +34,13 @@ export class ProyectoService {
             return { ...proyecto, conduces };
          })
       );
+   }
+
+   async update(id: string, data: UpdateProyectoDTO): Promise<ProyectoProps | null> {
+      const proyecto = await this.repo.update(id, data);
+      if (!proyecto) return null;
+      const conduces = await this.conduceRepo.findByProyectoId(id);
+      return { ...proyecto, conduces };
    }
 
    async create(data: CreateProyectoDTO): Promise<ProyectoProps> {

@@ -28,12 +28,22 @@ export const CreateProyectoDTOSchema = z.object({
       )
       .optional(),
 });
-
+export interface UpdateProyectoForm {
+   nombre?: string;
+   estado?: EstadoProyecto;
+   tarifa_servicio?: number;
+   notas?: string | null;
+   fecha_fin?: string | null;
+   fecha_inicio?: string;
+   cliente_id?: string;
+   cliente_nombre?: string;
+}
 export type CreateProyectoForm = z.infer<typeof CreateProyectoDTOSchema>;
 export type LineItemForm = { descripcion: string; cantidad: number; precio_unitario: number };
 
 // ─── Lectura ─────────────────────────────────────────────────────────────
 export type EstadoProyecto = "BORRADOR" | "COMPLETADO" | "EN PROGRESO" | "CANCELADO";
+export const EstadoProyectoArray: EstadoProyecto[] = ["BORRADOR", "COMPLETADO", "EN PROGRESO", "CANCELADO"];
 
 export interface ProyectoDetalle {
    id: string;

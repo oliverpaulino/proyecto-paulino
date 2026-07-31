@@ -1,15 +1,15 @@
 import { Hono } from "hono";
 import db from "@/backend/database";
-import { KyselyProyectoTarifaRepository } from "../infraestructure/proyecto-tarifa.infraestructure";
-import { ProyectoTarifaService } from "../service/proyecto-tarifa.service";
-import { UpsertProyectoTarifaDTOSchema } from "@/dtos/proyecto-tarifa.dto";
+import { KyselyProyectoEmpleadoTarifaRepository } from "../infraestructure/proyecto-empleado-tarifa.infraestructure";
+import { ProyectoEmpleadoTarifaService } from "../service/proyecto-empleado-tarifa.service";
+import { UpsertProyectoEmpleadoTarifaDTOSchema } from "@/dtos/proyecto-empleado-tarifa.dto";
 
-const proyectoTarifasRoute = new Hono();
-const repo = new KyselyProyectoTarifaRepository(db);
-const service = new ProyectoTarifaService(repo);
+const proyectoTarifasEmpleadoRoute = new Hono();
+const repo = new KyselyProyectoEmpleadoTarifaRepository(db);
+const service = new ProyectoEmpleadoTarifaService(repo);
 
-// GET /api/proyecto-tarifas?proyecto_id=xxx
-proyectoTarifasRoute.get("/", async (c) => {
+// GET /api/proyecto-empleado-tarifas?proyecto_id=xxx
+proyectoTarifasEmpleadoRoute.get("/", async (c) => {
    try {
       const proyectoId = c.req.query("proyecto_id");
       if (!proyectoId) return c.json({ error: "proyecto_id es requerido" }, 400);
@@ -21,8 +21,8 @@ proyectoTarifasRoute.get("/", async (c) => {
    }
 });
 
-// GET /api/proyecto-tarifas/todas?proyecto_id=xxx&search=yyy&page=1&limit=20
-proyectoTarifasRoute.get("/todas", async (c) => {
+// GET /api/proyecto-empleado-tarifas/operadores?proyecto_id=xxx&search=yyy&page=1&limit=20
+proyectoTarifasEmpleadoRoute.get("/operadores", async (c) => {
    try {
       const proyectoId = c.req.query("proyecto_id");
       if (!proyectoId) return c.json({ error: "proyecto_id es requerido" }, 400);
@@ -31,18 +31,18 @@ proyectoTarifasRoute.get("/todas", async (c) => {
       const page = parseInt(c.req.query("page") || "1", 10);
       const limit = parseInt(c.req.query("limit") || "20", 10);
 
-      const result = await service.getAllConGlobales(proyectoId, search, page, limit);
+      const result = await service.getOperadoresConTarifas(proyectoId, search, page, limit);
       return c.json(result);
    } catch (err: unknown) {
-      return c.json({ error: err instanceof Error ? err.message : "Error al obtener tarifas" }, 500);
+      return c.json({ error: err instanceof Error ? err.message : "Error al obtener operadores" }, 500);
    }
 });
 
-// POST /api/proyecto-tarifas  (upsert single)
-proyectoTarifasRoute.post("/", async (c) => {
+// POST /api/proyecto-empleado-tarifas (upsert single)
+proyectoTarifasEmpleadoRoute.post("/", async (c) => {
    try {
       const rawBody = await c.req.json();
-      const validation = UpsertProyectoTarifaDTOSchema.safeParse(rawBody);
+      const validation = UpsertProyectoEmpleadoTarifaDTOSchema.safeParse(rawBody);
       if (!validation.success) {
          return c.json({ error: "Datos incompletos o incorrectos", detalles: validation.error.format() }, 400);
       }
@@ -54,11 +54,11 @@ proyectoTarifasRoute.post("/", async (c) => {
    }
 });
 
-// POST /api/proyecto-tarifas/bulk
-proyectoTarifasRoute.post("/bulk", async (c) => {
+// POST /api/proyecto-empleado-tarifas/bulk
+proyectoTarifasEmpleadoRoute.post("/bulk", async (c) => {
    try {
       const rawBody = await c.req.json();
-      const { proyecto_id, tarifas } = rawBody as { proyecto_id: string; tarifas: Array<{ categoria_equipo_tarifa_id: string; precio_unitario: number }> };
+      const { proyecto_id, tarifas } = rawBody as { proyecto_id: string; tarifas: Array<{ empleado_id: string; categoria_equipo_tarifa_id: string; monto_pago: number }> };
 
       if (!proyecto_id) return c.json({ error: "proyecto_id es requerido" }, 400);
       if (!Array.isArray(tarifas)) return c.json({ error: "tarifas debe ser un array" }, 400);
@@ -70,8 +70,8 @@ proyectoTarifasRoute.post("/bulk", async (c) => {
    }
 });
 
-// DELETE /api/proyecto-tarifas/:id
-proyectoTarifasRoute.delete("/:id", async (c) => {
+// DELETE /api/proyecto-empleado-tarifas/:id
+proyectoTarifasEmpleadoRoute.delete("/:id", async (c) => {
    try {
       await service.remove(c.req.param("id"));
       return c.json({ success: true });
@@ -80,4 +80,4 @@ proyectoTarifasRoute.delete("/:id", async (c) => {
    }
 });
 
-export default proyectoTarifasRoute;
+export default proyectoTarifasEmpleadoRoute;

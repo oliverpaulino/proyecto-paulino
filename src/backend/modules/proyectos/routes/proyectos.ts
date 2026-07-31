@@ -62,6 +62,18 @@ proyectosRoute.get("/:id/liquidacion", async (c) => {
 });
 
 
+// PATCH /api/proyectos/:id — actualizar proyecto (tarifa_servicio, etc.)
+proyectosRoute.patch("/:id", async (c) => {
+   try {
+      const body = await c.req.json();
+      const proyecto = await service.update(c.req.param("id"), body);
+      if (!proyecto) return c.json({ error: "Proyecto no encontrado" }, 404);
+      return c.json(proyecto);
+   } catch (err: unknown) {
+      return c.json({ error: err instanceof Error ? err.message : "Error al actualizar proyecto" }, 400);
+   }
+});
+
 // PATCH /api/proyectos/detalle/cobrable — toggle es_cobrable en lote
 proyectosRoute.patch("/detalle/cobrable", async (c) => {
    try {
