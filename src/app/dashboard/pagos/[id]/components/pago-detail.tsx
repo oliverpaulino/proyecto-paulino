@@ -100,6 +100,10 @@ export function PagoDetail({ pago, onRefresh }: { pago: Pago; onRefresh: () => v
       label: "Proyecto",
       value: pago.proyecto_codigo_referencia,
    },
+   {
+      label: "Orden de Compra",
+      value: pago.orden_compra_codigo_referencia,
+   },
    ].filter((item) => item.value);
 
    return (
