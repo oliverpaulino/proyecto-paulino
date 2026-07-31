@@ -180,7 +180,7 @@ export default function ComprasView() {
                         Nueva Orden
                      </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
                      <DialogHeader>
                         <DialogTitle>Nueva Orden de Compra</DialogTitle>
                         <DialogDescription>
@@ -239,7 +239,7 @@ export default function ComprasView() {
             open={!!editTarget}
             onOpenChange={(open) => { if (!open) setEditTarget(null); }}
          >
-            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
                <DialogHeader>
                   <DialogTitle>Editar Orden de Compra</DialogTitle>
                   <DialogDescription>
