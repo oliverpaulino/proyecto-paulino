@@ -20,6 +20,7 @@ import { ConducesTab } from "./components/ConducesTab";
 import { CobrablesTab } from "./components/CobrablesTab";
 import { IncobrablesTab } from "./components/IncobrablesTab";
 import ConfiguracionTab from "./components/Configuracion-tab";
+import { ArchivosTab } from "./components/ArchivosTab";
 
 export default function ProyectoDetailPage() {
    const params = useParams();
@@ -143,12 +144,13 @@ export default function ProyectoDetailPage() {
          <ProyectoHeader proyecto={proyecto} pdfLoading={pdfLoading} onPDF={handleGenerarPDF} onBack={() => router.push("/dashboard/proyectos")} />
 
          <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 lg:w-auto">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-6 xl:w-auto">
                <TabsTrigger value="general">General</TabsTrigger>
                <TabsTrigger value="configuracion">Configuracion</TabsTrigger>
                <TabsTrigger value="conduces">Conduces</TabsTrigger>
                <TabsTrigger value="cobrables">Cobrables</TabsTrigger>
                <TabsTrigger value="incobrables">Incobrables</TabsTrigger>
+               <TabsTrigger value="archivos">Archivos</TabsTrigger>
             </TabsList>
 
             <TabsContent value="general" className="space-y-6">
@@ -183,6 +185,10 @@ export default function ProyectoDetailPage() {
                   moveLoading={toggleDetalleLoading}
                   canMove={selectedDetalleIds.size > 0}
                />
+            </TabsContent>
+
+            <TabsContent value="archivos" className="space-y-4">
+               <ArchivosTab proyectoId={proyectoId} />
             </TabsContent>
          </Tabs>
       </div>
