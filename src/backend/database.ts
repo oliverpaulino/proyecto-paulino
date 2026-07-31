@@ -634,6 +634,19 @@ export interface DB {
    // El viejo proyecto_tarifas (ligado a proyecto_equipos) y proyecto_equipos
    // se ELIMINARON — reemplazados por `conduce` + este `proyecto_tarifa`.
 
+   // Archivos adjuntos a un proyecto (ver migración 015_proyecto_archivos.sql).
+   // Solo metadata: el binario vive en Supabase Storage (bucket privado
+   // `proyectos-archivos`) y se sirve con signed URLs de 60s vía endpoint.
+   proyecto_archivo: {
+      id: Generated<string>;
+      proyecto_id: string;
+      nombre_archivo: string;
+      storage_path: string;
+      tipo_mime: string;
+      tamanio_bytes: number;
+      created_at: Generated<Date>;
+   };
+
    categoria_gasto: {
       id: Generated<string>;
       nombre: string;
