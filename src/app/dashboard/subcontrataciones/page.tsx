@@ -190,14 +190,14 @@ export default function SubcontratacionesPage() {
                <div>
                   <label className="mb-1 block text-xs font-medium text-muted-foreground">Estado pago</label>
                   <div className="flex gap-1 flex-wrap">
-                     {([undefined, "PENDIENTE", "PARCIAL"] as (EstadoPago | undefined)[]).map((e) => (
+                     {(["PENDIENTE", "PARCIAL"] as EstadoPago[]).map((e) => (
                         <Button
-                           key={e ?? "porpagar"}
+                           key={e}
                            size="sm"
                            variant={filtros.estado_pago === e ? "default" : "outline"}
                            onClick={() => SetFiltros({ estado_pago: e })}
                         >
-                           {e === undefined ? "Por pagar" : e === "PENDIENTE" ? "Sin pagos" : "Parcial"}
+                           {e === "PENDIENTE" ? "Sin pagos" : "Parcial"}
                         </Button>
                      ))}
                      <Button
@@ -211,7 +211,7 @@ export default function SubcontratacionesPage() {
                         }
                         title="Incluir también los trabajos ya saldados"
                      >
-                        Ver pagadas
+                        Pagadas
                      </Button>
                   </div>
                </div>
