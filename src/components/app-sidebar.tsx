@@ -122,7 +122,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       items: [
         { id: "fin-cotizaciones", title: "Cotizaciones", url: "/dashboard/cotizaciones" },
         { id: "fin-compras", title: "Compras", url: "/dashboard/compras" },
-        { id: "fin-subcontrataciones", title: "Subcontrataciones", url: "/dashboard/subcontrataciones" },
         ...(isAdmin ? [{ id: "fin-aprobadores", title: "Firmantes de Compras", url: "/dashboard/compras/aprobadores" }] : []),
         ...(isAdmin ? [{ id: "fin-compras-eliminadas", title: "Compras eliminadas", url: "/dashboard/compras/eliminadas" }] : []),
         { id: "fin-cuentas-por-pagar", title: "Cuentas por Pagar", url: "/dashboard/cuentas-por-pagar" },
