@@ -648,7 +648,7 @@ export default function SupplierDetailPage() {
                                              <td className="whitespace-nowrap px-4 py-3 text-right font-bold text-red-600">
                                                 {(o.pendiente ?? 0) > 0
                                                    ? `RD$ ${o.pendiente.toLocaleString("es-DO", { minimumFractionDigits: 2 })}`
-                                                   : "RD$ 0"}
+                                                   : "RD$ 0.00"}
                                              </td>
                                              <td className="px-4 py-3 text-center">
                                                 <span

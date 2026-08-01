@@ -17,7 +17,7 @@ export class PagoService {
       }
    }
 
-   private readonly ESTADOS_PAGABLES = ["APROBADA", "RECIBIDA"];
+   private readonly ESTADOS_PAGABLES = ["PENDIENTE", "APROBADA", "RECIBIDA"];
 
    private async validarCapOrdenCompra(ordenCompraId: string, monto: number, current?: Pago | null) {
       const saldo = await this.repo.getSaldoPendienteOrdenCompra(ordenCompraId);
@@ -25,7 +25,7 @@ export class PagoService {
 
       if (!this.ESTADOS_PAGABLES.includes(saldo.estado)) {
          throw new Error(
-            `No se pueden realizar pagos a órdenes de compra en estado ${saldo.estado}; solo aprobadas o recibidas.`
+            `No se pueden realizar pagos a órdenes de compra en estado ${saldo.estado}; solo pendientes, aprobadas o recibidas.`
          );
       }
 
