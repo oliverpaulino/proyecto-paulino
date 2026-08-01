@@ -13,6 +13,8 @@ interface SelectBuscadorProveedorProps {
    placeholder?: string;
    disabled?: boolean;
    onCreateNew?: (inputValue: string) => void;
+   /** Si se pasa, solo se ofrecen proveedores de esos tipos (ej. ["SUB_CONTRATISTA", "AMBOS"]). */
+   filterTipos?: string[];
 }
 
 export function SelectBuscadorProveedor({
@@ -22,6 +24,7 @@ export function SelectBuscadorProveedor({
    placeholder = "Buscar proveedor por nombre o RNC...",
    disabled = false,
    onCreateNew,
+   filterTipos,
 }: SelectBuscadorProveedorProps) {
    const { Suppliers, loading, GetSuppliers } = useSupplierStore();
    const [isOpen, setIsOpen] = useState(false);
@@ -52,14 +55,15 @@ export function SelectBuscadorProveedor({
    }, [isOpen, GetSuppliers]);
 
    const proveedoresFiltrados = useMemo(() => {
-      if (!debouncedSearch.trim()) return Suppliers;
+      const base = filterTipos?.length ? Suppliers.filter((s) => filterTipos.includes(s.tipo)) : Suppliers;
+      if (!debouncedSearch.trim()) return base;
       const q = debouncedSearch.toLowerCase();
-      return Suppliers.filter(
+      return base.filter(
          (s) =>
             s.nombre.toLowerCase().includes(q) ||
             s.rnc.toLowerCase().includes(q)
       );
-   }, [Suppliers, debouncedSearch]);
+   }, [Suppliers, debouncedSearch, filterTipos]);
 
    const proveedorSeleccionado = useMemo(() => {
       if (!value) return null;
