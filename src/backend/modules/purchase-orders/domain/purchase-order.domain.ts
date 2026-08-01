@@ -52,6 +52,8 @@ export interface PurchaseOrderProps {
    estado_pago: EstadoPagoOrden;
    notas: string | null;
    total: number;
+   pagado: number;
+   pendiente: number;
    approved_by: string | null;
    approved_by_name: string | null;
    approved_at: Date | null;

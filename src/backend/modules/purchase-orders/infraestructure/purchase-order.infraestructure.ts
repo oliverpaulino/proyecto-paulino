@@ -212,6 +212,8 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             estado_pago: estadoPagoOrden(Number(row.total), Number(row.pagado)),
             notas: row.notas ?? null,
             total: Number(row.total),
+            pagado: Number(row.pagado),
+            pendiente: Math.max(0, Number(row.total) - Number(row.pagado)),
             approved_by: row.approved_by ?? null,
             approved_by_name: row.approved_by_name ?? null,
             approved_at: row.approved_at
@@ -400,6 +402,8 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             estado_pago: estadoPagoOrden(Number(row.total), Number(row.pagado)),
             notas: row.notas ?? null,
             total: Number(row.total),
+            pagado: Number(row.pagado),
+            pendiente: Math.max(0, Number(row.total) - Number(row.pagado)),
             approved_by: row.approved_by ?? null,
             approved_by_name: row.approved_by_name ?? null,
             approved_at: row.approved_at
@@ -493,6 +497,8 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
          estado_pago: estadoPagoOrden(Number(row.total), Number(row.pagado)),
          notas: row.notas ?? null,
          total: Number(row.total),
+         pagado: Number(row.pagado),
+         pendiente: Math.max(0, Number(row.total) - Number(row.pagado)),
          approved_by: row.approved_by ?? null,
          approved_by_name: row.approved_by_name ?? null,
          approved_at: row.approved_at ? new Date(row.approved_at) : null,
