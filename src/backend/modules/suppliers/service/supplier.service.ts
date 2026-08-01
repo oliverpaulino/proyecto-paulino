@@ -1,6 +1,6 @@
 import { CreateSupplierDTO, ISupplierRepository, SupplierProps, TipoProveedor, UpdateSupplierDTO } from "../domain/supplier.domain";
 
-const TIPOS_VALIDOS: TipoProveedor[] = ["SUPLIDOR", "SUB_CONTRATISTA"];
+const TIPOS_VALIDOS: TipoProveedor[] = ["SUPLIDOR", "SUB_CONTRATISTA", "AMBOS"];
 
 export class SupplierService {
    constructor(private readonly repo: ISupplierRepository) { }
