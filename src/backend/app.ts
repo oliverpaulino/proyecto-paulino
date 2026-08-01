@@ -35,6 +35,7 @@ import pagosRoute from "./modules/pagos/routes/pagos.routes";
 import payrollConceptsRoute from "./modules/payroll-concepts/routes/payroll-concepts";
 import nominaRoute from "./modules/nomina/routes/nomina.routes";
 import cuentasPorPagarRoute from "./modules/cuentas-por-pagar/routes/cuentas-por-pagar.routes";
+import subcontratacionesRoute from "./modules/subcontrataciones/routes/subcontrataciones.routes";
 
 const app = new Hono().basePath("/api");
 
@@ -61,6 +62,7 @@ app.all("/auth/*", (c) => auth.handler(c.req.raw));
 app.use("/clients/*", requireResourcePermission("client"));
 app.use("/employees/*", requireResourcePermission("employee"));
 app.use("/suppliers/*", requireResourcePermission("supplier"));
+app.use("/subcontrataciones/*", requireResourcePermission("supplier"));
 app.use("/purchase-orders/*", requireResourcePermission("purchase_order"));
 app.use("/appointments/*", requireResourcePermission("appointment"));
 app.use("/services/*", requireResourcePermission("service"));
@@ -112,6 +114,7 @@ app.route("/conduces", conducesRoute);
 app.route("/payroll", payrollConceptsRoute);
 app.route("/nomina", nominaRoute);
 app.route("/cuentas-por-pagar", cuentasPorPagarRoute);
+app.route("/subcontrataciones", subcontratacionesRoute);
 
 app.get("/dgii/:rnc", async (c) => {
    const rnc = c.req.param("rnc");
