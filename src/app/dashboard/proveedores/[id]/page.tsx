@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
    Card,
    CardContent,
@@ -39,12 +40,12 @@ import type { Supplier } from "@/dtos/supplier.dto";
 import { useSupplierStore } from "@/stores/useSupplierStore";
 import { SupplierForm } from "../components/supplier-form";
 import { PermissionGuard } from "@/components/permission-guard";
-import { OrdenesCompraTable } from "./components/ordenes-compra-table";
 import { usePurchaseOrderStore } from "@/stores/usePurchaseOrderStore";
-import { PurchaseOrder } from "@/dtos/purchase-order.dto";
-import { useCuentasPorPagarStore, type CuentaPorPagar } from "@/stores/useCuentasPorPagarStore";
+import type { EstadoOrdenCompra } from "@/dtos/purchase-order.dto";
+import { useCuentasPorPagarStore } from "@/stores/useCuentasPorPagarStore";
 import { useSubcontratacionStore } from "@/stores/useSubcontratacionStore";
 import { EstadoPago } from "@/dtos/subcontratacion.dto";
+import { SelectBuscadorDeudasProveedor } from "@/components/shared/selectBuscadorDeudasProveedor";
 
 const TIPO_LABEL: Record<string, string> = {
    SUPLIDOR: "SUPLIDOR",
@@ -58,29 +59,63 @@ const TIPO_BADGE: Record<string, string> = {
    AMBOS: "bg-purple-100 text-purple-800 border border-purple-300 font-bold dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-700",
 };
 
+const money = (n: number) =>
+   `RD$ ${n.toLocaleString("es-DO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const OC_PAGABLES = ["PENDIENTE", "APROBADA", "RECIBIDA"];
+
+type PagarItem = {
+   kind: "GASTO" | "COSTO" | "OC";
+   id: string;
+   codigoReferencia: string;
+   concepto: string;
+   pendiente: number;
+   estado?: string;
+   total?: number;
+   pagado?: number;
+   categoria?: string | null;
+};
+
 export default function SupplierDetailPage() {
    const params = useParams();
    const router = useRouter();
    const supplierId = params.id as string;
-
+   const [currentTab, setCurrentTab] = useState("resumen");
    const { UpdateSupplier, DeleteSupplier, GetSupplierById } = useSupplierStore();
    const { GetOrdenesCompraBySupplier, PurchaseOrders: ordenes } = usePurchaseOrderStore();
    const { GetCuentas, cuentas: cuentasPagar, resumen: resumenPagos } = useCuentasPorPagarStore();
    const { GetSubcontrataciones, subcontrataciones, loading: subLoading } = useSubcontratacionStore();
 
    const [supplier, setSupplier] = useState<Supplier | null>(null);
-   const [page, setPage] = useState(1);
-   const limit = 10
    const [loading, setLoading] = useState(true);
    const [actionLoading, setActionLoading] = useState(false);
    const [editOpen, setEditOpen] = useState(false);
    const [deleteOpen, setDeleteOpen] = useState(false);
    const [pagarOpen, setPagarOpen] = useState(false);
-   const [pagarCuentaId, setPagarCuentaId] = useState<string | null>(null);
+   const [pagarItems, setPagarItems] = useState<PagarItem[]>([]);
    const [subBusqueda, setSubBusqueda] = useState("");
    const [subDesde, setSubDesde] = useState("");
    const [subHasta, setSubHasta] = useState("");
    const [subEstadoPago, setSubEstadoPago] = useState<EstadoPago | "">("");
+   const [ocBusqueda, setOcBusqueda] = useState("");
+   const [ocDesde, setOcDesde] = useState("");
+   const [ocHasta, setOcHasta] = useState("");
+   const [ocEstado, setOcEstado] = useState<EstadoOrdenCompra | "">("");
+   const [ocSel, setOcSel] = useState<Set<string>>(new Set());
+   const [subSel, setSubSel] = useState<Set<string>>(new Set());
+   const [pagoSel, setPagoSel] = useState<Set<string>>(new Set());
+
+   const handleTabChange = (value: string) => {
+      setCurrentTab(value);
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", value);
+      window.history.replaceState(null, "", url.toString());
+   };
+
+   useEffect(() => {
+      const fromUrl = new URLSearchParams(window.location.search).get("tab");
+      if (fromUrl) setCurrentTab(fromUrl);
+   }, []);
 
    useEffect(() => {
       let active = true;
@@ -89,7 +124,7 @@ export default function SupplierDetailPage() {
          setLoading(true);
          try {
             const data = await GetSupplierById(supplierId);
-            await GetOrdenesCompraBySupplier(supplierId, { page, limit });
+            await GetOrdenesCompraBySupplier(supplierId, { force: true, limit: 1000 });
             await GetCuentas({ proveedor_id: supplierId, incluir_pagadas: true });
             await GetSubcontrataciones({ proveedor_id: supplierId, incluir_pagadas: true });
 
@@ -117,6 +152,7 @@ export default function SupplierDetailPage() {
    async function refreshDeuda() {
       await GetCuentas({ proveedor_id: supplierId, incluir_pagadas: true });
       await GetSubcontrataciones({ proveedor_id: supplierId, incluir_pagadas: true });
+      await GetOrdenesCompraBySupplier(supplierId, { force: true, limit: 1000 });
    }
 
    async function handleUpdate(values: {
@@ -159,6 +195,38 @@ export default function SupplierDetailPage() {
          return acc + o.total;
       }, 0);
 
+   const totalPagado = ordenes.data?.reduce((acc, o) => acc + (o.pagado ?? 0), 0) ?? 0;
+
+   const totalFacturadoCombinado =
+      cuentasPagar.reduce((acc, c) => acc + c.monto_total, 0) +
+      (ordenes.data ?? []).reduce((acc, o) => acc + o.total, 0);
+   const totalPagadoCombinado =
+      cuentasPagar.reduce((acc, c) => acc + c.pagado, 0) +
+      (ordenes.data ?? []).reduce((acc, o) => acc + (o.pagado ?? 0), 0);
+   const totalPendienteCombinado = Math.max(0, totalFacturadoCombinado - totalPagadoCombinado);
+
+   const ocFiltradas = (ordenes.data ?? []).filter((o) => {
+      if (ocBusqueda.trim()) {
+         const b = ocBusqueda.trim().toLowerCase();
+         const texto = `${o.codigoReferencia} ${o.notas ?? ""} ${o.proveedor_nombre ?? ""}`.toLowerCase();
+         if (!texto.includes(b)) return false;
+      }
+      if (ocEstado && o.estado !== ocEstado) return false;
+      if (ocDesde) {
+         const d = new Date(`${String(o.fecha).slice(0, 10)}T12:00:00`);
+         if (d < new Date(`${ocDesde}T12:00:00`)) return false;
+      }
+      if (ocHasta) {
+         const d = new Date(`${String(o.fecha).slice(0, 10)}T12:00:00`);
+         if (d > new Date(`${ocHasta}T12:00:00`)) return false;
+      }
+      return true;
+   });
+
+   const ocSelectables = ocFiltradas.filter(
+      (o) => OC_PAGABLES.includes(o.estado) && (o.pendiente ?? 0) > 0,
+   );
+
    const subFiltradas = subcontrataciones.filter((s) => {
       if (subBusqueda.trim()) {
          const b = subBusqueda.trim().toLowerCase();
@@ -176,6 +244,55 @@ export default function SupplierDetailPage() {
       }
       return true;
    });
+
+   // ── Items pagables (tab Pagos: cuentas gasto/costo + órdenes de compra) ──
+   const cuentasItems: PagarItem[] = cuentasPagar
+      .filter((c) => c.pendiente > 0)
+      .map((c) => ({
+         kind: c.tipo,
+         id: c.id,
+         codigoReferencia: c.codigoReferencia,
+         concepto: c.concepto,
+         pendiente: c.pendiente,
+         total: c.monto_total,
+         pagado: c.pagado,
+         categoria: c.categoria_gasto_nombre ?? c.proyecto_nombre ?? null,
+      }));
+
+   const ocItems: PagarItem[] = (ordenes.data ?? [])
+      .filter((o) => OC_PAGABLES.includes(o.estado) && (o.pendiente ?? 0) > 0)
+      .map((o) => ({
+         kind: "OC",
+         id: o.id,
+         codigoReferencia: o.codigoReferencia,
+         concepto: o.notas ?? "Orden de compra",
+         pendiente: o.pendiente ?? 0,
+         estado: o.estado,
+         total: o.total,
+         pagado: o.pagado ?? 0,
+      }));
+
+   const pagoItems: PagarItem[] = [...cuentasItems, ...ocItems];
+
+   const subPagables: PagarItem[] = subcontrataciones
+      .filter((s) => s.pendiente > 0 && s.gasto_id)
+      .map((s) => ({
+         kind: "GASTO" as const,
+         id: s.gasto_id!,
+         codigoReferencia: s.codigoReferencia,
+         concepto: s.trabajo_descripcion ?? "Subcontratación",
+         pendiente: s.pendiente,
+      }));
+
+   const subSelectables = subFiltradas.filter((s) => s.pendiente > 0 && s.gasto_id);
+
+   const selKey = (k: PagarItem["kind"], id: string) => `${k}:${id}`;
+   const toggleSel = (set: Set<string>, key: string, on: boolean) => {
+      const next = new Set(set);
+      if (on) next.add(key);
+      else next.delete(key);
+      return next;
+   };
 
    if (loading) {
       return (
@@ -241,7 +358,7 @@ export default function SupplierDetailPage() {
             </div>
 
             {/* Tabs */}
-            <Tabs defaultValue="resumen" className="space-y-4">
+            <Tabs value={currentTab} onValueChange={handleTabChange} className="space-y-4">
                <TabsList className="w-full flex-wrap justify-start gap-1 bg-transparent p-0">
                   {[
                      { value: "resumen", label: "Resumen" },
@@ -357,7 +474,7 @@ export default function SupplierDetailPage() {
                            Órdenes de compra
                         </CardTitle>
                         <CardDescription>
-                           Historial de órdenes enviadas a este proveedor.
+                           Historial de órdenes enviadas a este proveedor, su estado y deuda.
                         </CardDescription>
                      </CardHeader>
                      <CardContent className="space-y-4">
@@ -374,17 +491,227 @@ export default function SupplierDetailPage() {
 
                            <MiniStat
                               label="Total Pagado"
-                              value="RD$ 0.00"
+                              value={`RD$ ${totalPagado.toLocaleString('es-DO', { minimumFractionDigits: 2 })}`}
                            />
                         </div>
-                        <OrdenesCompraTable ordenes={ordenes} onPageChange={(newPage) => setPage(newPage)} onEdit={() => { }} onDelete={() => { }} />
-                        {ordenes.data?.length === 0 && (
+
+                        <div className="flex flex-wrap items-end gap-3">
+                           <div className="min-w-[200px] flex-1">
+                              <label className="mb-1 block text-xs font-medium text-muted-foreground">Buscar por referencia</label>
+                              <Input
+                                 placeholder="Ej: OC-260101-001 o notas..."
+                                 value={ocBusqueda}
+                                 onChange={(e) => setOcBusqueda(e.target.value)}
+                              />
+                           </div>
+                           <div>
+                              <label className="mb-1 block text-xs font-medium text-muted-foreground">Desde</label>
+                              <Input
+                                 type="date"
+                                 className="h-10 w-40"
+                                 value={ocDesde}
+                                 onChange={(e) => setOcDesde(e.target.value)}
+                              />
+                           </div>
+                           <div>
+                              <label className="mb-1 block text-xs font-medium text-muted-foreground">Hasta</label>
+                              <Input
+                                 type="date"
+                                 className="h-10 w-40"
+                                 value={ocHasta}
+                                 onChange={(e) => setOcHasta(e.target.value)}
+                              />
+                           </div>
+                           <div>
+                              <label className="mb-1 block text-xs font-medium text-muted-foreground">Estado</label>
+                              <select
+                                 value={ocEstado}
+                                 onChange={(e) => setOcEstado(e.target.value as EstadoOrdenCompra | "")}
+                                 className="h-10 w-40 rounded-md border border-input bg-input/30 px-3 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                              >
+                                 <option value="">Todos</option>
+                                 {["BORRADOR", "PENDIENTE", "APROBADA", "RECIBIDA", "CANCELADA"].map((e) => (
+                                    <option key={e} value={e}>{e}</option>
+                                 ))}
+                              </select>
+                           </div>
+                           {(ocBusqueda || ocDesde || ocHasta || ocEstado) && (
+                              <Button
+                                 variant="outline"
+                                 size="sm"
+                                 onClick={() => {
+                                    setOcBusqueda("");
+                                    setOcDesde("");
+                                    setOcHasta("");
+                                    setOcEstado("");
+                                 }}
+                              >
+                                 Limpiar
+                              </Button>
+                           )}
+                        </div>
+
+                        {ocSel.size > 0 && (
+                           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-brand-blue/30 bg-brand-blue/5 px-4 py-2.5">
+                              <span className="text-sm font-medium">
+                                 {ocSel.size} {ocSel.size === 1 ? "orden seleccionada" : "órdenes seleccionadas"}
+                              </span>
+                              <PermissionGuard resource="supplier" action="update">
+                                 <Button
+                                    size="sm"
+                                    onClick={() => {
+                                       const items = ocItems.filter((i) => ocSel.has(`OC:${i.id}`));
+                                       if (items.length) {
+                                          setPagarItems(items);
+                                          setPagarOpen(true);
+                                       }
+                                    }}
+                                 >
+                                    <HandCoins className="mr-2 size-4" /> Pagar seleccionadas
+                                 </Button>
+                              </PermissionGuard>
+                              <Button variant="ghost" size="sm" onClick={() => setOcSel(new Set())}>
+                                 Quitar selección
+                              </Button>
+                           </div>
+                        )}
+
+                        {ordenes.data?.length === 0 ? (
                            <EmptyState
                               icon={<ShoppingCart className="size-8 opacity-30" />}
                               title="Sin órdenes de compra"
                               description="Aquí podrás registrar y ver el historial de órdenes de compra enviadas a este proveedor, incluyendo estado, montos y fechas."
                            />
-
+                        ) : (
+                           <div className="overflow-x-auto rounded-xl border border-border">
+                              <table className="w-full text-sm">
+                                 <thead>
+                                    <tr className="bg-brand-blue">
+                                       <th className="w-10 px-3 py-3">
+                                          <Checkbox
+                                             checked={ocSelectables.length > 0 && ocSel.size === ocSelectables.length}
+                                             onCheckedChange={(v) => {
+                                                const next = new Set(ocSel);
+                                                ocSelectables.forEach((o) => {
+                                                   const k = `OC:${o.id}`;
+                                                   if (v) next.add(k);
+                                                   else next.delete(k);
+                                                });
+                                                setOcSel(next);
+                                             }}
+                                             className="border-blue-200/70 bg-white/10 data-[state=checked]:bg-brand-600"
+                                          />
+                                       </th>
+                                       <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Ref.</th>
+                                       <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Fecha</th>
+                                       <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-blue-200">Total</th>
+                                       <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-blue-200">Pagado</th>
+                                       <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-blue-200">Pendiente</th>
+                                       <th className="px-4 py-3 text-center text-xs font-semibold uppercase text-blue-200">Estado</th>
+                                       <th className="px-4 py-3 text-center text-xs font-semibold uppercase text-blue-200">Pago</th>
+                                       <th className="px-4 py-3 text-center text-xs font-semibold uppercase text-blue-200">Ver</th>
+                                    </tr>
+                                 </thead>
+                                 <tbody>
+                                    {ocFiltradas.map((o) => {
+                                       const pagable =
+                                          OC_PAGABLES.includes(o.estado) &&
+                                          (o.pendiente ?? 0) > 0;
+                                       const k = `OC:${o.id}`;
+                                       return (
+                                          <tr
+                                             key={o.id}
+                                             className="cursor-pointer border-b border-border/50 transition-colors hover:bg-brand-blue/5"
+                                             onClick={() => router.push(`/dashboard/compras/${o.id}`)}
+                                          >
+                                             <td className="px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                                                <Checkbox
+                                                   checked={ocSel.has(k)}
+                                                   disabled={!pagable}
+                                                   onCheckedChange={(v) => setOcSel(toggleSel(ocSel, k, !!v))}
+                                                />
+                                             </td>
+                                             <td className="px-4 py-3 font-mono font-medium text-brand-blue">
+                                                {o.codigoReferencia}
+                                             </td>
+                                             <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                                                {fechaCorta(o.fecha)}
+                                             </td>
+                                             <td className="whitespace-nowrap px-4 py-3 text-right font-semibold">
+                                                {`RD$ ${o.total.toLocaleString("es-DO", { minimumFractionDigits: 2 })}`}
+                                             </td>
+                                             <td className="whitespace-nowrap px-4 py-3 text-right text-muted-foreground">
+                                                {(o.pagado ?? 0) > 0
+                                                   ? `RD$ ${o.pagado.toLocaleString("es-DO", { minimumFractionDigits: 2 })}`
+                                                   : "RD$ 0.00"}
+                                             </td>
+                                             <td className="whitespace-nowrap px-4 py-3 text-right font-bold text-red-600">
+                                                {(o.pendiente ?? 0) > 0
+                                                   ? `RD$ ${o.pendiente.toLocaleString("es-DO", { minimumFractionDigits: 2 })}`
+                                                   : "RD$ 0"}
+                                             </td>
+                                             <td className="px-4 py-3 text-center">
+                                                <span
+                                                   className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${o.estado === "APROBADA"
+                                                      ? "bg-blue-100 text-blue-800"
+                                                      : o.estado === "RECIBIDA"
+                                                         ? "bg-green-100 text-green-800"
+                                                         : o.estado === "CANCELADA"
+                                                            ? "bg-gray-100 text-gray-600"
+                                                            : o.estado === "PENDIENTE"
+                                                               ? "bg-amber-100 text-amber-800"
+                                                               : "bg-gray-100 text-gray-600"
+                                                      }`}
+                                                >
+                                                   {o.estado}
+                                                </span>
+                                             </td>
+                                             <td className="px-4 py-3 text-center">
+                                                {pagable ? (
+                                                   <Button
+                                                      size="sm"
+                                                      variant="outline"
+                                                      onClick={(e) => {
+                                                         e.stopPropagation();
+                                                         setPagarItems([
+                                                            {
+                                                               kind: "OC",
+                                                               id: o.id,
+                                                               codigoReferencia: o.codigoReferencia,
+                                                               concepto: o.notas ?? "Orden de compra",
+                                                               pendiente: o.pendiente ?? 0,
+                                                               estado: o.estado,
+                                                            },
+                                                         ]);
+                                                         setPagarOpen(true);
+                                                      }}
+                                                   >
+                                                      <HandCoins className="mr-1 size-3.5" /> Pagar
+                                                   </Button>
+                                                ) : (
+                                                   <span className="text-[10px] uppercase text-muted-foreground">
+                                                      {(o.pendiente ?? 0) <= 0 ? "Saldada" : "—"}
+                                                   </span>
+                                                )}
+                                             </td>
+                                             <td className="px-4 py-3 text-center">
+                                                <button
+                                                   className="rounded-md p-1.5 text-brand-blue transition-colors hover:bg-brand-blue/10"
+                                                   title="Ver detalle"
+                                                   onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      router.push(`/dashboard/compras/${o.id}`);
+                                                   }}
+                                                >
+                                                   <FileText className="size-4" />
+                                                </button>
+                                             </td>
+                                          </tr>
+                                       );
+                                    })}
+                                 </tbody>
+                              </table>
+                           </div>
                         )}
                      </CardContent>
                   </Card>
@@ -465,6 +792,31 @@ export default function SupplierDetailPage() {
                               </Button>
                            )}
                         </div>
+                        {subSel.size > 0 && (
+                           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-brand-blue/30 bg-brand-blue/5 px-4 py-2.5">
+                              <span className="text-sm font-medium">
+                                 {subSel.size} {subSel.size === 1 ? "subcontratación seleccionada" : "subcontrataciones seleccionadas"}
+                              </span>
+                              <PermissionGuard resource="supplier" action="update">
+                                 <Button
+                                    size="sm"
+                                    onClick={() => {
+                                       const items = subPagables.filter((i) => subSel.has(`GASTO:${i.id}`));
+                                       if (items.length) {
+                                          setPagarItems(items);
+                                          setPagarOpen(true);
+                                       }
+                                    }}
+                                 >
+                                    <HandCoins className="mr-2 size-4" /> Pagar seleccionadas
+                                 </Button>
+                              </PermissionGuard>
+                              <Button variant="ghost" size="sm" onClick={() => setSubSel(new Set())}>
+                                 Quitar selección
+                              </Button>
+                           </div>
+                        )}
+
                         {subLoading ? (
                            <div className="flex items-center justify-center py-8">
                               <Loader2 className="size-5 animate-spin text-muted-foreground" />
@@ -480,53 +832,106 @@ export default function SupplierDetailPage() {
                               <table className="w-full text-sm">
                                  <thead>
                                     <tr className="bg-brand-blue">
-                                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Ref.</th>
+                                       <th className="w-10 px-3 py-3">
+                                          <Checkbox
+                                             checked={subSelectables.length > 0 && subSel.size === subSelectables.length}
+                                             onCheckedChange={(v) => {
+                                                const next = new Set(subSel);
+                                                subSelectables.forEach((s) => {
+                                                   const k = `GASTO:${s.gasto_id}`;
+                                                   if (v) next.add(k);
+                                                   else next.delete(k);
+                                                });
+                                                setSubSel(next);
+                                             }}
+                                             className="border-blue-200/70 bg-white/10 data-[state=checked]:bg-brand-600"
+                                          />
+                                       </th>
+                                       <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Ref.</th>
                                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Trabajo</th>
                                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Fecha deuda</th>
                                        <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-blue-200">Pendiente</th>
                                        <th className="px-4 py-3 text-center text-xs font-semibold uppercase text-blue-200">Trabajo</th>
                                        <th className="px-4 py-3 text-center text-xs font-semibold uppercase text-blue-200">Pago</th>
+                                       <th className="px-4 py-3 text-center text-xs font-semibold uppercase text-blue-200">Pagar</th>
                                     </tr>
                                  </thead>
                                  <tbody>
-                                    {subFiltradas.map((s) => (
-                                       <tr
-                                          key={s.id}
-                                          onClick={() => router.push(`/dashboard/subcontrataciones/${s.id}`)}
-                                          className="cursor-pointer border-b border-border/50 transition-colors hover:bg-brand-blue/5"
-                                       >
-                                          <td className="px-4 py-3 font-mono font-medium text-brand-blue">
-                                             {s.codigoReferencia}
-                                          </td>
-                                          <td className="max-w-[260px] px-4 py-3">
-                                             <div className="truncate">{s.trabajo_descripcion ?? "—"}</div>
-                                          </td>
-                                          <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                                             {fechaCorta(s.fecha_deuda)}
-                                          </td>
-                                          <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-red-600">
-                                             {s.pendiente > 0 ? `RD$ ${s.pendiente.toLocaleString("es-DO", { minimumFractionDigits: 2 })}` : "—"}
-                                          </td>
-                                          <td className="px-4 py-3 text-center">
-                                             <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-800">
-                                                {s.estado_trabajo}
-                                             </span>
-                                          </td>
-                                          <td className="px-4 py-3 text-center">
-                                             <span
-                                                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                                                   s.estado_pago === "PENDIENTE"
+                                    {subFiltradas.map((s) => {
+                                       const pagable = s.pendiente > 0 && !!s.gasto_id;
+                                       const k = `GASTO:${s.gasto_id ?? s.id}`;
+                                       return (
+                                          <tr
+                                             key={s.id}
+                                             onClick={() => router.push(`/dashboard/subcontrataciones/${s.id}`)}
+                                             className="cursor-pointer border-b border-border/50 transition-colors hover:bg-brand-blue/5"
+                                          >
+                                             <td className="px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                                                <Checkbox
+                                                   checked={subSel.has(k)}
+                                                   disabled={!pagable}
+                                                   onCheckedChange={(v) => setSubSel(toggleSel(subSel, k, !!v))}
+                                                />
+                                             </td>
+                                             <td className="px-4 py-3 font-mono font-medium text-brand-blue">
+                                                {s.codigoReferencia}
+                                             </td>
+                                             <td className="max-w-[260px] px-4 py-3">
+                                                <div className="truncate">{s.trabajo_descripcion ?? "—"}</div>
+                                             </td>
+                                             <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                                                {fechaCorta(s.fecha_deuda)}
+                                             </td>
+                                             <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-red-600">
+                                                {s.pendiente > 0 ? `RD$ ${s.pendiente.toLocaleString("es-DO", { minimumFractionDigits: 2 })}` : "—"}
+                                             </td>
+                                             <td className="px-4 py-3 text-center">
+                                                <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-800">
+                                                   {s.estado_trabajo}
+                                                </span>
+                                             </td>
+                                             <td className="px-4 py-3 text-center">
+                                                <span
+                                                   className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${s.estado_pago === "PENDIENTE"
                                                       ? "bg-red-100 text-red-800"
                                                       : s.estado_pago === "PARCIAL"
-                                                      ? "bg-amber-100 text-amber-800"
-                                                      : "bg-green-100 text-green-800"
-                                                }`}
-                                             >
-                                                {s.estado_pago}
-                                             </span>
-                                          </td>
-                                       </tr>
-                                    ))}
+                                                         ? "bg-amber-100 text-amber-800"
+                                                         : "bg-green-100 text-green-800"
+                                                      }`}
+                                                >
+                                                   {s.estado_pago}
+                                                </span>
+                                             </td>
+                                             <td className="px-4 py-3 text-center">
+                                                {pagable ? (
+                                                   <Button
+                                                      size="sm"
+                                                      variant="outline"
+                                                      onClick={(e) => {
+                                                         e.stopPropagation();
+                                                         setPagarItems([
+                                                            {
+                                                               kind: "GASTO",
+                                                               id: s.gasto_id!,
+                                                               codigoReferencia: s.codigoReferencia,
+                                                               concepto: s.trabajo_descripcion ?? "Subcontratación",
+                                                               pendiente: s.pendiente,
+                                                            },
+                                                         ]);
+                                                         setPagarOpen(true);
+                                                      }}
+                                                   >
+                                                      <HandCoins className="mr-1 size-3.5" /> Pagar
+                                                   </Button>
+                                                ) : (
+                                                   <span className="text-[10px] uppercase text-muted-foreground">
+                                                      {s.pendiente <= 0 ? "Saldada" : "Sin gasto"}
+                                                   </span>
+                                                )}
+                                             </td>
+                                          </tr>
+                                       );
+                                    })}
                                  </tbody>
                               </table>
                            </div>
@@ -548,9 +953,9 @@ export default function SupplierDetailPage() {
                               Deuda registrada a este proveedor y su avance de pagos.
                            </CardDescription>
                         </div>
-                        {resumenPagos.total_pendiente > 0 && (
+                        {pagoItems.length > 0 && (
                            <PermissionGuard resource="supplier" action="update">
-                              <Button size="sm" onClick={() => { setPagarCuentaId(null); setPagarOpen(true); }}>
+                              <Button size="sm" onClick={() => { setPagarItems([]); setPagarOpen(true); }}>
                                  <HandCoins className="mr-2 size-4" /> Registrar pago
                               </Button>
                            </PermissionGuard>
@@ -560,87 +965,147 @@ export default function SupplierDetailPage() {
                         <div className="grid gap-4 md:grid-cols-3">
                            <MiniStat
                               label="Total facturado"
-                              value={`RD$ ${resumenPagos.total_monto.toLocaleString('es-DO', { minimumFractionDigits: 2 })}`}
+                              value={`RD$ ${totalFacturadoCombinado.toLocaleString('es-DO', { minimumFractionDigits: 2 })}`}
                            />
                            <MiniStat
                               label="Total pagado"
-                              value={`RD$ ${resumenPagos.total_pagado.toLocaleString('es-DO', { minimumFractionDigits: 2 })}`}
+                              value={`RD$ ${totalPagadoCombinado.toLocaleString('es-DO', { minimumFractionDigits: 2 })}`}
                            />
                            <MiniStat
                               label="Pendiente"
-                              value={`RD$ ${resumenPagos.total_pendiente.toLocaleString('es-DO', { minimumFractionDigits: 2 })}`}
+                              value={`RD$ ${totalPendienteCombinado.toLocaleString('es-DO', { minimumFractionDigits: 2 })}`}
                            />
                         </div>
 
-                        {cuentasPagar.length === 0 ? (
+                        {pagoSel.size > 0 && (
+                           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-brand-blue/30 bg-brand-blue/5 px-4 py-2.5">
+                              <span className="text-sm font-medium">
+                                 {pagoSel.size} {pagoSel.size === 1 ? "deuda seleccionada" : "deudas seleccionadas"}
+                              </span>
+                              <PermissionGuard resource="supplier" action="update">
+                                 <Button
+                                    size="sm"
+                                    onClick={() => {
+                                       const items = pagoItems.filter((i) => pagoSel.has(selKey(i.kind, i.id)));
+                                       if (items.length) {
+                                          setPagarItems(items);
+                                          setPagarOpen(true);
+                                       }
+                                    }}
+                                 >
+                                    <HandCoins className="mr-2 size-4" /> Pagar seleccionadas
+                                 </Button>
+                              </PermissionGuard>
+                              <Button variant="ghost" size="sm" onClick={() => setPagoSel(new Set())}>
+                                 Quitar selección
+                              </Button>
+                           </div>
+                        )}
+
+                        {pagoItems.length === 0 ? (
                            <EmptyState
                               icon={<Receipt className="size-8 opacity-30" />}
                               title="Sin deuda registrada"
-                              description="Los gastos vinculados a este proveedor aparecerán aquí con su saldo y los pagos."
+                              description="Los gastos, costos y órdenes de compra vinculados a este proveedor aparecerán aquí con su saldo."
                            />
                         ) : (
                            <div className="overflow-x-auto rounded-xl border border-border">
                               <table className="w-full text-sm">
                                  <thead>
                                     <tr className="bg-brand-blue">
+                                       <th className="w-10 px-3 py-3">
+                                          <Checkbox
+                                             checked={pagoItems.length > 0 && pagoSel.size === pagoItems.length}
+                                             onCheckedChange={(v) => {
+                                                const next = new Set(pagoSel);
+                                                pagoItems.forEach((i) => {
+                                                   const k = selKey(i.kind, i.id);
+                                                   if (v) next.add(k);
+                                                   else next.delete(k);
+                                                });
+                                                setPagoSel(next);
+                                             }}
+                                             className="border-blue-200/70 bg-white/10 data-[state=checked]:bg-brand-600"
+                                          />
+                                       </th>
                                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Referencia</th>
                                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Concepto</th>
                                        <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-blue-200">Monto</th>
                                        <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-blue-200">Pagado</th>
                                        <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-blue-200">Pendiente</th>
-                                       <th className="px-4 py-3 text-center text-xs font-semibold uppercase text-blue-200">Ver</th>
+                                       <th className="px-4 py-3 text-center text-xs font-semibold uppercase text-blue-200">Tipo</th>
                                        <th className="px-4 py-3 text-center text-xs font-semibold uppercase text-blue-200">Pagar</th>
                                     </tr>
                                  </thead>
                                  <tbody>
-                                    {cuentasPagar.map((c) => (
-                                       <tr
-                                          key={`${c.tipo}-${c.id}`}
-                                          className="cursor-pointer border-b border-border/50 transition-colors hover:bg-brand-blue/5"
-                                          onClick={() =>
-                                             c.tipo === "GASTO"
-                                                ? router.push(`/dashboard/gastos/${c.id}`)
-                                                : router.push(`/dashboard/costos/${c.id}`)
-                                          }
-                                       >
-                                          <td className="px-4 py-3 font-mono font-medium text-brand-blue">
-                                             {c.codigoReferencia}
-                                          </td>
-                                          <td className="max-w-[240px] px-4 py-3">
-                                             <div className="truncate">{c.concepto}</div>
-                                             <div className="text-xs text-muted-foreground">
-                                                {c.categoria_gasto_nombre ?? c.proyecto_nombre ?? "—"}
-                                             </div>
-                                          </td>
-                                          <td className="whitespace-nowrap px-4 py-3 text-right font-semibold">
-                                             {`RD$ ${c.monto_total.toLocaleString('es-DO', { minimumFractionDigits: 2 })}`}
-                                          </td>
-                                          <td className="whitespace-nowrap px-4 py-3 text-right text-muted-foreground">
-                                             {c.pagado > 0 ? `RD$ ${c.pagado.toLocaleString('es-DO', { minimumFractionDigits: 2 })}` : "—"}
-                                          </td>
-                                          <td className="whitespace-nowrap px-4 py-3 text-right font-bold text-red-600">
-                                             {c.pendiente > 0 ? `RD$ ${c.pendiente.toLocaleString('es-DO', { minimumFractionDigits: 2 })}` : "—"}
-                                          </td>
-                                          <td className="px-4 py-3 text-center text-brand-blue">Ver</td>
-                                          <td className="px-4 py-3 text-center">
-                                             {c.pendiente > 0 ? (
+                                    {pagoItems.map((i) => {
+                                       const k = selKey(i.kind, i.id);
+                                       const href =
+                                          i.kind === "OC"
+                                             ? `/dashboard/compras/${i.id}`
+                                             : i.kind === "GASTO"
+                                                ? `/dashboard/gastos/${i.id}`
+                                                : `/dashboard/costos/${i.id}`;
+                                       return (
+                                          <tr
+                                             key={k}
+                                             className="cursor-pointer border-b border-border/50 transition-colors hover:bg-brand-blue/5"
+                                             onClick={() => router.push(href)}
+                                          >
+                                             <td className="px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                                                <Checkbox
+                                                   checked={pagoSel.has(k)}
+                                                   onCheckedChange={(v) => setPagoSel(toggleSel(pagoSel, k, !!v))}
+                                                />
+                                             </td>
+                                             <td className="px-4 py-3 font-mono font-medium text-brand-blue">
+                                                {i.codigoReferencia}
+                                             </td>
+                                             <td className="max-w-[240px] px-4 py-3">
+                                                <div className="truncate">{i.concepto}</div>
+                                                {i.categoria && (
+                                                   <div className="text-xs text-muted-foreground">{i.categoria}</div>
+                                                )}
+                                             </td>
+                                             <td className="whitespace-nowrap px-4 py-3 text-right font-semibold">
+                                                {`RD$ ${(i.total ?? i.pendiente).toLocaleString("es-DO", { minimumFractionDigits: 2 })}`}
+                                             </td>
+                                             <td className="whitespace-nowrap px-4 py-3 text-right text-muted-foreground">
+                                                {(i.pagado ?? 0) > 0
+                                                   ? `RD$ ${(i.pagado ?? 0).toLocaleString("es-DO", { minimumFractionDigits: 2 })}`
+                                                   : "—"}
+                                             </td>
+                                             <td className="whitespace-nowrap px-4 py-3 text-right font-bold text-red-600">
+                                                {`RD$ ${i.pendiente.toLocaleString("es-DO", { minimumFractionDigits: 2 })}`}
+                                             </td>
+                                             <td className="px-4 py-3 text-center">
+                                                <span
+                                                   className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${i.kind === "OC"
+                                                      ? "bg-purple-100 text-purple-800"
+                                                      : i.kind === "GASTO"
+                                                         ? "bg-sky-100 text-sky-800"
+                                                         : "bg-amber-100 text-amber-800"
+                                                      }`}
+                                                >
+                                                   {i.kind === "OC" ? (i.estado ?? "OC") : i.kind}
+                                                </span>
+                                             </td>
+                                             <td className="px-4 py-3 text-center">
                                                 <Button
                                                    size="sm"
                                                    variant="outline"
                                                    onClick={(e) => {
                                                       e.stopPropagation();
-                                                      setPagarCuentaId(c.id);
+                                                      setPagarItems([i]);
                                                       setPagarOpen(true);
                                                    }}
                                                 >
                                                    <HandCoins className="mr-1 size-3.5" /> Pagar
                                                 </Button>
-                                             ) : (
-                                                <span className="text-[10px] uppercase text-muted-foreground">Saldada</span>
-                                             )}
-                                          </td>
-                                       </tr>
-                                    ))}
+                                             </td>
+                                          </tr>
+                                       );
+                                    })}
                                  </tbody>
                               </table>
                            </div>
@@ -688,12 +1153,15 @@ export default function SupplierDetailPage() {
                </DialogContent>
             </Dialog>
 
-            {/* Registrar pago */}
-            <RegistrarPagoDialog
+            {/* Registrar pago (gastos, costos y órdenes de compra) */}
+            <PagarDialog
                open={pagarOpen}
-               onOpenChange={setPagarOpen}
-               cuentas={cuentasPagar}
-               preselectId={pagarCuentaId}
+               onOpenChange={(open) => {
+                  setPagarOpen(open);
+                  if (!open) setPagarItems([]);
+               }}
+               items={pagarItems}
+               allItems={pagoItems}
                onDone={refreshDeuda}
             />
          </div>
@@ -703,88 +1171,113 @@ export default function SupplierDetailPage() {
 
 const METODOS_PAGO = ["CHEQUE", "EFECTIVO", "TRANSFERENCIA", "TARJETA", "DESCUENTO_NOMINA"];
 
-function RegistrarPagoDialog({
+function PagarDialog({
    open,
    onOpenChange,
-   cuentas,
-   preselectId,
+   items,
+   allItems,
    onDone,
 }: {
    open: boolean;
    onOpenChange: (open: boolean) => void;
-   cuentas: CuentaPorPagar[];
-   preselectId: string | null;
+   items: PagarItem[];
+   allItems: PagarItem[];
    onDone: () => Promise<void>;
 }) {
-   const porPagar = cuentas.filter((c) => c.pendiente > 0);
-   const [cuentaId, setCuentaId] = useState<string>(preselectId ?? "");
-   const [monto, setMonto] = useState("");
+   const [selected, setSelected] = useState<PagarItem[]>([]);
+   const [montos, setMontos] = useState<Record<string, string>>({});
    const [metodo, setMetodo] = useState("TRANSFERENCIA");
    const [fechaPago, setFechaPago] = useState(new Date().toISOString().slice(0, 10));
-   const [concepto, setConcepto] = useState("");
    const [loading, setLoading] = useState(false);
    const [error, setError] = useState<string | null>(null);
 
-   const cuenta = cuentas.find((c) => c.id === cuentaId) ?? null;
+   const key = (i: PagarItem) => `${i.kind}:${i.id}`;
 
    useEffect(() => {
       if (!open) return;
-      setError(null);
-      setMonto("");
-      setConcepto("");
+      setSelected(items);
+      const next: Record<string, string> = {};
+      items.forEach((i) => {
+         next[key(i)] = String(i.pendiente);
+      });
+      setMontos(next);
+      setMetodo("TRANSFERENCIA");
       setFechaPago(new Date().toISOString().slice(0, 10));
-      const preseleccionada = preselectId && cuentas.some((c) => c.id === preselectId && c.pendiente > 0)
-         ? preselectId
-         : (porPagar[0]?.id ?? "");
-      setCuentaId(preseleccionada);
+      setError(null);
       // eslint-disable-next-line react-hooks/exhaustive-deps
-   }, [open]);
+   }, [open, items]);
 
-   useEffect(() => {
-      if (cuenta) setMonto(String(cuenta.pendiente));
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-   }, [cuentaId]);
+   const toggle = (item: PagarItem) => {
+      const k = key(item);
+      const existe = selected.some((i) => key(i) === k);
+      if (existe) {
+         setSelected(selected.filter((i) => key(i) !== k));
+         setMontos((m) => {
+            const n = { ...m };
+            delete n[k];
+            return n;
+         });
+      } else {
+         setSelected([...selected, item]);
+         setMontos((m) => ({ ...m, [k]: String(item.pendiente) }));
+      }
+   };
+
+   const total = selected.reduce((acc, i) => acc + (Number(montos[key(i)]) || 0), 0);
+   const invalido =
+      selected.length === 0 ||
+      selected.some((i) => {
+         const m = Number(montos[key(i)]);
+         return !m || m <= 0 || m > i.pendiente + 0.01;
+      });
 
    async function handleSubmit(e: React.FormEvent) {
       e.preventDefault();
       setError(null);
-      if (!cuenta) {
-         setError("Selecciona la cuenta a pagar");
+      if (selected.length === 0) {
+         setError("Selecciona al menos una deuda");
          return;
       }
-      const m = Number(monto);
-      if (!m || m <= 0) {
-         setError("Indica un monto válido");
+      const aPagar = selected.filter((i) => (Number(montos[key(i)]) || 0) > 0);
+      if (aPagar.length === 0) {
+         setError("Indica un monto válido para al menos una deuda");
          return;
       }
-      if (m > cuenta.pendiente + 0.01) {
-         setError(`El pago no puede superar el pendiente (RD$ ${cuenta.pendiente.toLocaleString("es-DO", { minimumFractionDigits: 2 })})`);
-         return;
+      for (const i of aPagar) {
+         const m = Number(montos[key(i)]);
+         if (m > i.pendiente + 0.01) {
+            setError(`El pago a ${i.codigoReferencia} no puede superar su pendiente (RD$ ${i.pendiente.toLocaleString("es-DO", { minimumFractionDigits: 2 })})`);
+            return;
+         }
       }
-
       setLoading(true);
       try {
-         const payload = {
-            metodo_pago: metodo,
-            monto_pagado: m,
-            concepto: concepto.trim() || `Pago a proveedor ${cuenta.codigoReferencia}`,
-            tipo_movimiento: "SALIDA",
-            fecha: fechaPago,
-            ...(cuenta.tipo === "GASTO"
-               ? { gasto_empresa_id: cuenta.id }
-               : { costo_cliente_id: cuenta.id }),
-         };
-         const res = await fetch("/api/pagos", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-         });
-         const data = await res.json();
-         if (!res.ok) throw new Error(data?.error ?? "Error al registrar el pago");
+         for (const i of aPagar) {
+            const m = Number(montos[key(i)]);
+            const payload = {
+               metodo_pago: metodo,
+               monto_pagado: m,
+               concepto: `Pago a ${i.codigoReferencia} — ${i.concepto}`,
+               tipo_movimiento: "SALIDA",
+               fecha: fechaPago,
+               ...(i.kind === "OC"
+                  ? { orden_compra_id: i.id }
+                  : i.kind === "GASTO"
+                     ? { gasto_empresa_id: i.id }
+                     : { costo_cliente_id: i.id }),
+            };
+            const res = await fetch("/api/pagos", {
+               method: "POST",
+               headers: { "Content-Type": "application/json" },
+               body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data?.error ?? `Error al registrar el pago de ${i.codigoReferencia}`);
+         }
          onOpenChange(false);
          await onDone();
       } catch (err: any) {
-         setError(err?.message ?? "Ocurrió un error al registrar el pago");
+         setError(err?.message ?? "Ocurrió un error al registrar los pagos");
       } finally {
          setLoading(false);
       }
@@ -795,44 +1288,60 @@ function RegistrarPagoDialog({
 
    return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-         <DialogContent className="sm:max-w-md">
+         <DialogContent className="sm:max-w-xl">
             <DialogHeader>
                <DialogTitle>Registrar pago</DialogTitle>
                <DialogDescription>
-                  El pago se aplica a la deuda seleccionada de este proveedor.
+                  Busca las deudas del proveedor, selecciona las que quieras pagar y define los montos.
                </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-               <div className="flex flex-col gap-1.5">
-                  <Label>Cuenta a pagar *</Label>
-                  <select
-                     value={cuentaId}
-                     onChange={(e) => setCuentaId(e.target.value)}
-                     className={INPUT}
-                     required
-                  >
-                     <option value="" disabled>Selecciona la cuenta…</option>
-                     {porPagar.map((c) => (
-                        <option key={`${c.tipo}-${c.id}`} value={c.id}>
-                           {c.codigoReferencia} — {c.concepto} (pend. {`RD$ ${c.pendiente.toLocaleString("es-DO", { minimumFractionDigits: 2 })}`})
-                        </option>
+               <SelectBuscadorDeudasProveedor
+                  deudas={allItems}
+                  selectedIds={selected.map(key)}
+                  onToggle={toggle}
+               />
+
+               {selected.length > 0 && (
+                  <div className="max-h-[260px] space-y-2 overflow-y-auto pr-1">
+                     {selected.map((i) => (
+                        <div key={key(i)} className="rounded-lg border border-border bg-muted/20 p-3">
+                           <div className="flex items-center justify-between gap-2">
+                              <div className="min-w-0">
+                                 <p className="truncate text-sm font-semibold">{i.codigoReferencia}</p>
+                                 <p className="truncate text-xs text-muted-foreground">{i.concepto}</p>
+                              </div>
+                              <span className="shrink-0 text-xs font-medium text-red-600">
+                                 pend. {money(i.pendiente)}
+                              </span>
+                           </div>
+                           <div className="mt-2 flex items-center gap-2">
+                              <Input
+                                 type="number"
+                                 step="0.01"
+                                 min="0.01"
+                                 value={montos[key(i)] ?? ""}
+                                 onChange={(e) => setMontos((prev) => ({ ...prev, [key(i)]: e.target.value }))}
+                                 className={INPUT}
+                                 required
+                              />
+                              <Button
+                                 type="button"
+                                 variant="outline"
+                                 size="sm"
+                                 className="shrink-0"
+                                 onClick={() => setMontos((prev) => ({ ...prev, [key(i)]: String(i.pendiente) }))}
+                                 disabled={i.pendiente <= 0}
+                              >
+                                 Todo
+                              </Button>
+                           </div>
+                        </div>
                      ))}
-                  </select>
-               </div>
+                  </div>
+               )}
 
                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1.5">
-                     <Label>Monto (RD$) *</Label>
-                     <Input
-                        type="number"
-                        step="0.01"
-                        min="0.01"
-                        value={monto}
-                        onChange={(e) => setMonto(e.target.value)}
-                        required
-                        className={INPUT}
-                     />
-                  </div>
                   <div className="flex flex-col gap-1.5">
                      <Label>Fecha *</Label>
                      <Input
@@ -843,29 +1352,18 @@ function RegistrarPagoDialog({
                         className={INPUT}
                      />
                   </div>
-               </div>
-
-               <div className="flex flex-col gap-1.5">
-                  <Label>Método de pago *</Label>
-                  <select
-                     value={metodo}
-                     onChange={(e) => setMetodo(e.target.value)}
-                     className={INPUT}
-                  >
-                     {METODOS_PAGO.map((m) => (
-                        <option key={m} value={m}>{m}</option>
-                     ))}
-                  </select>
-               </div>
-
-               <div className="flex flex-col gap-1.5">
-                  <Label>Concepto</Label>
-                  <Input
-                     value={concepto}
-                     onChange={(e) => setConcepto(e.target.value)}
-                     placeholder={`Pago a proveedor ${cuenta?.codigoReferencia ?? ""}`}
-                     className={INPUT}
-                  />
+                  <div className="flex flex-col gap-1.5">
+                     <Label>Método de pago *</Label>
+                     <select
+                        value={metodo}
+                        onChange={(e) => setMetodo(e.target.value)}
+                        className={INPUT}
+                     >
+                        {METODOS_PAGO.map((m) => (
+                           <option key={m} value={m}>{m}</option>
+                        ))}
+                     </select>
+                  </div>
                </div>
 
                {error && (
@@ -874,14 +1372,14 @@ function RegistrarPagoDialog({
                   </div>
                )}
 
-               <DialogFooter className="pt-2">
+               <div className="flex justify-end gap-2 pt-2">
                   <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
                      Cancelar
                   </Button>
-                  <Button type="submit" disabled={loading || porPagar.length === 0}>
-                     {loading ? "Registrando…" : "Registrar pago"}
+                  <Button type="submit" disabled={loading || invalido || selected.length === 0}>
+                     {loading ? "Registrando…" : `Pagar ${money(total)}`}
                   </Button>
-               </DialogFooter>
+               </div>
             </form>
          </DialogContent>
       </Dialog>
