@@ -26,6 +26,7 @@ cuentasPorPagarRoute.get("/", async (c) => {
          incluir_pagadas: q("incluir_pagadas") === "true",
          proyecto_id: q("proyecto_id") || undefined,
          categoria_gasto_id: q("categoria_gasto_id") || undefined,
+         proveedor_id: q("proveedor_id") || undefined,
          fecha_desde: q("fecha_desde") ? new Date(q("fecha_desde")!) : undefined,
          fecha_hasta: q("fecha_hasta") ? new Date(q("fecha_hasta")!) : undefined,
          busqueda: q("busqueda") || undefined,
