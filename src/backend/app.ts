@@ -12,7 +12,6 @@ import proyectoArchivosRoute from "./modules/proyecto-archivos/routes/proyecto-a
 import proyectoTarifasRoute from "./modules/proyectos/routes/proyecto-tarifa";
 import proyectoTarifasEmpleadoRoute from "./modules/proyectos/routes/proyecto-empleado-tarifa";
 import appointmentsRoute from "./modules/appointments/routes/appointments.routes";
-import tareasRoute from "@/backend/modules/tareas/routes/tareas";
 import equiposRoute from "./modules/equipos/routes/equipos";
 import categoriaEquiposRoute from "./modules/categoria-equipos/routes/categoria-equipos";
 import notificationsRoute from "./modules/notifications/routes/notifications";
@@ -86,7 +85,6 @@ app.route("/proyecto-tarifas", proyectoTarifasRoute);
 app.route("/proyecto-empleado-tarifas", proyectoTarifasEmpleadoRoute);
 app.route("/appointments", appointmentsRoute);
 app.route("/medida-cobros", medidaCobroRoute);
-app.route("/tareas", tareasRoute);
 app.route("/equipos", equiposRoute);
 app.route("/categoria-equipos", categoriaEquiposRoute);
 app.route("/gastos", gastosRoute);

@@ -440,18 +440,6 @@ export interface DB {
       updated_at: Generated<Date>;
    };
 
-   tarea: {
-      id: Generated<string>;
-      proyecto_id: string | null;
-      nombre: string;
-      descripcion: string | null;
-      estado: Generated<string>;
-      fecha_inicio: Date | null;
-      fecha_fin: Date | null;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
-
    notifications: {
       id: Generated<string>;
       user_id: string;
