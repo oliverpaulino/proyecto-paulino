@@ -213,14 +213,6 @@ export interface DB {
       updated_at: Generated<Date>;
    };
 
-   tipo_item: {
-      id: Generated<string>;
-      nombre: string;
-      descripcion: string | null;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
-
    medida_cobro: {
       id: Generated<string>;
       nombre: string; // "Viaje", "Bote", "Hora", etc.

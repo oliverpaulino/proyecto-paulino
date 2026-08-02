@@ -15,7 +15,6 @@ import appointmentsRoute from "./modules/appointments/routes/appointments.routes
 import tareasRoute from "@/backend/modules/tareas/routes/tareas";
 import equiposRoute from "./modules/equipos/routes/equipos";
 import categoriaEquiposRoute from "./modules/categoria-equipos/routes/categoria-equipos";
-import tipoItemsRoute from "./modules/tipo-items/routes/tipo-items";
 import notificationsRoute from "./modules/notifications/routes/notifications";
 import { dgiiProvider } from "./providers/dgii.provider";
 import medidaCobroRoute from "./modules/categoria-equipos/routes/medida-cobro";
@@ -97,7 +96,6 @@ app.route("/costos", costosRoute);
 app.route("/pagos", pagosRoute);
 app.route("/deducciones", deduccionesRoute);
 app.route("/categoria-gastos", categoriaGastosRoute);
-app.route("/tipo-items", tipoItemsRoute);
 app.route("/notifications", notificationsRoute);
 app.route("/units", unitsRoute);
 app.route("/user-employee-links", userEmployeeLinksRoute);
