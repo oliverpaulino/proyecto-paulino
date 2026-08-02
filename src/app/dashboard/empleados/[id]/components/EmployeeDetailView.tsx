@@ -40,7 +40,6 @@ import {
 import { EmployeeForm, type OperadorFormData } from "../../components/employee-form";
 import { DeleteEmployeeDialog } from "../../components/delete-employee-dialog";
 import StatCard from "./StatCard";
-import { EmployeeConceptsWidget } from "../../conceptos/components/concept-employee-widget";
 import { EmployeeConduces } from "./employee-conduces";
 import { TarifaEmpleadoDialog } from "./TarifaEmpleadoDialog";
 

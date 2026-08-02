@@ -29,7 +29,6 @@ import mantenimientosRoute from "./modules/mantenimientos/routes/mantenimientos.
 import costosRoute from "./modules/costos/routes/costos.routes";
 import deduccionesRoute from "./modules/deducciones/routes/deducciones.routes";
 import pagosRoute from "./modules/pagos/routes/pagos.routes";
-import payrollConceptsRoute from "./modules/payroll-concepts/routes/payroll-concepts";
 import nominaRoute from "./modules/nomina/routes/nomina.routes";
 import cuentasPorPagarRoute from "./modules/cuentas-por-pagar/routes/cuentas-por-pagar.routes";
 
@@ -102,7 +101,6 @@ app.route("/user-employee-links", userEmployeeLinksRoute);
 app.route("/roles", rolesRoute);
 
 app.route("/conduces", conducesRoute);
-app.route("/payroll", payrollConceptsRoute);
 app.route("/nomina", nominaRoute);
 app.route("/cuentas-por-pagar", cuentasPorPagarRoute);
 
