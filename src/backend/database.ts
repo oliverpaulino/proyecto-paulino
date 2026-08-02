@@ -232,16 +232,6 @@ export interface DB {
       updated_at: Generated<Date>;
    };
 
-   servicio: {
-      id: Generated<string>;
-      nombre: string;
-      tipo: string;
-      descripcion: string | null;
-      precio_base: number;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
-
    medida_cobro: {
       id: Generated<string>;
       nombre: string; // "Viaje", "Bote", "Hora", etc.
