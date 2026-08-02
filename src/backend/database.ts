@@ -213,17 +213,6 @@ export interface DB {
       updated_at: Generated<Date>;
    };
 
-   item: {
-      id: Generated<string>;
-      nombre: string;
-      tipo_id: string;
-      descripcion: string | null;
-      unidad: string | null;
-      stock: Generated<number>;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
-
    tipo_item: {
       id: Generated<string>;
       nombre: string;
