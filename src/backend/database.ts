@@ -611,22 +611,6 @@ export interface DB {
       deleted_reason: string | null;
    };
 
-   costo: {
-      id: Generated<string>;
-      proyecto_id: string,
-      monto_total: number,
-      concepto: string,
-      ncf: string | null;
-      orden_compra_id: string | null;
-      referencia: Generated<number>;
-      fecha: Date;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-      deleted_by: string | null;
-      deleted_at: Date | null;
-      deleted_reason: string | null;
-   };
-
    deduccion: {
       id: Generated<string>;
       empleado_id: string;
