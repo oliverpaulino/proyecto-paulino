@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -173,6 +173,27 @@ function TarifasDialog({
    const claveEdicion = (t: (typeof tarifas)[number]) =>
       claveDe(t) ?? `manual:${t.categoria_equipo_tarifa_nombre.trim().toLowerCase()}`;
 
+   /*
+      El desglose agrupa por (categoría, tarifa), pero el precio del catálogo
+      se guarda por TARIFA. Así que si la misma tarifa aparece en dos filas
+      —dos categorías de equipo distintas— ambas comparten precio y editar una
+      mueve la otra. No es un error (el catálogo es así), pero hay que decirlo:
+      cambiar 300 en "Camión tipo 1 · Viaje" y ver moverse "Camión tipo 2 ·
+      Viaje" sin aviso parecería un bug.
+   */
+   const clavesRepetidas = useMemo(() => {
+      const cuenta = new Map<string, number>();
+      tarifas.forEach((t) => {
+         const k = claveEdicion(t);
+         cuenta.set(k, (cuenta.get(k) ?? 0) + 1);
+      });
+      return new Set([...cuenta].filter(([, n]) => n > 1).map(([k]) => k));
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, [tarifas]);
+
+   const compartePrecio = (t: (typeof tarifas)[number]) =>
+      clavesRepetidas.has(claveEdicion(t));
+
    /** El precio a usar ahora mismo: el editado si lo hay, si no el guardado. */
    function precioActual(t: (typeof tarifas)[number]): number {
       const k = claveEdicion(t);
@@ -302,6 +323,7 @@ function TarifasDialog({
                   <table className="w-full text-sm">
                      <thead className="sticky top-0 bg-background">
                         <tr className="text-xs uppercase text-muted-foreground">
+                           <th className="pb-2 text-left font-semibold">Equipo</th>
                            <th className="pb-2 text-left font-semibold">Tarifa</th>
                            <th className="pb-2 text-left font-semibold">Medida</th>
                            <th className="pb-2 text-right font-semibold">Cantidad</th>
@@ -319,6 +341,30 @@ function TarifasDialog({
                            const tocado = editado[k] !== undefined;
                            return (
                               <tr key={`${k}:${i}`} className="border-t border-border/50">
+                                 {/*
+                                    Snapshots anteriores a la migración 015 no
+                                    guardaron la categoría. Se dice explícito en
+                                    vez de dejar la celda vacía, que parecería
+                                    un dato faltante y no un ciclo viejo.
+                                 */}
+                                 <td className="py-2">
+                                    {t.categoria_equipo_nombre ?? (
+                                       <span
+                                          className="text-muted-foreground"
+                                          title="Este ciclo se calculó antes de que se guardara la categoría del equipo. Recalcúlalo para verla (los ciclos cerrados no se recalculan)."
+                                       >
+                                          —
+                                       </span>
+                                    )}
+                                    {compartePrecio(t) && (
+                                       <Badge
+                                          className="ml-2 border-0 bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0"
+                                          title="Esta tarifa se usa con más de una categoría de equipo y su precio es uno solo en el catálogo: al cambiarlo aquí cambia también en las otras filas de la misma tarifa."
+                                       >
+                                          precio compartido
+                                       </Badge>
+                                    )}
+                                 </td>
                                  <td className="py-2">
                                     {t.categoria_equipo_tarifa_nombre}
                                     {t.precio_manual && (
@@ -400,7 +446,7 @@ function TarifasDialog({
                            );
                         })}
                         <tr className="border-t border-border font-semibold">
-                           <td className="py-2" colSpan={4}>
+                           <td className="py-2" colSpan={5}>
                               Devengado por producción
                            </td>
                            <td className="py-2 text-right">
@@ -418,7 +464,7 @@ function TarifasDialog({
                         </tr>
                         {empleado.complemento_minimo > 0 && (
                            <tr className="text-blue-600">
-                              <td className="py-2" colSpan={4}>
+                              <td className="py-2" colSpan={5}>
                                  Complemento para alcanzar el mínimo de{" "}
                                  {money(empleado.minimo_garantizado)}
                               </td>
@@ -664,6 +710,7 @@ function FilaDesglose({
          <table className="w-full text-sm">
             <thead>
                <tr className="text-xs uppercase text-muted-foreground">
+                  <th className="pb-2 text-left font-semibold">Equipo</th>
                   <th className="pb-2 text-left font-semibold">Tarifa</th>
                   <th className="pb-2 text-left font-semibold">Medida</th>
                   <th className="pb-2 text-right font-semibold">Cantidad</th>
@@ -674,6 +721,17 @@ function FilaDesglose({
             <tbody>
                {tarifas.map((t, i) => (
                   <tr key={i} className="border-t border-border/50">
+                     {/* NULL = ciclo calculado antes de la migración 015. */}
+                     <td className="py-2">
+                        {t.categoria_equipo_nombre ?? (
+                           <span
+                              className="text-muted-foreground"
+                              title="Este ciclo se calculó antes de que se guardara la categoría del equipo. Recalcúlalo para verla (los ciclos cerrados no se recalculan)."
+                           >
+                              —
+                           </span>
+                        )}
+                     </td>
                      <td className="py-2">{t.categoria_equipo_tarifa_nombre}</td>
                      <td className="py-2 text-muted-foreground">{t.medida_cobro_nombre ?? "—"}</td>
                      <td className="py-2 text-right">{t.cantidad.toLocaleString("es-DO")}</td>
@@ -690,14 +748,14 @@ function FilaDesglose({
                   </tr>
                ))}
                <tr className="border-t border-border font-semibold">
-                  <td className="py-2" colSpan={4}>
+                  <td className="py-2" colSpan={5}>
                      Devengado por producción
                   </td>
                   <td className="py-2 text-right">{money(empleado.devengado_tarifas)}</td>
                </tr>
                {empleado.complemento_minimo > 0 && (
                   <tr className="text-blue-600">
-                     <td className="py-2" colSpan={4}>
+                     <td className="py-2" colSpan={5}>
                         Complemento para alcanzar el mínimo de{" "}
                         {money(empleado.minimo_garantizado)}
                      </td>

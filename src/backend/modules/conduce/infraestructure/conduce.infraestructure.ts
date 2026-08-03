@@ -88,17 +88,23 @@ export class KyselyConduceRepository implements IConduceRepository {
          .leftJoin("cliente", "cliente.id", "conduce.cliente_id")
          .leftJoin("equipo", "equipo.id", "conduce.equipo_id")
          .leftJoin("operador", "operador.id", "conduce.operador_id")
+         // Tercer nivel: el operador asignado al equipo. Es el mismo camino que
+         // usa la nómina para inferir la persona cuando el conduce no trae
+         // ninguna. Sin este join, la lista mostraba MENOS conduces de los que
+         // la nómina paga y el enlace "N conduces" no cuadraba con la tabla.
+         .leftJoin("operador as eq_op", "eq_op.id", "equipo.operador_id")
          // Puente para mostrar el nombre de la persona que operó el equipo.
-         // El empleado puede venir por DOS caminos (ambas columnas son
-         // nullable y en la práctica son mutuamente excluyentes):
+         // El empleado puede venir por TRES caminos (todas las columnas son
+         // nullable):
          //   - `conduce.empleado_id` directo
          //   - `conduce.operador_id` → `operador.empleado_id`
-         // Se une por COALESCE para no perder el nombre en ninguno de los dos.
+         //   - `equipo.operador_id` → `eq_op.empleado_id`  (inferido)
+         // Se une por COALESCE para no perder el nombre en ninguno de los tres.
          .leftJoin("empleado", (join) =>
             join.onRef(
                "empleado.id",
                "=",
-               sql<string>`coalesce(${sql.ref("conduce.empleado_id")}, ${sql.ref("operador.empleado_id")})` as any
+               sql<string>`coalesce(${sql.ref("conduce.empleado_id")}, ${sql.ref("operador.empleado_id")}, ${sql.ref("eq_op.empleado_id")})` as any
             )
          )
          .leftJoin("categoria_equipo", "categoria_equipo.id", "conduce.categoria_equipo_id")
@@ -115,15 +121,28 @@ export class KyselyConduceRepository implements IConduceRepository {
             .$if(!!filtros.cliente_id, (q: any) => q.where("conduce.cliente_id", "=", filtros.cliente_id))
             .$if(!!filtros.equipo_id, (q: any) => q.where("conduce.equipo_id", "=", filtros.equipo_id))
 
-            // El empleado puede estar en `conduce.empleado_id` (directo) o
-            // detrás de `conduce.operador_id` → `operador.empleado_id`.
-            // Filtrar solo por el segundo dejaba invisibles los conduces que
-            // traen el empleado directo.
+            /*
+               El empleado se resuelve por los MISMOS tres niveles que usa la
+               nómina (ver `listConducesDelPeriodo`):
+                 1. `conduce.empleado_id` directo
+                 2. `conduce.operador_id` → `operador.empleado_id`
+                 3. `equipo.operador_id`  → `eq_op.empleado_id`  (inferido)
+
+               El tercero faltaba, y por eso el enlace "N conduces" de la nómina
+               llevaba a una lista más corta que el número mostrado: la nómina
+               paga los conduces inferidos, la lista no los enseñaba. Los dos
+               conteos tienen que salir de la misma regla o nunca cuadran.
+            */
             .$if(!!filtros.empleado_id, (q: any) =>
                q.where((eb: any) =>
                   eb.or([
                      eb("conduce.empleado_id", "=", filtros.empleado_id),
                      eb("operador.empleado_id", "=", filtros.empleado_id),
+                     eb.and([
+                        eb("conduce.empleado_id", "is", null),
+                        eb("operador.empleado_id", "is", null),
+                        eb("eq_op.empleado_id", "=", filtros.empleado_id),
+                     ]),
                   ])
                )
             )
@@ -172,6 +191,10 @@ export class KyselyConduceRepository implements IConduceRepository {
             .selectFrom("conduce")
             .leftJoin("equipo", "equipo.id", "conduce.equipo_id")
             .leftJoin("operador", "operador.id", "conduce.operador_id")
+            // Mismo join que la query de datos: `aplicarFiltros` referencia
+            // `eq_op` para resolver el empleado inferido, así que el conteo
+            // también lo necesita o la paginación no cuadraría con la lista.
+            .leftJoin("operador as eq_op", "eq_op.id", "equipo.operador_id")
             .select(sql<number>`count(*)`.as("count"))
       );
 

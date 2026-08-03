@@ -21,6 +21,16 @@ export interface PayrollCycle {
 export interface TarifaDesglose {
    categoria_equipo_tarifa_id: string | null;
    categoria_equipo_tarifa_nombre: string;
+   /**
+    * Categoría del equipo (el "tipo de camión") con el que se generó esta
+    * producción. El desglose agrupa por (categoría, tarifa), así que la misma
+    * tarifa usada con dos categorías distintas aparece en dos filas.
+    *
+    * NULL en snapshots viejos: ciclos calculados antes de la migración 015 y
+    * ciclos cerrados, que ya no se recalculan.
+    */
+   categoria_equipo_id: string | null;
+   categoria_equipo_nombre: string | null;
    medida_cobro_nombre: string | null;
    cantidad: number;
    monto_pago: number;

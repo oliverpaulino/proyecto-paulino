@@ -221,10 +221,19 @@ export class NominaService {
             // Sigue contando como "sin tarifa" solo si nadie lo resolvió.
             if (montoPago === 0) conducesSinTarifa++;
 
-            // Clave por tarifa; si el id se perdió y no se pudo recuperar
-            // (nombre ambiguo o categoría borrada) se agrupa por el nombre
-            // snapshoteado.
-            const clave = tarifaId ?? `nombre:${c.categoria_equipo_tarifa_nombre}`;
+            /*
+               Clave por (categoría, tarifa), no solo por tarifa: dos camiones
+               de categorías distintas que cobran la misma tarifa ("Viaje")
+               deben verse como dos filas, porque si no es imposible saber con
+               qué equipo se generó la producción.
+
+               La parte de la tarifa sigue cayendo al nombre snapshoteado
+               cuando el id se perdió y no se pudo recuperar (nombre ambiguo o
+               categoría borrada). La de la categoría cae al id, y a "sin" si
+               el conduce tampoco lo tiene.
+            */
+            const claveTarifa = tarifaId ?? `nombre:${c.categoria_equipo_tarifa_nombre}`;
+            const clave = `${c.categoria_equipo_id ?? "sin"}::${claveTarifa}`;
             const previo = acumulado.get(clave);
 
             if (previo) {
@@ -236,6 +245,8 @@ export class NominaService {
                   // vinculado y la nómina pueda editar su precio.
                   categoria_equipo_tarifa_id: tarifaId,
                   categoria_equipo_tarifa_nombre: c.categoria_equipo_tarifa_nombre,
+                  categoria_equipo_id: c.categoria_equipo_id,
+                  categoria_equipo_nombre: c.categoria_equipo_nombre,
                   medida_cobro_nombre: c.medida_cobro_nombre,
                   // Se marca para que la UI distinga un monto escrito a mano
                   // de uno que sale de la configuración del empleado.

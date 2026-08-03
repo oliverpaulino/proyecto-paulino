@@ -468,6 +468,11 @@ export interface DB {
       cycle_employee_id: string;
       categoria_equipo_tarifa_id: string | null; // best-effort (hard-replace)
       categoria_equipo_tarifa_nombre: string; // snapshot
+      // Categoría del equipo con el que se generó la producción. NULL en las
+      // filas anteriores a la migración 015 y en los ciclos cerrados, que ya
+      // no se recalculan.
+      categoria_equipo_id: string | null;
+      categoria_equipo_nombre: string | null; // snapshot
       medida_cobro_nombre: string | null;
       cantidad: Generated<number>;
       monto_pago: Generated<number>; // precio unitario AL CHOFER

@@ -187,6 +187,10 @@ export class KyselyNominaRepository implements INominaRepository {
          .leftJoin("operador", "operador.id", "conduce.operador_id")
          .leftJoin("equipo", "equipo.id", "conduce.equipo_id")
          .leftJoin("operador as eq_op", "eq_op.id", "equipo.operador_id")
+         // El nombre de la categoría no está snapshoteado en el conduce (solo
+         // el id), así que se resuelve por join. Es leftJoin porque la
+         // categoría pudo borrarse y aun así el conduce debe contarse.
+         .leftJoin("categoria_equipo", "categoria_equipo.id", "conduce.categoria_equipo_id")
          .select([
             "conduce.id as conduce_id",
             "conduce.fecha",
@@ -195,6 +199,8 @@ export class KyselyNominaRepository implements INominaRepository {
             "conduce.total_horas",
             "conduce.categoria_equipo_tarifa_id",
             "conduce.categoria_equipo_tarifa_nombre",
+            "conduce.categoria_equipo_id",
+            "categoria_equipo.nombre as categoria_equipo_nombre",
             "conduce.medida_cobro_nombre",
             empleadoEfectivo.as("empleado_id"),
             // Inferido = no venía persona en el conduce y se dedujo del equipo.
@@ -217,6 +223,8 @@ export class KyselyNominaRepository implements INominaRepository {
          fecha: r.fecha,
          categoria_equipo_tarifa_id: r.categoria_equipo_tarifa_id ?? null,
          categoria_equipo_tarifa_nombre: r.categoria_equipo_tarifa_nombre ?? "(sin tarifa)",
+         categoria_equipo_id: r.categoria_equipo_id ?? null,
+         categoria_equipo_nombre: r.categoria_equipo_nombre ?? null,
          medida_cobro_nombre: r.medida_cobro_nombre ?? null,
          // CAMION cobra por viajes/botes; EQUIPO_PESADO por horas.
          cantidad:
@@ -442,6 +450,8 @@ export class KyselyNominaRepository implements INominaRepository {
                      cycle_employee_id: saved.id,
                      categoria_equipo_tarifa_id: t.categoria_equipo_tarifa_id,
                      categoria_equipo_tarifa_nombre: t.categoria_equipo_tarifa_nombre,
+                     categoria_equipo_id: t.categoria_equipo_id ?? null,
+                     categoria_equipo_nombre: t.categoria_equipo_nombre ?? null,
                      medida_cobro_nombre: t.medida_cobro_nombre,
                      cantidad: t.cantidad,
                      monto_pago: t.monto_pago,
@@ -554,6 +564,8 @@ export class KyselyNominaRepository implements INominaRepository {
          lista.push({
             categoria_equipo_tarifa_id: t.categoria_equipo_tarifa_id ?? null,
             categoria_equipo_tarifa_nombre: t.categoria_equipo_tarifa_nombre,
+            categoria_equipo_id: t.categoria_equipo_id ?? null,
+            categoria_equipo_nombre: t.categoria_equipo_nombre ?? null,
             medida_cobro_nombre: t.medida_cobro_nombre ?? null,
             cantidad: num(t.cantidad),
             monto_pago: num(t.monto_pago),
@@ -651,6 +663,8 @@ export class KyselyNominaRepository implements INominaRepository {
             return {
                categoria_equipo_tarifa_id: t.categoria_equipo_tarifa_id ?? null,
                categoria_equipo_tarifa_nombre: t.categoria_equipo_tarifa_nombre,
+               categoria_equipo_id: t.categoria_equipo_id ?? null,
+               categoria_equipo_nombre: t.categoria_equipo_nombre ?? null,
                medida_cobro_nombre: t.medida_cobro_nombre ?? null,
                cantidad: num(t.cantidad),
                monto_pago: num(t.monto_pago),

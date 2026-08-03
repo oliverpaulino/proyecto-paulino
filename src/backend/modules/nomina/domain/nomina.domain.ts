@@ -73,6 +73,17 @@ export interface UpdateCycleDTO {
 export interface TarifaDesglose {
    categoria_equipo_tarifa_id: string | null;
    categoria_equipo_tarifa_nombre: string;
+   /*
+      Categoría del equipo (el "tipo de camión") con el que se generó esta
+      producción. El desglose agrupa por (categoría, tarifa): una misma tarifa
+      usada con dos categorías distintas produce DOS filas, porque de otro modo
+      no se sabría con qué equipo se ganó el dinero.
+
+      NULL solo en snapshots viejos: filas escritas antes de la migración 015 y
+      ciclos cerrados que ya no se recalculan.
+   */
+   categoria_equipo_id: string | null;
+   categoria_equipo_nombre: string | null;
    medida_cobro_nombre: string | null;
    cantidad: number;
    monto_pago: number; // precio unitario AL CHOFER
@@ -253,6 +264,9 @@ export interface ConduceParaNomina {
    fecha: Date;
    categoria_equipo_tarifa_id: string | null;
    categoria_equipo_tarifa_nombre: string;
+   /** Categoría del equipo, snapshoteada en el conduce vía `equipo.categoria_id`. */
+   categoria_equipo_id: string | null;
+   categoria_equipo_nombre: string | null;
    medida_cobro_nombre: string | null;
    /** Viajes/botes para CAMION, horas para EQUIPO_PESADO. */
    cantidad: number;
