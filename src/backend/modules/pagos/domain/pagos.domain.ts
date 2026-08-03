@@ -14,10 +14,6 @@ export interface PagoProps {
    // join
    gasto_codigo_referencia: string | null;
 
-   costo_cliente_id: string | null;
-   // join
-   costo_codigo_referencia: string | null;
-
    deduccion_empleado_id: string | null;
    // join
    deduccion_codigo_referencia: string | null;
@@ -57,8 +53,6 @@ export class Pago {
    get tipo_movimiento() { return this.props.tipo_movimiento; }
    get gasto_empresa_id() { return this.props.gasto_empresa_id; }
    get gasto_codigo_referencia() { return this.props.gasto_codigo_referencia; }
-   get costo_cliente_id() { return this.props.costo_cliente_id; }
-   get costo_codigo_referencia() { return this.props.costo_codigo_referencia; }
    get deduccion_empleado_id() { return this.props.deduccion_empleado_id; }
    get deduccion_codigo_referencia() { return this.props.deduccion_codigo_referencia; }
    get proyecto_id() { return this.props.proyecto_id; }
@@ -84,7 +78,6 @@ export interface CreatePagoDTO {
    tipo_movimiento: TipoMovimiento | string;
    fecha: Date;
    gasto_empresa_id?: string | null;
-   costo_cliente_id?: string | null;
    deduccion_empleado_id?: string | null;
    proyecto_id?: string | null;
    orden_compra_id?: string | null;
@@ -110,7 +103,6 @@ export interface IPagoRepository {
                      start?: Date; 
                      end?: Date; 
                      gasto_empresa_id?: string | null;
-                     costo_cliente_id?: string | null;
                      deduccion_empleado_id?: string | null;
                      proyecto_id?: string | null;
                      orden_compra_id?: string | null; }): Promise<Pago[]>;
@@ -121,7 +113,6 @@ export interface IPagoRepository {
                      start?: Date; 
                      end?: Date; 
                      gasto_empresa_id?: string | null;
-                     costo_cliente_id?: string | null;
                      deduccion_empleado_id?: string | null;
                      proyecto_id?: string | null;
                      orden_compra_id?: string | null; }): Promise<Pago[]>;

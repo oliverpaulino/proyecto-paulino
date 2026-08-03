@@ -213,35 +213,6 @@ export interface DB {
       updated_at: Generated<Date>;
    };
 
-   item: {
-      id: Generated<string>;
-      nombre: string;
-      tipo_id: string;
-      descripcion: string | null;
-      unidad: string | null;
-      stock: Generated<number>;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
-
-   tipo_item: {
-      id: Generated<string>;
-      nombre: string;
-      descripcion: string | null;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
-
-   servicio: {
-      id: Generated<string>;
-      nombre: string;
-      tipo: string;
-      descripcion: string | null;
-      precio_base: number;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
-
    medida_cobro: {
       id: Generated<string>;
       nombre: string; // "Viaje", "Bote", "Hora", etc.
@@ -377,37 +348,6 @@ export interface DB {
       created_at: Generated<Date>;
    };
 
-   payroll_concepts: {
-      id: Generated<string>;
-      organization_id: string | null;
-      code: string;
-      name: string;
-      category: string;
-      sign: number;
-      is_taxable: boolean;
-      is_active: boolean;
-      accounting_rule_id: string | null;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
-
-   payroll_concept_rules: {
-      id: Generated<string>;
-      concept_id: string;
-      applies_to: string;
-      target_id: string | null;
-      trigger: string;
-      amount_mode: string;
-      amount_value: number;
-      effective_from: Date;
-      effective_to: Date | null;
-      priority: number;
-      project_location_filter: string | null;
-      is_active: boolean;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
-
    // ── Nómina: ciclo (período que se paga) ──────────────────────────────────
    // Ver migración 007_payroll_cycles.sql. `payroll_items.cycle_id` ya
    // apuntaba aquí desde el código antes de que la tabla existiera.
@@ -496,35 +436,6 @@ export interface DB {
       monto_pago: Generated<number>;
       nota: string | null;
       created_by: string | null;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
-
-   payroll_items: {
-      id: Generated<string>;
-      organization_id: string | null;
-      cycle_id: string | null;
-      employee_id: string;
-      concept_id: string;
-      source: string;
-      source_ref_id: string | null;
-      quantity: number;
-      unit_value: number;
-      amount: number;
-      work_date: Date | null;
-      work_date_end: Date | null;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
-
-   tarea: {
-      id: Generated<string>;
-      proyecto_id: string | null;
-      nombre: string;
-      descripcion: string | null;
-      estado: Generated<string>;
-      fecha_inicio: Date | null;
-      fecha_fin: Date | null;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
@@ -700,22 +611,6 @@ export interface DB {
       deleted_reason: string | null;
    };
 
-   costo: {
-      id: Generated<string>;
-      proyecto_id: string,
-      monto_total: number,
-      concepto: string,
-      ncf: string | null;
-      orden_compra_id: string | null;
-      referencia: Generated<number>;
-      fecha: Date;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-      deleted_by: string | null;
-      deleted_at: Date | null;
-      deleted_reason: string | null;
-   };
-
    deduccion: {
       id: Generated<string>;
       empleado_id: string;
@@ -741,7 +636,6 @@ export interface DB {
       concepto: string;
       tipo_movimiento: string;
       gasto_empresa_id: string | null;
-      costo_cliente_id: string | null;
       deduccion_empleado_id: string | null;
       proyecto_id: string | null;
       orden_compra_id: string | null;
