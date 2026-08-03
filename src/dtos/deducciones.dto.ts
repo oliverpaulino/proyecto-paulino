@@ -6,6 +6,8 @@ export const DeduccionDTO = z.object({
    codigoReferencia: z.string(),
    monto_total: z.number(),
    balance_pendiente: z.number().nullable(),
+   cuotas_sugeridas: z.number(),
+   monto_sugerido: z.number(),
    concepto: z.string(),
 
    empleado_id: z.uuid(),
@@ -35,6 +37,7 @@ export const CreateDeduccionSchema = z.object({
    gasto_id: z.uuid().optional().nullable(),
    monto_total: z.coerce.number().min(0.01, "El monto debe ser mayor a 0"),
    balance_pendiente: z.coerce.number().optional().nullable(),
+   cuotas_sugeridas: z.coerce.number().int().min(1, "Las cuotas sugeridas deben ser mayores a 0").optional(),
    concepto: z.string().min(1, "El concepto es requerido"),
    fecha: z.coerce.date(),
 });

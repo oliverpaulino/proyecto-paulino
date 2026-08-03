@@ -725,6 +725,7 @@ export class KyselyNominaRepository implements INominaRepository {
             monto_total: data.monto_total,
             // Nace saldada contra esta nómina: se cobra completa en el ciclo.
             balance_pendiente: 0,
+            cuotas_sugeridas: 1,
             concepto: data.concepto,
             fecha: aFechaISO(data.fecha) as any,
          })

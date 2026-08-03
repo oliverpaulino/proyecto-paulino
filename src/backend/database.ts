@@ -619,6 +619,7 @@ export interface DB {
       monto_total: number;
       concepto: string;
       balance_pendiente: number | null;
+      cuotas_sugeridas: number;
       referencia: Generated<number>;
       fecha: Date;
       created_at: Generated<Date>;
