@@ -117,7 +117,7 @@ export default function PagosEliminadosPage() {
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                      {filtered.map((pago) => {
-                        const destinoNombre = pago.gasto_codigo_referencia || pago.costo_codigo_referencia || pago.deduccion_codigo_referencia || "N/A";
+                        const destinoNombre = pago.gasto_codigo_referencia || pago.deduccion_codigo_referencia || "N/A";
                         return (
                         <tr key={pago.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
                            <td className="px-4 py-3">

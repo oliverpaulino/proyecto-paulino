@@ -89,10 +89,6 @@ export function PagoDetail({ pago, onRefresh }: { pago: Pago; onRefresh: () => v
       value: pago.gasto_codigo_referencia,
    },
    {
-      label: "Costo de Cliente",
-      value: pago.costo_codigo_referencia,
-   },
-   {
       label: "Deducción de Empleado",
       value: pago.deduccion_codigo_referencia,
    },

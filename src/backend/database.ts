@@ -652,7 +652,6 @@ export interface DB {
       concepto: string;
       tipo_movimiento: string;
       gasto_empresa_id: string | null;
-      costo_cliente_id: string | null;
       deduccion_empleado_id: string | null;
       proyecto_id: string | null;
       orden_compra_id: string | null;

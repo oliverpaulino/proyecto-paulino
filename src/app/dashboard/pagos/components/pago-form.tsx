@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectBuscadorGasto } from "@/components/shared/SelectBuscadorGasto";
-import { SelectBuscadorCosto } from "@/components/shared/SelectBuscadorCosto";
 import { SelectBuscadorDeduccion } from "@/components/shared/SelectBuscadorDeduccion";
 import { SelectBuscadorProyecto } from "@/components/shared/selectBuscadorProyecto";
 import { SelectBuscadorOrdenCompra } from "@/components/shared/selectBuscadorOrdenCompra";
@@ -43,7 +42,6 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
    // Determinar estado inicial del tipo de destino basado en la data inicial
    const getInitialDestino = () => {
       if (initialData?.gasto_empresa_id || predefinedValues?.gasto_empresa_id) return 'GASTO';
-      if (initialData?.costo_cliente_id || predefinedValues?.costo_cliente_id) return 'COSTO';
       if (initialData?.deduccion_empleado_id || predefinedValues?.deduccion_empleado_id) return 'DEDUCCION';
       if (initialData?.proyecto_id || predefinedValues?.proyecto_id) return 'PROYECTO';
       if (initialData?.orden_compra_id || predefinedValues?.orden_compra_id) return 'ORDEN_COMPRA';
@@ -62,7 +60,6 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
          : (predefinedValues?.fecha ? new Date(predefinedValues.fecha) : new Date()),
       
       gasto_empresa_id: initialData?.gasto_empresa_id ?? predefinedValues?.gasto_empresa_id ?? null,
-      costo_cliente_id: initialData?.costo_cliente_id ?? predefinedValues?.costo_cliente_id ?? null,
       deduccion_empleado_id: initialData?.deduccion_empleado_id ?? predefinedValues?.deduccion_empleado_id ?? null,
       proyecto_id: initialData?.proyecto_id ?? predefinedValues?.proyecto_id ?? null,
       orden_compra_id: initialData?.orden_compra_id ?? predefinedValues?.orden_compra_id ?? null,
@@ -81,7 +78,6 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
       setValues((prev) => ({
          ...prev,
          gasto_empresa_id: null,
-         costo_cliente_id: null,
          deduccion_empleado_id: null,
          proyecto_id: null,
          orden_compra_id: null,
@@ -116,9 +112,9 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
 
       if (Number(values.monto_pagado) <= 0) return setError("El monto debe ser mayor a 0.");
       
-      const count = [values.gasto_empresa_id, values.costo_cliente_id, values.deduccion_empleado_id, values.proyecto_id, values.orden_compra_id].filter(Boolean).length;
+      const count = [values.gasto_empresa_id, values.deduccion_empleado_id, values.proyecto_id, values.orden_compra_id].filter(Boolean).length;
       if (count !== 1) {
-         return setError("Debe proveer exactamente una referencia de destino válida (Gasto, Costo, Deducción, Proyecto u Orden de Compra).");
+         return setError("Debe proveer exactamente una referencia de destino válida (Gasto, Deducción, Proyecto u Orden de Compra).");
       }
 
       try {
@@ -129,7 +125,6 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
             concepto: values.concepto,
             fecha: values.fecha,
             gasto_empresa_id: values.gasto_empresa_id,
-            costo_cliente_id: values.costo_cliente_id,
             deduccion_empleado_id: values.deduccion_empleado_id,
             proyecto_id: values.proyecto_id,
             orden_compra_id: values.orden_compra_id,
@@ -203,7 +198,6 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
                     >
                         <option value="" disabled>Seleccione el tipo...</option>
                         <option value="GASTO">Gasto</option>
-                        <option value="COSTO">Costo</option>
                         <option value="DEDUCCION">Deducción</option>
                         <option value="PROYECTO">Proyecto</option>
                         <option value="ORDEN_COMPRA">Orden de Compra</option>
@@ -223,14 +217,6 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
                            initialLabel={initialData?.gasto_codigo_referencia ?? ""} 
                            onChange={(id) => set("gasto_empresa_id", id)} 
                            disabled={isDisabled("gasto_empresa_id")} 
-                        />
-                    )}
-                    {destinoTipo === 'COSTO' && (
-                        <SelectBuscadorCosto 
-                           value={values.costo_cliente_id}
-                           initialLabel={initialData?.costo_codigo_referencia ?? ""} 
-                           onChange={(id) => set("costo_cliente_id", id)} 
-                           disabled={isDisabled("costo_cliente_id")} 
                         />
                     )}
                     {destinoTipo === 'DEDUCCION' && (
