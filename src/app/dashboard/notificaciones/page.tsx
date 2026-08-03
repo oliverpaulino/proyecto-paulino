@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { Bell, CheckCheck, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useNotificationStore, type Notification } from "@/stores/useNotificationStore";
 import { cn } from "@/lib/utils";
 import { PermissionGuard } from "@/components/permission-guard";
 import { useNotificationStore } from "@/stores/useNotificationStore";
