@@ -1,5 +1,6 @@
 import {
    CreateGastoDTO,
+   CreateGastoDeduccionDTO,
    DeleteGastoDTO,
    GastoProps,
    IGastoRepository,
@@ -31,7 +32,13 @@ export class GastoService {
 
    async create(data: CreateGastoDTO): Promise<GastoProps> {
       if (data.monto_total <= 0) throw new Error("El monto debe ser mayor a 0");
-      
+
+      if (data.deduccion) {
+         this.validateDeduccion(data.deduccion);
+         const item = await this.repo.createWithDeduccion(data);
+         return item.toJSON();
+      }
+
       const item = await this.repo.create(data);
       return item.toJSON();
    }
@@ -43,6 +50,15 @@ export class GastoService {
       
       const item = await this.repo.update(id, data);
       return item ? item.toJSON() : null;
+   }
+
+   private validateDeduccion(deduccion: CreateGastoDeduccionDTO): void {
+      if (deduccion.monto_total <= 0) {
+         throw new Error("El monto de la deducción debe ser mayor a 0");
+      }
+      if (deduccion.cuotas_sugeridas !== undefined && deduccion.cuotas_sugeridas <= 0) {
+         throw new Error("La cantidad de cuotas sugeridas debe ser mayor a 0");
+      }
    }
 
    async delete(id: string, data: DeleteGastoDTO): Promise<boolean> {

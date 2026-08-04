@@ -76,9 +76,20 @@ export interface CreateGastoDTO {
    orden_compra_id?: string | null;
    proyecto_id?: string | null;
    equipo_id?: string | null;
+   deduccion?: CreateGastoDeduccionDTO;
 }
 
-export type UpdateGastoDTO = Partial<CreateGastoDTO>;
+export interface CreateGastoDeduccionDTO {
+   empleado_id: string;
+   equipo_id?: string | null;
+   monto_total: number;
+   balance_pendiente?: number | null;
+   cuotas_sugeridas?: number;
+   concepto: string;
+   fecha: Date;
+}
+
+export type UpdateGastoDTO = Omit<Partial<CreateGastoDTO>, "deduccion">;
 
 export interface DeleteGastoDTO {
    deleted_by?: string;
@@ -112,6 +123,7 @@ export interface IGastoRepository {
    findById(id: string): Promise<Gasto | null>;
    findDeletedById(id: string): Promise<Gasto | null>;
    create(data: CreateGastoDTO): Promise<Gasto>;
+   createWithDeduccion(data: CreateGastoDTO): Promise<Gasto>;
    update(id: string, data: UpdateGastoDTO): Promise<Gasto | null>;
    delete(id: string, data: DeleteGastoDTO): Promise<boolean>;
    restore(id: string): Promise<Gasto | null>;

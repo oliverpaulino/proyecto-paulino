@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SelectBuscadorCategoriaGasto } from "@/components/shared/selectBuscadorCategoriaGasto";
 import { SelectBuscadorProyecto } from "@/components/shared/selectBuscadorProyecto";
 import { SelectBuscadorOrdenCompra } from "@/components/shared/selectBuscadorOrdenCompra";
 import { SelectBuscadorEquipo } from "@/components/shared/selectBuscadorEquipo";
+import { SelectBuscadorEmployee } from "@/components/shared/selectBuscadorEmployee";
 import { CategoriaGastoForm } from "../../categorias-gastos/components/categoria-gasto-form";
 import { useCategoriaGastoStore } from "@/stores/useCategoriaGastoStore";
 import type { CreateGastoForm } from "@/dtos/gastos.dto";
@@ -44,10 +46,27 @@ export function GastoForm({ initialData, predefinedValues, onSubmit, onCancel, l
       equipo_id: initialData?.equipo_id ?? predefinedValues?.equipo_id ?? null,
    });
 
+   const [asociarEmpleado, setAsociarEmpleado] = useState(false);
+   const [deduccion, setDeduccion] = useState({
+      empleado_id: null as string | null,
+      monto_total: "",
+      balance_pendiente: "",
+      cuotas_sugeridas: 1,
+      concepto: "",
+      fecha: new Date(),
+   });
+   // Campos de la deducción que el usuario ya modificó a mano (dejan de sincronizarse)
+   const [deduccionTouched, setDeduccionTouched] = useState<Set<string>>(() => new Set());
+
    const [error, setError] = useState<string | null>(null);
 
    function set<K extends keyof typeof values>(field: K, value: typeof values[K]) {
       setValues((prev) => ({ ...prev, [field]: value }));
+   }
+
+   function setDeduccionField<K extends keyof typeof deduccion>(field: K, value: typeof deduccion[K]) {
+      setDeduccionTouched((prev) => new Set(prev).add(field as string));
+      setDeduccion((prev) => ({ ...prev, [field]: value }));
    }
 
    const isDisabled = (field: keyof CreateGastoForm) => {
@@ -74,6 +93,51 @@ export function GastoForm({ initialData, predefinedValues, onSubmit, onCancel, l
       }
    };
 
+   const handleDeduccionDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const val = e.target.value;
+      if (!val) return;
+      const [year, month, day] = val.split("-").map(Number);
+      if (year && month && day) {
+         setDeduccionField("fecha", new Date(year, month - 1, day));
+      }
+   };
+
+   // Al activar la asociación, precarga la deducción con los datos del gasto
+   const handleAsociarToggle = (checked: boolean) => {
+      setAsociarEmpleado(checked);
+      if (checked) {
+         setDeduccionTouched(new Set());
+         setDeduccion({
+            empleado_id: null,
+            monto_total: values.monto_total,
+            balance_pendiente: values.monto_total,
+            cuotas_sugeridas: 1,
+            concepto: values.concepto,
+            fecha: values.fecha,
+         });
+      }
+   };
+
+   // Mantiene sincronizada la deducción con el gasto mientras el usuario no
+   // haya modificado manualmente el campo en cuestión. El equipo siempre es el
+   // del gasto, no es editable.
+   useEffect(() => {
+      if (!asociarEmpleado) return;
+
+      setDeduccion((prev) => ({
+         ...prev,
+         monto_total: deduccionTouched.has("monto_total") ? prev.monto_total : values.monto_total,
+         balance_pendiente: deduccionTouched.has("balance_pendiente") ? prev.balance_pendiente : values.monto_total,
+         concepto: deduccionTouched.has("concepto") ? prev.concepto : values.concepto,
+         fecha: deduccionTouched.has("fecha") ? prev.fecha : values.fecha,
+      }));
+   }, [asociarEmpleado, values.monto_total, values.concepto, values.fecha, deduccionTouched]);
+
+   const montoSugeridoDeduccion =
+      Number(deduccion.monto_total) > 0 && Number(deduccion.cuotas_sugeridas) > 0
+         ? Number(deduccion.monto_total) / Number(deduccion.cuotas_sugeridas)
+         : null;
+
    async function handleSubmit(e: React.FormEvent) {
       e.preventDefault();
       setError(null);
@@ -81,8 +145,15 @@ export function GastoForm({ initialData, predefinedValues, onSubmit, onCancel, l
       if (!values.categoria_gasto_id) return setError("Debe seleccionar una categoría de gasto.");
       if (Number(values.monto_total) <= 0) return setError("El monto debe ser mayor a 0.");
 
+      if (asociarEmpleado && !deduccion.empleado_id) {
+         return setError("Debe seleccionar un empleado para la deducción.");
+      }
+      if (asociarEmpleado && Number(deduccion.monto_total) <= 0) {
+         return setError("El monto de la deducción debe ser mayor a 0.");
+      }
+
       try {
-         await onSubmit({
+         const payload: any = {
             monto_total: Number(values.monto_total),
             concepto: values.concepto,
             ncf: values.ncf,
@@ -91,7 +162,21 @@ export function GastoForm({ initialData, predefinedValues, onSubmit, onCancel, l
             orden_compra_id: values.orden_compra_id,
             proyecto_id: values.proyecto_id,
             equipo_id: values.equipo_id,
-         });
+         };
+
+         if (asociarEmpleado && deduccion.empleado_id) {
+            payload.deduccion = {
+               empleado_id: deduccion.empleado_id,
+               equipo_id: values.equipo_id,
+               monto_total: Number(deduccion.monto_total),
+               balance_pendiente: deduccion.balance_pendiente ? Number(deduccion.balance_pendiente) : null,
+               cuotas_sugeridas: Number(deduccion.cuotas_sugeridas),
+               concepto: deduccion.concepto,
+               fecha: deduccion.fecha,
+            };
+         }
+
+         await onSubmit(payload);
       } catch (err: any) {
          setError(err.message || "Error al procesar el formulario");
       }
@@ -162,7 +247,7 @@ export function GastoForm({ initialData, predefinedValues, onSubmit, onCancel, l
                 </div>
 
 
-                <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5">
                     <Label>Equipo Asociado</Label>
                     <SelectBuscadorEquipo 
                         value={values.equipo_id} 
@@ -173,6 +258,7 @@ export function GastoForm({ initialData, predefinedValues, onSubmit, onCancel, l
                 </div>  
             </div>
 
+
             <div className="flex flex-col gap-1.5">
             <Label>Concepto del Gasto *</Label>
             <textarea 
@@ -182,8 +268,127 @@ export function GastoForm({ initialData, predefinedValues, onSubmit, onCancel, l
                disabled={isDisabled("concepto")} 
                className={TEXTAREA_CLASS} 
                placeholder="Ej: Compra de material de oficina" 
-            />
+               />
             </div>
+               {/* ── Deducción / Asociar a Empleado ── */}
+               {!initialData && (
+               <div className="rounded-md border border-border bg-muted/20 p-4 flex flex-col gap-3">
+                  <div className="flex items-start gap-3">
+                     <Checkbox
+                        id="asociar-empleado"
+                        checked={asociarEmpleado}
+                        onCheckedChange={handleAsociarToggle}
+                        disabled={loading}
+                        className="mt-0.5"
+                     />
+                     <div className="flex flex-col gap-0.5">
+                        <Label htmlFor="asociar-empleado" className="font-semibold">
+                           Asociar a Empleado (Deducción)
+                        </Label>
+                        <p className="text-sm text-muted-foreground">
+                           {asociarEmpleado
+                              ? "Este gasto también se le asignará a un empleado y deberá cubrirlo."
+                              : "Este gasto no está asociado a ningún empleado."}
+                        </p>
+                     </div>
+                  </div>
+   
+                  {asociarEmpleado && (
+                     <div className="flex flex-col gap-4 border-t border-border pt-4">
+                        <div className="flex flex-col gap-1.5">
+                           <Label>Empleado Asociado *</Label>
+                           <SelectBuscadorEmployee
+                              value={deduccion.empleado_id}
+                              initialLabel=""
+                              onChange={(id) => setDeduccionField("empleado_id", id)}
+                              disabled={loading}
+                           />
+                        </div>
+   
+                        {deduccion.empleado_id && (
+                           <>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                 <div className="flex flex-col gap-1.5">
+                                    <Label>Monto de la Deducción ($) *</Label>
+                                    <Input
+                                       type="number"
+                                       step="0.01"
+                                       min="0.01"
+                                       value={deduccion.monto_total}
+                                       onChange={(e) => setDeduccionField("monto_total", e.target.value)}
+                                       required
+                                       disabled={loading}
+                                       className={INPUT_CLASS}
+                                    />
+                                 </div>
+                                 <div className="flex flex-col gap-1.5">
+                                    <Label>Balance Pendiente ($)</Label>
+                                    <Input
+                                       type="number"
+                                       step="0.01"
+                                       value={deduccion.balance_pendiente}
+                                       onChange={(e) => setDeduccionField("balance_pendiente", e.target.value)}
+                                       disabled={loading}
+                                       className={INPUT_CLASS}
+                                       placeholder="Dejar vacío si no aplica"
+                                    />
+                                 </div>
+                              </div>
+   
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                 <div className="flex flex-col gap-1.5">
+                                    <Label>Cuotas Sugeridas *</Label>
+                                    <Input
+                                       type="number"
+                                       min="1"
+                                       step="1"
+                                       value={deduccion.cuotas_sugeridas}
+                                       onChange={(e) => setDeduccionField("cuotas_sugeridas", Number(e.target.value))}
+                                       required
+                                       disabled={loading}
+                                       className={INPUT_CLASS}
+                                    />
+                                    <p className="text-xs text-muted-foreground">Cantidad de cuotas en las que se pagará la deducción.</p>
+                                 </div>
+                                 <div className="flex flex-col gap-1.5">
+                                    <Label>Monto Sugerido por Cuota ($)</Label>
+                                    <div className="h-9 w-full rounded-md border border-border bg-muted/40 px-3 py-1 text-sm font-semibold flex items-center text-brand-blue">
+                                       {montoSugeridoDeduccion != null ? `$${montoSugeridoDeduccion.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : "-"}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">Monto total ÷ cuotas sugeridas.</p>
+                                 </div>
+                              </div>
+   
+                              <div className="flex flex-col gap-1.5">
+                                 <Label>Fecha de Aplicación *</Label>
+                                 <Input
+                                    type="date"
+                                    value={formatDateForInput(deduccion.fecha)}
+                                    onChange={handleDeduccionDateChange}
+                                    required
+                                    disabled={loading}
+                                    className={INPUT_CLASS}
+                                 />
+                                 <p className="text-xs text-muted-foreground">El equipo será el mismo que el del gasto.</p>
+                              </div>
+   
+                              <div className="flex flex-col gap-1.5">
+                                 <Label>Concepto de la Deducción *</Label>
+                                 <textarea
+                                    value={deduccion.concepto}
+                                    onChange={(e) => setDeduccionField("concepto", e.target.value)}
+                                    required
+                                    disabled={loading}
+                                    className={TEXTAREA_CLASS}
+                                    placeholder="Ej: Descuento por daños en maquinaria..."
+                                 />
+                              </div>
+                           </>
+                        )}
+                     </div>
+                  )}
+               </div>
+               )}
 
          {error && <div className="text-sm font-medium text-destructive bg-destructive/10 p-2.5 rounded-md">{error}</div>}
 
