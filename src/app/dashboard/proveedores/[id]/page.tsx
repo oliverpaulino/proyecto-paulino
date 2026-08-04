@@ -46,7 +46,7 @@ import type { EstadoOrdenCompra } from "@/dtos/purchase-order.dto";
 import { useCuentasPorPagarStore } from "@/stores/useCuentasPorPagarStore";
 import { useSubcontratacionStore } from "@/stores/useSubcontratacionStore";
 import { EstadoPago } from "@/dtos/subcontratacion.dto";
-import { MetodoPago, type Pago } from "@/dtos/pagos.dto";
+import { MetodoPago, type CreatePagoForm, type Pago } from "@/dtos/pagos.dto";
 import { SelectBuscadorDeudasProveedor } from "@/components/shared/selectBuscadorDeudasProveedor";
 import { usePagoStore } from "@/stores/usePagoStore";
 
@@ -113,6 +113,7 @@ export default function SupplierDetailPage() {
    const [ocDesde, setOcDesde] = useState("");
    const [ocHasta, setOcHasta] = useState("");
    const [ocEstado, setOcEstado] = useState<EstadoOrdenCompra | "">("");
+   const [ocSoloDeuda, setOcSoloDeuda] = useState(false);
    const [ocSel, setOcSel] = useState<Set<string>>(new Set());
    const [subSel, setSubSel] = useState<Set<string>>(new Set());
    const [pagoBusqueda, setPagoBusqueda] = useState("");
@@ -137,8 +138,8 @@ export default function SupplierDetailPage() {
          try {
             const data = await GetSupplierById(supplierId);
             await GetOrdenesCompraBySupplier(supplierId, { force: true, limit: 1000 });
-            await GetCuentas({ proveedor_id: supplierId, incluir_pagadas: true });
-            await GetSubcontrataciones({ proveedor_id: supplierId, incluir_pagadas: true });
+            await GetCuentas({ proveedor_id: supplierId, incluir_pagadas: true, pageSize: 1000 });
+            await GetSubcontrataciones({ proveedor_id: supplierId, incluir_pagadas: true, pageSize: 1000 });
             await GetPagos({ proveedor_id: supplierId, limit: 1000, force: true });
 
             setSupplier(data);
@@ -156,15 +157,13 @@ export default function SupplierDetailPage() {
    }, [supplierId]);
 
    async function refreshSupplier() {
-      const res = await fetch(`/api/suppliers/${supplierId}`);
-      if (!res.ok) return;
-      const data: Supplier = await res.json();
-      setSupplier(data);
+      const data = await GetSupplierById(supplierId);
+      if (data) setSupplier(data);
    }
 
    async function refreshDeuda() {
-      await GetCuentas({ proveedor_id: supplierId, incluir_pagadas: true });
-      await GetSubcontrataciones({ proveedor_id: supplierId, incluir_pagadas: true });
+      await GetCuentas({ proveedor_id: supplierId, incluir_pagadas: true, pageSize: 1000 });
+      await GetSubcontrataciones({ proveedor_id: supplierId, incluir_pagadas: true, pageSize: 1000 });
       await GetOrdenesCompraBySupplier(supplierId, { force: true, limit: 1000 });
       await GetPagos({ proveedor_id: supplierId, limit: 1000, force: true });
    }
@@ -214,7 +213,9 @@ export default function SupplierDetailPage() {
    const ocActivas = (ordenes.data ?? []).filter((o) =>
       ["PENDIENTE", "APROBADA", "RECIBIDA"].includes(o.estado),
    );
-   const deudaOC = ocActivas.reduce((acc, o) => acc + (o.pendiente ?? 0), 0);
+   const deudaOC = (ordenes.data ?? [])
+      .filter((o) => OC_PAGABLES.includes(o.estado))
+      .reduce((acc, o) => acc + (o.pendiente ?? 0), 0);
 
    const subActivas = subcontrataciones.filter(
       (s) => s.estado_trabajo === "PENDIENTE" || s.estado_trabajo === "EN_PROGRESO",
@@ -239,6 +240,7 @@ export default function SupplierDetailPage() {
          const texto = `${o.codigoReferencia} ${o.notas ?? ""} ${o.proveedor_nombre ?? ""}`.toLowerCase();
          if (!texto.includes(b)) return false;
       }
+      if (ocSoloDeuda && !(OC_PAGABLES.includes(o.estado) && (o.pendiente ?? 0) > 0)) return false;
       if (ocEstado && o.estado !== ocEstado) return false;
       if (ocDesde) {
          const d = new Date(`${String(o.fecha).slice(0, 10)}T12:00:00`);
@@ -254,8 +256,8 @@ export default function SupplierDetailPage() {
    const ordenesPendientes = ocFiltradas.filter(o => o.estado === "PENDIENTE");
 
    const totalDeuda = ocFiltradas
-      .filter(o => ["PENDIENTE", "APROBADA", "RECIBIDA"].includes(o.estado))
-      .reduce((acc, o) => acc + o.total, 0);
+      .filter(o => OC_PAGABLES.includes(o.estado))
+      .reduce((acc, o) => acc + (o.pendiente ?? 0), 0);
 
    const totalPagado = ocFiltradas.reduce((acc, o) => acc + (o.pagado ?? 0), 0);
 
@@ -619,21 +621,29 @@ export default function SupplierDetailPage() {
                                  ))}
                               </select>
                            </div>
-                           {(ocBusqueda || ocDesde || ocHasta || ocEstado) && (
-                              <Button
-                                 variant="outline"
-                                 size="sm"
-                                 onClick={() => {
-                                    setOcBusqueda("");
-                                    setOcDesde("");
-                                    setOcHasta("");
-                                    setOcEstado("");
-                                 }}
-                              >
-                                 Limpiar
-                              </Button>
-                           )}
-                        </div>
+                           <label className="flex h-10 cursor-pointer items-center gap-2 text-sm font-medium">
+                              <Checkbox
+                                 checked={ocSoloDeuda}
+                                 onCheckedChange={(v) => setOcSoloDeuda(!!v)}
+                              />
+                              Solo pendientes por pagar
+                           </label>
+                        {(ocBusqueda || ocDesde || ocHasta || ocEstado || ocSoloDeuda) && (
+                           <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                 setOcBusqueda("");
+                                 setOcDesde("");
+                                 setOcHasta("");
+                                 setOcEstado("");
+                                 setOcSoloDeuda(false);
+                              }}
+                           >
+                              Limpiar
+                           </Button>
+                        )}
+                     </div>
 
                         {ocSel.size > 0 && (
                            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-brand-blue/30 bg-brand-blue/5 px-4 py-2.5">
@@ -1237,6 +1247,8 @@ function PagarDialog({
    const [loading, setLoading] = useState(false);
    const [error, setError] = useState<string | null>(null);
 
+   const { CreatePago } = usePagoStore();
+
    const key = (i: PagarItem) => `${i.kind}:${i.id}`;
 
    useEffect(() => {
@@ -1300,25 +1312,20 @@ function PagarDialog({
       try {
          for (const i of aPagar) {
             const m = Number(montos[key(i)]);
-            const payload = {
-               metodo_pago: metodo,
+            const payload: CreatePagoForm = {
+               metodo_pago: metodo as CreatePagoForm["metodo_pago"],
                monto_pagado: m,
                concepto: `Pago a ${i.codigoReferencia} — ${i.concepto}`,
                tipo_movimiento: "SALIDA",
-               fecha: fechaPago,
+               fecha: new Date(fechaPago),
                ...(i.kind === "OC"
                   ? { orden_compra_id: i.id }
                   : i.kind === "GASTO"
                      ? { gasto_empresa_id: i.id }
                      : { costo_cliente_id: i.id }),
             };
-            const res = await fetch("/api/pagos", {
-               method: "POST",
-               headers: { "Content-Type": "application/json" },
-               body: JSON.stringify(payload),
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data?.error ?? `Error al registrar el pago de ${i.codigoReferencia}`);
+            const result = await CreatePago(payload);
+            if (result instanceof Error) throw result;
          }
          onOpenChange(false);
          await onDone();
