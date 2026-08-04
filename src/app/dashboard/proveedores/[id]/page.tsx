@@ -32,6 +32,7 @@ import {
    PackageSearch,
    Pencil,
    Receipt,
+   Search,
    ShoppingCart,
    Trash2,
    Truck,
@@ -45,7 +46,9 @@ import type { EstadoOrdenCompra } from "@/dtos/purchase-order.dto";
 import { useCuentasPorPagarStore } from "@/stores/useCuentasPorPagarStore";
 import { useSubcontratacionStore } from "@/stores/useSubcontratacionStore";
 import { EstadoPago } from "@/dtos/subcontratacion.dto";
+import { MetodoPago, type Pago } from "@/dtos/pagos.dto";
 import { SelectBuscadorDeudasProveedor } from "@/components/shared/selectBuscadorDeudasProveedor";
+import { usePagoStore } from "@/stores/usePagoStore";
 
 const TIPO_LABEL: Record<string, string> = {
    SUPLIDOR: "SUPLIDOR",
@@ -62,7 +65,15 @@ const TIPO_BADGE: Record<string, string> = {
 const money = (n: number) =>
    `RD$ ${n.toLocaleString("es-DO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const OC_PAGABLES = ["PENDIENTE", "APROBADA", "RECIBIDA"];
+const OC_PAGABLES = ["APROBADA", "RECIBIDA"];
+
+const ORIGEN_BADGE: Record<string, string> = {
+   OC: "bg-purple-100 text-purple-800",
+   Gasto: "bg-sky-100 text-sky-800",
+   Costo: "bg-amber-100 text-amber-800",
+   "Ded.": "bg-gray-100 text-gray-700",
+   "Proy.": "bg-indigo-100 text-indigo-800",
+};
 
 type PagarItem = {
    kind: "GASTO" | "COSTO" | "OC";
@@ -85,6 +96,7 @@ export default function SupplierDetailPage() {
    const { GetOrdenesCompraBySupplier, PurchaseOrders: ordenes } = usePurchaseOrderStore();
    const { GetCuentas, cuentas: cuentasPagar } = useCuentasPorPagarStore();
    const { GetSubcontrataciones, subcontrataciones, loading: subLoading } = useSubcontratacionStore();
+   const { Pagos: pagosProveedor, GetPagos, loading: pagosLoading } = usePagoStore();
 
    const [supplier, setSupplier] = useState<Supplier | null>(null);
    const [loading, setLoading] = useState(true);
@@ -103,7 +115,7 @@ export default function SupplierDetailPage() {
    const [ocEstado, setOcEstado] = useState<EstadoOrdenCompra | "">("");
    const [ocSel, setOcSel] = useState<Set<string>>(new Set());
    const [subSel, setSubSel] = useState<Set<string>>(new Set());
-   const [pagoSel, setPagoSel] = useState<Set<string>>(new Set());
+   const [pagoBusqueda, setPagoBusqueda] = useState("");
 
    const handleTabChange = (value: string) => {
       setCurrentTab(value);
@@ -127,6 +139,7 @@ export default function SupplierDetailPage() {
             await GetOrdenesCompraBySupplier(supplierId, { force: true, limit: 1000 });
             await GetCuentas({ proveedor_id: supplierId, incluir_pagadas: true });
             await GetSubcontrataciones({ proveedor_id: supplierId, incluir_pagadas: true });
+            await GetPagos({ proveedor_id: supplierId, limit: 1000, force: true });
 
             setSupplier(data);
             if (data)
@@ -153,6 +166,7 @@ export default function SupplierDetailPage() {
       await GetCuentas({ proveedor_id: supplierId, incluir_pagadas: true });
       await GetSubcontrataciones({ proveedor_id: supplierId, incluir_pagadas: true });
       await GetOrdenesCompraBySupplier(supplierId, { force: true, limit: 1000 });
+      await GetPagos({ proveedor_id: supplierId, limit: 1000, force: true });
    }
 
    async function handleUpdate(values: {
@@ -295,6 +309,22 @@ export default function SupplierDetailPage() {
       }));
 
    const pagoItems: PagarItem[] = [...cuentasItems, ...ocItems];
+
+   const origenPago = (p: Pago) => {
+      if (p.orden_compra_codigo_referencia) return { ref: p.orden_compra_codigo_referencia, tipo: "OC" };
+      if (p.gasto_codigo_referencia) return { ref: p.gasto_codigo_referencia, tipo: "Gasto" };
+      if (p.costo_codigo_referencia) return { ref: p.costo_codigo_referencia, tipo: "Costo" };
+      if (p.deduccion_codigo_referencia) return { ref: p.deduccion_codigo_referencia, tipo: "Ded." };
+      if (p.proyecto_codigo_referencia) return { ref: p.proyecto_codigo_referencia, tipo: "Proy." };
+      return { ref: "—", tipo: "" };
+   };
+
+   const pagosFiltrados = pagosProveedor.filter((p) => {
+      if (!pagoBusqueda.trim()) return true;
+      const b = pagoBusqueda.trim().toLowerCase();
+      const texto = [p.codigoReferencia, origenPago(p).ref, p.concepto].join(" ").toLowerCase();
+      return texto.includes(b);
+   });
 
    const subPagables: PagarItem[] = subcontrataciones
       .filter((s) => s.pendiente > 0 && s.gasto_id)
@@ -1004,7 +1034,7 @@ export default function SupplierDetailPage() {
                               Pagos
                            </CardTitle>
                            <CardDescription>
-                              Deuda registrada a este proveedor y su avance de pagos.
+                              Historial de pagos realizados a este proveedor.
                            </CardDescription>
                         </div>
                         {pagoItems.length > 0 && (
@@ -1031,135 +1061,97 @@ export default function SupplierDetailPage() {
                            />
                         </div>
 
-                        {pagoSel.size > 0 && (
-                           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-brand-blue/30 bg-brand-blue/5 px-4 py-2.5">
-                              <span className="text-sm font-medium">
-                                 {pagoSel.size} {pagoSel.size === 1 ? "deuda seleccionada" : "deudas seleccionadas"}
-                              </span>
-                              <PermissionGuard resource="supplier" action="update">
-                                 <Button
-                                    size="sm"
-                                    onClick={() => {
-                                       const items = pagoItems.filter((i) => pagoSel.has(selKey(i.kind, i.id)));
-                                       if (items.length) {
-                                          setPagarItems(items);
-                                          setPagarOpen(true);
-                                       }
-                                    }}
-                                 >
-                                    <HandCoins className="mr-2 size-4" /> Pagar seleccionadas
-                                 </Button>
-                              </PermissionGuard>
-                              <Button variant="ghost" size="sm" onClick={() => setPagoSel(new Set())}>
-                                 Quitar selección
-                              </Button>
+                        <div className="min-w-[200px] flex-1">
+                           <label className="mb-1 block text-xs font-medium text-muted-foreground">Buscar por referencia</label>
+                           <div className="relative">
+                              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                              <Input
+                                 className="pl-9"
+                                 placeholder="Ej: PAG-001, OC-260101-001, GAS-…"
+                                 value={pagoBusqueda}
+                                 onChange={(e) => setPagoBusqueda(e.target.value)}
+                              />
                            </div>
-                        )}
+                        </div>
 
-                        {pagoItems.length === 0 ? (
+                        {pagosLoading ? (
+                           <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
+                              <Loader2 className="size-5 animate-spin" /> Cargando pagos…
+                           </div>
+                        ) : pagosProveedor.length === 0 ? (
                            <EmptyState
                               icon={<Receipt className="size-8 opacity-30" />}
-                              title="Sin deuda registrada"
-                              description="Los gastos, costos y órdenes de compra vinculados a este proveedor aparecerán aquí con su saldo."
+                              title="Sin pagos registrados"
+                              description="Cuando registres pagos a este proveedor, aparecerán aquí con su referencia, fecha, concepto y monto."
                            />
                         ) : (
                            <div className="overflow-x-auto rounded-xl border border-border">
                               <table className="w-full text-sm">
                                  <thead>
                                     <tr className="bg-brand-blue">
-                                       <th className="w-10 px-3 py-3">
-                                          <Checkbox
-                                             checked={pagoItems.length > 0 && pagoSel.size === pagoItems.length}
-                                             onCheckedChange={(v) => {
-                                                const next = new Set(pagoSel);
-                                                pagoItems.forEach((i) => {
-                                                   const k = selKey(i.kind, i.id);
-                                                   if (v) next.add(k);
-                                                   else next.delete(k);
-                                                });
-                                                setPagoSel(next);
-                                             }}
-                                             className="border-blue-200/70 bg-white/10 data-[state=checked]:bg-brand-600"
-                                          />
-                                       </th>
                                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Referencia</th>
+                                       <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Fecha</th>
                                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Concepto</th>
+                                       <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Origen</th>
+                                       <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Método</th>
                                        <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-blue-200">Monto</th>
-                                       <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-blue-200">Pagado</th>
-                                       <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-blue-200">Pendiente</th>
-                                       <th className="px-4 py-3 text-center text-xs font-semibold uppercase text-blue-200">Tipo</th>
-                                       <th className="px-4 py-3 text-center text-xs font-semibold uppercase text-blue-200">Pagar</th>
+                                       <th className="px-4 py-3 text-center text-xs font-semibold uppercase text-blue-200">Ver</th>
                                     </tr>
                                  </thead>
                                  <tbody>
-                                    {pagoItems.map((i) => {
-                                       const k = selKey(i.kind, i.id);
-                                       const href =
-                                          i.kind === "OC"
-                                             ? `/dashboard/compras/${i.id}`
-                                             : i.kind === "GASTO"
-                                                ? `/dashboard/gastos/${i.id}`
-                                                : `/dashboard/costos/${i.id}`;
+                                    {pagosFiltrados.map((p) => {
+                                       const origen = origenPago(p);
                                        return (
                                           <tr
-                                             key={k}
-                                             className="cursor-pointer border-b border-border/50 transition-colors hover:bg-brand-blue/5"
-                                             onClick={() => router.push(href)}
+                                             key={p.id}
+                                             className="border-b border-border/50 transition-colors hover:bg-brand-blue/5"
                                           >
-                                             <td className="px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                                                <Checkbox
-                                                   checked={pagoSel.has(k)}
-                                                   onCheckedChange={(v) => setPagoSel(toggleSel(pagoSel, k, !!v))}
-                                                />
-                                             </td>
                                              <td className="px-4 py-3 font-mono font-medium text-brand-blue">
-                                                {i.codigoReferencia}
+                                                {p.codigoReferencia}
+                                             </td>
+                                             <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                                                {fechaCorta(p.fecha)}
                                              </td>
                                              <td className="max-w-[240px] px-4 py-3">
-                                                <div className="truncate">{i.concepto}</div>
-                                                {i.categoria && (
-                                                   <div className="text-xs text-muted-foreground">{i.categoria}</div>
-                                                )}
+                                                <div className="truncate">{p.concepto}</div>
+                                             </td>
+                                             <td className="whitespace-nowrap px-4 py-3">
+                                                <span className="inline-flex items-center gap-1.5">
+                                                   {origen.tipo && (
+                                                      <span
+                                                         className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${ORIGEN_BADGE[origen.tipo] ?? "bg-gray-100 text-gray-700"}`}
+                                                      >
+                                                         {origen.tipo}
+                                                      </span>
+                                                   )}
+                                                   <span className="font-mono text-muted-foreground">{origen.ref}</span>
+                                                </span>
+                                             </td>
+                                             <td className="whitespace-nowrap px-4 py-3">
+                                                {MetodoPago[p.metodo_pago as keyof typeof MetodoPago] ?? p.metodo_pago}
                                              </td>
                                              <td className="whitespace-nowrap px-4 py-3 text-right font-semibold">
-                                                {`RD$ ${(i.total ?? i.pendiente).toLocaleString("es-DO", { minimumFractionDigits: 2 })}`}
-                                             </td>
-                                             <td className="whitespace-nowrap px-4 py-3 text-right text-muted-foreground">
-                                                {(i.pagado ?? 0) > 0
-                                                   ? `RD$ ${(i.pagado ?? 0).toLocaleString("es-DO", { minimumFractionDigits: 2 })}`
-                                                   : "—"}
-                                             </td>
-                                             <td className="whitespace-nowrap px-4 py-3 text-right font-bold text-red-600">
-                                                {`RD$ ${i.pendiente.toLocaleString("es-DO", { minimumFractionDigits: 2 })}`}
-                                             </td>
-                                             <td className="px-4 py-3 text-center">
-                                                <span
-                                                   className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${i.kind === "OC"
-                                                      ? "bg-purple-100 text-purple-800"
-                                                      : i.kind === "GASTO"
-                                                         ? "bg-sky-100 text-sky-800"
-                                                         : "bg-amber-100 text-amber-800"
-                                                      }`}
-                                                >
-                                                   {i.kind === "OC" ? (i.estado ?? "OC") : i.kind}
-                                                </span>
+                                                {`RD$ ${p.monto_pagado.toLocaleString("es-DO", { minimumFractionDigits: 2 })}`}
                                              </td>
                                              <td className="px-4 py-3 text-center">
                                                 <Button
                                                    size="sm"
                                                    variant="outline"
-                                                   onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      setPagarItems([i]);
-                                                      setPagarOpen(true);
-                                                   }}
+                                                   onClick={() => router.push(`/dashboard/pagos/${p.id}`)}
                                                 >
-                                                   <HandCoins className="mr-1 size-3.5" /> Pagar
+                                                   <FileText className="mr-1 size-3.5" /> Ver
                                                 </Button>
                                              </td>
                                           </tr>
                                        );
                                     })}
+                                    {pagosFiltrados.length === 0 && (
+                                       <tr>
+                                          <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
+                                             Sin resultados para la búsqueda.
+                                          </td>
+                                       </tr>
+                                    )}
                                  </tbody>
                               </table>
                            </div>

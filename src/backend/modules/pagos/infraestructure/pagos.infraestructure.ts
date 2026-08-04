@@ -104,6 +104,15 @@ export class KyselyPagoRepository implements IPagoRepository {
       if (params?.deduccion_empleado_id) query = query.where("pago.deduccion_empleado_id", "=", params.deduccion_empleado_id);
       if (params?.proyecto_id) query = query.where("pago.proyecto_id", "=", params.proyecto_id);
       if (params?.orden_compra_id) query = query.where("pago.orden_compra_id", "=", params.orden_compra_id);
+      if (params?.proveedor_id) {
+         const proveedorId = String(params.proveedor_id);
+         query = query.where((eb) =>
+            eb.or([
+               eb("gasto.proveedor_id", "=", proveedorId),
+               eb("orden_compra.proveedor_id", "=", proveedorId),
+            ]),
+         );
+      }
 
       return query;
    }
