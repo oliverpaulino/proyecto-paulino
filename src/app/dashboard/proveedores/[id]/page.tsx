@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
    ArrowLeft,
-   Building2,
+   Boxes,
    FileText,
    HandCoins,
    HardHat,
@@ -83,7 +83,7 @@ export default function SupplierDetailPage() {
    const [currentTab, setCurrentTab] = useState("resumen");
    const { UpdateSupplier, DeleteSupplier, GetSupplierById } = useSupplierStore();
    const { GetOrdenesCompraBySupplier, PurchaseOrders: ordenes } = usePurchaseOrderStore();
-   const { GetCuentas, cuentas: cuentasPagar, resumen: resumenPagos } = useCuentasPorPagarStore();
+   const { GetCuentas, cuentas: cuentasPagar } = useCuentasPorPagarStore();
    const { GetSubcontrataciones, subcontrataciones, loading: subLoading } = useSubcontratacionStore();
 
    const [supplier, setSupplier] = useState<Supplier | null>(null);
@@ -195,6 +195,29 @@ export default function SupplierDetailPage() {
       cuentasPagar.reduce((acc, c) => acc + c.pagado, 0) +
       (ordenes.data ?? []).reduce((acc, o) => acc + (o.pagado ?? 0), 0);
    const totalPendienteCombinado = Math.max(0, totalFacturadoCombinado - totalPagadoCombinado);
+
+   // ── Métricas dinámicas según el tipo de proveedor ──
+   const ocActivas = (ordenes.data ?? []).filter((o) =>
+      ["PENDIENTE", "APROBADA", "RECIBIDA"].includes(o.estado),
+   );
+   const deudaOC = ocActivas.reduce((acc, o) => acc + (o.pendiente ?? 0), 0);
+
+   const subActivas = subcontrataciones.filter(
+      (s) => s.estado_trabajo === "PENDIENTE" || s.estado_trabajo === "EN_PROGRESO",
+   );
+   const deudaSub = subcontrataciones.reduce((acc, s) => acc + s.pendiente, 0);
+   const totalContratadoSub = subcontrataciones.reduce((acc, s) => acc + s.monto_total, 0);
+
+   const anioActual = new Date().getFullYear();
+   const ocValidas = (ordenes.data ?? []).filter(
+      (o) => o.estado !== "BORRADOR" && o.estado !== "CANCELADA",
+   );
+   const totalSuministradoYTD = ocValidas
+      .filter((o) => new Date(o.fecha).getFullYear() === anioActual)
+      .reduce((acc, o) => acc + o.total, 0);
+
+   const fmtDOP = (n: number) =>
+      n.toLocaleString("es-DO", { style: "currency", currency: "DOP" });
 
    const ocFiltradas = (ordenes.data ?? []).filter((o) => {
       if (ocBusqueda.trim()) {
@@ -337,6 +360,9 @@ export default function SupplierDetailPage() {
                      <p className="text-sm text-muted-foreground">
                         {supplier.email ?? "Sin correo"} · {supplier.telefono ?? "Sin teléfono"}
                      </p>
+                     <p className="text-xs text-muted-foreground/80">
+                        Actualizado {formatoActualizado(supplier.updated_at)}
+                     </p>
                   </div>
                </div>
 
@@ -382,49 +408,78 @@ export default function SupplierDetailPage() {
                {/* ── RESUMEN ── */}
                <TabsContent value="resumen" className="space-y-4">
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                     {supplier.tipo === "SUB_CONTRATISTA" || supplier.tipo === "AMBOS" ? (
+                     {supplier.tipo === "SUPLIDOR" ? (
                         <>
-                           <MiniStatCard
-                              icon={<HardHat className="size-4 text-brand-blue" />}
-                              label="Subcontrataciones"
-                              value={subcontrataciones.length.toString()}
-                              index={0}
-                           />
                            <MiniStatCard
                               icon={<Receipt className="size-4 text-brand-blue" />}
                               label="Deuda pendiente"
-                              value={resumenPagos.total_pendiente.toLocaleString("es-DO", { style: "currency", currency: "DOP" })}
+                              value={fmtDOP(deudaOC)}
+                              index={0}
+                           />
+                           <MiniStatCard
+                              icon={<ShoppingCart className="size-4 text-brand-blue" />}
+                              label="Órdenes de compra activas"
+                              value={ocActivas.length.toString()}
                               index={1}
                            />
                            <MiniStatCard
-                              icon={<Building2 className="size-4 text-brand-blue" />}
-                              label="Última actualización"
-                              value={formatDate(supplier.updated_at)}
-                              compact
-                              index={3}
+                              icon={<Boxes className="size-4 text-brand-blue" />}
+                              label="Total suministrado (año)"
+                              value={fmtDOP(totalSuministradoYTD)}
+                              index={2}
+                           />
+                        </>
+                     ) : supplier.tipo === "SUB_CONTRATISTA" ? (
+                        <>
+                           <MiniStatCard
+                              icon={<Receipt className="size-4 text-brand-blue" />}
+                              label="Deuda pendiente"
+                              value={fmtDOP(deudaSub)}
+                              index={0}
+                           />
+                           <MiniStatCard
+                              icon={<HardHat className="size-4 text-brand-blue" />}
+                              label="Subcontrataciones activas"
+                              value={subActivas.length.toString()}
+                              index={1}
+                           />
+                           <MiniStatCard
+                              icon={<Boxes className="size-4 text-brand-blue" />}
+                              label="Monto total contratado"
+                              value={fmtDOP(totalContratadoSub)}
+                              index={2}
                            />
                         </>
                      ) : (
                         <>
                            <MiniStatCard
-                              icon={<ShoppingCart className="size-4 text-brand-blue" />}
-                              label="Órdenes de compra"
-                              value={ordenes.data?.length.toString() ?? 0}
+                              icon={<Receipt className="size-4 text-brand-blue" />}
+                              label="Deuda pendiente consolidada"
+                              value={fmtDOP(deudaOC + deudaSub)}
+                              sub={
+                                 <span className="mt-1 flex flex-wrap gap-x-3 text-xs font-medium text-white/80">
+                                    <span>OC: <strong>{fmtDOP(deudaOC)}</strong></span>
+                                    <span>Sub: <strong>{fmtDOP(deudaSub)}</strong></span>
+                                 </span>
+                              }
                               index={0}
-
                            />
                            <MiniStatCard
-                              icon={<Receipt className="size-4 text-brand-blue" />}
-                              label="Monto total"
-                              value={ordenes.data.filter((o) => o.estado !== "BORRADOR" && o.estado !== "CANCELADA").reduce((sum, order) => sum + (order.total || 0), 0).toLocaleString("es-DO", { style: "currency", currency: "DOP" })}
+                              icon={<HardHat className="size-4 text-brand-blue" />}
+                              label="Subcontrataciones activas"
+                              value={subActivas.length.toString()}
                               index={1}
                            />
                            <MiniStatCard
-                              icon={<Building2 className="size-4 text-brand-blue" />}
-                              label="Última actualización"
-                              value={formatDate(supplier.updated_at)}
-                              compact
-                              index={3}
+                              icon={<ShoppingCart className="size-4 text-brand-blue" />}
+                              label="Órdenes de compra activas"
+                              value={ocActivas.length.toString()}
+                              sub={
+                                 <span className="mt-1 text-xs font-medium text-white/80">
+                                    Suministrado (año): <strong>{fmtDOP(totalSuministradoYTD)}</strong>
+                                 </span>
+                              }
+                              index={2}
                            />
                         </>
                      )}
@@ -1391,12 +1446,14 @@ function MiniStatCard({
    value,
    compact = false,
    index,
+   sub,
 }: {
    icon: React.ReactNode;
    label: string;
    value: string;
    compact?: boolean;
    index?: number;
+   sub?: React.ReactNode;
 }) {
    return (
       <div className={`flex items-start gap-3 rounded-xl border border-border  p-4 shadow-sm bg-brand-blue dark:bg-brand-blue/10`}>
@@ -1404,6 +1461,7 @@ function MiniStatCard({
          <div className="min-w-0">
             <p className="text-xs font-medium text-white">{label}</p>
             <p className={`mt-0.5 font-bold text-white break-words ${compact ? "text-base" : "text-2xl"}`}>{value}</p>
+            {sub}
          </div>
       </div>
    );
@@ -1447,6 +1505,19 @@ function InfoField({ label, value }: { label: string; value: string }) {
 
 function formatDate(value: string | Date) {
    return new Date(value).toLocaleDateString("es-DO");
+}
+
+function formatoActualizado(value: string | Date) {
+   const fecha = new Date(value);
+   const diffMs = Date.now() - fecha.getTime();
+   const dias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+   if (dias <= 0) return "hoy";
+   if (dias === 1) return "hace 1 día";
+   if (dias < 30) return `hace ${dias} días`;
+   const meses = Math.floor(dias / 30);
+   if (meses < 12) return `hace ${meses} ${meses === 1 ? "mes" : "meses"}`;
+   const años = Math.floor(meses / 12);
+   return `hace ${años} ${años === 1 ? "año" : "años"}`;
 }
 
 function fechaCorta(value: string | Date) {
