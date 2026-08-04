@@ -188,15 +188,6 @@ export default function SupplierDetailPage() {
       }
    }
 
-   const ordenesPendientes = ordenes.data?.filter(o => o.estado === "PENDIENTE") || [];
-
-   const totalDeuda = ordenes.data?.filter(o => ["PENDIENTE", "APROBADA", "RECIBIDA"].includes(o.estado))
-      .reduce((acc, o) => {
-         return acc + o.total;
-      }, 0);
-
-   const totalPagado = ordenes.data?.reduce((acc, o) => acc + (o.pagado ?? 0), 0) ?? 0;
-
    const totalFacturadoCombinado =
       cuentasPagar.reduce((acc, c) => acc + c.monto_total, 0) +
       (ordenes.data ?? []).reduce((acc, o) => acc + o.total, 0);
@@ -222,6 +213,14 @@ export default function SupplierDetailPage() {
       }
       return true;
    });
+
+   const ordenesPendientes = ocFiltradas.filter(o => o.estado === "PENDIENTE");
+
+   const totalDeuda = ocFiltradas
+      .filter(o => ["PENDIENTE", "APROBADA", "RECIBIDA"].includes(o.estado))
+      .reduce((acc, o) => acc + o.total, 0);
+
+   const totalPagado = ocFiltradas.reduce((acc, o) => acc + (o.pagado ?? 0), 0);
 
    const ocSelectables = ocFiltradas.filter(
       (o) => OC_PAGABLES.includes(o.estado) && (o.pendiente ?? 0) > 0,
