@@ -114,5 +114,5 @@ export interface IEquipoRepository {
       nota?: string | null
    ): Promise<Equipo | null>;
    findHistorial(id: string): Promise<EstadoHistorialProps[]>;
-   findComprasItems(id: string): Promise<EquipoCompraItemProps[]>;
+   findComprasItems(id: string, filtros?: { desde?: string; hasta?: string }): Promise<EquipoCompraItemProps[]>;
 }

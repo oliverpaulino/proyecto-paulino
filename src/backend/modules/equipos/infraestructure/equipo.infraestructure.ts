@@ -11,6 +11,18 @@ import {
 } from "../domain/equipo.domain";
 import { CategoriaEquipo } from "@/dtos/categoria-equipo.dto";
 
+/**
+ * Suma un día a un string "YYYY-MM-DD" y devuelve otro string "YYYY-MM-DD".
+ * Mismo helper que usa el repositorio de conduces: evita el corrimiento de un
+ * día por timezone al filtrar fechas de `<input type="date">`.
+ */
+function siguienteDiaISO(fechaISO: string): string {
+   const [y, m, d] = fechaISO.split("-").map(Number);
+   const utc = new Date(Date.UTC(y, (m || 1) - 1, d || 1));
+   utc.setUTCDate(utc.getUTCDate() + 1);
+   return utc.toISOString().slice(0, 10);
+}
+
 export class KyselyEquipoRepository implements IEquipoRepository {
    constructor(private readonly db: Kysely<DB>) { }
 
@@ -252,7 +264,12 @@ export class KyselyEquipoRepository implements IEquipoRepository {
       }));
    }
 
-   async findComprasItems(id: string): Promise<EquipoCompraItemProps[]> {
+   async findComprasItems(
+      id: string,
+      filtros?: { desde?: string; hasta?: string }
+   ): Promise<EquipoCompraItemProps[]> {
+      const desdeExcl = filtros?.hasta ? siguienteDiaISO(filtros.hasta) : undefined;
+
       const rows = await this.db
          .selectFrom("orden_compra_item")
          .innerJoin("orden_compra", "orden_compra.id", "orden_compra_item.orden_compra_id")
@@ -268,6 +285,8 @@ export class KyselyEquipoRepository implements IEquipoRepository {
          ])
          .where("orden_compra_item.equipo_id", "=", id)
          .where("orden_compra.deleted_at", "is", null)
+         .$if(!!filtros?.desde, (q: any) => q.where("orden_compra.fecha", ">=", filtros!.desde))
+         .$if(!!desdeExcl, (q: any) => q.where("orden_compra.fecha", "<", desdeExcl))
          .orderBy("orden_compra.fecha", "desc")
          .execute();
 

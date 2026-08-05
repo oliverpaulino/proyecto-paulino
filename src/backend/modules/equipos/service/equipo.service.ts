@@ -119,8 +119,11 @@ export class EquipoService {
       return this.repo.findHistorial(id);
    }
 
-   async getComprasItems(id: string): Promise<EquipoCompraItemProps[]> {
-      return this.repo.findComprasItems(id);
+   async getComprasItems(
+      id: string,
+      filtros?: { desde?: string; hasta?: string }
+   ): Promise<EquipoCompraItemProps[]> {
+      return this.repo.findComprasItems(id, filtros);
    }
 
    private validateCosto(costo: number | undefined): void {
