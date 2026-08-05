@@ -46,6 +46,7 @@ const ESTADO_TRABAJO_STYLE: Record<EstadoTrabajo, string> = {
    EN_PROGRESO: "bg-blue-100 text-blue-800",
    TERMINADA: "bg-green-100 text-green-800",
    CANCELADA: "bg-gray-100 text-gray-600",
+   PARADO: "bg-amber-100 text-amber-800",
 };
 
 const ESTADO_TRABAJO_LABEL: Record<EstadoTrabajo, string> = {
@@ -53,6 +54,7 @@ const ESTADO_TRABAJO_LABEL: Record<EstadoTrabajo, string> = {
    EN_PROGRESO: "En progreso",
    TERMINADA: "Terminada",
    CANCELADA: "Cancelada",
+   PARADO: "Parada",
 };
 
 const ESTADO_PAGO_STYLE: Record<EstadoPago, string> = {
@@ -88,6 +90,7 @@ export default function SubcontratacionesPage() {
    } = useSubcontratacionStore();
 
    const [createOpen, setCreateOpen] = useState(false);
+   const [pausarTarget, setPausarTarget] = useState<{ id: string; codigoReferencia: string } | null>(null);
 
    useEffect(() => {
       document.title = "Subcontrataciones";
@@ -175,7 +178,7 @@ export default function SubcontratacionesPage() {
                <div>
                   <label className="mb-1 block text-xs font-medium text-muted-foreground">Estado trabajo</label>
                   <div className="flex gap-1 flex-wrap">
-                     {([undefined, "PENDIENTE", "EN_PROGRESO", "TERMINADA", "CANCELADA"] as (EstadoTrabajo | undefined)[]).map((e) => (
+                     {([undefined, "PENDIENTE", "EN_PROGRESO", "PARADO", "TERMINADA", "CANCELADA"] as (EstadoTrabajo | undefined)[]).map((e) => (
                         <Button
                            key={e ?? "todos"}
                            size="sm"
@@ -320,9 +323,39 @@ export default function SubcontratacionesPage() {
                                  {s.pendiente > 0 ? money(s.pendiente) : "—"}
                               </td>
                               <td className="px-4 py-3 text-center">
-                                 <Badge className={`border-0 text-[10px] ${ESTADO_TRABAJO_STYLE[s.estado_trabajo]}`}>
-                                    {ESTADO_TRABAJO_LABEL[s.estado_trabajo]}
-                                 </Badge>
+                                 <PermissionGuard
+                                    resource="supplier"
+                                    action="update"
+                                    fallback={
+                                       <Badge className={`border-0 text-[10px] ${ESTADO_TRABAJO_STYLE[s.estado_trabajo]}`}>
+                                          {ESTADO_TRABAJO_LABEL[s.estado_trabajo]}
+                                       </Badge>
+                                    }
+                                 >
+                                    <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-center">
+                                       <select
+                                          value={s.estado_trabajo}
+                                          title="Cambiar estado del trabajo"
+                                          onChange={(e) => {
+                                             const nuevo = e.target.value as EstadoTrabajo;
+                                             if (nuevo === s.estado_trabajo) return;
+                                             if (nuevo === "PARADO") {
+                                                setPausarTarget({ id: s.id, codigoReferencia: s.codigoReferencia });
+                                                return;
+                                             }
+                                             const { CambiarEstado } = useSubcontratacionStore.getState();
+                                             CambiarEstado(s.id, nuevo);
+                                          }}
+                                          className={`h-7 cursor-pointer rounded-md border-0 px-2 text-[10px] font-semibold outline-none ${ESTADO_TRABAJO_STYLE[s.estado_trabajo]}`}
+                                       >
+                                          {(Object.keys(ESTADO_TRABAJO_LABEL) as EstadoTrabajo[]).map((e) => (
+                                             <option key={e} value={e}>
+                                                {ESTADO_TRABAJO_LABEL[e]}
+                                             </option>
+                                          ))}
+                                       </select>
+                                    </div>
+                                 </PermissionGuard>
                               </td>
                               <td className="px-4 py-3 text-center">
                                  <Badge className={`border-0 text-[10px] ${ESTADO_PAGO_STYLE[s.estado_pago]}`}>
@@ -385,8 +418,87 @@ export default function SubcontratacionesPage() {
                   />
                </DialogContent>
             </Dialog>
+
+            <PausarMotivoDialog target={pausarTarget} onOpenChange={(open) => !open && setPausarTarget(null)} />
          </div>
       </PermissionGuard>
+   );
+}
+
+function PausarMotivoDialog({
+   target,
+   onOpenChange,
+}: {
+   target: { id: string; codigoReferencia: string } | null;
+   onOpenChange: (open: boolean) => void;
+}) {
+   const [motivo, setMotivo] = useState("");
+   const [loading, setLoading] = useState(false);
+   const [error, setError] = useState<string | null>(null);
+
+   useEffect(() => {
+      if (target) {
+         setMotivo("");
+         setError(null);
+      }
+   }, [target]);
+
+   async function handleSubmit(e: React.FormEvent) {
+      e.preventDefault();
+      if (!target) return;
+      setError(null);
+      if (!motivo.trim()) {
+         setError("Debes indicar el motivo");
+         return;
+      }
+      setLoading(true);
+      const { CambiarEstado } = useSubcontratacionStore.getState();
+      const result = await CambiarEstado(target.id, "PARADO", motivo.trim());
+      if (result instanceof Error) {
+         setError(result.message);
+         setLoading(false);
+         return;
+      }
+      onOpenChange(false);
+      setLoading(false);
+   }
+
+   return (
+      <Dialog open={!!target} onOpenChange={(o) => !o && onOpenChange(false)}>
+         <DialogContent className="sm:max-w-md" onOpenAutoFocus={(e) => e.preventDefault()}>
+            <DialogHeader>
+               <DialogTitle>Pausar trabajo</DialogTitle>
+               <DialogDescription>
+                  {target?.codigoReferencia} · Indica por qué se pausa el trabajo.
+               </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+               <div className="flex flex-col gap-1.5">
+                  <Label>Motivo *</Label>
+                  <textarea
+                     value={motivo}
+                     onChange={(e) => setMotivo(e.target.value)}
+                     rows={3}
+                     placeholder="Ej: Falta material, espera de inspección..."
+                     className="w-full rounded-md border border-input bg-input/30 px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                  />
+               </div>
+               {error && (
+                  <div className="rounded-md border border-destructive bg-destructive/10 p-2.5 text-sm font-medium text-destructive">
+                     {error}
+                  </div>
+               )}
+               <div className="flex justify-end gap-2 pt-2">
+                  <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+                     Cancelar
+                  </Button>
+                  <Button type="submit" disabled={loading || !motivo.trim()}>
+                     {loading ? "Pausando…" : "Pausar trabajo"}
+                  </Button>
+               </div>
+            </form>
+         </DialogContent>
+      </Dialog>
    );
 }
 

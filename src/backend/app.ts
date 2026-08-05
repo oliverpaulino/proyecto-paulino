@@ -35,7 +35,7 @@ import pagosRoute from "./modules/pagos/routes/pagos.routes";
 import payrollConceptsRoute from "./modules/payroll-concepts/routes/payroll-concepts";
 import nominaRoute from "./modules/nomina/routes/nomina.routes";
 import cuentasPorPagarRoute from "./modules/cuentas-por-pagar/routes/cuentas-por-pagar.routes";
-import subcontratacionesRoute from "./modules/subcontrataciones/routes/subcontrataciones.routes";
+import subcontratacionesRoute from "./modules/subcontrataciones/routes/subcontrataciones";
 
 const app = new Hono().basePath("/api");
 

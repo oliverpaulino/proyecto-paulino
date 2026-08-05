@@ -22,8 +22,11 @@ import {
    HandCoins,
    HardHat,
    Loader2,
+   Pause,
    PencilLine,
    Play,
+   RotateCcw,
+   SquarePen,
    Trash2,
 } from "lucide-react";
 import {
@@ -31,8 +34,12 @@ import {
    type Apunte,
    type PagoSubcontratacion,
 } from "@/stores/useSubcontratacionStore";
-import type { Subcontratacion, EstadoTrabajo, EstadoPago } from "@/dtos/subcontratacion.dto";
+import type { Subcontratacion, EstadoTrabajo, EstadoPago, UpdateSubcontratacionForm } from "@/dtos/subcontratacion.dto";
 import { PermissionGuard } from "@/components/permission-guard";
+import { SelectBuscadorProveedor } from "@/components/shared/selectBuscadorProveedor";
+import { SelectBuscadorProyecto } from "@/components/shared/selectBuscadorProyecto";
+import { SelectBuscadorEquipo } from "@/components/shared/selectBuscadorEquipo";
+import { SelectBuscadorCategoriaGasto } from "@/components/shared/selectBuscadorCategoriaGasto";
 
 const money = (n: number) =>
    `RD$ ${n.toLocaleString("es-DO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -58,6 +65,7 @@ const ESTADO_TRABAJO_STYLE: Record<EstadoTrabajo, string> = {
    EN_PROGRESO: "bg-blue-100 text-blue-800",
    TERMINADA: "bg-green-100 text-green-800",
    CANCELADA: "bg-gray-100 text-gray-600",
+   PARADO: "bg-amber-100 text-amber-800",
 };
 
 const ESTADO_TRABAJO_LABEL: Record<EstadoTrabajo, string> = {
@@ -65,6 +73,7 @@ const ESTADO_TRABAJO_LABEL: Record<EstadoTrabajo, string> = {
    EN_PROGRESO: "En progreso",
    TERMINADA: "Terminada",
    CANCELADA: "Cancelada",
+   PARADO: "Parada",
 };
 
 const ESTADO_PAGO_STYLE: Record<EstadoPago, string> = {
@@ -99,6 +108,8 @@ export default function SubcontratacionDetailPage() {
    const [pagarOpen, setPagarOpen] = useState(false);
    const [apunteOpen, setApunteOpen] = useState(false);
    const [deleteOpen, setDeleteOpen] = useState(false);
+   const [pausarOpen, setPausarOpen] = useState(false);
+   const [editOpen, setEditOpen] = useState(false);
 
    useEffect(() => {
       let active = true;
@@ -126,11 +137,11 @@ export default function SubcontratacionDetailPage() {
       setSub(data);
    }
 
-   async function handleCambiarEstado(estado: EstadoTrabajo) {
+   async function handleCambiarEstado(estado: EstadoTrabajo, motivo?: string | null) {
       const { CambiarEstado } = useSubcontratacionStore.getState();
       setActionLoading(true);
       try {
-         const result = await CambiarEstado(id, estado);
+         const result = await CambiarEstado(id, estado, motivo);
          if (result instanceof Error) return;
          await refresh();
       } finally {
@@ -220,6 +231,28 @@ export default function SubcontratacionDetailPage() {
                   </Button>
                )}
                {(sub.estado_trabajo === "PENDIENTE" || sub.estado_trabajo === "EN_PROGRESO") && (
+                  <PermissionGuard resource="supplier" action="update">
+                  <Button
+                     variant="outline"
+                     onClick={() => setPausarOpen(true)}
+                     disabled={actionLoading}
+                  >
+                     <Pause className="mr-2 size-4" /> Pausar trabajo
+                  </Button>
+                  </PermissionGuard>
+               )}
+               {sub.estado_trabajo === "PARADO" && (
+                  <Button
+                     variant="outline"
+                     onClick={() => handleCambiarEstado("EN_PROGRESO")}
+                     disabled={actionLoading}
+                  >
+                     <RotateCcw className="mr-2 size-4" /> Reanudar
+                  </Button>
+               )}
+               {(sub.estado_trabajo === "PENDIENTE" ||
+                  sub.estado_trabajo === "EN_PROGRESO" ||
+                  sub.estado_trabajo === "PARADO") && (
                   <>
                      <PermissionGuard resource="supplier" action="update">
                      <Button
@@ -235,6 +268,11 @@ export default function SubcontratacionDetailPage() {
                      </Button>
                   </>
                )}
+               <PermissionGuard resource="supplier" action="update">
+               <Button variant="outline" onClick={() => setEditOpen(true)} disabled={actionLoading}>
+                  <SquarePen className="mr-2 size-4" /> Editar
+               </Button>
+               </PermissionGuard>
                {!saldada && (
                   <PermissionGuard resource="supplier" action="update">
                   <Button
@@ -291,6 +329,9 @@ export default function SubcontratacionDetailPage() {
                         />
                         <InfoField label="Descripción" value={sub.trabajo_descripcion ?? "—"} />
                         <InfoField label="Estado" value={ESTADO_TRABAJO_LABEL[sub.estado_trabajo]} />
+                        {sub.motivo_estado && (
+                           <InfoField label="Motivo de la pausa" value={sub.motivo_estado} />
+                        )}
                         <InfoField label="Fecha de deuda" value={fecha(sub.fecha_deuda)} />
                         <InfoField label="Fecha inicio" value={sub.fecha_inicio ? fecha(sub.fecha_inicio) : "—"} />
                         <InfoField label="Fecha fin" value={sub.fecha_fin ? fecha(sub.fecha_fin) : "—"} />
@@ -444,6 +485,25 @@ export default function SubcontratacionDetailPage() {
                />
             </DialogContent>
          </Dialog>
+
+         <PausarDialog
+            open={pausarOpen}
+            onOpenChange={setPausarOpen}
+            id={id}
+            codigoReferencia={sub.codigoReferencia}
+            onDone={refresh}
+         />
+
+         <EditarSubcontratacionDialog
+            key={editOpen ? "open" : "closed"}
+            open={editOpen}
+            onOpenChange={setEditOpen}
+            sub={sub}
+            onDone={async () => {
+               setEditOpen(false);
+               await refresh();
+            }}
+         />
       </div>
       </PermissionGuard>
    );
@@ -739,5 +799,362 @@ function CancelTrabajoForm({
             </Button>
          </DialogFooter>
       </form>
+   );
+}
+
+function PausarDialog({
+   open,
+   onOpenChange,
+   id,
+   codigoReferencia,
+   onDone,
+}: {
+   open: boolean;
+   onOpenChange: (open: boolean) => void;
+   id: string;
+   codigoReferencia: string;
+   onDone: () => Promise<void>;
+}) {
+   const [motivo, setMotivo] = useState("");
+   const [loading, setLoading] = useState(false);
+   const [error, setError] = useState<string | null>(null);
+
+   useEffect(() => {
+      if (open) {
+         setMotivo("");
+         setError(null);
+      }
+   }, [open]);
+
+   async function handleSubmit(e: React.FormEvent) {
+      e.preventDefault();
+      setError(null);
+      if (!motivo.trim()) {
+         setError("Debes indicar el motivo");
+         return;
+      }
+      setLoading(true);
+      const { CambiarEstado } = useSubcontratacionStore.getState();
+      const result = await CambiarEstado(id, "PARADO", motivo.trim());
+      if (result instanceof Error) {
+         setError(result.message);
+         setLoading(false);
+         return;
+      }
+      await onDone();
+      setLoading(false);
+   }
+
+   return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+         <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+               <DialogTitle>Pausar trabajo</DialogTitle>
+               <DialogDescription>
+                  {codigoReferencia} · Indica por qué se pausa el trabajo.
+               </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+               <div className="flex flex-col gap-1.5">
+                  <Label>Motivo *</Label>
+                  <textarea
+                     value={motivo}
+                     onChange={(e) => setMotivo(e.target.value)}
+                     rows={3}
+                     placeholder="Ej: Falta material, espera de inspección..."
+                     className="w-full rounded-md border border-input bg-input/30 px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                  />
+               </div>
+               {error && (
+                  <div className="rounded-md border border-destructive bg-destructive/10 p-2.5 text-sm font-medium text-destructive">
+                     {error}
+                  </div>
+               )}
+               <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+                     Volver
+                  </Button>
+                  <Button type="submit" disabled={loading || !motivo.trim()}>
+                     {loading ? "Pausando…" : "Pausar trabajo"}
+                  </Button>
+               </DialogFooter>
+            </form>
+         </DialogContent>
+      </Dialog>
+   );
+}
+
+const INPUT_EDIT =
+   "h-9 w-full rounded-md border border-input bg-input/30 px-3 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-60 transition-colors";
+const TEXTAREA_EDIT =
+   "w-full rounded-md border border-input bg-input/30 px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
+
+function toDateInput(s: string | Date | null): string {
+   if (!s) return "";
+   return new Date(`${String(s).slice(0, 10)}T12:00:00`).toISOString().slice(0, 10);
+}
+
+interface EditForm {
+   proveedor_id: string;
+   proyecto_id: string | null;
+   equipo_id: string | null;
+   trabajo_descripcion: string;
+   monto_total: number;
+   estado: EstadoTrabajo;
+   motivo_estado: string;
+   fecha_deuda: string;
+   fecha_inicio: string;
+   fecha_fin: string;
+   observaciones: string;
+   categoria_gasto_id: string;
+}
+
+function toEditForm(sub: Subcontratacion): EditForm {
+   return {
+      proveedor_id: sub.proveedor_id,
+      proyecto_id: sub.proyecto_id,
+      equipo_id: sub.equipo_id,
+      trabajo_descripcion: sub.trabajo_descripcion ?? "",
+      monto_total: sub.monto_total,
+      estado: sub.estado_trabajo,
+      motivo_estado: sub.motivo_estado ?? "",
+      fecha_deuda: toDateInput(sub.fecha_deuda),
+      fecha_inicio: toDateInput(sub.fecha_inicio),
+      fecha_fin: toDateInput(sub.fecha_fin),
+      observaciones: sub.observaciones ?? "",
+      categoria_gasto_id: sub.categoria_gasto_id ?? "",
+   };
+}
+
+function EditarSubcontratacionDialog({
+   open,
+   onOpenChange,
+   sub,
+   onDone,
+}: {
+   open: boolean;
+   onOpenChange: (open: boolean) => void;
+   sub: Subcontratacion;
+   onDone: () => Promise<void>;
+}) {
+   const [form, setForm] = useState<EditForm>(() => toEditForm(sub));
+   const [loading, setLoading] = useState(false);
+   const [error, setError] = useState<string | null>(null);
+
+   useEffect(() => {
+      if (open) {
+         setForm(toEditForm(sub));
+         setError(null);
+      }
+   }, [open, sub]);
+
+   function set<K extends keyof EditForm>(key: K, value: EditForm[K]) {
+      setForm((prev) => ({ ...prev, [key]: value }));
+   }
+
+   async function handleSubmit(e: React.FormEvent) {
+      e.preventDefault();
+      setError(null);
+      if (!Number(form.monto_total) || Number(form.monto_total) <= 0) {
+         setError("El monto debe ser mayor a 0");
+         return;
+      }
+      if (form.estado === "PARADO" && !form.motivo_estado.trim()) {
+         setError("Para dejar el trabajo parado debes indicar el motivo");
+         return;
+      }
+      setLoading(true);
+      const payload: UpdateSubcontratacionForm = {
+         proveedor_id: form.proveedor_id,
+         proyecto_id: form.proyecto_id,
+         equipo_id: form.equipo_id,
+         trabajo_descripcion: form.trabajo_descripcion?.trim() || null,
+         monto_total: Number(form.monto_total),
+         estado: form.estado,
+         motivo_estado: form.estado === "PARADO" ? form.motivo_estado.trim() : null,
+         fecha_deuda: form.fecha_deuda as unknown as Date,
+         fecha_inicio: form.fecha_inicio ? (form.fecha_inicio as unknown as Date) : null,
+         fecha_fin: form.fecha_fin ? (form.fecha_fin as unknown as Date) : null,
+         observaciones: form.observaciones?.trim() || null,
+         categoria_gasto_id: form.categoria_gasto_id,
+      };
+      const { UpdateSubcontratacion } = useSubcontratacionStore.getState();
+      const result = await UpdateSubcontratacion(sub.id, payload);
+      if (result instanceof Error) {
+         setError(result.message);
+         setLoading(false);
+         return;
+      }
+      await onDone();
+      setLoading(false);
+   }
+
+   return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+         <DialogContent
+            className="sm:max-w-lg max-h-[90vh] overflow-y-auto"
+            onOpenAutoFocus={(e) => e.preventDefault()}
+         >
+            <DialogHeader>
+               <DialogTitle>Editar {sub.codigoReferencia}</DialogTitle>
+               <DialogDescription>Modifica los datos del trabajo de subcontratación.</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+               <div className="flex flex-col gap-1.5">
+                  <Label>Subcontratista *</Label>
+                  <SelectBuscadorProveedor
+                     filterTipos={["SUB_CONTRATISTA", "AMBOS"]}
+                     value={form.proveedor_id}
+                     initialLabel={sub.proveedor_nombre ?? ""}
+                     onChange={(id) => set("proveedor_id", id ?? "")}
+                     placeholder="Buscar subcontratista por nombre o RNC..."
+                  />
+               </div>
+
+               <div className="flex flex-col gap-1.5">
+                  <Label>Proyecto</Label>
+                  <SelectBuscadorProyecto
+                     value={form.proyecto_id}
+                     initialLabel={sub.proyecto_nombre ?? ""}
+                     onChange={(id) => set("proyecto_id", id)}
+                     placeholder="Buscar proyecto (opcional)..."
+                  />
+               </div>
+
+               <div className="flex flex-col gap-1.5">
+                  <Label>Equipo</Label>
+                  <SelectBuscadorEquipo
+                     value={form.equipo_id}
+                     initialLabel={
+                        sub.equipo_nombre
+                           ? `${sub.equipo_codigo_referencia} · ${sub.equipo_nombre}`
+                           : ""
+                     }
+                     onChange={(id) => set("equipo_id", id)}
+                     placeholder="Buscar equipo (opcional)..."
+                  />
+               </div>
+
+               <div className="flex flex-col gap-1.5">
+                  <Label>Descripción del trabajo</Label>
+                  <Input
+                     value={form.trabajo_descripcion}
+                     onChange={(e) => set("trabajo_descripcion", e.target.value)}
+                     placeholder="Ej: Soldadura de estructura en..."
+                     className={INPUT_EDIT}
+                  />
+               </div>
+
+               <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                     <Label>Monto total (RD$) *</Label>
+                     <Input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={form.monto_total}
+                        onChange={(e) => set("monto_total", Number(e.target.value))}
+                        required
+                        className={INPUT_EDIT}
+                     />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                     <Label>Estado del trabajo</Label>
+                     <select
+                        value={form.estado}
+                        onChange={(e) => set("estado", e.target.value as EstadoTrabajo)}
+                        className={INPUT_EDIT}
+                     >
+                        <option value="PENDIENTE">Pendiente</option>
+                        <option value="EN_PROGRESO">En progreso</option>
+                        <option value="PARADO">Parada</option>
+                        <option value="TERMINADA">Terminada</option>
+                        <option value="CANCELADA">Cancelada</option>
+                     </select>
+                  </div>
+               </div>
+
+               {form.estado === "PARADO" && (
+                  <div className="flex flex-col gap-1.5">
+                     <Label>Motivo de la pausa *</Label>
+                     <textarea
+                        value={form.motivo_estado}
+                        onChange={(e) => set("motivo_estado", e.target.value)}
+                        rows={3}
+                        placeholder="Ej: Falta material para continuar"
+                        className={TEXTAREA_EDIT}
+                     />
+                  </div>
+               )}
+
+               <div className="grid grid-cols-3 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                     <Label>Fecha deuda *</Label>
+                     <Input
+                        type="date"
+                        value={form.fecha_deuda}
+                        onChange={(e) => set("fecha_deuda", e.target.value)}
+                        required
+                        className={INPUT_EDIT}
+                     />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                     <Label>Inicio</Label>
+                     <Input
+                        type="date"
+                        value={form.fecha_inicio}
+                        onChange={(e) => set("fecha_inicio", e.target.value)}
+                        className={INPUT_EDIT}
+                     />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                     <Label>Fin</Label>
+                     <Input
+                        type="date"
+                        value={form.fecha_fin}
+                        onChange={(e) => set("fecha_fin", e.target.value)}
+                        className={INPUT_EDIT}
+                     />
+                  </div>
+               </div>
+
+               <div className="flex flex-col gap-1.5">
+                  <Label>Categoría de gasto *</Label>
+                  <SelectBuscadorCategoriaGasto
+                     value={form.categoria_gasto_id}
+                     initialLabel={sub.categoria_gasto_nombre ?? ""}
+                     onChange={(id) => set("categoria_gasto_id", id ?? "")}
+                     placeholder="Buscar categoría (ej. Mano de obra)..."
+                  />
+               </div>
+
+               <div className="flex flex-col gap-1.5">
+                  <Label>Observaciones</Label>
+                  <textarea
+                     value={form.observaciones}
+                     onChange={(e) => set("observaciones", e.target.value)}
+                     rows={3}
+                     placeholder="Notas del trabajo..."
+                     className={TEXTAREA_EDIT}
+                  />
+               </div>
+
+               {error && (
+                  <div className="rounded-md border border-destructive bg-destructive/10 p-2.5 text-sm font-medium text-destructive">
+                     {error}
+                  </div>
+               )}
+
+               <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+                     Cancelar
+                  </Button>
+                  <Button type="submit" disabled={loading}>
+                     {loading ? "Guardando…" : "Guardar cambios"}
+                  </Button>
+               </DialogFooter>
+            </form>
+         </DialogContent>
+      </Dialog>
    );
 }

@@ -718,8 +718,10 @@ export interface DB {
       equipo_id: string | null;
       trabajo_descripcion: string | null;
       monto_total: number;
-      // Etapa: PENDIENTE | EN_PROGRESO | TERMINADA | CANCELADA
+      // Etapa: PENDIENTE | EN_PROGRESO | TERMINADA | CANCELADA | PARADO
       estado: Generated<string>;
+      // Motivo del estado actual (obligatorio para PARADO).
+      motivo_estado: string | null;
       // Se sincroniza con gasto.fecha; alimenta la antigüedad en CxP.
       fecha_deuda: Date;
       fecha_inicio: Date | null;

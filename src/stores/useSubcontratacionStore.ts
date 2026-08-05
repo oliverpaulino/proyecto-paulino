@@ -70,7 +70,7 @@ interface State {
 
    CreateSubcontratacion: (form: CreateSubcontratacionForm) => Promise<Subcontratacion | Error>;
    UpdateSubcontratacion: (id: string, data: Partial<UpdateSubcontratacionForm>) => Promise<void | Error>;
-   CambiarEstado: (id: string, estado: EstadoTrabajo) => Promise<void | Error>;
+   CambiarEstado: (id: string, estado: EstadoTrabajo, motivo?: string | null) => Promise<void | Error>;
    Pagar: (id: string, data: { monto_pagado: number; metodo_pago: string; fecha: string; concepto?: string | null }) => Promise<void | Error>;
    GetSubcontratacionById: (id: string) => Promise<Subcontratacion | null>;
    GetPagos: (id: string) => Promise<PagoSubcontratacion[]>;
@@ -184,12 +184,12 @@ export const useSubcontratacionStore = create<State>((set, get) => ({
       }
    },
 
-   CambiarEstado: async (id, estado) => {
+   CambiarEstado: async (id, estado, motivo) => {
       try {
          const res = await fetch(`/api/subcontrataciones/${id}/estado`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ estado }),
+            body: JSON.stringify({ estado, motivo: motivo ?? null }),
          });
          const responseData = await res.json();
          if (!res.ok)

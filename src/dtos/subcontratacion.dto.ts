@@ -5,6 +5,7 @@ export const EstadoTrabajoEnum = {
    EN_PROGRESO: "EN_PROGRESO",
    TERMINADA: "TERMINADA",
    CANCELADA: "CANCELADA",
+   PARADO: "PARADO",
 } as const;
 
 const EstadoTrabajoSchema = z.enum(
@@ -43,6 +44,7 @@ export const SubcontratacionDTO = z.object({
    trabajo_descripcion: z.string().nullable(),
    monto_total: z.number(),
    estado_trabajo: EstadoTrabajoSchema,
+   motivo_estado: z.string().nullable(),
    fecha_deuda: z.coerce.date(),
    fecha_inicio: z.coerce.date().nullable(),
    fecha_fin: z.coerce.date().nullable(),
@@ -50,6 +52,8 @@ export const SubcontratacionDTO = z.object({
 
    gasto_id: z.string().uuid().nullable(),
    gasto_codigo_referencia: z.string().nullable(),
+   categoria_gasto_id: z.string().uuid().nullable(),
+   categoria_gasto_nombre: z.string().nullable(),
 
    pagado: z.number(),
    pendiente: z.number(),
@@ -73,6 +77,7 @@ export const CreateSubcontratacionSchema = z.object({
    trabajo_descripcion: z.string().optional().nullable(),
    monto_total: z.coerce.number().min(0.01, "El monto debe ser mayor a 0"),
    estado: EstadoTrabajoSchema.optional(),
+   motivo_estado: z.string().optional().nullable(),
    fecha_deuda: z.coerce.date("La fecha de la deuda es requerida"),
    fecha_inicio: z.coerce.date().optional().nullable(),
    fecha_fin: z.coerce.date().optional().nullable(),
@@ -84,6 +89,7 @@ export const UpdateSubcontratacionSchema = CreateSubcontratacionSchema.partial()
 
 export const CambiarEstadoSchema = z.object({
    estado: EstadoTrabajoSchema,
+   motivo: z.string().optional().nullable(),
 });
 
 export const CrearPagoSchema = z.object({
