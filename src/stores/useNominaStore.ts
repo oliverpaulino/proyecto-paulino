@@ -73,6 +73,21 @@ export interface NominaEmpleado {
    devengado_tarifas: number;
    complemento_minimo: number;
    seguro: number;
+   /*
+      Retenciones de ley, calculadas automáticamente. No son deducciones: no
+      son deudas con la empresa sino dinero que va a la TSS y a la DGII.
+      Valen 0 en los empleados sin retenciones activadas.
+   */
+   afp: number;
+   sfs: number;
+   isr: number;
+   /** Base imponible mensualizada usada para el ISR (bruto − AFP − SFS). */
+   base_isr: number;
+   /**
+    * Año de la escala aplicada. `null` = no se calculó porque no había escala
+    * cargada para ese año fiscal — distinto de exento, y la UI lo advierte.
+    */
+   isr_anio_escala: number | null;
    /** Suma de las deducciones del período. */
    deducciones: number;
    /** Cuántos conceptos componen ese monto. Viene siempre en el listado. */

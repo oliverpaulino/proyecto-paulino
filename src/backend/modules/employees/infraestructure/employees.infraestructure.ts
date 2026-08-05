@@ -182,6 +182,7 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
             frecuencia_pago: data.frecuencia_pago,
             rol: data.rol,
             salario: data.salario,
+            aplica_retenciones: data.aplica_retenciones ?? false,
             activo: data.activo ?? true,
          })
          .returningAll()

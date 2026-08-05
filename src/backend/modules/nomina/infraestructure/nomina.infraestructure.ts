@@ -58,6 +58,13 @@ function mapCycleEmployee(row: any): PayrollCycleEmployeeProps {
       devengado_tarifas: num(row.devengado_tarifas),
       complemento_minimo: num(row.complemento_minimo),
       seguro: num(row.seguro),
+      afp: num(row.afp),
+      sfs: num(row.sfs),
+      isr: num(row.isr),
+      base_isr: num(row.base_isr),
+      // No pasa por `num()`: aquí null significa "no se calculó" y convertirlo
+      // a 0 lo volvería un año fiscal inválido.
+      isr_anio_escala: row.isr_anio_escala ?? null,
       deducciones: num(row.deducciones),
       deuda_total: num(row.deuda_total),
       deuda_pendiente: num(row.deuda_pendiente),
@@ -147,7 +154,7 @@ export class KyselyNominaRepository implements INominaRepository {
    async listEmpleadosParaNomina(): Promise<EmpleadoParaNomina[]> {
       const rows = await this.db
          .selectFrom("empleado")
-         .select(["id", "nombre", "rol", "salario", "frecuencia_pago"])
+         .select(["id", "nombre", "rol", "salario", "frecuencia_pago", "aplica_retenciones"])
          .where("activo", "=", true)
          .orderBy("nombre", "asc")
          .execute();
@@ -159,6 +166,10 @@ export class KyselyNominaRepository implements INominaRepository {
          modalidad: r.rol === "OPERADOR" ? "PRODUCCION" : "FIJO",
          salario: num(r.salario),
          frecuencia_pago: r.frecuencia_pago ?? null,
+         // Ante NULL (fila anterior a la migración 016) se asume que NO se le
+         // retiene: es lo que venía pasando hasta ahora, así que recalcular un
+         // ciclo viejo no le cambia el pago a nadie de forma silenciosa.
+         aplica_retenciones: r.aplica_retenciones === true,
       }));
    }
 
@@ -406,6 +417,11 @@ export class KyselyNominaRepository implements INominaRepository {
                devengado_tarifas: row.devengado_tarifas,
                complemento_minimo: row.complemento_minimo,
                seguro: row.seguro,
+               afp: row.afp,
+               sfs: row.sfs,
+               isr: row.isr,
+               base_isr: row.base_isr,
+               isr_anio_escala: row.isr_anio_escala,
                deducciones: row.deducciones,
                deuda_total: row.deuda_total,
                deuda_pendiente: row.deuda_pendiente,
@@ -425,6 +441,15 @@ export class KyselyNominaRepository implements INominaRepository {
                   // `seguro` NO se pisa al recalcular: es un campo libre que
                   // el usuario edita a mano. `deducciones` sí se recalcula
                   // siempre desde la tabla `deduccion`.
+                  //
+                  // Las retenciones también se pisan: son cálculo puro sobre
+                  // el bruto, no un valor que nadie escribe a mano. Si la
+                  // producción cambió, la retención que le corresponde cambió.
+                  afp: row.afp,
+                  sfs: row.sfs,
+                  isr: row.isr,
+                  base_isr: row.base_isr,
+                  isr_anio_escala: row.isr_anio_escala,
                   deducciones: row.deducciones,
                   deuda_total: row.deuda_total,
                   deuda_pendiente: row.deuda_pendiente,
@@ -709,7 +734,12 @@ export class KyselyNominaRepository implements INominaRepository {
       if (!actual) return null;
 
       const bruto = num(actual.devengado_tarifas) + num(actual.complemento_minimo);
-      const neto = bruto - seguro - num(actual.deducciones);
+      // Las retenciones de ley no se recalculan aquí —el seguro no altera la
+      // base imponible— pero sí hay que restarlas: omitirlas dejaría un neto
+      // mayor que el calculado, y el usuario vería el monto cambiar solo por
+      // haber tocado el seguro.
+      const retenciones = num(actual.afp) + num(actual.sfs) + num(actual.isr);
+      const neto = bruto - seguro - num(actual.deducciones) - retenciones;
 
       const row = await this.db
          .updateTable("payroll_cycle_employees")
@@ -803,7 +833,14 @@ export class KyselyNominaRepository implements INominaRepository {
                deducciones: periodo,
                deuda_total: total,
                deuda_pendiente: Math.max(0, total - periodo),
-               neto_pagar: bruto - num(f.seguro) - periodo,
+               // Igual que en `updateSeguro`: las retenciones ya calculadas se
+               // arrastran. Una deducción nueva no cambia la base imponible
+               // (el ISR se calcula sobre el bruto), pero sí baja el neto.
+               neto_pagar:
+                  bruto -
+                  num(f.seguro) -
+                  periodo -
+                  (num(f.afp) + num(f.sfs) + num(f.isr)),
                updated_at: new Date(),
             } as any)
             .where("id", "=", f.id)

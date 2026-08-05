@@ -27,6 +27,53 @@ const money = (n: number) =>
    `RD$ ${n.toLocaleString("es-DO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 
+/** Suma de lo que se le retiene por ley este período. */
+const totalRetenciones = (e: NominaEmpleado) => e.afp + e.sfs + e.isr;
+
+/**
+ * Retenciones de ley en la fila colapsada. Son TRES montos (AFP, SFS, ISR) que
+ * no caben en una columna, así que se muestra el total y el desglose queda en
+ * el tooltip y en la fila expandida.
+ *
+ * Tres estados distintos, que no deben confundirse:
+ *   - sin retenciones activadas → "—" apagado (no le toca)
+ *   - activadas pero sin escala → aviso ámbar (no se pudo calcular)
+ *   - activadas y en 0          → "exento" (sí le toca, pero no llega al tramo)
+ */
+function RetencionesCelda({ empleado }: { empleado: NominaEmpleado }) {
+   const total = totalRetenciones(empleado);
+
+   // Nunca se calculó nada para esta persona: ni retención ni escala.
+   if (total === 0 && empleado.isr_anio_escala === null) {
+      return (
+         <span className="text-muted-foreground" title="No se le aplican retenciones de ley">
+            —
+         </span>
+      );
+   }
+
+   return (
+      <div className="flex flex-col items-end">
+         <span
+            className="whitespace-nowrap text-destructive"
+            title={
+               `TSS ${money(empleado.afp + empleado.sfs)} ` +
+               `(AFP ${money(empleado.afp)} + SFS ${money(empleado.sfs)})\n` +
+               `ISR ${money(empleado.isr)}` +
+               (empleado.isr_anio_escala ? ` · escala ${empleado.isr_anio_escala}` : "")
+            }
+         >
+            {total > 0 ? `− ${money(total)}` : "exento"}
+         </span>
+         {total > 0 && (
+            <span className="text-[10px] text-muted-foreground">
+               TSS {money(empleado.afp + empleado.sfs)} · ISR {money(empleado.isr)}
+            </span>
+         )}
+      </div>
+   );
+}
+
 /**
  * "Precio por viaje u hora" no es un solo número: un chofer puede tener varias
  * tarifas en el mismo ciclo. Con una sola se muestra el precio; con varias se
@@ -39,9 +86,15 @@ function PrecioUnitario({
    empleado: NominaEmpleado;
    onVerTarifas: () => void;
 }) {
-   // Un asalariado no cobra por viaje ni por hora: cobra su sueldo.
+   // Un asalariado no cobra por viaje ni por hora: cobra su sueldo. Se muestra
+   // el monto entre paréntesis para no obligar a expandir la fila para verlo.
    if (empleado.modalidad === "FIJO") {
-      return <span className="text-muted-foreground">Sueldo fijo</span>;
+      return (
+         <span className="whitespace-nowrap text-muted-foreground">
+            Sueldo fijo{" "}
+            <span className="text-foreground">({money(empleado.complemento_minimo)})</span>
+         </span>
+      );
    }
    const tarifas = empleado.tarifas ?? [];
    if (tarifas.length === 0) return <span className="text-muted-foreground">—</span>;
@@ -602,6 +655,80 @@ function DetalleDeducciones({
 }
 
 /**
+ * Desglose de las retenciones de ley al abrir la fila. No hay que pedir nada:
+ * los montos vienen en el listado del ciclo.
+ *
+ * Muestra la base imponible además de los montos porque sin ella el ISR es un
+ * número que hay que creerse: con ella se puede verificar contra la
+ * calculadora de la DGII, que es lo que hará quien revise la nómina.
+ */
+function RetencionesExpandible({ empleado }: { empleado: NominaEmpleado }) {
+   const total = totalRetenciones(empleado);
+
+   // No se le retiene: no se muestra la sección en absoluto. Una tabla de
+   // ceros solo estorbaría al revisar al chofer de al lado.
+   if (total === 0 && empleado.isr_anio_escala === null) return null;
+
+   return (
+      <div className="mt-4 border-t pt-3">
+         <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
+            Retenciones de ley
+         </h4>
+         <table className="w-full text-sm">
+            <tbody>
+               <tr>
+                  <td className="py-1">
+                     AFP <span className="text-muted-foreground">· pensiones (2.87%)</span>
+                  </td>
+                  <td className="py-1 text-right text-destructive">− {money(empleado.afp)}</td>
+               </tr>
+               <tr>
+                  <td className="py-1">
+                     SFS <span className="text-muted-foreground">· salud (3.04%)</span>
+                  </td>
+                  <td className="py-1 text-right text-destructive">− {money(empleado.sfs)}</td>
+               </tr>
+               <tr className="border-t border-border">
+                  <td className="py-1">
+                     ISR
+                     {empleado.isr_anio_escala && (
+                        <span className="text-muted-foreground">
+                           {" "}
+                           · escala {empleado.isr_anio_escala} sobre base mensual de{" "}
+                           {money(empleado.base_isr)}
+                        </span>
+                     )}
+                  </td>
+                  <td className="py-1 text-right text-destructive">
+                     {empleado.isr > 0 ? `− ${money(empleado.isr)}` : "exento"}
+                  </td>
+               </tr>
+               <tr className="border-t border-border font-semibold">
+                  <td className="py-1">Total retenido</td>
+                  <td className="py-1 text-right text-destructive">− {money(total)}</td>
+               </tr>
+            </tbody>
+         </table>
+
+         {/*
+            El ISR se calcula anualizando el ingreso del período, que es el
+            método de la DGII. Con producción irregular eso SOBRE-retiene en
+            los meses buenos; no es un error de cuenta y el ajuste va por el
+            IR-13 anual, así que se dice aquí antes de que alguien lo reporte
+            como bug o lo "corrija" a mano.
+         */}
+         {empleado.modalidad === "PRODUCCION" && empleado.isr > 0 && (
+            <p className="mt-2 text-xs text-muted-foreground">
+               El ISR se calcula anualizando lo devengado en este período. Con producción
+               irregular un período alto retiene de más; el ajuste se hace en la declaración
+               anual (IR-13).
+            </p>
+         )}
+      </div>
+   );
+}
+
+/**
  * Las deducciones del empleado, cargadas al abrir la fila. El listado del
  * ciclo trae solo el conteo (traer el detalle de todos costaba una query por
  * empleado), así que aquí se piden las del que se está mirando.
@@ -663,6 +790,7 @@ function FilaDesglose({
                   </tr>
                </tbody>
             </table>
+            <RetencionesExpandible empleado={empleado} />
             <DeduccionesExpandible empleado={empleado} />
          </div>
       );
@@ -767,6 +895,7 @@ function FilaDesglose({
             </tbody>
          </table>
 
+         <RetencionesExpandible empleado={empleado} />
          <DeduccionesExpandible empleado={empleado} />
       </div>
    );
@@ -855,10 +984,25 @@ export function NominaTable({
          devengado: acc.devengado + e.devengado_tarifas,
          complemento: acc.complemento + e.complemento_minimo,
          seguro: acc.seguro + e.seguro,
+         // TSS e ISR se acumulan por separado además del total: son dos
+         // entregas distintas (Seguridad Social y DGII) y la empresa las
+         // declara aparte.
+         tss: acc.tss + e.afp + e.sfs,
+         isr: acc.isr + e.isr,
+         retenciones: acc.retenciones + totalRetenciones(e),
          deducciones: acc.deducciones + e.deducciones,
          neto: acc.neto + e.neto_pagar,
       }),
-      { devengado: 0, complemento: 0, seguro: 0, deducciones: 0, neto: 0 }
+      {
+         devengado: 0,
+         complemento: 0,
+         seguro: 0,
+         tss: 0,
+         isr: 0,
+         retenciones: 0,
+         deducciones: 0,
+         neto: 0,
+      }
    );
 
    async function guardarSeguro(emp: NominaEmpleado) {
@@ -891,6 +1035,12 @@ export function NominaTable({
                   <th className="px-3 py-3 text-left font-semibold">Nombre</th>
                   <th className="px-3 py-3 text-right font-semibold">Precio viaje/hora</th>
                   <th className="px-3 py-3 text-right font-semibold">Seguro</th>
+                  <th
+                     className="px-3 py-3 text-right font-semibold"
+                     title="Retenciones de ley: TSS (AFP + SFS) e ISR. Se calculan solas sobre el bruto del período."
+                  >
+                     TSS / ISR
+                  </th>
                   <th className="px-3 py-3 text-right font-semibold">Deuda</th>
                   <th className="px-3 py-3 text-right font-semibold">Se cobra</th>
                   <th className="px-3 py-3 text-right font-semibold">Pendiente</th>
@@ -1009,6 +1159,10 @@ export function NominaTable({
                               )}
                            </td>
 
+                           <td className="px-3 py-3 text-right">
+                              <RetencionesCelda empleado={e} />
+                           </td>
+
                            <td className="px-3 py-3 text-right whitespace-nowrap">
                               {money(e.deuda_total)}
                            </td>
@@ -1055,7 +1209,7 @@ export function NominaTable({
 
                         {expandido && (
                            <tr className="bg-muted/10">
-                              <td colSpan={8} className="p-0">
+                              <td colSpan={9} className="p-0">
                                  <FilaDesglose
                                     empleado={e}
                                     readOnly={readOnly}
@@ -1079,6 +1233,12 @@ export function NominaTable({
                      Bruto {money(totales.devengado + totales.complemento)}
                   </td>
                   <td className="px-3 py-3 text-right">{money(totales.seguro)}</td>
+                  <td
+                     className="px-3 py-3 text-right text-destructive"
+                     title={`TSS ${money(totales.tss)} · ISR ${money(totales.isr)}`}
+                  >
+                     {totales.retenciones > 0 ? money(totales.retenciones) : "—"}
+                  </td>
                   <td className="px-3 py-3" />
                   <td className="px-3 py-3 text-right text-destructive">
                      {money(totales.deducciones)}
