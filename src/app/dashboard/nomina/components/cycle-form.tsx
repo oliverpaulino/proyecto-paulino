@@ -9,33 +9,67 @@ import { useNominaStore, type FrecuenciaPago } from "@/stores/useNominaStore";
 const INPUT_CLASS =
    "h-9 w-full rounded-md border border-input bg-input/30 px-3 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px]";
 
-/** Rango por defecto: la quincena en curso (1-15 o 16-fin de mes). */
-function quincenaActual() {
-   const hoy = new Date();
-   const y = hoy.getFullYear();
-   const m = hoy.getMonth();
-   const primera = hoy.getDate() <= 15;
-   const inicio = new Date(y, m, primera ? 1 : 16);
-   const fin = primera ? new Date(y, m, 15) : new Date(y, m + 1, 0);
-   const iso = (d: Date) =>
-      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-   const meses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+const iso = (d: Date) =>
+   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/**
+ * Rango por defecto del período en curso según la frecuencia:
+ * semanal = lunes a domingo de esta semana, quincenal = 1-15 o 16-fin de mes,
+ * mensual = mes completo.
+ */
+function periodoActual(frecuencia: FrecuenciaPago, referencia = new Date()) {
+   const y = referencia.getFullYear();
+   const m = referencia.getMonth();
+
+   if (frecuencia === "SEMANAL") {
+      // getDay(): 0 = domingo, por eso el domingo retrocede 6 días y no 0.
+      const diaSemana = referencia.getDay();
+      const inicio = new Date(y, m, referencia.getDate() - (diaSemana === 0 ? 6 : diaSemana - 1));
+      const fin = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate() + 6);
+      return {
+         inicio: iso(inicio),
+         fin: iso(fin),
+         nombre: `Semana ${iso(inicio)} al ${iso(fin)}`,
+      };
+   }
+
+   if (frecuencia === "MENSUAL") {
+      return {
+         inicio: iso(new Date(y, m, 1)),
+         fin: iso(new Date(y, m + 1, 0)),
+         nombre: `${MESES[m]} ${y}`,
+      };
+   }
+
+   const primera = referencia.getDate() <= 15;
    return {
-      inicio: iso(inicio),
-      fin: iso(fin),
-      nombre: `Quincena ${primera ? 1 : 2} - ${meses[m]} ${y}`,
+      inicio: iso(new Date(y, m, primera ? 1 : 16)),
+      fin: iso(primera ? new Date(y, m, 15) : new Date(y, m + 1, 0)),
+      nombre: `Quincena ${primera ? 1 : 2} - ${MESES[m]} ${y}`,
    };
 }
 
 export function CycleForm({ onDone }: { onDone?: () => void }) {
    const { CreateCycle, loading } = useNominaStore();
-   const sugerido = quincenaActual();
+   const [sugerido] = useState(() => periodoActual("QUINCENAL"));
 
    const [nombre, setNombre] = useState(sugerido.nombre);
    const [frecuencia, setFrecuencia] = useState<FrecuenciaPago>("QUINCENAL");
    const [inicio, setInicio] = useState(sugerido.inicio);
    const [fin, setFin] = useState(sugerido.fin);
    const [error, setError] = useState<string | null>(null);
+   // Si el usuario escribe su propio nombre, la frecuencia ya no lo sobrescribe.
+   const [nombreEditado, setNombreEditado] = useState(false);
+
+   function cambiarFrecuencia(nueva: FrecuenciaPago) {
+      const periodo = periodoActual(nueva);
+      setFrecuencia(nueva);
+      setInicio(periodo.inicio);
+      setFin(periodo.fin);
+      if (!nombreEditado) setNombre(periodo.nombre);
+   }
 
    async function submit(e: React.FormEvent) {
       e.preventDefault();
@@ -58,7 +92,14 @@ export function CycleForm({ onDone }: { onDone?: () => void }) {
       <form onSubmit={submit} className="flex flex-col gap-4">
          <div className="flex flex-col gap-1.5">
             <Label>Nombre del ciclo *</Label>
-            <Input value={nombre} onChange={(e) => setNombre(e.target.value)} required />
+            <Input
+               value={nombre}
+               onChange={(e) => {
+                  setNombre(e.target.value);
+                  setNombreEditado(true);
+               }}
+               required
+            />
          </div>
 
          <div className="flex flex-col gap-1.5">
@@ -66,7 +107,7 @@ export function CycleForm({ onDone }: { onDone?: () => void }) {
             <select
                className={INPUT_CLASS}
                value={frecuencia}
-               onChange={(e) => setFrecuencia(e.target.value as FrecuenciaPago)}
+               onChange={(e) => cambiarFrecuencia(e.target.value as FrecuenciaPago)}
             >
                <option value="SEMANAL">Semanal</option>
                <option value="QUINCENAL">Quincenal</option>

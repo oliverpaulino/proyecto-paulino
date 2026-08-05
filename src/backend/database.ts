@@ -164,6 +164,10 @@ export interface DB {
       frecuencia_pago: string; // <-- Agregado el campo de frecuencia de pago
       rol: string;
       salario: number;
+      // Si se le retienen TSS (AFP/SFS) e ISR en la nómina. Por defecto FALSE:
+      // activarlo cambia lo que la persona cobra, así que es una decisión
+      // explícita por empleado, no un default. Ver migración 016.
+      aplica_retenciones: Generated<boolean>;
       activo: boolean;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
@@ -385,6 +389,18 @@ export interface DB {
       devengado_tarifas: Generated<number>; // Σ conduces × monto_pago
       complemento_minimo: Generated<number>; // MAX(0, mínimo − devengado)
       seguro: Generated<number>; // campo libre editable
+      // Retenciones de ley (migración 016). NO son deducciones: no se guardan
+      // en la tabla `deduccion` porque no son deudas con la empresa, sino
+      // dinero que se le entrega a la TSS y a la DGII.
+      afp: Generated<number>; // 2.87% topado (cuota del empleado)
+      sfs: Generated<number>; // 3.04% topado (cuota del empleado)
+      isr: Generated<number>; // retención del período
+      // Base imponible mensualizada que se usó, para poder auditar el ISR sin
+      // recalcularlo con una escala que quizá ya cambió.
+      base_isr: Generated<number>;
+      // Año de la escala aplicada. NULL = no se calculó (no había escala para
+      // ese año fiscal), que no es lo mismo que exento.
+      isr_anio_escala: number | null;
       // Suma de las deducciones del período. Siempre se recalcula desde la
       // tabla `deduccion`: para descontar más, se CREA una deducción nueva,
       // nunca se sobrescribe este monto.
@@ -408,6 +424,11 @@ export interface DB {
       cycle_employee_id: string;
       categoria_equipo_tarifa_id: string | null; // best-effort (hard-replace)
       categoria_equipo_tarifa_nombre: string; // snapshot
+      // Categoría del equipo con el que se generó la producción. NULL en las
+      // filas anteriores a la migración 015 y en los ciclos cerrados, que ya
+      // no se recalculan.
+      categoria_equipo_id: string | null;
+      categoria_equipo_nombre: string | null; // snapshot
       medida_cobro_nombre: string | null;
       cantidad: Generated<number>;
       monto_pago: Generated<number>; // precio unitario AL CHOFER

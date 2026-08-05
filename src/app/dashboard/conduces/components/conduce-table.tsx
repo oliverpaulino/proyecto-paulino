@@ -128,7 +128,23 @@ export function ConduceTable({ conduces, onDelete, deletingId, ocultarProyecto }
                            )}
                         </td>
                      )}
-                     <td className="px-3 py-3">{c.equipo_nombre ?? "—"}</td>
+                     <td className="px-3 py-3">
+                        {c.equipo_nombre ?? "—"}
+                        {/*
+                           La tarifa no cuelga del equipo sino de su categoría
+                           (equipo → categoria_equipo → categoria_equipo_tarifa),
+                           así que mostrarla aquí explica de dónde sale el precio
+                           cuando el chofer manejó varias categorías.
+                        */}
+                        {c.categoria_equipo_nombre && (
+                           <div className="text-xs text-muted-foreground">
+                              {c.categoria_equipo_nombre}
+                              {c.categoria_equipo_tarifa_nombre
+                                 ? ` · ${c.categoria_equipo_tarifa_nombre}`
+                                 : ""}
+                           </div>
+                        )}
+                     </td>
                      <td className="px-3 py-3">{c.operador_nombre ?? "—"}</td>
                      <td className="px-3 py-3 text-xs text-muted-foreground max-w-[220px]">
                         {c.tipo_conduce === "CAMION" ? (

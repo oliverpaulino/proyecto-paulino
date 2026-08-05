@@ -21,6 +21,16 @@ export interface PayrollCycle {
 export interface TarifaDesglose {
    categoria_equipo_tarifa_id: string | null;
    categoria_equipo_tarifa_nombre: string;
+   /**
+    * Categoría del equipo (el "tipo de camión") con el que se generó esta
+    * producción. El desglose agrupa por (categoría, tarifa), así que la misma
+    * tarifa usada con dos categorías distintas aparece en dos filas.
+    *
+    * NULL en snapshots viejos: ciclos calculados antes de la migración 015 y
+    * ciclos cerrados, que ya no se recalculan.
+    */
+   categoria_equipo_id: string | null;
+   categoria_equipo_nombre: string | null;
    medida_cobro_nombre: string | null;
    cantidad: number;
    monto_pago: number;
@@ -63,6 +73,21 @@ export interface NominaEmpleado {
    devengado_tarifas: number;
    complemento_minimo: number;
    seguro: number;
+   /*
+      Retenciones de ley, calculadas automáticamente. No son deducciones: no
+      son deudas con la empresa sino dinero que va a la TSS y a la DGII.
+      Valen 0 en los empleados sin retenciones activadas.
+   */
+   afp: number;
+   sfs: number;
+   isr: number;
+   /** Base imponible mensualizada usada para el ISR (bruto − AFP − SFS). */
+   base_isr: number;
+   /**
+    * Año de la escala aplicada. `null` = no se calculó porque no había escala
+    * cargada para ese año fiscal — distinto de exento, y la UI lo advierte.
+    */
+   isr_anio_escala: number | null;
    /** Suma de las deducciones del período. */
    deducciones: number;
    /** Cuántos conceptos componen ese monto. Viene siempre en el listado. */

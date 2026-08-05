@@ -11,6 +11,8 @@ export interface EmployeeProps {
    tipo_identificacion: TipoIdentificacion;
    rol: TipoRolEmpleado;
    salario: number;
+   /** Si se le retienen TSS (AFP/SFS) e ISR en la nómina. Ver migración 016. */
+   aplica_retenciones: boolean;
    activo: boolean;
    created_at: Date;
    updated_at: Date;
@@ -34,6 +36,7 @@ export class Employee {
    get tipo_identificacion() { return this.props.tipo_identificacion; }
    get rol() { return this.props.rol; }
    get salario() { return this.props.salario; }
+   get aplica_retenciones() { return this.props.aplica_retenciones; }
    get activo() { return this.props.activo; }
    get created_at() { return this.props.created_at; }
    get updated_at() { return this.props.updated_at; }
@@ -51,6 +54,7 @@ export interface CreateEmployeeDTO {
    frecuencia_pago: string;
    rol: TipoRolEmpleado;
    salario: number;
+   aplica_retenciones?: boolean;
    activo?: boolean;
 }
 
@@ -60,6 +64,7 @@ export interface UpdateEmployeeDTO {
    tipo_identificacion?: TipoIdentificacion;
    rol?: TipoRolEmpleado;
    salario?: number;
+   aplica_retenciones?: boolean;
    activo?: boolean;
 }
 
