@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
    Card,
@@ -50,9 +50,12 @@ const TIPO_BADGE: Record<string, string> = {
 };
 
 export default function SupplierDetailPage() {
+   const pathname = usePathname()
    const params = useParams();
    const router = useRouter();
    const supplierId = params.id as string;
+   const searchParams = useSearchParams();
+   const currentTab = searchParams.get("tab") || "resumen";
 
    const { UpdateSupplier, DeleteSupplier, GetSupplierById } = useSupplierStore();
    const { GetOrdenesCompraBySupplier, PurchaseOrders: ordenes } = usePurchaseOrderStore();
@@ -95,6 +98,11 @@ export default function SupplierDetailPage() {
       setSupplier(data);
    }
 
+   const handleTabChange = (value: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("tab", value); // Seteas el valor
+      router.replace(`${pathname}?${params.toString()}`); // Actualizas la URL silenciosamente
+   };
    async function handleUpdate(values: {
       nombre: string; rnc: string; tipo: string;
       email: string; telefono: string; direccion: string;
@@ -158,231 +166,231 @@ export default function SupplierDetailPage() {
 
    return (
       <PermissionGuard resource="supplier" action="read" mode="page">
-      <div className="flex flex-col gap-6 p-6">
+         <div className="flex flex-col gap-6 p-6">
 
-         {/* Header */}
-         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex items-start gap-4">
-               <Button variant="outline" size="icon" onClick={() => router.push("/dashboard/proveedores")}>
-                  <ArrowLeft className="size-4" />
-               </Button>
-               <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                     <h1 className="text-2xl font-bold text-brand-blue dark:text-white">
-                        {supplier.nombre}
-                     </h1>
-                     <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${TIPO_BADGE[supplier.tipo] ?? ""}`}>
-                        {TIPO_LABEL[supplier.tipo] ?? supplier.tipo}
-                     </span>
+            {/* Header */}
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+               <div className="flex items-start gap-4">
+                  <Button variant="outline" size="icon" onClick={() => router.push("/dashboard/proveedores")}>
+                     <ArrowLeft className="size-4" />
+                  </Button>
+                  <div className="space-y-1">
+                     <div className="flex flex-wrap items-center gap-2">
+                        <h1 className="text-2xl font-bold text-brand-blue dark:text-white">
+                           {supplier.nombre}
+                        </h1>
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${TIPO_BADGE[supplier.tipo] ?? ""}`}>
+                           {TIPO_LABEL[supplier.tipo] ?? supplier.tipo}
+                        </span>
+                     </div>
+                     <p className="text-sm text-muted-foreground">RNC: {supplier.rnc}</p>
+                     <p className="text-sm text-muted-foreground">
+                        {supplier.email ?? "Sin correo"} · {supplier.telefono ?? "Sin teléfono"}
+                     </p>
                   </div>
-                  <p className="text-sm text-muted-foreground">RNC: {supplier.rnc}</p>
-                  <p className="text-sm text-muted-foreground">
-                     {supplier.email ?? "Sin correo"} · {supplier.telefono ?? "Sin teléfono"}
-                  </p>
+               </div>
+
+               <div className="flex flex-wrap gap-2 lg:justify-end">
+                  <PermissionGuard resource="supplier" action="update">
+                     <Button variant="outline" onClick={() => setEditOpen(true)}>
+                        <Pencil className="mr-2 size-4" />
+                        Editar proveedor
+                     </Button>
+                  </PermissionGuard>
+                  <PermissionGuard resource="supplier" action="delete">
+                     <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
+                        <Trash2 className="mr-2 size-4" />
+                        Eliminar
+                     </Button>
+                  </PermissionGuard>
                </div>
             </div>
 
-            <div className="flex flex-wrap gap-2 lg:justify-end">
-               <PermissionGuard resource="supplier" action="update">
-               <Button variant="outline" onClick={() => setEditOpen(true)}>
-                  <Pencil className="mr-2 size-4" />
-                  Editar proveedor
-               </Button>
-               </PermissionGuard>
-               <PermissionGuard resource="supplier" action="delete">
-               <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
-                  <Trash2 className="mr-2 size-4" />
-                  Eliminar
-               </Button>
-               </PermissionGuard>
-            </div>
-         </div>
+            {/* Tabs */}
+            <Tabs defaultValue={currentTab} onValueChange={handleTabChange} className="space-y-4">
+               <TabsList className="w-full flex-wrap justify-start gap-1 bg-transparent p-0">
+                  {[
+                     { value: "resumen", label: "Resumen" },
+                     { value: "compras", label: "Órdenes de compra" },
+                     { value: "pagos", label: "Pagos" },
+                  ].map((tab) => (
+                     <TabsTrigger
+                        key={tab.value}
+                        value={tab.value}
+                        className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white"
+                     >
+                        {tab.label}
+                     </TabsTrigger>
+                  ))}
+               </TabsList>
 
-         {/* Tabs */}
-         <Tabs defaultValue="resumen" className="space-y-4">
-            <TabsList className="w-full flex-wrap justify-start gap-1 bg-transparent p-0">
-               {[
-                  { value: "resumen", label: "Resumen" },
-                  { value: "compras", label: "Órdenes de compra" },
-                  { value: "pagos", label: "Pagos" },
-               ].map((tab) => (
-                  <TabsTrigger
-                     key={tab.value}
-                     value={tab.value}
-                     className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white"
-                  >
-                     {tab.label}
-                  </TabsTrigger>
-               ))}
-            </TabsList>
+               {/* ── RESUMEN ── */}
+               <TabsContent value="resumen" className="space-y-4">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                     <MiniStatCard
+                        icon={<ShoppingCart className="size-4 text-brand-blue" />}
+                        label="Órdenes de compra"
+                        value={ordenes.data?.length.toString() ?? 0}
+                        index={0}
 
-            {/* ── RESUMEN ── */}
-            <TabsContent value="resumen" className="space-y-4">
-               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                  <MiniStatCard
-                     icon={<ShoppingCart className="size-4 text-brand-blue" />}
-                     label="Órdenes de compra"
-                     value={ordenes.data?.length.toString() ?? 0}
-                     index={0}
+                     />
+                     <MiniStatCard
+                        icon={<Receipt className="size-4 text-brand-blue" />}
+                        label="Monto total"
+                        value={ordenes.data.filter((o) => o.estado !== "BORRADOR" && o.estado !== "CANCELADA").reduce((sum, order) => sum + (order.total || 0), 0).toLocaleString("es-DO", { style: "currency", currency: "DOP" })}
+                        index={1}
+                     />
+                     <MiniStatCard
+                        icon={<Building2 className="size-4 text-brand-blue" />}
+                        label="Última actualización"
+                        value={formatDate(supplier.updated_at)}
+                        compact
+                        index={3}
+                     />
+                  </div>
 
-                  />
-                  <MiniStatCard
-                     icon={<Receipt className="size-4 text-brand-blue" />}
-                     label="Monto total"
-                     value={ordenes.data.filter((o) => o.estado !== "BORRADOR" && o.estado !== "CANCELADA").reduce((sum, order) => sum + (order.total || 0), 0).toLocaleString("es-DO", { style: "currency", currency: "DOP" })}
-                     index={1}
-                  />
-                  <MiniStatCard
-                     icon={<Building2 className="size-4 text-brand-blue" />}
-                     label="Última actualización"
-                     value={formatDate(supplier.updated_at)}
-                     compact
-                     index={3}
-                  />
-               </div>
-
-               <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                  <Card className="lg:col-span-2">
-                     <CardHeader>
-                        <CardTitle>Información del proveedor</CardTitle>
-                        <CardDescription>Datos de identificación y contacto.</CardDescription>
-                     </CardHeader>
-                     <CardContent>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                           <InfoField label="Nombre" value={supplier.nombre} />
-                           <InfoField label="RNC" value={supplier.rnc} />
-                           <InfoField label="Tipo" value={TIPO_LABEL[supplier.tipo] ?? supplier.tipo} />
-                           <InfoField label="Correo" value={supplier.email ?? "—"} />
-                           <InfoField label="Teléfono" value={supplier.telefono ?? "—"} />
-                           <div className="sm:col-span-2">
-                              <InfoField label="Dirección" value={supplier.direccion ?? "—"} />
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                     <Card className="lg:col-span-2">
+                        <CardHeader>
+                           <CardTitle>Información del proveedor</CardTitle>
+                           <CardDescription>Datos de identificación y contacto.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                           <div className="grid gap-4 sm:grid-cols-2">
+                              <InfoField label="Nombre" value={supplier.nombre} />
+                              <InfoField label="RNC" value={supplier.rnc} />
+                              <InfoField label="Tipo" value={TIPO_LABEL[supplier.tipo] ?? supplier.tipo} />
+                              <InfoField label="Correo" value={supplier.email ?? "—"} />
+                              <InfoField label="Teléfono" value={supplier.telefono ?? "—"} />
+                              <div className="sm:col-span-2">
+                                 <InfoField label="Dirección" value={supplier.direccion ?? "—"} />
+                              </div>
                            </div>
-                        </div>
-                     </CardContent>
-                  </Card>
+                        </CardContent>
+                     </Card>
 
+                     <Card>
+                        <CardHeader>
+                           <CardTitle>Actividad</CardTitle>
+                           <CardDescription>Historial del registro.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                           <InfoField label="Registrado" value={formatDate(supplier.created_at)} />
+                           <InfoField label="Actualizado" value={formatDate(supplier.updated_at)} />
+                           <InfoField label="Estado" value="Activo" />
+                        </CardContent>
+                     </Card>
+                  </div>
+               </TabsContent>
+
+               {/* ── ÓRDENES DE COMPRA ── */}
+               <TabsContent value="compras" className="space-y-4">
                   <Card>
                      <CardHeader>
-                        <CardTitle>Actividad</CardTitle>
-                        <CardDescription>Historial del registro.</CardDescription>
+                        <CardTitle className="flex items-center gap-2">
+                           <ShoppingCart className="size-5 text-brand-blue" />
+                           Órdenes de compra
+                        </CardTitle>
+                        <CardDescription>
+                           Historial de órdenes enviadas a este proveedor.
+                        </CardDescription>
                      </CardHeader>
                      <CardContent className="space-y-4">
-                        <InfoField label="Registrado" value={formatDate(supplier.created_at)} />
-                        <InfoField label="Actualizado" value={formatDate(supplier.updated_at)} />
-                        <InfoField label="Estado" value="Activo" />
+                        <div className="grid gap-4 md:grid-cols-3">
+                           <MiniStat
+                              label="Pendientes"
+                              value={ordenesPendientes.length.toString()}
+                           />
+
+                           <MiniStat
+                              label="Total Deuda"
+                              value={`RD$ ${totalDeuda?.toLocaleString('es-DO', { minimumFractionDigits: 2 })}`}
+                           />
+
+                           <MiniStat
+                              label="Total Pagado"
+                              value="RD$ 0.00"
+                           />
+                        </div>
+                        <OrdenesCompraTable ordenes={ordenes} onPageChange={(newPage) => setPage(newPage)} onEdit={() => { }} onDelete={() => { }} />
+                        {ordenes.data?.length === 0 && (
+                           <EmptyState
+                              icon={<ShoppingCart className="size-8 opacity-30" />}
+                              title="Sin órdenes de compra"
+                              description="Aquí podrás registrar y ver el historial de órdenes de compra enviadas a este proveedor, incluyendo estado, montos y fechas."
+                           />
+
+                        )}
                      </CardContent>
                   </Card>
-               </div>
-            </TabsContent>
+               </TabsContent>
 
-            {/* ── ÓRDENES DE COMPRA ── */}
-            <TabsContent value="compras" className="space-y-4">
-               <Card>
-                  <CardHeader>
-                     <CardTitle className="flex items-center gap-2">
-                        <ShoppingCart className="size-5 text-brand-blue" />
-                        Órdenes de compra
-                     </CardTitle>
-                     <CardDescription>
-                        Historial de órdenes enviadas a este proveedor.
-                     </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                     <div className="grid gap-4 md:grid-cols-3">
-                        <MiniStat
-                           label="Pendientes"
-                           value={ordenesPendientes.length.toString()}
-                        />
-
-                        <MiniStat
-                           label="Total Deuda"
-                           value={`RD$ ${totalDeuda?.toLocaleString('es-DO', { minimumFractionDigits: 2 })}`}
-                        />
-
-                        <MiniStat
-                           label="Total Pagado"
-                           value="RD$ 0.00"
-                        />
-                     </div>
-                     <OrdenesCompraTable ordenes={ordenes} onPageChange={(newPage) => setPage(newPage)} onEdit={() => { }} onDelete={() => { }} />
-                     {ordenes.data?.length === 0 && (
+               {/* ── PAGOS ── */}
+               <TabsContent value="pagos" className="space-y-4">
+                  <Card>
+                     <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                           <Receipt className="size-5 text-brand-blue" />
+                           Pagos
+                        </CardTitle>
+                        <CardDescription>
+                           Registro de pagos realizados a este proveedor.
+                        </CardDescription>
+                     </CardHeader>
+                     <CardContent className="space-y-4">
+                        <div className="grid gap-4 md:grid-cols-3">
+                           <MiniStat label="Pendientes" value="0" />
+                           <MiniStat label="Próx. vencimientos" value="0" />
+                           <MiniStat label="Total pagado" value="RD$0" />
+                        </div>
                         <EmptyState
-                           icon={<ShoppingCart className="size-8 opacity-30" />}
-                           title="Sin órdenes de compra"
-                           description="Aquí podrás registrar y ver el historial de órdenes de compra enviadas a este proveedor, incluyendo estado, montos y fechas."
+                           icon={<Receipt className="size-8 opacity-30" />}
+                           title="Sin pagos registrados"
+                           description="Aquí conectarás pagos, facturas y fechas de vencimiento asociadas a este proveedor."
                         />
+                     </CardContent>
+                  </Card>
+               </TabsContent>
 
-                     )}
-                  </CardContent>
-               </Card>
-            </TabsContent>
+            </Tabs>
 
-            {/* ── PAGOS ── */}
-            <TabsContent value="pagos" className="space-y-4">
-               <Card>
-                  <CardHeader>
-                     <CardTitle className="flex items-center gap-2">
-                        <Receipt className="size-5 text-brand-blue" />
-                        Pagos
-                     </CardTitle>
-                     <CardDescription>
-                        Registro de pagos realizados a este proveedor.
-                     </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                     <div className="grid gap-4 md:grid-cols-3">
-                        <MiniStat label="Pendientes" value="0" />
-                        <MiniStat label="Próx. vencimientos" value="0" />
-                        <MiniStat label="Total pagado" value="RD$0" />
-                     </div>
-                     <EmptyState
-                        icon={<Receipt className="size-8 opacity-30" />}
-                        title="Sin pagos registrados"
-                        description="Aquí conectarás pagos, facturas y fechas de vencimiento asociadas a este proveedor."
-                     />
-                  </CardContent>
-               </Card>
-            </TabsContent>
+            {/* Edit dialog */}
+            <Dialog open={editOpen} onOpenChange={(open) => { if (!open) setEditOpen(false); }}>
+               <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                     <DialogTitle>Editar proveedor</DialogTitle>
+                     <DialogDescription>Actualiza los datos de {supplier.nombre}.</DialogDescription>
+                  </DialogHeader>
+                  <SupplierForm
+                     initialData={supplier}
+                     onSubmit={handleUpdate}
+                     onCancel={() => setEditOpen(false)}
+                     loading={actionLoading}
+                     submitLabel="Guardar cambios"
+                  />
+               </DialogContent>
+            </Dialog>
 
-         </Tabs>
-
-         {/* Edit dialog */}
-         <Dialog open={editOpen} onOpenChange={(open) => { if (!open) setEditOpen(false); }}>
-            <DialogContent className="sm:max-w-md">
-               <DialogHeader>
-                  <DialogTitle>Editar proveedor</DialogTitle>
-                  <DialogDescription>Actualiza los datos de {supplier.nombre}.</DialogDescription>
-               </DialogHeader>
-               <SupplierForm
-                  initialData={supplier}
-                  onSubmit={handleUpdate}
-                  onCancel={() => setEditOpen(false)}
-                  loading={actionLoading}
-                  submitLabel="Guardar cambios"
-               />
-            </DialogContent>
-         </Dialog>
-
-         {/* Delete dialog */}
-         <Dialog open={deleteOpen} onOpenChange={(open) => setDeleteOpen(open)}>
-            <DialogContent className="sm:max-w-md">
-               <DialogHeader>
-                  <DialogTitle>Eliminar proveedor</DialogTitle>
-                  <DialogDescription>
-                     ¿Estás seguro de que deseas eliminar a <strong>{supplier.nombre}</strong>? Esta acción no se puede deshacer.
-                  </DialogDescription>
-               </DialogHeader>
-               <DialogFooter>
-                  <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={actionLoading}>
-                     Cancelar
-                  </Button>
-                  <Button variant="destructive" onClick={handleDelete} disabled={actionLoading}>
-                     {actionLoading ? "Eliminando…" : "Eliminar"}
-                  </Button>
-               </DialogFooter>
-            </DialogContent>
-         </Dialog>
-      </div>
+            {/* Delete dialog */}
+            <Dialog open={deleteOpen} onOpenChange={(open) => setDeleteOpen(open)}>
+               <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                     <DialogTitle>Eliminar proveedor</DialogTitle>
+                     <DialogDescription>
+                        ¿Estás seguro de que deseas eliminar a <strong>{supplier.nombre}</strong>? Esta acción no se puede deshacer.
+                     </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                     <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={actionLoading}>
+                        Cancelar
+                     </Button>
+                     <Button variant="destructive" onClick={handleDelete} disabled={actionLoading}>
+                        {actionLoading ? "Eliminando…" : "Eliminar"}
+                     </Button>
+                  </DialogFooter>
+               </DialogContent>
+            </Dialog>
+         </div>
       </PermissionGuard>
    );
 }

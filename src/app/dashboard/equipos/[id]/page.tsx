@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
    Card,
@@ -49,6 +49,10 @@ import { CategoriaEquipo } from "@/dtos/categoria-equipo.dto";
 import { OperadorAsignable } from "@/dtos/employee.dto";
 import { CategoriaEquipoManager } from "../components/categoria-equipo-manager";
 import { EquipoConduces } from "./components/equipo-conduce";
+import { EquipoRentabilidad } from "./components/equipo-rentabilidad";
+import { EquipoGastos } from "./components/equipo-gastos";
+import { EquipoCompras } from "./components/equipo-compras";
+import { EquipoPagos } from "./components/equipo-pagos";
 import { useMantenimientoStore } from "@/stores/useMantenimientoStore";
 import {
    ESTADO_MANTENIMIENTO_BADGE,
@@ -102,13 +106,11 @@ export default function EquipoDetailPage() {
 // 2. Componente principal con la lógica
 function EquipoDetailContent() {
    const params = useParams();
-   const router = useRouter();
    const pathname = usePathname();
+   const router = useRouter();
    const searchParams = useSearchParams();
+   const currentTab = searchParams.get("tab") || "resumen";
    const equipoId = params.id as string;
-
-   // Leer el tab actual de la URL
-   const currentTab = searchParams.get("tab") || "general";
 
    const { ChangeEstado, UpdateEquipo, GetCategoriasEquipoByEquipoId, GetOperadorByEquipoId } = useEquipoStore();
    const { CreateMantenimiento, CloseMantenimiento } = useMantenimientoStore();
@@ -182,12 +184,8 @@ function EquipoDetailContent() {
       // eslint-disable-next-line react-hooks/exhaustive-deps
    }, [equipoId]);
 
-   // 3. Función para cambiar de Tab actualizando la URL
-   const handleTabChange = (value: string) => {
-      const newParams = new URLSearchParams(searchParams.toString());
-      newParams.set("tab", value);
-      router.replace(`${pathname}?${newParams.toString()}`);
-   };
+   // 3. El tab es local (igual que proveedores): cambiar de tab no recarga ni
+   // vuelve a pedir datos; cada tab ya cachea lo suyo.
 
    /** Aplica la transición de estado sin pasar por los diálogos. */
    async function applyEstado(nuevoEstado: EstadoEquipo) {
@@ -227,6 +225,11 @@ function EquipoDetailContent() {
       }
    }
 
+   const handleTabChange = (value: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("tab", value); // Seteas el valor
+      router.replace(`${pathname}?${params.toString()}`); // Actualizas la URL silenciosamente
+   };
    async function handleAbrirMantenimiento(data: CreateMantenimientoForm) {
       setMantLoading(true);
       setMantError(null);
@@ -380,15 +383,35 @@ function EquipoDetailContent() {
                </div>
             </div>
 
-            {/* 4. Sistema de Tabs controlado por URL */}
-            <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
-               <TabsList className="grid w-full max-w-[400px] grid-cols-2 mb-6">
-                  <TabsTrigger value="general">Información General</TabsTrigger>
-                  <TabsTrigger value="conduces">Conduces</TabsTrigger>
+            {/* 4. Sistema de Tabs (igual que proveedores: no controlado por URL,
+            cambiar de tab no recarga ni re-pide datos) */}
+            <Tabs defaultValue={currentTab} onValueChange={handleTabChange} className="space-y-4">
+               <TabsList className="w-full flex-wrap justify-start gap-1 bg-transparent p-0">
+                  {[
+                     { value: "rentabilidad", label: "Rentabilidad" },
+                     { value: "general", label: "Información General" },
+                     { value: "conduces", label: "Conduces" },
+                     { value: "gastos", label: "Gastos" },
+                     { value: "compras", label: "Compras" },
+                     { value: "pagos", label: "Pagos" },
+                  ].map((tab) => (
+                     <TabsTrigger
+                        key={tab.value}
+                        value={tab.value}
+                        className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white"
+                     >
+                        {tab.label}
+                     </TabsTrigger>
+                  ))}
                </TabsList>
 
+               {/* TAB: RENTABILIDAD */}
+               <TabsContent value="rentabilidad" className="space-y-4">
+                  <EquipoRentabilidad equipoId={equipoId} />
+               </TabsContent>
+
                {/* TAB: GENERAL */}
-               <TabsContent value="general" className="flex flex-col gap-6 mt-0">
+               <TabsContent value="general" className="space-y-4">
                   {/* Info card */}
                   <Card>
                      <CardHeader>
@@ -626,12 +649,27 @@ function EquipoDetailContent() {
                </TabsContent>
 
                {/* TAB: CONDUCES */}
-               <TabsContent value="conduces" className="mt-0">
+               <TabsContent value="conduces" className="space-y-4">
                   <div className="border border-dashed rounded-lg p-12 text-center text-muted-foreground bg-card">
                      <Truck className="size-10 mx-auto mb-3 opacity-40 text-brand-blue" />
                      <h3 className="text-lg font-medium mb-2 text-foreground">Conduces del Equipo</h3>
                      <EquipoConduces equipoId={equipoId} />
                   </div>
+               </TabsContent>
+
+               {/* TAB: GASTOS */}
+               <TabsContent value="gastos" className="space-y-4">
+                  <EquipoGastos equipoId={equipoId} />
+               </TabsContent>
+
+               {/* TAB: COMPRAS */}
+               <TabsContent value="compras" className="space-y-4">
+                  <EquipoCompras equipoId={equipoId} />
+               </TabsContent>
+
+               {/* TAB: PAGOS */}
+               <TabsContent value="pagos" className="space-y-4">
+                  <EquipoPagos equipoId={equipoId} />
                </TabsContent>
             </Tabs>
 
