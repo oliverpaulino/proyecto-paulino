@@ -114,7 +114,7 @@ subcontratacionesRoute.patch("/:id/estado", async (c) => {
    }
 
    try {
-      const sub = await service.cambiarEstado(c.req.param("id"), parseResult.data.estado);
+      const sub = await service.cambiarEstado(c.req.param("id"), parseResult.data);
       if (!sub) return c.json({ error: "Subcontratación no encontrada" }, 404);
       return c.json(sub);
    } catch (err: unknown) {

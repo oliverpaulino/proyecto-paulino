@@ -8,18 +8,19 @@ import {
    EstadoTrabajo,
    CreateSubcontratacionDTO,
    UpdateSubcontratacionDTO,
+   CambiarEstadoDTO,
    CrearPagoDTO,
    CrearApunteDTO,
    SubcontratacionApunte,
 } from "../domain/subcontratacion.domain";
 
-const ESTADOS_VALIDOS: EstadoTrabajo[] = ["PENDIENTE", "EN_PROGRESO", "TERMINADA", "CANCELADA"];
+const ESTADOS_VALIDOS: EstadoTrabajo[] = ["PENDIENTE", "EN_PROGRESO", "TERMINADA", "CANCELADA", "PARADO"];
 
 export class SubcontratacionService {
    constructor(
       private readonly repo: ISubcontratacionRepository,
       private readonly db: Kysely<DB>
-   ) {}
+   ) { }
 
    async listar(filtros: SubcontratacionesFiltros): Promise<SubcontratacionesResult> {
       if (filtros.fecha_desde && filtros.fecha_hasta) {
@@ -45,6 +46,9 @@ export class SubcontratacionService {
       if (data.estado && !ESTADOS_VALIDOS.includes(data.estado)) {
          throw new Error("Estado de trabajo inválido");
       }
+      if (data.estado === "PARADO" && !data.motivo_estado?.trim()) {
+         throw new Error("Para registrar el trabajo como parado debe indicar el motivo");
+      }
 
       await this.#validarProveedorSubcontratista(data.proveedor_id);
 
@@ -58,15 +62,21 @@ export class SubcontratacionService {
       if (data.estado && !ESTADOS_VALIDOS.includes(data.estado)) {
          throw new Error("Estado de trabajo inválido");
       }
+      if (data.estado === "PARADO" && !data.motivo_estado?.trim()) {
+         throw new Error("Para pausar el trabajo debe indicar el motivo");
+      }
       if (data.proveedor_id) {
          await this.#validarProveedorSubcontratista(data.proveedor_id);
       }
       return this.repo.update(id, data);
    }
 
-   async cambiarEstado(id: string, estado: EstadoTrabajo): Promise<SubcontratacionProps | null> {
-      if (!ESTADOS_VALIDOS.includes(estado)) throw new Error("Estado de trabajo inválido");
-      return this.repo.cambiarEstado(id, estado);
+   async cambiarEstado(id: string, dto: CambiarEstadoDTO): Promise<SubcontratacionProps | null> {
+      if (!ESTADOS_VALIDOS.includes(dto.estado)) throw new Error("Estado de trabajo inválido");
+      if (dto.estado === "PARADO" && !dto.motivo?.trim()) {
+         throw new Error("Para pausar el trabajo debe indicar el motivo");
+      }
+      return this.repo.cambiarEstado(id, dto);
    }
 
    async pagar(id: string, data: CrearPagoDTO): Promise<SubcontratacionProps | null> {

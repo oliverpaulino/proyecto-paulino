@@ -13,7 +13,7 @@
 // Derivarlo en vez de almacenarlo evita el problema de `deduccion.balance_pendiente`:
 // un campo escrito una vez que queda desincronizado en cuanto entra un pago.
 
-export type EstadoTrabajo = "PENDIENTE" | "EN_PROGRESO" | "TERMINADA" | "CANCELADA";
+export type EstadoTrabajo = "PENDIENTE" | "EN_PROGRESO" | "TERMINADA" | "CANCELADA" | "PARADO";
 export type EstadoPago = "PENDIENTE" | "PARCIAL" | "PAGADO";
 
 /** Tolerancia de un centavo: las sumas de pagos parciales pueden dejar residuo. */
@@ -43,6 +43,7 @@ export interface SubcontratacionProps {
    trabajo_descripcion: string | null;
    monto_total: number;
    estado_trabajo: EstadoTrabajo;
+   motivo_estado: string | null;
    fecha_deuda: Date;
    fecha_inicio: Date | null;
    fecha_fin: Date | null;
@@ -50,6 +51,8 @@ export interface SubcontratacionProps {
 
    gasto_id: string | null;
    gasto_codigo_referencia: string | null;
+   categoria_gasto_id: string | null;
+   categoria_gasto_nombre: string | null;
 
    // Estado de pago derivado
    pagado: number;
@@ -98,6 +101,7 @@ export interface CreateSubcontratacionDTO {
    trabajo_descripcion?: string | null;
    monto_total: number;
    estado?: EstadoTrabajo;
+   motivo_estado?: string | null;
    fecha_deuda: Date;
    fecha_inicio?: Date | null;
    fecha_fin?: Date | null;
@@ -106,10 +110,12 @@ export interface CreateSubcontratacionDTO {
    categoria_gasto_id: string;
 }
 
-export type UpdateSubcontratacionDTO = Partial<Omit<CreateSubcontratacionDTO, "categoria_gasto_id">>;
+export type UpdateSubcontratacionDTO = Partial<CreateSubcontratacionDTO>;
 
 export interface CambiarEstadoDTO {
    estado: EstadoTrabajo;
+   /** Obligatorio cuando el estado es PARADO. */
+   motivo?: string | null;
 }
 
 export interface CrearPagoDTO {
@@ -169,7 +175,7 @@ export interface ISubcontratacionRepository {
    findById(id: string): Promise<SubcontratacionProps | null>;
    create(data: CreateSubcontratacionDTO, ctx?: { created_by?: string | null; created_by_name?: string | null }): Promise<SubcontratacionProps>;
    update(id: string, data: UpdateSubcontratacionDTO): Promise<SubcontratacionProps | null>;
-   cambiarEstado(id: string, estado: EstadoTrabajo): Promise<SubcontratacionProps | null>;
+   cambiarEstado(id: string, dto: CambiarEstadoDTO): Promise<SubcontratacionProps | null>;
    pagar(id: string, data: CrearPagoDTO): Promise<SubcontratacionProps | null>;
    listarPagos(id: string): Promise<any[]>;
    listarApuntes(id: string): Promise<SubcontratacionApunte[]>;

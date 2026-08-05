@@ -10,6 +10,7 @@ import {
    EstadoPago,
    CreateSubcontratacionDTO,
    UpdateSubcontratacionDTO,
+   CambiarEstadoDTO,
    CrearPagoDTO,
    CrearApunteDTO,
    SubcontratacionApunte,
@@ -44,6 +45,7 @@ export class KyselySubcontratacionRepository implements ISubcontratacionReposito
          .leftJoin("proyecto", "proyecto.id", "subcontratacion.proyecto_id")
          .leftJoin("equipo", "equipo.id", "subcontratacion.equipo_id")
          .leftJoin("gasto", "gasto.id", "subcontratacion.gasto_id")
+         .leftJoin("categoria_gasto", "categoria_gasto.id", "gasto.categoria_gasto_id")
          .where("subcontratacion.deleted_at", "is", null);
    }
 
@@ -80,6 +82,8 @@ export class KyselySubcontratacionRepository implements ISubcontratacionReposito
          "equipo.nombre as equipo_nombre",
          "equipo.referencia as equipo_referencia",
          "gasto.referencia as gasto_referencia",
+         "gasto.categoria_gasto_id as categoria_gasto_id",
+         "categoria_gasto.nombre as categoria_gasto_nombre",
          pagado.as("pagado"),
          ultimoPago.as("ultimo_pago_fecha"),
          cantPagos.as("cantidad_pagos"),
@@ -107,6 +111,7 @@ export class KyselySubcontratacionRepository implements ISubcontratacionReposito
          trabajo_descripcion: row.trabajo_descripcion ?? null,
          monto_total: monto,
          estado_trabajo: row.estado as EstadoTrabajo,
+         motivo_estado: row.motivo_estado ?? null,
          fecha_deuda: row.fecha_deuda,
          fecha_inicio: aDate(row.fecha_inicio),
          fecha_fin: aDate(row.fecha_fin),
@@ -115,6 +120,8 @@ export class KyselySubcontratacionRepository implements ISubcontratacionReposito
          gasto_codigo_referencia: row.gasto_referencia != null
             ? `GAS-${String(num(row.gasto_referencia)).padStart(3, "0")}`
             : null,
+         categoria_gasto_id: row.categoria_gasto_id ?? null,
+         categoria_gasto_nombre: row.categoria_gasto_nombre ?? null,
          pagado,
          pendiente: Math.max(0, monto - pagado),
          estado_pago: estadoDePago(monto, pagado),
@@ -260,6 +267,7 @@ export class KyselySubcontratacionRepository implements ISubcontratacionReposito
                trabajo_descripcion: data.trabajo_descripcion ?? null,
                monto_total: data.monto_total,
                estado: data.estado ?? "PENDIENTE",
+               motivo_estado: data.estado === "PARADO" ? (data.motivo_estado?.trim() ?? null) : null,
                fecha_deuda: data.fecha_deuda,
                fecha_inicio: data.fecha_inicio ?? null,
                fecha_fin: data.fecha_fin ?? null,
@@ -300,15 +308,22 @@ export class KyselySubcontratacionRepository implements ISubcontratacionReposito
       const fechaDeuda = data.fecha_deuda !== undefined ? data.fecha_deuda : sub.fecha_deuda;
       const descripcion = data.trabajo_descripcion !== undefined ? data.trabajo_descripcion : sub.trabajo_descripcion;
 
+      const estadoNuevo = data.estado ?? sub.estado;
+      const motivoEstado =
+         data.motivo_estado !== undefined ? data.motivo_estado : sub.motivo_estado;
+      const motivoFinal = estadoNuevo === "PARADO" ? (motivoEstado?.trim() ?? null) : null;
+
       await this.db.transaction().execute(async (trx) => {
          await trx
             .updateTable("subcontratacion")
             .set({
+               proveedor_id: data.proveedor_id !== undefined ? data.proveedor_id : sub.proveedor_id,
                proyecto_id: data.proyecto_id !== undefined ? data.proyecto_id : sub.proyecto_id,
                equipo_id: data.equipo_id !== undefined ? data.equipo_id : sub.equipo_id,
                trabajo_descripcion: descripcion ?? null,
                monto_total: monto,
-               estado: data.estado ?? sub.estado,
+               estado: estadoNuevo,
+               motivo_estado: motivoFinal,
                fecha_deuda: fechaDeuda,
                fecha_inicio: data.fecha_inicio !== undefined ? data.fecha_inicio : sub.fecha_inicio,
                fecha_fin: data.fecha_fin !== undefined ? data.fecha_fin : sub.fecha_fin,
@@ -319,15 +334,26 @@ export class KyselySubcontratacionRepository implements ISubcontratacionReposito
             .execute();
 
          if (sub.gasto_id) {
+            const gastoActual = await trx
+               .selectFrom("gasto")
+               .select(["categoria_gasto_id"])
+               .where("id", "=", sub.gasto_id)
+               .executeTakeFirst();
+
             await trx
                .updateTable("gasto")
                .set({
-                   monto_total: monto,
-                   fecha: fechaDeuda,
-                   concepto: descripcion?.trim() || "Subcontratación",
-                   proyecto_id: data.proyecto_id !== undefined ? data.proyecto_id : sub.proyecto_id,
-                   equipo_id: data.equipo_id !== undefined ? data.equipo_id : sub.equipo_id,
-                   updated_at: new Date(),
+                  monto_total: monto,
+                  fecha: fechaDeuda,
+                  concepto: descripcion?.trim() || "Subcontratación",
+                  proyecto_id: data.proyecto_id !== undefined ? data.proyecto_id : sub.proyecto_id,
+                  equipo_id: data.equipo_id !== undefined ? data.equipo_id : sub.equipo_id,
+                  proveedor_id: data.proveedor_id !== undefined ? data.proveedor_id : sub.proveedor_id,
+                  categoria_gasto_id:
+                     data.categoria_gasto_id !== undefined
+                        ? data.categoria_gasto_id
+                        : (gastoActual?.categoria_gasto_id ?? ""),
+                  updated_at: new Date(),
                })
                .where("id", "=", sub.gasto_id)
                .execute();
@@ -339,7 +365,8 @@ export class KyselySubcontratacionRepository implements ISubcontratacionReposito
 
    // ── Estado del trabajo ─────────────────────────────────────────────────────
 
-   async cambiarEstado(id: string, estado: EstadoTrabajo): Promise<SubcontratacionProps | null> {
+   async cambiarEstado(id: string, dto: CambiarEstadoDTO): Promise<SubcontratacionProps | null> {
+      const { estado } = dto;
       const sub = await this.db
          .selectFrom("subcontratacion")
          .selectAll()
@@ -352,6 +379,13 @@ export class KyselySubcontratacionRepository implements ISubcontratacionReposito
          estado,
          updated_at: new Date(),
       };
+
+      // PARADO exige motivo; al salir del estado PARADO se limpia.
+      if (estado === "PARADO") {
+         set.motivo_estado = dto.motivo?.trim() ?? null;
+      } else {
+         set.motivo_estado = null;
+      }
 
       // Al terminar/cancelar se cierra la duración si no estaba definida.
       if ((estado === "TERMINADA" || estado === "CANCELADA") && !sub.fecha_fin) {
