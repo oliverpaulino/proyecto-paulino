@@ -55,7 +55,6 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
    }
 
    async findAllOperators(params?: { page?: number; limit?: number; search?: string }): Promise<OperadorProps[]> {
-      console.log("Fetching operators with params:", params);
       const { page = 1, limit = 10, search = "" } = params || {};
       let query = this.db
          .selectFrom("empleado")

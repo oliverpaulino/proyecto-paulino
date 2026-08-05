@@ -16,9 +16,6 @@ export function SignUpForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     // Handle form submission logic here
-    console.log("Name:", name);
-    console.log("Email:", email);
-    console.log("Password:", password);
     authClient.signUp
       .email({
         email,

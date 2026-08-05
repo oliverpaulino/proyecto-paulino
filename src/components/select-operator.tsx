@@ -30,7 +30,6 @@ export function SelectBuscadorOperator({
    const debouncedSearch = useDebounce(inputValue, 500);
 
    let operators = Operators ?? [];
-   console.log("Operators in SelectBuscadorOperator:", operators);
 
    useEffect(() => {
       GetOperators({ search: "", limit: 20, force: true });

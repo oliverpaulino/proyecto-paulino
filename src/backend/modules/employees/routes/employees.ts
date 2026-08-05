@@ -21,11 +21,9 @@ employeesRoute.get("/", async (c) => {
 
 
 employeesRoute.get("/operators", async (c) => {
-   console.log("tu maldit amadre")
    const page = parseInt(c.req.query("page") || "1", 10);
    const limit = parseInt(c.req.query("limit") || "10", 10);
    const search = c.req.query("search") || "";
-   console.log("Fetching operators with params:", { page, limit, search });
    const operators = await service.getAllOperators({ page, limit, search });
    return c.json(operators);
 });

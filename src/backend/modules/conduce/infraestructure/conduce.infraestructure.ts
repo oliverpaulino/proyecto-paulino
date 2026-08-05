@@ -188,7 +188,6 @@ export class KyselyConduceRepository implements IConduceRepository {
             // "ver eliminados".
             .$if(filtros.eliminado !== true, (q: any) => q.where("conduce.deleted_at", "is", null))
             .$if(filtros.eliminado === true, (q: any) => q.where("conduce.deleted_at", "is not", null));
-      console.log("filtros", filtros);
 
       const query = aplicarFiltros(this.#baseQuery())
          .orderBy("conduce.fecha", "desc")
