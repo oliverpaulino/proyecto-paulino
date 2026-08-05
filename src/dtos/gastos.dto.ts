@@ -24,6 +24,9 @@ export const GastoDTO = z.object({
    equipo_id: z.uuid().nullable(),
    //join equipo
    equipo_codigo_referencia: z.string().nullable(),
+
+   cobrable_proyecto: z.boolean(),
+   cobrable_monto: z.number().nullable(),
    
    fecha: z.coerce.date(),
    created_at: z.coerce.date(),
@@ -52,6 +55,8 @@ export const CreateGastoSchema = z.object({
    orden_compra_id: z.uuid().optional().nullable(),
    proyecto_id: z.uuid().optional().nullable(),
    equipo_id: z.uuid().optional().nullable(),
+   cobrable_proyecto: z.boolean().default(false),
+   cobrable_monto: z.coerce.number().min(0, "El monto a cobrar al cliente no puede ser menor a 0").optional().nullable(),
    deduccion: CreateGastoDeduccionSchema.optional(),
 });
 

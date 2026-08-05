@@ -30,6 +30,7 @@ export class KyselyGastoRepository implements IGastoRepository {
             ? this.buildCodigoReferencia("EQU", row.equipo_codigo_referencia) 
             : null,
          monto_total: Number(row.monto_total),
+         cobrable_monto: row.cobrable_monto != null ? Number(row.cobrable_monto) : null,
          fecha: new Date(row.fecha),
          created_at: new Date(row.created_at),
          updated_at: new Date(row.updated_at),
@@ -224,6 +225,8 @@ export class KyselyGastoRepository implements IGastoRepository {
          orden_compra_id: data.orden_compra_id ?? null,
          proyecto_id: data.proyecto_id ?? null,
          equipo_id: data.equipo_id ?? null,
+         cobrable_proyecto: data.cobrable_proyecto ?? false,
+         cobrable_monto: data.cobrable_monto ?? null,
          fecha: data.fecha ?? new Date(),
          created_at: new Date(),
          updated_at: new Date(),
