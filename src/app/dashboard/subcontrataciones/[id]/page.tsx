@@ -185,326 +185,333 @@ export default function SubcontratacionDetailPage() {
 
    return (
       <PermissionGuard resource="supplier" action="read" mode="page">
-      <div className="flex flex-col gap-6 p-6">
-         {/* ── Header ── */}
-         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex items-start gap-4">
-               <Button variant="outline" size="icon" onClick={() => router.push("/dashboard/subcontrataciones")}>
-                  <ArrowLeft className="size-4" />
-               </Button>
-               <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                     <h1 className="font-mono text-2xl font-bold text-brand-blue dark:text-white">
-                        {sub.codigoReferencia}
-                     </h1>
-                     <Badge className={`border-0 text-[10px] ${ESTADO_TRABAJO_STYLE[sub.estado_trabajo]}`}>
-                        {ESTADO_TRABAJO_LABEL[sub.estado_trabajo]}
-                     </Badge>
-                     <Badge className={`border-0 text-[10px] ${ESTADO_PAGO_STYLE[sub.estado_pago]}`}>
-                        {sub.estado_pago}
-                     </Badge>
+         <div className="flex flex-col gap-6 p-6">
+            {/* ── Header ── */}
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+               <div className="flex items-start gap-4">
+                  <Button variant="outline" size="icon" onClick={() => router.push("/dashboard/subcontrataciones")}>
+                     <ArrowLeft className="size-4" />
+                  </Button>
+                  <div className="space-y-1">
+                     <div className="flex flex-wrap items-center gap-2">
+                        <h1 className="font-mono text-2xl font-bold text-brand-blue dark:text-white">
+                           {sub.codigoReferencia}
+                        </h1>
+                        <Badge className={`border-0 text-[10px] ${ESTADO_TRABAJO_STYLE[sub.estado_trabajo]}`}>
+                           {ESTADO_TRABAJO_LABEL[sub.estado_trabajo]}
+                        </Badge>
+                        <Badge className={`border-0 text-[10px] ${ESTADO_PAGO_STYLE[sub.estado_pago]}`}>
+                           {sub.estado_pago}
+                        </Badge>
+                     </div>
+                     <p className="text-sm text-muted-foreground">
+                        {sub.trabajo_descripcion ?? "Trabajo de subcontratista"}
+                     </p>
+                     <p className="text-sm">
+                        <button
+                           className="font-semibold text-brand-blue underline-offset-2 hover:underline"
+                           onClick={() => router.push(`/dashboard/proveedores/${sub.proveedor_id}`)}
+                        >
+                           {sub.proveedor_nombre ?? "Subcontratista"}
+                        </button>
+                        {sub.proveedor_rnc ? ` · RNC ${sub.proveedor_rnc}` : ""}
+                        {sub.proyecto_nombre ? ` · ${sub.proyecto_nombre}` : ""}
+                     </p>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                     {sub.trabajo_descripcion ?? "Trabajo de subcontratista"}
-                  </p>
-                  <p className="text-sm">
-                     <button
-                        className="font-semibold text-brand-blue underline-offset-2 hover:underline"
-                        onClick={() => router.push(`/dashboard/proveedores/${sub.proveedor_id}`)}
-                     >
-                        {sub.proveedor_nombre ?? "Subcontratista"}
-                     </button>
-                     {sub.proveedor_rnc ? ` · RNC ${sub.proveedor_rnc}` : ""}
-                     {sub.proyecto_nombre ? ` · ${sub.proyecto_nombre}` : ""}
-                  </p>
                </div>
-            </div>
 
-            <div className="flex flex-wrap gap-2 lg:justify-end">
-               {sub.estado_trabajo === "PENDIENTE" && (
-                  <Button
-                     variant="outline"
-                     onClick={() => handleCambiarEstado("EN_PROGRESO")}
-                     disabled={actionLoading}
-                  >
-                     <Play className="mr-2 size-4" /> Comenzar trabajo
-                  </Button>
-               )}
-               {(sub.estado_trabajo === "PENDIENTE" || sub.estado_trabajo === "EN_PROGRESO") && (
-                  <PermissionGuard resource="supplier" action="update">
-                  <Button
-                     variant="outline"
-                     onClick={() => setPausarOpen(true)}
-                     disabled={actionLoading}
-                  >
-                     <Pause className="mr-2 size-4" /> Pausar trabajo
-                  </Button>
-                  </PermissionGuard>
-               )}
-               {sub.estado_trabajo === "PARADO" && (
-                  <Button
-                     variant="outline"
-                     onClick={() => handleCambiarEstado("EN_PROGRESO")}
-                     disabled={actionLoading}
-                  >
-                     <RotateCcw className="mr-2 size-4" /> Reanudar
-                  </Button>
-               )}
-               {(sub.estado_trabajo === "PENDIENTE" ||
-                  sub.estado_trabajo === "EN_PROGRESO" ||
-                  sub.estado_trabajo === "PARADO") && (
-                  <>
-                     <PermissionGuard resource="supplier" action="update">
+               <div className="flex flex-wrap gap-2 lg:justify-end">
+                  {sub.estado_trabajo === "PENDIENTE" && (
                      <Button
-                        className="bg-brand-yellow font-semibold text-brand-black shadow-md shadow-brand-yellow/30 hover:bg-yellow-300 border-0"
-                        onClick={() => handleCambiarEstado("TERMINADA")}
+                        variant="outline"
+                        onClick={() => handleCambiarEstado("EN_PROGRESO")}
                         disabled={actionLoading}
                      >
-                        <PencilLine className="mr-2 size-4" /> Marcar terminada
+                        <Play className="mr-2 size-4" /> Comenzar trabajo
                      </Button>
+                  )}
+                  {(sub.estado_trabajo === "PENDIENTE" || sub.estado_trabajo === "EN_PROGRESO") && (
+                     <PermissionGuard resource="supplier" action="update">
+                        <Button
+                           variant="outline"
+                           onClick={() => setPausarOpen(true)}
+                           disabled={actionLoading}
+                        >
+                           <Pause className="mr-2 size-4" /> Pausar trabajo
+                        </Button>
                      </PermissionGuard>
-                     <Button variant="outline" onClick={() => setDeleteOpen(true)} disabled={actionLoading}>
-                        <Trash2 className="mr-2 size-4" /> Cancelar trabajo
+                  )}
+                  {sub.estado_trabajo === "PARADO" && (
+                     <Button
+                        variant="outline"
+                        onClick={() => handleCambiarEstado("EN_PROGRESO")}
+                        disabled={actionLoading}
+                     >
+                        <RotateCcw className="mr-2 size-4" /> Reanudar
                      </Button>
-                  </>
-               )}
-               <PermissionGuard resource="supplier" action="update">
-               <Button variant="outline" onClick={() => setEditOpen(true)} disabled={actionLoading}>
-                  <SquarePen className="mr-2 size-4" /> Editar
-               </Button>
-               </PermissionGuard>
-               {!saldada && (
-                  <PermissionGuard resource="supplier" action="update">
-                  <Button
-                     className="bg-brand-blue font-semibold text-white shadow-md shadow-brand-blue/20 hover:bg-blue-700 border-0"
-                     onClick={() => setPagarOpen(true)}
-                     disabled={actionLoading}
-                  >
-                     <HandCoins className="mr-2 size-4" /> Registrar pago
-                  </Button>
-                  </PermissionGuard>
-               )}
-            </div>
-         </div>
-
-         {/* ── Tabs ── */}
-         <Tabs defaultValue="trabajo" className="space-y-4">
-            <TabsList className="w-full flex-wrap justify-start gap-1 bg-transparent p-0">
-               {[
-                  { value: "trabajo", label: "Trabajo" },
-                  { value: "pagos", label: "Pagos" },
-                  { value: "apuntes", label: "Apuntes" },
-               ].map((tab) => (
-                  <TabsTrigger
-                     key={tab.value}
-                     value={tab.value}
-                     className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white"
-                  >
-                     {tab.label}
-                  </TabsTrigger>
-               ))}
-            </TabsList>
-
-            {/* ── TRABAJO ── */}
-            <TabsContent value="trabajo" className="space-y-4">
-               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                  <MiniStat label="Monto total" value={money(sub.monto_total)} />
-                  <MiniStat label="Pagado" value={money(sub.pagado)} />
-                  <MiniStat
-                     label="Pendiente"
-                     value={sub.pendiente > 0 ? money(sub.pendiente) : "—"}
-                     red={sub.pendiente > 0}
-                  />
-               </div>
-
-               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                  <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-                     <p className="mb-3 text-sm font-semibold">Información del trabajo</p>
-                     <div className="grid gap-3 sm:grid-cols-2">
-                        <InfoField label="Subcontratista" value={sub.proveedor_nombre ?? "—"} />
-                        <InfoField label="Proyecto" value={sub.proyecto_nombre ?? "—"} />
-                        <InfoField
-                           label="Equipo"
-                           value={sub.equipo_nombre ? `${sub.equipo_codigo_referencia} · ${sub.equipo_nombre}` : "—"}
-                        />
-                        <InfoField label="Descripción" value={sub.trabajo_descripcion ?? "—"} />
-                        <InfoField label="Estado" value={ESTADO_TRABAJO_LABEL[sub.estado_trabajo]} />
-                        {sub.motivo_estado && (
-                           <InfoField label="Motivo de la pausa" value={sub.motivo_estado} />
-                        )}
-                        <InfoField label="Fecha de deuda" value={fecha(sub.fecha_deuda)} />
-                        <InfoField label="Fecha inicio" value={sub.fecha_inicio ? fecha(sub.fecha_inicio) : "—"} />
-                        <InfoField label="Fecha fin" value={sub.fecha_fin ? fecha(sub.fecha_fin) : "—"} />
-                        <InfoField label="Gasto vinculado" value={sub.gasto_codigo_referencia ?? "—"} />
-                     </div>
-                  </div>
-
-                  <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-                     <p className="mb-3 text-sm font-semibold">Deuda</p>
-                     <div className="grid gap-3 sm:grid-cols-2">
-                        <InfoField label="Monto total" value={money(sub.monto_total)} />
-                        <InfoField label="Pagado" value={money(sub.pagado)} />
-                        <InfoField label="Pendiente" value={sub.pendiente > 0 ? money(sub.pendiente) : "—"} />
-                        <InfoField
-                           label="Último pago"
-                           value={sub.ultimo_pago_fecha ? fecha(sub.ultimo_pago_fecha) : "—"}
-                        />
-                     </div>
-                     {sub.observaciones && (
-                        <div className="mt-3">
-                           <InfoField label="Observaciones" value={sub.observaciones} />
-                        </div>
+                  )}
+                  {(sub.estado_trabajo === "PENDIENTE" ||
+                     sub.estado_trabajo === "EN_PROGRESO" ||
+                     sub.estado_trabajo === "PARADO") && (
+                        <>
+                           <PermissionGuard resource="supplier" action="update">
+                              <Button
+                                 className="bg-brand-yellow font-semibold text-brand-black shadow-md shadow-brand-yellow/30 hover:bg-yellow-300 border-0"
+                                 onClick={() => handleCambiarEstado("TERMINADA")}
+                                 disabled={actionLoading}
+                              >
+                                 <PencilLine className="mr-2 size-4" /> Marcar terminada
+                              </Button>
+                           </PermissionGuard>
+                           <Button variant="outline" onClick={() => setDeleteOpen(true)} disabled={actionLoading}>
+                              <Trash2 className="mr-2 size-4" /> Cancelar trabajo
+                           </Button>
+                        </>
                      )}
-                  </div>
-               </div>
-            </TabsContent>
-
-            {/* ── PAGOS ── */}
-            <TabsContent value="pagos" className="space-y-4">
-               <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold">
-                     {pagos.length} pago{pagos.length === 1 ? "" : "s"}
-                  </p>
+                  <PermissionGuard resource="supplier" action="update">
+                     <Button variant="outline" onClick={() => setEditOpen(true)} disabled={actionLoading}>
+                        <SquarePen className="mr-2 size-4" /> Editar
+                     </Button>
+                  </PermissionGuard>
                   {!saldada && (
                      <PermissionGuard resource="supplier" action="update">
-                     <Button size="sm" onClick={() => setPagarOpen(true)}>
-                        <HandCoins className="mr-2 size-4" /> Registrar pago
-                     </Button>
+                        <Button
+                           className="bg-brand-blue font-semibold text-white shadow-md shadow-brand-blue/20 hover:bg-blue-700 border-0"
+                           onClick={() => setPagarOpen(true)}
+                           disabled={actionLoading}
+                        >
+                           <HandCoins className="mr-2 size-4" /> Registrar pago
+                        </Button>
                      </PermissionGuard>
                   )}
                </div>
+            </div>
 
-               {pagos.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand-blue/20 bg-brand-blue/5 p-12 text-sm text-muted-foreground">
-                     <Banknote className="size-10 opacity-30" />
-                     <span>Aún no se han registrado pagos para este trabajo.</span>
-                  </div>
-               ) : (
-                  <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
-                     <table className="w-full text-sm">
-                        <thead>
-                           <tr className="bg-brand-blue">
-                              <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Ref.</th>
-                              <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Fecha</th>
-                              <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Método</th>
-                              <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Concepto</th>
-                              <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-blue-200">Monto</th>
-                           </tr>
-                        </thead>
-                        <tbody>
-                           {pagos.map((p) => (
-                              <tr key={p.id} className="border-b border-border/50">
-                                 <td className="px-4 py-3 font-mono font-medium text-brand-blue">
-                                    {p.codigoReferencia}
-                                 </td>
-                                 <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                                    {fecha(p.fecha)}
-                                 </td>
-                                 <td className="px-4 py-3 text-muted-foreground">{p.metodo_pago}</td>
-                                 <td className="px-4 py-3">{p.concepto ?? "—"}</td>
-                                 <td className="whitespace-nowrap px-4 py-3 text-right font-semibold">
-                                    {money(p.monto_pagado)}
-                                 </td>
-                              </tr>
-                           ))}
-                        </tbody>
-                     </table>
-                  </div>
-               )}
-            </TabsContent>
+            {/* ── Tabs ── */}
+            <Tabs defaultValue="trabajo" className="space-y-4">
+               <TabsList className="w-full flex-wrap justify-start gap-1 bg-transparent p-0">
+                  {[
+                     { value: "trabajo", label: "Trabajo" },
+                     { value: "pagos", label: "Pagos" },
+                     { value: "apuntes", label: "Apuntes" },
+                  ].map((tab) => (
+                     <TabsTrigger
+                        key={tab.value}
+                        value={tab.value}
+                        className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white"
+                     >
+                        {tab.label}
+                     </TabsTrigger>
+                  ))}
+               </TabsList>
 
-            {/* ── APUNTES ── */}
-            <TabsContent value="apuntes" className="space-y-4">
-               <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold">
-                     {apuntes.length} apunte{apuntes.length === 1 ? "" : "s"}
-                  </p>
-                  <PermissionGuard resource="supplier" action="update">
-                  <Button size="sm" onClick={() => setApunteOpen(true)}>
-                     <ClipboardList className="mr-2 size-4" /> Nuevo apunte
-                  </Button>
-                  </PermissionGuard>
-               </div>
-
-               {apuntes.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand-blue/20 bg-brand-blue/5 p-12 text-sm text-muted-foreground">
-                     <ClipboardList className="size-10 opacity-30" />
-                     <span>Sin apuntes. Registra avances, acuerdos u observaciones del trabajo.</span>
+               {/* ── TRABAJO ── */}
+               <TabsContent value="trabajo" className="space-y-4">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                     <MiniStat label="Monto total" value={money(sub.monto_total)} />
+                     <MiniStat label="Pagado" value={money(sub.pagado)} />
+                     <MiniStat
+                        label="Pendiente"
+                        value={sub.pendiente > 0 ? money(sub.pendiente) : "—"}
+                        red={sub.pendiente > 0}
+                     />
                   </div>
-               ) : (
-                  <div className="space-y-3">
-                     {apuntes.map((a) => (
-                        <div key={a.id} className="rounded-xl border border-border bg-card p-4 shadow-sm">
-                           <p className="whitespace-pre-wrap text-sm">{a.texto}</p>
-                           <p className="mt-2 text-xs text-muted-foreground">
-                              {a.created_by_name ?? "Usuario"} · {fechaHora(a.created_at)}
-                           </p>
+
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                     <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+                        <p className="mb-3 text-sm font-semibold">Información del trabajo</p>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                           <InfoField label="Subcontratista" value={sub.proveedor_nombre ?? "—"} />
+                           <InfoField label="Proyecto" value={sub.proyecto_nombre ?? "—"} />
+                           <InfoField
+                              label="Equipo"
+                              value={sub.equipo_nombre ? `${sub.equipo_codigo_referencia} · ${sub.equipo_nombre}` : "—"}
+                           />
+                           <InfoField label="Descripción" value={sub.trabajo_descripcion ?? "—"} />
+                           <InfoField label="Estado" value={ESTADO_TRABAJO_LABEL[sub.estado_trabajo]} />
+                           {sub.motivo_estado && (
+                              <InfoField label="Motivo de la pausa" value={sub.motivo_estado} />
+                           )}
+                           <InfoField label="Fecha de deuda" value={fecha(sub.fecha_deuda)} />
+                           <InfoField label="Fecha inicio" value={sub.fecha_inicio ? fecha(sub.fecha_inicio) : "—"} />
+                           <InfoField label="Fecha fin" value={sub.fecha_fin ? fecha(sub.fecha_fin) : "—"} />
+                           <InfoField label="Gasto vinculado" value={sub.gasto_codigo_referencia ?? "—"} />
                         </div>
-                     ))}
+                     </div>
+
+                     <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+                        <p className="mb-3 text-sm font-semibold">Deuda</p>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                           <InfoField label="Monto total" value={money(sub.monto_total)} />
+                           <InfoField label="Pagado" value={money(sub.pagado)} />
+                           <InfoField label="Pendiente" value={sub.pendiente > 0 ? money(sub.pendiente) : "—"} />
+                           <InfoField
+                              label="Último pago"
+                              value={sub.ultimo_pago_fecha ? fecha(sub.ultimo_pago_fecha) : "—"}
+                           />
+
+                        </div>
+                        {sub.observaciones && (
+                           <div className="mt-3">
+                              <InfoField label="Observaciones" value={sub.observaciones} />
+                           </div>
+                        )}
+                     </div>
+                     {sub.motivo_estado && (
+                        <InfoField
+                           label="Motivo Parado"
+                           value={sub.motivo_estado}
+                        />
+                     )}
                   </div>
-               )}
-            </TabsContent>
-         </Tabs>
+               </TabsContent>
 
-         <PagarDialog
-            open={pagarOpen}
-            onOpenChange={setPagarOpen}
-            id={id}
-            pendiente={sub.pendiente}
-            codigoReferencia={sub.codigoReferencia}
-            onDone={async () => {
-               setPagarOpen(false);
-               const [data, p] = await Promise.all([GetSubcontratacionById(id), GetPagos(id)]);
-               setSub(data);
-               setPagos(p);
-            }}
-         />
+               {/* ── PAGOS ── */}
+               <TabsContent value="pagos" className="space-y-4">
+                  <div className="flex items-center justify-between">
+                     <p className="text-sm font-semibold">
+                        {pagos.length} pago{pagos.length === 1 ? "" : "s"}
+                     </p>
+                     {!saldada && (
+                        <PermissionGuard resource="supplier" action="update">
+                           <Button size="sm" onClick={() => setPagarOpen(true)}>
+                              <HandCoins className="mr-2 size-4" /> Registrar pago
+                           </Button>
+                        </PermissionGuard>
+                     )}
+                  </div>
 
-         <ApunteDialog
-            open={apunteOpen}
-            onOpenChange={setApunteOpen}
-            id={id}
-            onDone={async () => {
-               setApunteOpen(false);
-               setApuntes(await GetApuntes(id));
-            }}
-         />
+                  {pagos.length === 0 ? (
+                     <div className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand-blue/20 bg-brand-blue/5 p-12 text-sm text-muted-foreground">
+                        <Banknote className="size-10 opacity-30" />
+                        <span>Aún no se han registrado pagos para este trabajo.</span>
+                     </div>
+                  ) : (
+                     <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
+                        <table className="w-full text-sm">
+                           <thead>
+                              <tr className="bg-brand-blue">
+                                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Ref.</th>
+                                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Fecha</th>
+                                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Método</th>
+                                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Concepto</th>
+                                 <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-blue-200">Monto</th>
+                              </tr>
+                           </thead>
+                           <tbody>
+                              {pagos.map((p) => (
+                                 <tr key={p.id} className="border-b border-border/50">
+                                    <td className="px-4 py-3 font-mono font-medium text-brand-blue">
+                                       {p.codigoReferencia}
+                                    </td>
+                                    <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                                       {fecha(p.fecha)}
+                                    </td>
+                                    <td className="px-4 py-3 text-muted-foreground">{p.metodo_pago}</td>
+                                    <td className="px-4 py-3">{p.concepto ?? "—"}</td>
+                                    <td className="whitespace-nowrap px-4 py-3 text-right font-semibold">
+                                       {money(p.monto_pagado)}
+                                    </td>
+                                 </tr>
+                              ))}
+                           </tbody>
+                        </table>
+                     </div>
+                  )}
+               </TabsContent>
 
-         <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-            <DialogContent className="sm:max-w-md">
-               <DialogHeader>
-                  <DialogTitle>Cancelar trabajo</DialogTitle>
-                  <DialogDescription>
-                     Se eliminará lógicamente el registro de este trabajo. Indica el motivo.
-                  </DialogDescription>
-               </DialogHeader>
-               <CancelTrabajoForm
-                  onCancel={() => setDeleteOpen(false)}
-                  onSubmit={handleDelete}
-                  loading={actionLoading}
-               />
-            </DialogContent>
-         </Dialog>
+               {/* ── APUNTES ── */}
+               <TabsContent value="apuntes" className="space-y-4">
+                  <div className="flex items-center justify-between">
+                     <p className="text-sm font-semibold">
+                        {apuntes.length} apunte{apuntes.length === 1 ? "" : "s"}
+                     </p>
+                     <PermissionGuard resource="supplier" action="update">
+                        <Button size="sm" onClick={() => setApunteOpen(true)}>
+                           <ClipboardList className="mr-2 size-4" /> Nuevo apunte
+                        </Button>
+                     </PermissionGuard>
+                  </div>
 
-         <PausarDialog
-            open={pausarOpen}
-            onOpenChange={setPausarOpen}
-            id={id}
-            codigoReferencia={sub.codigoReferencia}
-            onDone={refresh}
-         />
+                  {apuntes.length === 0 ? (
+                     <div className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand-blue/20 bg-brand-blue/5 p-12 text-sm text-muted-foreground">
+                        <ClipboardList className="size-10 opacity-30" />
+                        <span>Sin apuntes. Registra avances, acuerdos u observaciones del trabajo.</span>
+                     </div>
+                  ) : (
+                     <div className="space-y-3">
+                        {apuntes.map((a) => (
+                           <div key={a.id} className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                              <p className="whitespace-pre-wrap text-sm">{a.texto}</p>
+                              <p className="mt-2 text-xs text-muted-foreground">
+                                 {a.created_by_name ?? "Usuario"} · {fechaHora(a.created_at)}
+                              </p>
+                           </div>
+                        ))}
+                     </div>
+                  )}
+               </TabsContent>
+            </Tabs>
 
-         <EditarSubcontratacionDialog
-            key={editOpen ? "open" : "closed"}
-            open={editOpen}
-            onOpenChange={setEditOpen}
-            sub={sub}
-            onDone={async () => {
-               setEditOpen(false);
-               await refresh();
-            }}
-         />
-      </div>
+            <PagarDialog
+               open={pagarOpen}
+               onOpenChange={setPagarOpen}
+               id={id}
+               pendiente={sub.pendiente}
+               codigoReferencia={sub.codigoReferencia}
+               onDone={async () => {
+                  setPagarOpen(false);
+                  const [data, p] = await Promise.all([GetSubcontratacionById(id), GetPagos(id)]);
+                  setSub(data);
+                  setPagos(p);
+               }}
+            />
+
+            <ApunteDialog
+               open={apunteOpen}
+               onOpenChange={setApunteOpen}
+               id={id}
+               onDone={async () => {
+                  setApunteOpen(false);
+                  setApuntes(await GetApuntes(id));
+               }}
+            />
+
+            <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+               <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                     <DialogTitle>Cancelar trabajo</DialogTitle>
+                     <DialogDescription>
+                        Se eliminará lógicamente el registro de este trabajo. Indica el motivo.
+                     </DialogDescription>
+                  </DialogHeader>
+                  <CancelTrabajoForm
+                     onCancel={() => setDeleteOpen(false)}
+                     onSubmit={handleDelete}
+                     loading={actionLoading}
+                  />
+               </DialogContent>
+            </Dialog>
+
+            <PausarDialog
+               open={pausarOpen}
+               onOpenChange={setPausarOpen}
+               id={id}
+               codigoReferencia={sub.codigoReferencia}
+               onDone={refresh}
+            />
+
+            <EditarSubcontratacionDialog
+               key={editOpen ? "open" : "closed"}
+               open={editOpen}
+               onOpenChange={setEditOpen}
+               sub={sub}
+               onDone={async () => {
+                  setEditOpen(false);
+                  await refresh();
+               }}
+            />
+         </div>
       </PermissionGuard>
    );
 }
@@ -843,6 +850,7 @@ function PausarDialog({
       }
       await onDone();
       setLoading(false);
+      onOpenChange(false);
    }
 
    return (
