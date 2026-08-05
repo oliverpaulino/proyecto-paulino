@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEquipoStore } from "@/stores/useEquipoStore";
 import type {
    EquipoRentabilidad,
    EquipoRentabilidadMes,
@@ -61,6 +62,7 @@ interface Preset {
 }
 
 const PRESETS: Preset[] = [
+   { label: "15 días", dias: 15 },
    { label: "30 días", dias: 30 },
    { label: "3 meses", dias: 90 },
    { label: "6 meses", dias: 180 },
@@ -68,51 +70,24 @@ const PRESETS: Preset[] = [
    { label: "Todo", dias: null },
 ];
 
-/**
- * Cache en memoria a nivel de módulo: al cambiar de tab el componente se
- * desmonta y remonta, y sin esto volvería a pegarle a la API cada vez.
- * Con el caché, reabrir el tab es instantáneo. Un refresh del navegador
- * reinicia el módulo y el caché, así que ahí sí se vuelve a pedir (fresco).
- */
-const RENTABILIDAD_CACHE = new Map<string, EquipoRentabilidad>();
-
 export function EquipoRentabilidad({ equipoId }: { equipoId: string }) {
+   const { rentabilidadData, rentabilidadLoading, rentabilidadError, GetRentabilidad } = useEquipoStore();
+
+   // Alias para no tocar el resto del JSX (usa data/loading/error).
+   const data = rentabilidadData;
+   const loading = rentabilidadLoading || (rentabilidadData === null && rentabilidadError === null);
+   const error = rentabilidadError;
+
    const [desde, setDesde] = useState("");
    const [hasta, setHasta] = useState("");
    const [appliedDesde, setAppliedDesde] = useState("");
    const [appliedHasta, setAppliedHasta] = useState("");
-   const [data, setData] = useState<EquipoRentabilidad | null>(null);
-   const [loading, setLoading] = useState(true);
-   const [error, setError] = useState<string | null>(null);
 
    const cargar = useCallback(
-      async (d: string, h: string, force = false) => {
-         const cacheKey = `${equipoId}|${d}|${h}`;
-         const cacheado = RENTABILIDAD_CACHE.get(cacheKey);
-         if (!force && cacheado) {
-            setData(cacheado);
-            setError(null);
-            setLoading(false);
-            return;
-         }
-         setLoading(true);
-         setError(null);
-         const params = new URLSearchParams();
-         if (d) params.set("desde", d);
-         if (h) params.set("hasta", h);
-         try {
-            const res = await fetch(`/api/equipos/${equipoId}/rentabilidad?${params.toString()}`);
-            if (!res.ok) throw new Error("No se pudo cargar la rentabilidad");
-            const reporte = (await res.json()) as EquipoRentabilidad;
-            RENTABILIDAD_CACHE.set(cacheKey, reporte);
-            setData(reporte);
-         } catch (e) {
-            setError(e instanceof Error ? e.message : "Error de conexión");
-         } finally {
-            setLoading(false);
-         }
+      (d: string, h: string, force = false) => {
+         void GetRentabilidad(equipoId, d, h, force);
       },
-      [equipoId]
+      [equipoId, GetRentabilidad]
    );
 
    useEffect(() => {
@@ -241,9 +216,8 @@ export function EquipoRentabilidad({ equipoId }: { equipoId: string }) {
                            Utilidad neta del período
                         </p>
                         <p
-                           className={`text-4xl font-extrabold tracking-tight sm:text-5xl ${
-                              esPerdida ? "text-red-300" : "text-brand-yellow"
-                           }`}
+                           className={`text-4xl font-extrabold tracking-tight sm:text-5xl ${esPerdida ? "text-red-300" : "text-brand-yellow"
+                              }`}
                         >
                            {esPerdida ? "−" : ""}
                            {formatMoney(Math.abs(resumen.rentabilidad_neta))}
@@ -252,14 +226,13 @@ export function EquipoRentabilidad({ equipoId }: { equipoId: string }) {
                            {data.conduces.length === 0
                               ? "Todavía no hay conduces registrados en este período."
                               : esPerdida
-                                ? `El equipo facturó ${formatMoney(resumen.ingresos)}, pero los costos del operador (${formatMoney(
-                                     resumen.costo_operador
-                                  )}) más gastos, mantenimiento e inversión sumaron más de lo producido.`
-                                : `Se facturaron ${formatMoney(resumen.ingresos)} en ${resumen.conduces_cobrables} conduce${
-                                     resumen.conduces_cobrables === 1 ? "" : "s"
-                                  } cobrable${resumen.conduces_cobrables === 1 ? "" : "s"}. El operador costó ${formatMoney(
-                                     resumen.costo_operador
-                                  )} y quedó ${formatMoney(resumen.rentabilidad_operativa)} de utilidad operativa.`}
+                                 ? `El equipo facturó ${formatMoney(resumen.ingresos)}, pero los costos del operador (${formatMoney(
+                                    resumen.costo_operador
+                                 )}) más gastos, mantenimiento e inversión sumaron más de lo producido.`
+                                 : `Se facturaron ${formatMoney(resumen.ingresos)} en ${resumen.conduces_cobrables} conduce${resumen.conduces_cobrables === 1 ? "" : "s"
+                                 } cobrable${resumen.conduces_cobrables === 1 ? "" : "s"}. El operador costó ${formatMoney(
+                                    resumen.costo_operador
+                                 )} y quedó ${formatMoney(resumen.rentabilidad_operativa)} de utilidad operativa.`}
                         </p>
                      </div>
 

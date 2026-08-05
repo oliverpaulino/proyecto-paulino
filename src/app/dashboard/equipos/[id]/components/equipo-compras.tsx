@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { CalendarDays, Loader2, RefreshCw, Search, ShoppingCart, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { EquipoCompraItem } from "@/dtos/equipo.dto";
+import { useEquipoStore } from "@/stores/useEquipoStore";
 
 const INPUT_CLASS =
    "h-9 rounded-lg border border-input bg-input/30 px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
@@ -19,13 +19,16 @@ function formatMoney(value: number): string {
    }).format(value);
 }
 
-/** Cache en memoria a nivel de módulo para que cambiar de tab no re-fetchee. */
-const COMPRAS_CACHE = new Map<string, EquipoCompraItem[]>();
-
 export function EquipoCompras({ equipoId }: { equipoId: string }) {
-   const [items, setItems] = useState<EquipoCompraItem[]>([]);
-   const [loading, setLoading] = useState(true);
-   const [error, setError] = useState<string | null>(null);
+   const { comprasItems, comprasLoading, comprasError, GetEquipoCompras } = useEquipoStore();
+
+   // Alias para no tocar el resto del JSX (usa items/loading/error).
+   const items = comprasItems;
+   const error = comprasError;
+
+   const [loaded, setLoaded] = useState(false);
+   const loading = comprasLoading || !loaded;
+
    const [desde, setDesde] = useState("");
    const [hasta, setHasta] = useState("");
    const [aplicados, setAplicados] = useState({ desde: "", hasta: "" });
@@ -33,36 +36,19 @@ export function EquipoCompras({ equipoId }: { equipoId: string }) {
 
    const cargar = useCallback(
       async (d: string, h: string, force = false) => {
-         const cacheKey = `${equipoId}|${d}|${h}`;
-         const cacheado = COMPRAS_CACHE.get(cacheKey);
-         if (!force && cacheado) {
-            setItems(cacheado);
-            setError(null);
-            setLoading(false);
-            return;
-         }
-         setLoading(true);
-         setError(null);
-         const params = new URLSearchParams();
-         if (d) params.set("desde", d);
-         if (h) params.set("hasta", h);
-         try {
-            const res = await fetch(`/api/equipos/${equipoId}/compras?${params.toString()}`);
-            if (!res.ok) throw new Error("No se pudieron cargar las compras");
-            const items = (await res.json()) as EquipoCompraItem[];
-            COMPRAS_CACHE.set(cacheKey, items);
-            setItems(items);
-         } catch (e) {
-            setError(e instanceof Error ? e.message : "Error de conexión");
-         } finally {
-            setLoading(false);
-         }
+         await GetEquipoCompras(equipoId, d, h, force);
       },
-      [equipoId]
+      [equipoId, GetEquipoCompras]
    );
 
    useEffect(() => {
-      cargar("", "");
+      let active = true;
+      cargar("", "").then(() => {
+         if (active) setLoaded(true);
+      });
+      return () => {
+         active = false;
+      };
    }, [cargar]);
 
    function aplicar() {
