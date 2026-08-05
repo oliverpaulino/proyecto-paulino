@@ -44,7 +44,7 @@ type PurchaseOrderStore = {
       estado: EstadoOrdenCompra
    ) => Promise<void | Error>;
    DeletePurchaseOrder: (id: string) => Promise<void | Error>;
-   GetOrdenesCompraBySupplier: (supplierId: string, params?: { force?: boolean, page?: number, limit?: number, search?: string }) => Promise<void>;
+   GetOrdenesCompraBySupplier: (supplierId: string, params?: { force?: boolean, page?: number, limit?: number, search?: string, estado?: string, estadoPago?: string }) => Promise<void>;
    RestorePurchaseOrder: (id: string) => Promise<void | Error>;
    GetPurchaseOrderById: (id: string) => Promise<PurchaseOrder | null>;
    ListApprovers: () => Promise<PurchaseOrderApprover[] | Error>;
@@ -306,13 +306,17 @@ export const usePurchaseOrderStore = create<PurchaseOrderStore>((set, get) => ({
       }
    },
 
-   GetOrdenesCompraBySupplier: async (supplierId, { force = false, page = 1, limit = 10, search = "" } = {}) => {
-      const cacheKey = `supplier-${supplierId}`;
+   GetOrdenesCompraBySupplier: async (supplierId, { force = false, page = 1, limit = 10, search = "", estado = "", estadoPago = "" } = {}) => {
+      const cacheKey = `supplier-${supplierId}_${search}_${estado}_${estadoPago}_${page}_${limit}`;
       if (!force && get()._fetchedLists.has(cacheKey)) return;
 
       set({ loading: true });
       try {
-         const res = await fetch(`/api/purchase-orders?supplierId=${supplierId}&page=${page}&limit=${limit}&search=${search}`);
+         const qs = new URLSearchParams({ page: String(page), limit: String(limit) });
+         if (search) qs.set("search", search);
+         if (estado) qs.set("estado", estado);
+         if (estadoPago) qs.set("estadoPago", estadoPago);
+         const res = await fetch(`/api/purchase-orders?supplierId=${supplierId}&${qs.toString()}`);
          if (!res.ok) throw new Error("Error al cargar órdenes de compra por proveedor");
          const data = await res.json();
          set({ loading: false });

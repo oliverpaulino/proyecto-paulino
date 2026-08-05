@@ -19,6 +19,7 @@ function extractParams(c: any) {
       gasto_empresa_id: c.req.query("gasto_empresa_id"),
       deduccion_empleado_id: c.req.query("deduccion_empleado_id"),
       orden_compra_id: c.req.query("orden_compra_id"),
+      proveedor_id: c.req.query("proveedor_id"),
    };
 }
 

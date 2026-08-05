@@ -12,6 +12,7 @@ type PagosFilters = {
    end?: string;
    gasto_empresa_id?: string;
    deduccion_empleado_id?: string;
+   proveedor_id?: string;
 };
 
 type PagoStore = {

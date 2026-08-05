@@ -624,6 +624,67 @@ export interface DB {
       orden_compra_id: string | null;
       proyecto_id: string | null;
       equipo_id: string | null;
+      // Contexto de proveedor/subcontratista (migración 015). Cuando un gasto
+      // nace de una subcontratación, subcontratacion_id apunta a ella.
+      proveedor_id: string | null;
+      subcontratacion_id: string | null;
+      fecha: Date;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+      deleted_by: string | null;
+      deleted_at: Date | null;
+      deleted_reason: string | null;
+   };
+
+   // ── Subcontrataciones (migración 015) ─────────────────────────────────────
+   // Registro operativo del trabajo de un subcontratista. Es la fuente de la
+   // deuda: al crearla el backend inserta (en la misma transacción) un `gasto`
+   // vinculado vía gasto.subcontratacion_id, y los pagos entran por la tabla
+   // `pago` existente apuntando a ese gasto. La deuda = gasto.monto_total − Σ
+   // pago.gasto_empresa_id (ver cuentas-por-pagar).
+   subcontratacion: {
+      id: Generated<string>;
+      referencia: Generated<number>;
+      proveedor_id: string;
+      proyecto_id: string | null;
+      equipo_id: string | null;
+      trabajo_descripcion: string | null;
+      monto_total: number;
+      // Etapa: PENDIENTE | EN_PROGRESO | TERMINADA | CANCELADA | PARADO
+      estado: Generated<string>;
+      // Motivo del estado actual (obligatorio para PARADO).
+      motivo_estado: string | null;
+      // Se sincroniza con gasto.fecha; alimenta la antigüedad en CxP.
+      fecha_deuda: Date;
+      fecha_inicio: Date | null;
+      fecha_fin: Date | null;
+      observaciones: string | null;
+      gasto_id: string | null;
+      created_by: string | null;
+      created_by_name: string | null;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
+      deleted_by: string | null;
+      deleted_at: Date | null;
+      deleted_reason: string | null;
+   };
+
+   subcontratacion_apunte: {
+      id: Generated<string>;
+      subcontratacion_id: string;
+      texto: string;
+      created_by_name: string | null;
+      created_at: Generated<Date>;
+   };
+
+   costo: {
+      id: Generated<string>;
+      proyecto_id: string,
+      monto_total: number,
+      concepto: string,
+      ncf: string | null;
+      orden_compra_id: string | null;
+      referencia: Generated<number>;
       proveedor_id: string | null;
       subcontratacion_id: string | null;
       cobrable_proyecto: Generated<boolean>;

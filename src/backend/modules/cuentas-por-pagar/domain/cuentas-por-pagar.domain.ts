@@ -50,6 +50,10 @@ export interface CuentaPorPagar {
 
    // Contexto según el tipo
    categoria_gasto_nombre: string | null; // solo GASTO
+   /** Proveedor (suplidor o subcontratista) asociado al gasto, si lo hay. */
+   proveedor_id: string | null;
+   proveedor_nombre: string | null;
+   proveedor_tipo: string | null;
    proyecto_id: string | null; // solo COSTO
    /** `proyecto` no tiene columna de referencia: se identifica por nombre. */
    proyecto_nombre: string | null;
@@ -67,6 +71,7 @@ export interface CuentasPorPagarFiltros {
    incluir_pagadas?: boolean;
    proyecto_id?: string;
    categoria_gasto_id?: string;
+   proveedor_id?: string;
    fecha_desde?: Date;
    fecha_hasta?: Date;
    busqueda?: string;

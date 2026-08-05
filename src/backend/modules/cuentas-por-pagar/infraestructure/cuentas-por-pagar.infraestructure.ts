@@ -71,6 +71,7 @@ export class KyselyCuentasPorPagarRepository implements ICuentasPorPagarReposito
          let q = this.db
             .selectFrom("gasto")
             .leftJoin("categoria_gasto", "categoria_gasto.id", "gasto.categoria_gasto_id")
+            .leftJoin("proveedor", "proveedor.id", "gasto.proveedor_id")
             .leftJoin("orden_compra", "orden_compra.id", "gasto.orden_compra_id")
             .select([
                "gasto.id",
@@ -80,8 +81,11 @@ export class KyselyCuentasPorPagarRepository implements ICuentasPorPagarReposito
                "gasto.fecha",
                "gasto.monto_total",
                "gasto.orden_compra_id",
+               "gasto.proveedor_id",
                "orden_compra.referencia as oc_referencia",
                "categoria_gasto.nombre as categoria_gasto_nombre",
+               "proveedor.nombre as proveedor_nombre",
+               "proveedor.tipo as proveedor_tipo",
                pagadoDe("gasto_empresa_id", "gasto.id").as("pagado"),
                ultimoPagoDe("gasto_empresa_id", "gasto.id").as("ultimo_pago_fecha"),
                cantPagosDe("gasto_empresa_id", "gasto.id").as("cantidad_pagos"),
@@ -90,6 +94,8 @@ export class KyselyCuentasPorPagarRepository implements ICuentasPorPagarReposito
 
          if (filtros.categoria_gasto_id)
             q = q.where("gasto.categoria_gasto_id", "=", filtros.categoria_gasto_id);
+         if (filtros.proveedor_id)
+            q = q.where("gasto.proveedor_id", "=", filtros.proveedor_id);
          if (filtros.fecha_desde)
             q = q.where("gasto.fecha", ">=", aFechaISO(filtros.fecha_desde) as any);
          if (filtros.fecha_hasta)
@@ -122,6 +128,9 @@ export class KyselyCuentasPorPagarRepository implements ICuentasPorPagarReposito
                estado: estadoDeCuenta(monto, pagado),
                dias_transcurridos: diasDesde(r.fecha),
                categoria_gasto_nombre: r.categoria_gasto_nombre ?? null,
+               proveedor_id: r.proveedor_id ?? null,
+               proveedor_nombre: r.proveedor_nombre ?? null,
+               proveedor_tipo: r.proveedor_tipo ?? null,
                proyecto_id: null,
                proyecto_nombre: null,
                orden_compra_id: r.orden_compra_id ?? null,
@@ -191,6 +200,9 @@ export class KyselyCuentasPorPagarRepository implements ICuentasPorPagarReposito
                estado: estadoDeCuenta(monto, pagado),
                dias_transcurridos: diasDesde(r.fecha),
                categoria_gasto_nombre: null,
+               proveedor_id: null,
+               proveedor_nombre: null,
+               proveedor_tipo: null,
                proyecto_id: r.proyecto_id ?? null,
                proyecto_nombre: r.proyecto_nombre ?? null,
                orden_compra_id: r.orden_compra_id ?? null,

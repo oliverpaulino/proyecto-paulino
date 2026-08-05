@@ -17,6 +17,9 @@ export interface CuentaPorPagar {
    estado: EstadoCuenta;
    dias_transcurridos: number;
    categoria_gasto_nombre: string | null;
+   proveedor_id: string | null;
+   proveedor_nombre: string | null;
+   proveedor_tipo: string | null;
    proyecto_id: string | null;
    proyecto_nombre: string | null;
    orden_compra_id: string | null;
@@ -49,6 +52,7 @@ export interface CuentasFiltros {
    busqueda?: string;
    fecha_desde?: string;
    fecha_hasta?: string;
+   proveedor_id?: string;
    page?: number;
    pageSize?: number;
 }
@@ -102,6 +106,7 @@ export const useCuentasPorPagarStore = create<State>((set, get) => ({
       if (f.busqueda) qs.set("busqueda", f.busqueda);
       if (f.fecha_desde) qs.set("fecha_desde", f.fecha_desde);
       if (f.fecha_hasta) qs.set("fecha_hasta", f.fecha_hasta);
+      if (f.proveedor_id) qs.set("proveedor_id", f.proveedor_id);
       qs.set("page", String(f.page ?? 1));
       qs.set("pageSize", String(f.pageSize ?? 25));
 

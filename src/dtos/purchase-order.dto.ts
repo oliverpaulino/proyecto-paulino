@@ -41,6 +41,8 @@ const PurchaseOrderDTO = z.object({
    estado_pago: EstadoPagoOrdenSchema.default("PENDIENTE"),
    notas: z.string().nullable(),
    total: z.number(),
+   pagado: z.number(),
+   pendiente: z.number(),
    approved_by: z.string().nullable().optional(),
    approved_by_name: z.string().nullable().optional(),
    approved_at: z.coerce.date().nullable().optional(),
