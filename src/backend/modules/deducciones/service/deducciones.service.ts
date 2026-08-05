@@ -31,8 +31,11 @@ export class DeduccionService {
 
    async create(data: CreateDeduccionDTO): Promise<DeduccionProps> {
       if (data.monto_total <= 0) throw new Error("El monto de la deducción debe ser mayor a 0");
-      
-      const item = await this.repo.create(data);
+
+      const cuotas_sugeridas = data.cuotas_sugeridas ?? 1;
+      this.calcularMontoSugerido(data.monto_total, cuotas_sugeridas);
+
+      const item = await this.repo.create({ ...data, cuotas_sugeridas });
       return item.toJSON();
    }
 
@@ -40,9 +43,27 @@ export class DeduccionService {
       if (data.monto_total !== undefined && data.monto_total <= 0) {
          throw new Error("El monto de la deducción debe ser mayor a 0");
       }
-      
+
+      if (data.cuotas_sugeridas !== undefined && data.cuotas_sugeridas <= 0) {
+         throw new Error("La cantidad de cuotas sugeridas debe ser mayor a 0");
+      }
+
       const item = await this.repo.update(id, data);
       return item ? item.toJSON() : null;
+   }
+
+   /**
+    * Calcula el monto sugerido de la deducción por cuota:
+    * monto_total ÷ cuotas_sugeridas. Valida que ambos sean mayores a 0.
+    */
+   calcularMontoSugerido(monto_total: number, cuotas_sugeridas: number): number {
+      if (!Number.isFinite(monto_total) || monto_total <= 0) {
+         throw new Error("El monto de la deducción debe ser mayor a 0");
+      }
+      if (!Number.isInteger(cuotas_sugeridas) || cuotas_sugeridas <= 0) {
+         throw new Error("La cantidad de cuotas sugeridas debe ser mayor a 0");
+      }
+      return monto_total / cuotas_sugeridas;
    }
 
    async delete(id: string, data: DeleteDeduccionDTO): Promise<boolean> {

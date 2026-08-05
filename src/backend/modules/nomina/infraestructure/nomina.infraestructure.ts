@@ -58,6 +58,13 @@ function mapCycleEmployee(row: any): PayrollCycleEmployeeProps {
       devengado_tarifas: num(row.devengado_tarifas),
       complemento_minimo: num(row.complemento_minimo),
       seguro: num(row.seguro),
+      afp: num(row.afp),
+      sfs: num(row.sfs),
+      isr: num(row.isr),
+      base_isr: num(row.base_isr),
+      // No pasa por `num()`: aquí null significa "no se calculó" y convertirlo
+      // a 0 lo volvería un año fiscal inválido.
+      isr_anio_escala: row.isr_anio_escala ?? null,
       deducciones: num(row.deducciones),
       deuda_total: num(row.deuda_total),
       deuda_pendiente: num(row.deuda_pendiente),
@@ -147,7 +154,7 @@ export class KyselyNominaRepository implements INominaRepository {
    async listEmpleadosParaNomina(): Promise<EmpleadoParaNomina[]> {
       const rows = await this.db
          .selectFrom("empleado")
-         .select(["id", "nombre", "rol", "salario", "frecuencia_pago"])
+         .select(["id", "nombre", "rol", "salario", "frecuencia_pago", "aplica_retenciones"])
          .where("activo", "=", true)
          .orderBy("nombre", "asc")
          .execute();
@@ -159,6 +166,10 @@ export class KyselyNominaRepository implements INominaRepository {
          modalidad: r.rol === "OPERADOR" ? "PRODUCCION" : "FIJO",
          salario: num(r.salario),
          frecuencia_pago: r.frecuencia_pago ?? null,
+         // Ante NULL (fila anterior a la migración 016) se asume que NO se le
+         // retiene: es lo que venía pasando hasta ahora, así que recalcular un
+         // ciclo viejo no le cambia el pago a nadie de forma silenciosa.
+         aplica_retenciones: r.aplica_retenciones === true,
       }));
    }
 
@@ -187,6 +198,10 @@ export class KyselyNominaRepository implements INominaRepository {
          .leftJoin("operador", "operador.id", "conduce.operador_id")
          .leftJoin("equipo", "equipo.id", "conduce.equipo_id")
          .leftJoin("operador as eq_op", "eq_op.id", "equipo.operador_id")
+         // El nombre de la categoría no está snapshoteado en el conduce (solo
+         // el id), así que se resuelve por join. Es leftJoin porque la
+         // categoría pudo borrarse y aun así el conduce debe contarse.
+         .leftJoin("categoria_equipo", "categoria_equipo.id", "conduce.categoria_equipo_id")
          .select([
             "conduce.id as conduce_id",
             "conduce.fecha",
@@ -195,6 +210,8 @@ export class KyselyNominaRepository implements INominaRepository {
             "conduce.total_horas",
             "conduce.categoria_equipo_tarifa_id",
             "conduce.categoria_equipo_tarifa_nombre",
+            "conduce.categoria_equipo_id",
+            "categoria_equipo.nombre as categoria_equipo_nombre",
             "conduce.medida_cobro_nombre",
             empleadoEfectivo.as("empleado_id"),
             // Inferido = no venía persona en el conduce y se dedujo del equipo.
@@ -217,6 +234,8 @@ export class KyselyNominaRepository implements INominaRepository {
          fecha: r.fecha,
          categoria_equipo_tarifa_id: r.categoria_equipo_tarifa_id ?? null,
          categoria_equipo_tarifa_nombre: r.categoria_equipo_tarifa_nombre ?? "(sin tarifa)",
+         categoria_equipo_id: r.categoria_equipo_id ?? null,
+         categoria_equipo_nombre: r.categoria_equipo_nombre ?? null,
          medida_cobro_nombre: r.medida_cobro_nombre ?? null,
          // CAMION cobra por viajes/botes; EQUIPO_PESADO por horas.
          cantidad:
@@ -398,6 +417,11 @@ export class KyselyNominaRepository implements INominaRepository {
                devengado_tarifas: row.devengado_tarifas,
                complemento_minimo: row.complemento_minimo,
                seguro: row.seguro,
+               afp: row.afp,
+               sfs: row.sfs,
+               isr: row.isr,
+               base_isr: row.base_isr,
+               isr_anio_escala: row.isr_anio_escala,
                deducciones: row.deducciones,
                deuda_total: row.deuda_total,
                deuda_pendiente: row.deuda_pendiente,
@@ -417,6 +441,15 @@ export class KyselyNominaRepository implements INominaRepository {
                   // `seguro` NO se pisa al recalcular: es un campo libre que
                   // el usuario edita a mano. `deducciones` sí se recalcula
                   // siempre desde la tabla `deduccion`.
+                  //
+                  // Las retenciones también se pisan: son cálculo puro sobre
+                  // el bruto, no un valor que nadie escribe a mano. Si la
+                  // producción cambió, la retención que le corresponde cambió.
+                  afp: row.afp,
+                  sfs: row.sfs,
+                  isr: row.isr,
+                  base_isr: row.base_isr,
+                  isr_anio_escala: row.isr_anio_escala,
                   deducciones: row.deducciones,
                   deuda_total: row.deuda_total,
                   deuda_pendiente: row.deuda_pendiente,
@@ -442,6 +475,8 @@ export class KyselyNominaRepository implements INominaRepository {
                      cycle_employee_id: saved.id,
                      categoria_equipo_tarifa_id: t.categoria_equipo_tarifa_id,
                      categoria_equipo_tarifa_nombre: t.categoria_equipo_tarifa_nombre,
+                     categoria_equipo_id: t.categoria_equipo_id ?? null,
+                     categoria_equipo_nombre: t.categoria_equipo_nombre ?? null,
                      medida_cobro_nombre: t.medida_cobro_nombre,
                      cantidad: t.cantidad,
                      monto_pago: t.monto_pago,
@@ -554,6 +589,8 @@ export class KyselyNominaRepository implements INominaRepository {
          lista.push({
             categoria_equipo_tarifa_id: t.categoria_equipo_tarifa_id ?? null,
             categoria_equipo_tarifa_nombre: t.categoria_equipo_tarifa_nombre,
+            categoria_equipo_id: t.categoria_equipo_id ?? null,
+            categoria_equipo_nombre: t.categoria_equipo_nombre ?? null,
             medida_cobro_nombre: t.medida_cobro_nombre ?? null,
             cantidad: num(t.cantidad),
             monto_pago: num(t.monto_pago),
@@ -651,6 +688,8 @@ export class KyselyNominaRepository implements INominaRepository {
             return {
                categoria_equipo_tarifa_id: t.categoria_equipo_tarifa_id ?? null,
                categoria_equipo_tarifa_nombre: t.categoria_equipo_tarifa_nombre,
+               categoria_equipo_id: t.categoria_equipo_id ?? null,
+               categoria_equipo_nombre: t.categoria_equipo_nombre ?? null,
                medida_cobro_nombre: t.medida_cobro_nombre ?? null,
                cantidad: num(t.cantidad),
                monto_pago: num(t.monto_pago),
@@ -695,7 +734,12 @@ export class KyselyNominaRepository implements INominaRepository {
       if (!actual) return null;
 
       const bruto = num(actual.devengado_tarifas) + num(actual.complemento_minimo);
-      const neto = bruto - seguro - num(actual.deducciones);
+      // Las retenciones de ley no se recalculan aquí —el seguro no altera la
+      // base imponible— pero sí hay que restarlas: omitirlas dejaría un neto
+      // mayor que el calculado, y el usuario vería el monto cambiar solo por
+      // haber tocado el seguro.
+      const retenciones = num(actual.afp) + num(actual.sfs) + num(actual.isr);
+      const neto = bruto - seguro - num(actual.deducciones) - retenciones;
 
       const row = await this.db
          .updateTable("payroll_cycle_employees")
@@ -725,6 +769,7 @@ export class KyselyNominaRepository implements INominaRepository {
             monto_total: data.monto_total,
             // Nace saldada contra esta nómina: se cobra completa en el ciclo.
             balance_pendiente: 0,
+            cuotas_sugeridas: 1,
             concepto: data.concepto,
             fecha: aFechaISO(data.fecha) as any,
          })
@@ -789,7 +834,14 @@ export class KyselyNominaRepository implements INominaRepository {
                deducciones: periodo,
                deuda_total: total,
                deuda_pendiente: Math.max(0, total - periodo),
-               neto_pagar: bruto - num(f.seguro) - periodo,
+               // Igual que en `updateSeguro`: las retenciones ya calculadas se
+               // arrastran. Una deducción nueva no cambia la base imponible
+               // (el ISR se calcula sobre el bruto), pero sí baja el neto.
+               neto_pagar:
+                  bruto -
+                  num(f.seguro) -
+                  periodo -
+                  (num(f.afp) + num(f.sfs) + num(f.isr)),
                updated_at: new Date(),
             } as any)
             .where("id", "=", f.id)

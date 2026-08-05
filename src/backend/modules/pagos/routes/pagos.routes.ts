@@ -17,7 +17,6 @@ function extractParams(c: any) {
       start: c.req.query("start") ? new Date(c.req.query("start")) : undefined,
       end: c.req.query("end") ? new Date(`${c.req.query("end")}T23:59:59.999`) : undefined,
       gasto_empresa_id: c.req.query("gasto_empresa_id"),
-      costo_cliente_id: c.req.query("costo_cliente_id"),
       deduccion_empleado_id: c.req.query("deduccion_empleado_id"),
       orden_compra_id: c.req.query("orden_compra_id"),
       proveedor_id: c.req.query("proveedor_id"),

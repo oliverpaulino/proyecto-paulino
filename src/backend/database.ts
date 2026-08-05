@@ -164,6 +164,10 @@ export interface DB {
       frecuencia_pago: string; // <-- Agregado el campo de frecuencia de pago
       rol: string;
       salario: number;
+      // Si se le retienen TSS (AFP/SFS) e ISR en la nómina. Por defecto FALSE:
+      // activarlo cambia lo que la persona cobra, así que es una decisión
+      // explícita por empleado, no un default. Ver migración 016.
+      aplica_retenciones: Generated<boolean>;
       activo: boolean;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
@@ -209,35 +213,6 @@ export interface DB {
       telefono: string | null;
       email: string | null;
       direccion: string | null;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
-
-   item: {
-      id: Generated<string>;
-      nombre: string;
-      tipo_id: string;
-      descripcion: string | null;
-      unidad: string | null;
-      stock: Generated<number>;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
-
-   tipo_item: {
-      id: Generated<string>;
-      nombre: string;
-      descripcion: string | null;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
-
-   servicio: {
-      id: Generated<string>;
-      nombre: string;
-      tipo: string;
-      descripcion: string | null;
-      precio_base: number;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
@@ -377,37 +352,6 @@ export interface DB {
       created_at: Generated<Date>;
    };
 
-   payroll_concepts: {
-      id: Generated<string>;
-      organization_id: string | null;
-      code: string;
-      name: string;
-      category: string;
-      sign: number;
-      is_taxable: boolean;
-      is_active: boolean;
-      accounting_rule_id: string | null;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
-
-   payroll_concept_rules: {
-      id: Generated<string>;
-      concept_id: string;
-      applies_to: string;
-      target_id: string | null;
-      trigger: string;
-      amount_mode: string;
-      amount_value: number;
-      effective_from: Date;
-      effective_to: Date | null;
-      priority: number;
-      project_location_filter: string | null;
-      is_active: boolean;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
-
    // ── Nómina: ciclo (período que se paga) ──────────────────────────────────
    // Ver migración 007_payroll_cycles.sql. `payroll_items.cycle_id` ya
    // apuntaba aquí desde el código antes de que la tabla existiera.
@@ -445,6 +389,18 @@ export interface DB {
       devengado_tarifas: Generated<number>; // Σ conduces × monto_pago
       complemento_minimo: Generated<number>; // MAX(0, mínimo − devengado)
       seguro: Generated<number>; // campo libre editable
+      // Retenciones de ley (migración 016). NO son deducciones: no se guardan
+      // en la tabla `deduccion` porque no son deudas con la empresa, sino
+      // dinero que se le entrega a la TSS y a la DGII.
+      afp: Generated<number>; // 2.87% topado (cuota del empleado)
+      sfs: Generated<number>; // 3.04% topado (cuota del empleado)
+      isr: Generated<number>; // retención del período
+      // Base imponible mensualizada que se usó, para poder auditar el ISR sin
+      // recalcularlo con una escala que quizá ya cambió.
+      base_isr: Generated<number>;
+      // Año de la escala aplicada. NULL = no se calculó (no había escala para
+      // ese año fiscal), que no es lo mismo que exento.
+      isr_anio_escala: number | null;
       // Suma de las deducciones del período. Siempre se recalcula desde la
       // tabla `deduccion`: para descontar más, se CREA una deducción nueva,
       // nunca se sobrescribe este monto.
@@ -468,6 +424,11 @@ export interface DB {
       cycle_employee_id: string;
       categoria_equipo_tarifa_id: string | null; // best-effort (hard-replace)
       categoria_equipo_tarifa_nombre: string; // snapshot
+      // Categoría del equipo con el que se generó la producción. NULL en las
+      // filas anteriores a la migración 015 y en los ciclos cerrados, que ya
+      // no se recalculan.
+      categoria_equipo_id: string | null;
+      categoria_equipo_nombre: string | null; // snapshot
       medida_cobro_nombre: string | null;
       cantidad: Generated<number>;
       monto_pago: Generated<number>; // precio unitario AL CHOFER
@@ -496,35 +457,6 @@ export interface DB {
       monto_pago: Generated<number>;
       nota: string | null;
       created_by: string | null;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
-
-   payroll_items: {
-      id: Generated<string>;
-      organization_id: string | null;
-      cycle_id: string | null;
-      employee_id: string;
-      concept_id: string;
-      source: string;
-      source_ref_id: string | null;
-      quantity: number;
-      unit_value: number;
-      amount: number;
-      work_date: Date | null;
-      work_date_end: Date | null;
-      created_at: Generated<Date>;
-      updated_at: Generated<Date>;
-   };
-
-   tarea: {
-      id: Generated<string>;
-      proyecto_id: string | null;
-      nombre: string;
-      descripcion: string | null;
-      estado: Generated<string>;
-      fecha_inicio: Date | null;
-      fecha_fin: Date | null;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
    };
@@ -753,6 +685,10 @@ export interface DB {
       ncf: string | null;
       orden_compra_id: string | null;
       referencia: Generated<number>;
+      proveedor_id: string | null;
+      subcontratacion_id: string | null;
+      cobrable_proyecto: Generated<boolean>;
+      cobrable_monto: number | null;
       fecha: Date;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
@@ -769,6 +705,7 @@ export interface DB {
       monto_total: number;
       concepto: string;
       balance_pendiente: number | null;
+      cuotas_sugeridas: number;
       referencia: Generated<number>;
       fecha: Date;
       created_at: Generated<Date>;
@@ -786,7 +723,6 @@ export interface DB {
       concepto: string;
       tipo_movimiento: string;
       gasto_empresa_id: string | null;
-      costo_cliente_id: string | null;
       deduccion_empleado_id: string | null;
       proyecto_id: string | null;
       orden_compra_id: string | null;

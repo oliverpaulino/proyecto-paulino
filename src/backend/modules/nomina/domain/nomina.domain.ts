@@ -73,6 +73,17 @@ export interface UpdateCycleDTO {
 export interface TarifaDesglose {
    categoria_equipo_tarifa_id: string | null;
    categoria_equipo_tarifa_nombre: string;
+   /*
+      Categoría del equipo (el "tipo de camión") con el que se generó esta
+      producción. El desglose agrupa por (categoría, tarifa): una misma tarifa
+      usada con dos categorías distintas produce DOS filas, porque de otro modo
+      no se sabría con qué equipo se ganó el dinero.
+
+      NULL solo en snapshots viejos: filas escritas antes de la migración 015 y
+      ciclos cerrados que ya no se recalculan.
+   */
+   categoria_equipo_id: string | null;
+   categoria_equipo_nombre: string | null;
    medida_cobro_nombre: string | null;
    cantidad: number;
    monto_pago: number; // precio unitario AL CHOFER
@@ -144,6 +155,25 @@ export interface PayrollCycleEmployeeProps {
    complemento_minimo: number;
 
    seguro: number;
+
+   /*
+      Retenciones de ley. Se calculan solas (ver `fiscal.domain.ts`) y NO son
+      deducciones: no se guardan en la tabla `deduccion` porque no son deudas
+      con la empresa sino dinero que se entrega a la TSS y a la DGII.
+      Valen 0 en los empleados sin `aplica_retenciones`.
+   */
+   afp: number;
+   sfs: number;
+   isr: number;
+   /** Base imponible mensualizada usada para el ISR (bruto − AFP − SFS). */
+   base_isr: number;
+   /**
+    * Año de la escala aplicada. `null` = no se pudo calcular porque no había
+    * escala cargada para ese año fiscal. Distinto de 0 (exento): la UI debe
+    * mostrarlo como pendiente, no como que no le toca pagar.
+    */
+   isr_anio_escala: number | null;
+
    /**
     * Suma de las deducciones del período. Siempre se recalcula desde la tabla
     * `deduccion`: para descontar más se CREA una deducción nueva, nunca se
@@ -233,14 +263,27 @@ export function salarioDelPeriodo(
    return mensual / PERIODOS_POR_MES[frecuenciaCiclo];
 }
 
-/** Neto a pagar. Puede dar negativo si los descuentos superan al bruto. */
-export function calcularNeto(
-   devengado: number,
-   complemento: number,
-   seguro: number,
-   deducciones: number
-): number {
-   return calcularBruto(devengado, complemento) - seguro - deducciones;
+/**
+ * Neto a pagar. Puede dar negativo si los descuentos superan al bruto.
+ *
+ * Va por objeto y no por posición a propósito: son cinco montos del mismo tipo
+ * y todos se restan, así que invertir dos en la llamada no daría error de tipos
+ * pero sí un pago equivocado.
+ */
+export function calcularNeto(p: {
+   devengado: number;
+   complemento: number;
+   seguro: number;
+   deducciones: number;
+   /** Retenciones de ley del período (AFP + SFS + ISR). 0 si no aplican. */
+   retenciones?: number;
+}): number {
+   return (
+      calcularBruto(p.devengado, p.complemento) -
+      p.seguro -
+      p.deducciones -
+      (p.retenciones ?? 0)
+   );
 }
 
 // ─── Repositorio ─────────────────────────────────────────────────────────────
@@ -253,6 +296,9 @@ export interface ConduceParaNomina {
    fecha: Date;
    categoria_equipo_tarifa_id: string | null;
    categoria_equipo_tarifa_nombre: string;
+   /** Categoría del equipo, snapshoteada en el conduce vía `equipo.categoria_id`. */
+   categoria_equipo_id: string | null;
+   categoria_equipo_nombre: string | null;
    medida_cobro_nombre: string | null;
    /** Viajes/botes para CAMION, horas para EQUIPO_PESADO. */
    cantidad: number;
@@ -282,6 +328,12 @@ export interface EmpleadoParaNomina {
    modalidad: ModalidadPago;
    salario: number;
    frecuencia_pago: string | null;
+   /**
+    * Si se le retienen TSS e ISR. Por defecto `false`: muchos choferes cobran
+    * por producción sin estar en planilla formal, y retenerles sin que nadie
+    * lo pida cambiaría lo que se llevan a casa.
+    */
+   aplica_retenciones: boolean;
 }
 
 export interface INominaRepository {

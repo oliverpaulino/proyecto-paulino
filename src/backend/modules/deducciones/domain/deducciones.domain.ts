@@ -4,6 +4,8 @@ export interface DeduccionProps {
    codigoReferencia: string;
    monto_total: number;
    balance_pendiente: number | null;
+   cuotas_sugeridas: number;
+   monto_sugerido: number;
    concepto: string;
    
    empleado_id: string;
@@ -42,6 +44,11 @@ export class Deduccion {
    }
    get monto_total() { return this.props.monto_total; }
    get balance_pendiente() { return this.props.balance_pendiente; }
+   get cuotas_sugeridas() { return this.props.cuotas_sugeridas; }
+   get monto_sugerido() {
+      if (!this.props.cuotas_sugeridas || this.props.cuotas_sugeridas <= 0) return 0;
+      return this.props.monto_total / this.props.cuotas_sugeridas;
+   }
    get concepto() { return this.props.concepto; }
    get empleado_id() { return this.props.empleado_id; }
    get empleado_codigo_referencia() { return this.props.empleado_codigo_referencia; }
@@ -58,7 +65,7 @@ export class Deduccion {
    get deleted_reason() { return this.props.deleted_reason; }
    
    toJSON(): DeduccionProps {
-      return { ...this.props };
+      return { ...this.props, monto_sugerido: this.monto_sugerido };
    }
 }
 
@@ -68,6 +75,7 @@ export interface CreateDeduccionDTO {
    gasto_id?: string | null;
    monto_total: number;
    balance_pendiente?: number | null;
+   cuotas_sugeridas?: number;
    concepto: string;
    fecha: Date;
 }

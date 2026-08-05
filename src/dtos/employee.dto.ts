@@ -45,6 +45,8 @@ const EmployeeDTO = z.object({
    rol: EmployeeSchemasDTO.TipoRolEmpleadoSchema,
    frecuencia_pago: z.string().default("QUINCENAL"), // <-- Nuevo
    salario: z.number(),
+   /** Si se le retienen TSS (AFP/SFS) e ISR en la nómina. Ver migración 016. */
+   aplica_retenciones: z.boolean().default(false),
    activo: z.boolean(),
    created_at: z.coerce.date(),
    updated_at: z.coerce.date(),
@@ -57,6 +59,9 @@ const CreateEmployeeBaseDTO = z.object({
    rol: EmployeeSchemasDTO.TipoRolEmpleadoSchema,
    salario: z.number().min(0),
    frecuencia_pago: z.string().min(1, "Especifique la frecuencia de pago"), // <-- NUEVO
+   // Por defecto FALSE: activarlo baja el neto del empleado, así que es una
+   // decisión explícita y no un default heredado.
+   aplica_retenciones: z.boolean().default(false),
    activo: z.boolean().default(true),
 });
 

@@ -15,11 +15,11 @@ export default async function Layout({
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
       <AppSidebar />
-      <SidebarInset className="flex flex-col min-w-0 overflow-hidden">
-          <DashboardHeader />
-          <main className="flex flex-1 flex-col min-w-0 overflow-hidden">
-            {children}
-          </main>
+      <SidebarInset className="flex h-screen flex-col overflow-hidden">
+        <DashboardHeader />
+        <main className="flex-1 overflow-y-auto">
+          {children}
+        </main>
       </SidebarInset>
     </SidebarProvider>
   );

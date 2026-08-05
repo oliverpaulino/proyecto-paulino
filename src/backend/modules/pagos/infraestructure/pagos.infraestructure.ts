@@ -30,7 +30,6 @@ export class KyselyPagoRepository implements IPagoRepository {
          ...row,
          codigoReferencia: this.buildCodigoReferencia("PAG", row.referencia),
          gasto_codigo_referencia: row.gasto_referencia ? this.buildCodigoReferencia("GAS", row.gasto_referencia) : null,
-         costo_codigo_referencia: row.costo_referencia ? this.buildCodigoReferencia("COS", row.costo_referencia) : null,
          deduccion_codigo_referencia: row.deduccion_referencia ? this.buildCodigoReferencia("DED", row.deduccion_referencia) : null,
          proyecto_codigo_referencia: row.proyecto_referencia ? this.buildCodigoReferencia("PRO", row.proyecto_referencia) : null,
          orden_compra_codigo_referencia: row.orden_compra_referencia ? this.buildCodigoOrdenCompra(row.orden_compra_referencia, new Date(row.orden_compra_fecha)) : null,
@@ -57,14 +56,12 @@ export class KyselyPagoRepository implements IPagoRepository {
       let query = this.db
          .selectFrom("pago")
          .leftJoin("gasto", "gasto.id", "pago.gasto_empresa_id")
-         .leftJoin("costo", "costo.id", "pago.costo_cliente_id")
          .leftJoin("deduccion", "deduccion.id", "pago.deduccion_empleado_id")
          .leftJoin("proyecto", "proyecto.id", "pago.proyecto_id")
          .leftJoin("orden_compra", "orden_compra.id", "pago.orden_compra_id")
          .selectAll("pago")
          .select([
             "gasto.referencia as gasto_referencia",
-            "costo.referencia as costo_referencia",
             "deduccion.referencia as deduccion_referencia",
             "proyecto.referencia as proyecto_referencia",
             "orden_compra.referencia as orden_compra_referencia",
@@ -100,7 +97,6 @@ export class KyselyPagoRepository implements IPagoRepository {
       if (params?.start) query = query.where("pago.fecha", ">=", params.start);
       if (params?.end) query = query.where("pago.fecha", "<=", params.end);
       if (params?.gasto_empresa_id) query = query.where("pago.gasto_empresa_id", "=", params.gasto_empresa_id);
-      if (params?.costo_cliente_id) query = query.where("pago.costo_cliente_id", "=", params.costo_cliente_id);
       if (params?.deduccion_empleado_id) query = query.where("pago.deduccion_empleado_id", "=", params.deduccion_empleado_id);
       if (params?.proyecto_id) query = query.where("pago.proyecto_id", "=", params.proyecto_id);
       if (params?.orden_compra_id) query = query.where("pago.orden_compra_id", "=", params.orden_compra_id);
@@ -144,14 +140,12 @@ export class KyselyPagoRepository implements IPagoRepository {
       const row = await this.db
          .selectFrom("pago")
          .leftJoin("gasto", "gasto.id", "pago.gasto_empresa_id")
-         .leftJoin("costo", "costo.id", "pago.costo_cliente_id")
          .leftJoin("deduccion", "deduccion.id", "pago.deduccion_empleado_id")
          .leftJoin("proyecto", "proyecto.id", "pago.proyecto_id")
          .leftJoin("orden_compra", "orden_compra.id", "pago.orden_compra_id")
          .selectAll("pago")
          .select([
             "gasto.referencia as gasto_referencia",
-            "costo.referencia as costo_referencia",
             "deduccion.referencia as deduccion_referencia",
             "proyecto.referencia as proyecto_referencia",
             "orden_compra.referencia as orden_compra_referencia",
@@ -169,14 +163,12 @@ export class KyselyPagoRepository implements IPagoRepository {
       const row = await this.db
          .selectFrom("pago")
          .leftJoin("gasto", "gasto.id", "pago.gasto_empresa_id")
-         .leftJoin("costo", "costo.id", "pago.costo_cliente_id")
          .leftJoin("deduccion", "deduccion.id", "pago.deduccion_empleado_id")
          .leftJoin("proyecto", "proyecto.id", "pago.proyecto_id")
          .leftJoin("orden_compra", "orden_compra.id", "pago.orden_compra_id")
          .selectAll("pago")
          .select([
             "gasto.referencia as gasto_referencia",
-            "costo.referencia as costo_referencia",
             "deduccion.referencia as deduccion_referencia",
             "proyecto.referencia as proyecto_referencia",
             "orden_compra.referencia as orden_compra_referencia",
@@ -200,7 +192,6 @@ export class KyselyPagoRepository implements IPagoRepository {
             tipo_movimiento: data.tipo_movimiento,
             fecha: data.fecha ?? new Date(),
             gasto_empresa_id: data.gasto_empresa_id ?? null,
-            costo_cliente_id: data.costo_cliente_id ?? null,
             deduccion_empleado_id: data.deduccion_empleado_id ?? null,
             proyecto_id: data.proyecto_id ?? null,
             orden_compra_id: data.orden_compra_id ?? null,
