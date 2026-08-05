@@ -25,6 +25,7 @@ import { useProyectoStore } from "@/stores/useProyectoStore";
 import { SelectBuscarEquipos } from "@/components/select-equipos";
 import type { Equipo } from "@/dtos/equipo.dto";
 import type { CreateConduceForm, TipoConduce } from "@/dtos/conduce.dto";
+import type { Proyecto } from "@/dtos/proyecto.dto";
 import { fechaRD } from "@/lib/utils";
 import { SelectBuscadorClient } from "@/components/shared/selectBuscadorClient";
 import { ClientForm } from "../../clientes/components/client-form";
@@ -65,7 +66,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId, fixe
    const { GetEquipos } = useEquipoStore();
    const { CategoriaEquipos, GetCategoriaEquipos } = useCategoriaEquipoStore();
    const { GetMedidaCobros, getNombre: getNombreMedidaCobro, MedidaCobros } = useMedidaCobroStore();
-   const { proyectos, CreateProyecto, GetProyectosByClientId } = useProyectoStore();
+   const { proyectos, CreateProyecto, GetProyectosByClientId, GetProyectoById } = useProyectoStore();
    const { GetTarifas, getTarifa } = useProyectoTarifaStore();
 
    // ── Estados para el Modal de Crear Cliente ──
@@ -137,6 +138,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId, fixe
    const [firmaCamionero, setFirmaCamionero] = useState(true);
 
    const [error, setError] = useState<string | null>(null);
+   const [repetirCampos, setRepetirCampos] = useState(false);
 
    useEffect(() => {
       if (proyectoId) GetTarifas(proyectoId);
@@ -318,7 +320,10 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId, fixe
       const payload = buildPayload();
       if (!payload) return;
 
-      if (seguirRegistrando) {
+      if (!seguirRegistrando) {
+         // Si es "Guardar y Cerrar", cerramos el modal de inmediato
+         onCancel();
+      } else if (!repetirCampos) {
          // 1. LIMPIEZA INMEDIATA (Optimista)
          // Reseteamos los campos al instante para que el usuario pueda escribir el siguiente conduce sin esperar
          setNumeroReferencia("");
@@ -340,9 +345,6 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId, fixe
             setFirmaObservante(true);
             setFirmaCamionero(true);
          }
-      } else {
-         // Si es "Guardar y Cerrar", cerramos el modal de inmediato
-         onCancel();
       }
 
       // 2. PETICIÓN EN SEGUNDO PLANO (Background Mutation)
@@ -507,13 +509,18 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId, fixe
                         setNewProyectoInitialName(term);
                         setIsProyectoModalOpen(true);
                      }}
-                     onChange={(id) => {
+                     onChange={async (id) => {
                         setProyectoId(id || "");
-                        if (id) {
-                           const proy = proyectos.find((p) => p.id === id);
-                           setProyectoNombre(proy?.nombre || "");
-                        } else {
-                           setProyectoNombre("");
+                        let proy: Proyecto | null | undefined = id ? proyectos.find((p) => p.id === id) : undefined;
+                        if (id && !proy) proy = await GetProyectoById(id);
+                        setProyectoNombre(proy?.nombre ?? "");
+
+                        // Auto-completar el cliente según el proyecto elegido
+                        if (proy?.cliente_id && !fixedClienteId) {
+                           const cliente = Clients.find((c) => c.id === proy.cliente_id);
+                           setClienteId(proy.cliente_id);
+                           setClienteNombre(proy.cliente_nombre || cliente?.nombre || "");
+                           setClienteTelefono(cliente?.telefono ?? "");
                         }
                      }}
                   />
@@ -682,25 +689,33 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId, fixe
 
             {error && <p className="text-sm text-destructive">{error}</p>}
 
-            <div className="flex flex-wrap justify-end gap-2 pt-1">
-               <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
-                  Cancelar
-               </Button>
-               <Button
-                  type="button"
-                  variant="outline"
-                  disabled={loading}
-                  onClick={(e) => handleSubmit(e, true)}
-               >
-                  {loading ? "Guardando…" : "Guardar y Registrar Otro"}
-               </Button>
-               <Button
-                  type="submit"
-                  disabled={loading}
-                  className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold border-0"
-               >
-                  {loading ? "Guardando…" : "Guardar y Cerrar"}
-               </Button>
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+               <CheckboxField
+                  id="repetir-campos"
+                  label="Mantener los mismos campos al registrar otro"
+                  checked={repetirCampos}
+                  onChange={setRepetirCampos}
+               />
+               <div className="flex flex-wrap justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
+                     Cancelar
+                  </Button>
+                  <Button
+                     type="button"
+                     variant="outline"
+                     disabled={loading}
+                     onClick={(e) => handleSubmit(e, true)}
+                  >
+                     {loading ? "Guardando…" : "Guardar y Registrar Otro"}
+                  </Button>
+                  <Button
+                     type="submit"
+                     disabled={loading}
+                     className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold border-0"
+                  >
+                     {loading ? "Guardando…" : "Guardar y Cerrar"}
+                  </Button>
+               </div>
             </div>
          </form>
 
