@@ -9,6 +9,7 @@ import type {
 export interface SubcontratacionesFiltros {
    proveedor_id?: string;
    proyecto_id?: string;
+   equipo_id?: string;
    estado_trabajo?: EstadoTrabajo;
    estado_pago?: string;
    incluir_pagadas?: boolean;
@@ -62,7 +63,9 @@ interface State {
    loading: boolean;
    error: string | null;
 
-   GetSubcontrataciones: (filtros?: SubcontratacionesFiltros) => Promise<void>;
+   _fetchedSubcontratacionLists: Set<string>;
+
+   GetSubcontrataciones: (filtros?: SubcontratacionesFiltros, force?: boolean) => Promise<void>;
    SetFiltros: (filtros: SubcontratacionesFiltros) => void;
    NextPage: () => void;
    PrevPage: () => void;
@@ -96,14 +99,16 @@ export const useSubcontratacionStore = create<State>((set, get) => ({
    filtros: {},
    loading: false,
    error: null,
+   _fetchedSubcontratacionLists: new Set<string>(),
 
-   GetSubcontrataciones: async (filtros) => {
+   GetSubcontrataciones: async (filtros, force = false) => {
       const f = { ...get().filtros, ...filtros };
-      set({ loading: true, error: null, filtros: f });
+      set({ filtros: f });
 
       const qs = new URLSearchParams();
       if (f.proveedor_id) qs.set("proveedor_id", f.proveedor_id);
       if (f.proyecto_id) qs.set("proyecto_id", f.proyecto_id);
+      if (f.equipo_id) qs.set("equipo_id", f.equipo_id);
       if (f.estado_trabajo) qs.set("estado_trabajo", f.estado_trabajo);
       if (f.estado_pago) qs.set("estado_pago", f.estado_pago);
       if (f.incluir_pagadas) qs.set("incluir_pagadas", "true");
@@ -112,6 +117,11 @@ export const useSubcontratacionStore = create<State>((set, get) => ({
       if (f.fecha_hasta) qs.set("fecha_hasta", f.fecha_hasta);
       qs.set("page", String(f.page ?? 1));
       qs.set("pageSize", String(f.pageSize ?? 25));
+
+      const cacheKey = qs.toString();
+      if (!force && get()._fetchedSubcontratacionLists.has(cacheKey)) return;
+
+      set({ loading: true, error: null });
 
       try {
          const res = await fetch(`/api/subcontrataciones?${qs}`);
@@ -124,6 +134,9 @@ export const useSubcontratacionStore = create<State>((set, get) => ({
             page: data.page,
             pageSize: data.pageSize,
          });
+         set((s) => ({
+            _fetchedSubcontratacionLists: new Set(s._fetchedSubcontratacionLists).add(cacheKey),
+         }));
       } catch (e: any) {
          set({ error: e.message, subcontrataciones: [], resumen: RESUMEN_VACIO, total: 0 });
       } finally {
@@ -149,7 +162,7 @@ export const useSubcontratacionStore = create<State>((set, get) => ({
    },
 
    invalidateCache: () => {
-      get().GetSubcontrataciones({});
+      set({ _fetchedSubcontratacionLists: new Set<string>() });
    },
 
    CreateSubcontratacion: async (form) => {
@@ -161,7 +174,7 @@ export const useSubcontratacionStore = create<State>((set, get) => ({
          });
          const data = await res.json();
          if (!res.ok) throw new Error(data?.error ?? "Error al crear la subcontratación");
-         await get().GetSubcontrataciones({});
+         await get().GetSubcontrataciones({}, true);
          return data as Subcontratacion;
       } catch (e: any) {
          return e instanceof Error ? e : new Error(e.message ?? "Error desconocido");
@@ -178,7 +191,7 @@ export const useSubcontratacionStore = create<State>((set, get) => ({
          const responseData = await res.json();
          if (!res.ok)
             throw new Error(responseData?.error ?? responseData?.message ?? "Error al actualizar");
-         await get().GetSubcontrataciones({});
+         await get().GetSubcontrataciones({}, true);
       } catch (e: any) {
          return e instanceof Error ? e : new Error(e.message ?? "Error desconocido");
       }
@@ -194,7 +207,7 @@ export const useSubcontratacionStore = create<State>((set, get) => ({
          const responseData = await res.json();
          if (!res.ok)
             throw new Error(responseData?.error ?? responseData?.message ?? "Error al cambiar estado");
-         await get().GetSubcontrataciones({});
+         await get().GetSubcontrataciones({}, true);
       } catch (e: any) {
          return e instanceof Error ? e : new Error(e.message ?? "Error desconocido");
       }
@@ -210,7 +223,7 @@ export const useSubcontratacionStore = create<State>((set, get) => ({
          const responseData = await res.json();
          if (!res.ok)
             throw new Error(responseData?.error ?? responseData?.message ?? "Error al registrar pago");
-         await get().GetSubcontrataciones({});
+         await get().GetSubcontrataciones({}, true);
       } catch (e: any) {
          return e instanceof Error ? e : new Error(e.message ?? "Error desconocido");
       }
@@ -271,7 +284,7 @@ export const useSubcontratacionStore = create<State>((set, get) => ({
          const responseData = await res.json();
          if (!res.ok)
             throw new Error(responseData?.error ?? responseData?.message ?? "Error al eliminar");
-         await get().GetSubcontrataciones({});
+         await get().GetSubcontrataciones({}, true);
       } catch (e: any) {
          return e instanceof Error ? e : new Error(e.message ?? "Error desconocido");
       }

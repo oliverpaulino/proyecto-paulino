@@ -51,6 +51,7 @@ import { EquipoCompras } from "./components/equipo-compras";
 import { EquipoPagos } from "./components/equipo-pagos";
 import { EquipoComprasCard } from "./components/equipo-compras-card";
 import { EquipoHistorial } from "./components/equipo-historial";
+import { EquipoSubcontrataciones } from "./components/equipo-subcontrataciones";
 import { useMantenimientoStore } from "@/stores/useMantenimientoStore";
 import {
    ESTADO_MANTENIMIENTO_BADGE,
@@ -376,10 +377,11 @@ function EquipoDetailContent() {
                      { value: "rentabilidad", label: "Rentabilidad" },
                      { value: "general", label: "Información General" },
                      { value: "conduces", label: "Conduces" },
-                     { value: "gastos", label: "Gastos" },
-                     { value: "compras", label: "Compras" },
-                     { value: "pagos", label: "Pagos" },
-                  ].map((tab) => (
+                      { value: "gastos", label: "Gastos" },
+                      { value: "compras", label: "Compras" },
+                      { value: "pagos", label: "Pagos" },
+                      { value: "subcontrataciones", label: "Subcontrataciones" },
+                   ].map((tab) => (
                      <TabsTrigger
                         key={tab.value}
                         value={tab.value}
@@ -568,6 +570,11 @@ function EquipoDetailContent() {
                {/* TAB: PAGOS */}
                <TabsContent value="pagos" className="space-y-4">
                   <EquipoPagos equipoId={equipoId} />
+               </TabsContent>
+
+               {/* TAB: SUBCONTRATACIONES */}
+               <TabsContent value="subcontrataciones" className="space-y-4">
+                  <EquipoSubcontrataciones equipoId={equipoId} />
                </TabsContent>
             </Tabs>
 
