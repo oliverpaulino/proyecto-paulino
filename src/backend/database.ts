@@ -624,6 +624,10 @@ export interface DB {
       orden_compra_id: string | null;
       proyecto_id: string | null;
       equipo_id: string | null;
+      proveedor_id: string | null;
+      subcontratacion_id: string | null;
+      cobrable_proyecto: Generated<boolean>;
+      cobrable_monto: number | null;
       fecha: Date;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
