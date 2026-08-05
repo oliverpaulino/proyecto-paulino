@@ -36,6 +36,10 @@ export interface SubcontratacionProps {
    proyecto_id: string | null;
    proyecto_nombre: string | null;
 
+   equipo_id: string | null;
+   equipo_nombre: string | null;
+   equipo_codigo_referencia: string | null;
+
    trabajo_descripcion: string | null;
    monto_total: number;
    estado_trabajo: EstadoTrabajo;
@@ -90,6 +94,7 @@ export class Subcontratacion {
 export interface CreateSubcontratacionDTO {
    proveedor_id: string;
    proyecto_id?: string | null;
+   equipo_id?: string | null;
    trabajo_descripcion?: string | null;
    monto_total: number;
    estado?: EstadoTrabajo;

@@ -36,6 +36,10 @@ export const SubcontratacionDTO = z.object({
    proyecto_id: z.string().uuid().nullable(),
    proyecto_nombre: z.string().nullable(),
 
+   equipo_id: z.string().uuid().nullable(),
+   equipo_nombre: z.string().nullable(),
+   equipo_codigo_referencia: z.string().nullable(),
+
    trabajo_descripcion: z.string().nullable(),
    monto_total: z.number(),
    estado_trabajo: EstadoTrabajoSchema,
@@ -65,6 +69,7 @@ export const SubcontratacionDTO = z.object({
 export const CreateSubcontratacionSchema = z.object({
    proveedor_id: z.string().uuid("Seleccione un subcontratista"),
    proyecto_id: z.string().uuid().optional().nullable(),
+   equipo_id: z.string().uuid().optional().nullable(),
    trabajo_descripcion: z.string().optional().nullable(),
    monto_total: z.coerce.number().min(0.01, "El monto debe ser mayor a 0"),
    estado: EstadoTrabajoSchema.optional(),

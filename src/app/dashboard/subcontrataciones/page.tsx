@@ -27,6 +27,7 @@ import {
 import type { CreateSubcontratacionForm, EstadoTrabajo, EstadoPago } from "@/dtos/subcontratacion.dto";
 import { SelectBuscadorProveedor } from "@/components/shared/selectBuscadorProveedor";
 import { SelectBuscadorProyecto } from "@/components/shared/selectBuscadorProyecto";
+import { SelectBuscadorEquipo } from "@/components/shared/selectBuscadorEquipo";
 import { PermissionGuard } from "@/components/permission-guard";
 import { SelectBuscadorCategoriaGasto } from "@/components/shared/selectBuscadorCategoriaGasto";
 
@@ -262,6 +263,7 @@ export default function SubcontratacionesPage() {
                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Ref.</th>
                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Subcontratista</th>
                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Trabajo</th>
+                           <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Equipo</th>
                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Fecha deuda</th>
                            <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-blue-200">Monto</th>
                            <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-blue-200">Pagado</th>
@@ -294,6 +296,16 @@ export default function SubcontratacionesPage() {
                                  <div className="truncate" title={s.trabajo_descripcion ?? ""}>
                                     {s.trabajo_descripcion ?? "—"}
                                  </div>
+                              </td>
+                              <td className="whitespace-nowrap px-4 py-3">
+                                 {s.equipo_nombre ? (
+                                    <div>
+                                       <span className="font-mono text-xs text-brand-blue">{s.equipo_codigo_referencia}</span>
+                                       <span className="ml-1 text-muted-foreground">{s.equipo_nombre}</span>
+                                    </div>
+                                 ) : (
+                                    "—"
+                                 )}
                               </td>
                               <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                                  {fecha(s.fecha_deuda)}
@@ -391,6 +403,7 @@ function SubcontratacionForm({
    const [form, setForm] = useState<CreateSubcontratacionForm>({
       proveedor_id: "",
       proyecto_id: null,
+      equipo_id: null,
       trabajo_descripcion: "",
       monto_total: 0,
       estado: "PENDIENTE",
@@ -448,6 +461,15 @@ function SubcontratacionForm({
                value={form.proyecto_id}
                onChange={(id) => set("proyecto_id", id)}
                placeholder="Buscar proyecto (opcional)..."
+            />
+         </div>
+
+         <div className="flex flex-col gap-1.5">
+            <Label>Equipo</Label>
+            <SelectBuscadorEquipo
+               value={form.equipo_id}
+               onChange={(id) => set("equipo_id", id)}
+               placeholder="Buscar equipo (opcional)..."
             />
          </div>
 

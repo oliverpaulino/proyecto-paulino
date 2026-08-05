@@ -715,6 +715,7 @@ export interface DB {
       referencia: Generated<number>;
       proveedor_id: string;
       proyecto_id: string | null;
+      equipo_id: string | null;
       trabajo_descripcion: string | null;
       monto_total: number;
       // Etapa: PENDIENTE | EN_PROGRESO | TERMINADA | CANCELADA

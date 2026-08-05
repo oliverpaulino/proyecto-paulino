@@ -285,6 +285,10 @@ export default function SubcontratacionDetailPage() {
                      <div className="grid gap-3 sm:grid-cols-2">
                         <InfoField label="Subcontratista" value={sub.proveedor_nombre ?? "—"} />
                         <InfoField label="Proyecto" value={sub.proyecto_nombre ?? "—"} />
+                        <InfoField
+                           label="Equipo"
+                           value={sub.equipo_nombre ? `${sub.equipo_codigo_referencia} · ${sub.equipo_nombre}` : "—"}
+                        />
                         <InfoField label="Descripción" value={sub.trabajo_descripcion ?? "—"} />
                         <InfoField label="Estado" value={ESTADO_TRABAJO_LABEL[sub.estado_trabajo]} />
                         <InfoField label="Fecha de deuda" value={fecha(sub.fecha_deuda)} />

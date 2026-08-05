@@ -42,6 +42,7 @@ export class KyselySubcontratacionRepository implements ISubcontratacionReposito
          .selectFrom("subcontratacion")
          .leftJoin("proveedor", "proveedor.id", "subcontratacion.proveedor_id")
          .leftJoin("proyecto", "proyecto.id", "subcontratacion.proyecto_id")
+         .leftJoin("equipo", "equipo.id", "subcontratacion.equipo_id")
          .leftJoin("gasto", "gasto.id", "subcontratacion.gasto_id")
          .where("subcontratacion.deleted_at", "is", null);
    }
@@ -76,6 +77,8 @@ export class KyselySubcontratacionRepository implements ISubcontratacionReposito
          "proveedor.tipo as proveedor_tipo",
          "proveedor.rnc as proveedor_rnc",
          "proyecto.nombre as proyecto_nombre",
+         "equipo.nombre as equipo_nombre",
+         "equipo.referencia as equipo_referencia",
          "gasto.referencia as gasto_referencia",
          pagado.as("pagado"),
          ultimoPago.as("ultimo_pago_fecha"),
@@ -96,6 +99,11 @@ export class KyselySubcontratacionRepository implements ISubcontratacionReposito
          proveedor_rnc: row.proveedor_rnc ?? null,
          proyecto_id: row.proyecto_id ?? null,
          proyecto_nombre: row.proyecto_nombre ?? null,
+         equipo_id: row.equipo_id ?? null,
+         equipo_nombre: row.equipo_nombre ?? null,
+         equipo_codigo_referencia: row.equipo_referencia != null
+            ? `EQU-${String(num(row.equipo_referencia)).padStart(3, "0")}`
+            : null,
          trabajo_descripcion: row.trabajo_descripcion ?? null,
          monto_total: monto,
          estado_trabajo: row.estado as EstadoTrabajo,
@@ -233,7 +241,7 @@ export class KyselySubcontratacionRepository implements ISubcontratacionReposito
                categoria_gasto_id: data.categoria_gasto_id,
                orden_compra_id: null,
                proyecto_id: data.proyecto_id ?? null,
-               equipo_id: null,
+               equipo_id: data.equipo_id ?? null,
                proveedor_id: data.proveedor_id,
                subcontratacion_id: null,
                fecha: data.fecha_deuda,
@@ -248,6 +256,7 @@ export class KyselySubcontratacionRepository implements ISubcontratacionReposito
             .values({
                proveedor_id: data.proveedor_id,
                proyecto_id: data.proyecto_id ?? null,
+               equipo_id: data.equipo_id ?? null,
                trabajo_descripcion: data.trabajo_descripcion ?? null,
                monto_total: data.monto_total,
                estado: data.estado ?? "PENDIENTE",
@@ -296,6 +305,7 @@ export class KyselySubcontratacionRepository implements ISubcontratacionReposito
             .updateTable("subcontratacion")
             .set({
                proyecto_id: data.proyecto_id !== undefined ? data.proyecto_id : sub.proyecto_id,
+               equipo_id: data.equipo_id !== undefined ? data.equipo_id : sub.equipo_id,
                trabajo_descripcion: descripcion ?? null,
                monto_total: monto,
                estado: data.estado ?? sub.estado,
@@ -312,11 +322,12 @@ export class KyselySubcontratacionRepository implements ISubcontratacionReposito
             await trx
                .updateTable("gasto")
                .set({
-                  monto_total: monto,
-                  fecha: fechaDeuda,
-                  concepto: descripcion?.trim() || "Subcontratación",
-                  proyecto_id: data.proyecto_id !== undefined ? data.proyecto_id : sub.proyecto_id,
-                  updated_at: new Date(),
+                   monto_total: monto,
+                   fecha: fechaDeuda,
+                   concepto: descripcion?.trim() || "Subcontratación",
+                   proyecto_id: data.proyecto_id !== undefined ? data.proyecto_id : sub.proyecto_id,
+                   equipo_id: data.equipo_id !== undefined ? data.equipo_id : sub.equipo_id,
+                   updated_at: new Date(),
                })
                .where("id", "=", sub.gasto_id)
                .execute();
