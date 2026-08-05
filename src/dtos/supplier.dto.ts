@@ -3,6 +3,7 @@ import { z } from "zod";
 export const TipoProveedor = {
   SUPLIDOR: "Suplidor",
   SUB_CONTRATISTA: "Sub-contratista",
+  AMBOS: "Ambos",
 } as const;
 
 const TipoProveedorSchema = z.enum(

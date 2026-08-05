@@ -1,4 +1,4 @@
-export type TipoProveedor = "SUPLIDOR" | "SUB_CONTRATISTA";
+export type TipoProveedor = "SUPLIDOR" | "SUB_CONTRATISTA" | "AMBOS";
 
 export interface SupplierProps {
    id: string;

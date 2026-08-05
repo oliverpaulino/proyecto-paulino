@@ -52,6 +52,7 @@ export default function ProveedoresPage() {
    const [formLoading, setFormLoading] = useState(false);
    const [searchInput, setSearchInput] = useState("");
    const [search, setSearch] = useState("");
+   const [tipoFilter, setTipoFilter] = useState<string>("");
    const [createOpen, setCreateOpen] = useState(false);
    const [editTarget, setEditTarget] = useState<Supplier | null>(null);
    const [deleteTarget, setDeleteTarget] = useState<Supplier | null>(null);
@@ -63,17 +64,19 @@ export default function ProveedoresPage() {
 
    const filtered = Suppliers.filter((s) => {
       const q = search.toLowerCase();
-      return (
+      const matchSearch =
          s.nombre.toLowerCase().includes(q) ||
          s.rnc.toLowerCase().includes(q) ||
          (s.email ?? "").toLowerCase().includes(q) ||
-         (s.telefono ?? "").toLowerCase().includes(q)
-      );
+         (s.telefono ?? "").toLowerCase().includes(q);
+      const matchTipo = tipoFilter === "" || s.tipo === tipoFilter;
+      return matchSearch && matchTipo;
    });
 
    const total = Suppliers.length;
-   const SUB_CONTRATISTAs = Suppliers.filter((s) => s.tipo === "SUB_CONTRATISTA").length;
-   const suplidor = Suppliers.filter((s) => s.tipo === "SUPLIDOR").length;
+   const SUB_CONTRATISTAs = Suppliers.filter((s) => s.tipo === "SUB_CONTRATISTA" || s.tipo === "AMBOS").length;
+   const suplidor = Suppliers.filter((s) => s.tipo === "SUPLIDOR" || s.tipo === "AMBOS").length;
+   const ambos = Suppliers.filter((s) => s.tipo === "AMBOS").length;
 
    async function handleCreate(data: SupplierForm) {
       setFormLoading(true);
@@ -140,10 +143,11 @@ export default function ProveedoresPage() {
          </div>
 
          {/* Stat cards */}
-         <div className="grid grid-cols-1 gap-4 sm:grid-cols-1 lg:grid-cols-3">
+         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard label="Total Proveedores" value={total} accent="blue" />
             <StatCard label="Subcontratistas" value={SUB_CONTRATISTAs} accent="yellow" />
             <StatCard label="Suplidores" value={suplidor} accent="red" />
+            <StatCard label="Ambos" value={ambos} accent="dark" />
          </div>
 
          {/* Search + New */}
@@ -182,6 +186,26 @@ export default function ProveedoresPage() {
                </Dialog>
                </PermissionGuard>
             </div>
+         </div>
+
+         {/* Filtro por tipo */}
+         <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground">Tipo:</span>
+            {[
+               { value: "", label: "Todos" },
+               { value: "SUPLIDOR", label: "Suplidores" },
+               { value: "SUB_CONTRATISTA", label: "Subcontratistas" },
+               { value: "AMBOS", label: "Ambos" },
+            ].map((t) => (
+               <Button
+                  key={t.value}
+                  size="sm"
+                  variant={tipoFilter === t.value ? "default" : "outline"}
+                  onClick={() => setTipoFilter(t.value)}
+               >
+                  {t.label}
+               </Button>
+            ))}
          </div>
 
          {/* Table */}
