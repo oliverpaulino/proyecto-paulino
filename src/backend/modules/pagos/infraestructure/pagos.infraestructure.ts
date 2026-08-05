@@ -1,4 +1,4 @@
-import { Kysely } from "kysely";
+import { Kysely, sql } from "kysely";
 import { DB } from "@/backend/database";
 import {
    CreatePagoDTO,
@@ -100,6 +100,37 @@ export class KyselyPagoRepository implements IPagoRepository {
       if (params?.deduccion_empleado_id) query = query.where("pago.deduccion_empleado_id", "=", params.deduccion_empleado_id);
       if (params?.proyecto_id) query = query.where("pago.proyecto_id", "=", params.proyecto_id);
       if (params?.orden_compra_id) query = query.where("pago.orden_compra_id", "=", params.orden_compra_id);
+
+      // Un pago "pertenece" a un equipo si se hizo contra un gasto del equipo,
+      // una deducción del equipo o una orden de compra que incluye al equipo.
+      if (params?.equipo_id) {
+         const equipoId = params.equipo_id;
+         query = query.where((eb) =>
+            eb.or([
+               eb.exists(
+                  this.db
+                     .selectFrom("gasto")
+                     .select("gasto.id")
+                     .where(sql.ref("gasto.id"), "=", sql.ref("pago.gasto_empresa_id"))
+                     .where("gasto.equipo_id", "=", equipoId)
+               ),
+               eb.exists(
+                  this.db
+                     .selectFrom("deduccion")
+                     .select("deduccion.id")
+                     .where(sql.ref("deduccion.id"), "=", sql.ref("pago.deduccion_empleado_id"))
+                     .where("deduccion.equipo_id", "=", equipoId)
+               ),
+               eb.exists(
+                  this.db
+                     .selectFrom("orden_compra_item")
+                     .select("orden_compra_item.id")
+                     .where(sql.ref("orden_compra_item.orden_compra_id"), "=", sql.ref("pago.orden_compra_id"))
+                     .where("orden_compra_item.equipo_id", "=", equipoId)
+               ),
+            ])
+         );
+      }
 
       return query;
    }
