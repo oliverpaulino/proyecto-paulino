@@ -188,7 +188,6 @@ export class KyselyConduceRepository implements IConduceRepository {
             // "ver eliminados".
             .$if(filtros.eliminado !== true, (q: any) => q.where("conduce.deleted_at", "is", null))
             .$if(filtros.eliminado === true, (q: any) => q.where("conduce.deleted_at", "is not", null));
-      console.log("filtros", filtros);
 
       const query = aplicarFiltros(this.#baseQuery())
          .orderBy("conduce.fecha", "desc")
@@ -256,6 +255,18 @@ export class KyselyConduceRepository implements IConduceRepository {
    async findById(id: string): Promise<ConduceProps | null> {
       const row = await this.#baseQuery().where("conduce.id", "=", id).executeTakeFirst();
       return row ? this.#mapRow(row) : null;
+   }
+
+   async existsNumeroReferencia(numeroReferencia: string, excludeId?: string): Promise<boolean> {
+      let qb = this.db
+         .selectFrom("conduce")
+         .select("conduce.id")
+         .where("conduce.numero_referencia", "=", numeroReferencia)
+         // Solo folios en uso visible: un conduce eliminado no ocupa su folio.
+         .where("conduce.deleted_at", "is", null);
+      if (excludeId) qb = qb.where("conduce.id", "!=", excludeId);
+      const row = await qb.limit(1).executeTakeFirst();
+      return !!row;
    }
 
    async create(data: CreateConduceDTO): Promise<ConduceProps> {

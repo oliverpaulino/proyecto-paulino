@@ -102,6 +102,8 @@ export interface UpdateEquipoDTO {
 export interface IEquipoRepository {
    findAll(params?: { page?: number; limit?: number; search?: string }): Promise<Equipo[]>;
    findById(id: string): Promise<Equipo | null>;
+   /** true si otro equipo ya usa esa placa (comparación sin mayúsculas). */
+   existsPlaca(placa: string, excludeId?: string): Promise<boolean>;
    create(data: CreateEquipoDTO): Promise<Equipo>;
    update(id: string, data: UpdateEquipoDTO): Promise<Equipo | null>;
    delete(id: string): Promise<boolean>;
@@ -114,5 +116,5 @@ export interface IEquipoRepository {
       nota?: string | null
    ): Promise<Equipo | null>;
    findHistorial(id: string): Promise<EstadoHistorialProps[]>;
-   findComprasItems(id: string): Promise<EquipoCompraItemProps[]>;
+   findComprasItems(id: string, filtros?: { desde?: string; hasta?: string }): Promise<EquipoCompraItemProps[]>;
 }

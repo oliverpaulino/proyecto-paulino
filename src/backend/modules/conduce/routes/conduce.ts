@@ -6,11 +6,13 @@ import { CreateConduceDTOSchema } from "@/dtos/conduce.dto";
 import { auth } from "@/lib/auth";
 import type { ConduceFiltros } from "../domain/conduce.domain";
 import { KyselyProyectoRepository } from "../../proyectos/infraestructure/proyecto.infraestructure";
+import { KyselyEmployeeRepository } from "../../employees/infraestructure/employees.infraestructure";
 
 const conducesRoute = new Hono();
 const repo = new KyselyConduceRepository(db);
 const proyectoRepo = new KyselyProyectoRepository(db);
-const service = new ConduceService(repo, proyectoRepo);
+const employeeRepo = new KyselyEmployeeRepository(db);
+const service = new ConduceService(repo, proyectoRepo, employeeRepo);
 
 // GET /api/conduces?proyecto_id=&cliente_id=&equipo_id=&tipo_conduce=&es_cobrable=&fecha_desde=&fecha_hasta=&busqueda=&eliminado=&page=&pageSize=
 conducesRoute.get("/", async (c) => {

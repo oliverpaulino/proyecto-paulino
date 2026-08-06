@@ -248,6 +248,8 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
       let dataQuery = this.db
          .selectFrom("orden_compra")
          .leftJoin("proveedor", "proveedor.id", "orden_compra.proveedor_id")
+         // El nombre del usuario que la eliminó: `deleted_by` guarda el id.
+         .leftJoin("user as del_user", "del_user.id", "orden_compra.deleted_by")
          .select([
             "orden_compra.id",
             "orden_compra.proveedor_id",
@@ -264,6 +266,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             "orden_compra.created_at",
             "orden_compra.updated_at",
             "orden_compra.deleted_by",
+            "del_user.name as deleted_by_name",
             "orden_compra.deleted_at",
             "orden_compra.deleted_reason",
          ])
@@ -348,27 +351,53 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             // No hacemos nada, la consulta base ya trae todas las órdenes
          } else {
             const match = cleanSearch.match(/OC-\d{6}-(\d+)/i);
-            const numeroReferencia = match ? parseInt(match[1], 10) : parseInt(cleanSearch, 10);
+            const numeroReferencia = match
+               ? parseInt(match[1], 10)
+               : parseInt(cleanSearch, 10);
+
             const esNumeroValido = !Number.isNaN(numeroReferencia);
 
-            // Aplicamos a la consulta de DATOS
+            const codigoReferencia = sql<string>`
+               concat(
+                  'OC-',
+                  to_char(orden_compra.created_at, 'YYMMDD'),
+                  '-',
+                  orden_compra.referencia
+               )
+            `;
+
             dataQuery = dataQuery.where((eb) =>
                eb.or([
-                  ...(esNumeroValido ? [eb("orden_compra.referencia", "=", numeroReferencia)] : []),
+                  ...(esNumeroValido
+                     ? [eb("orden_compra.referencia", "=", numeroReferencia)]
+                     : []),
+
                   eb("proveedor.nombre", "ilike", `%${cleanSearch}%`),
+                  eb(sql<string>`cast(orden_compra.id as text)`, "ilike", `%${cleanSearch}%`),
+
                   eb("proveedor.rnc", "ilike", `%${cleanSearch}%`),
                   eb(sql<string>`cast(orden_compra.referencia as text)`, "ilike", `%${cleanSearch}%`),
+
+                  // Permite buscar por OC-260715-1014
+                  eb(codigoReferencia, "ilike", `%${cleanSearch}%`),
+
                   eb("orden_compra.estado", "ilike", `%${cleanSearch}%`),
                ])
             );
 
-            // Aplicamos exactamente lo mismo a la consulta de CONTEO (TotalPages)
             countQuery = countQuery.where((eb) =>
                eb.or([
-                  ...(esNumeroValido ? [eb("orden_compra.referencia", "=", numeroReferencia)] : []),
+                  ...(esNumeroValido
+                     ? [eb("orden_compra.referencia", "=", numeroReferencia)]
+                     : []),
+
                   eb("proveedor.nombre", "ilike", `%${cleanSearch}%`),
                   eb("proveedor.rnc", "ilike", `%${cleanSearch}%`),
                   eb(sql<string>`cast(orden_compra.referencia as text)`, "ilike", `%${cleanSearch}%`),
+
+                  eb(codigoReferencia, "ilike", `%${cleanSearch}%`),
+                  eb(sql<string>`cast(orden_compra.id as text)`, "ilike", `%${cleanSearch}%`),
+
                   eb("orden_compra.estado", "ilike", `%${cleanSearch}%`),
                ])
             );
@@ -413,6 +442,7 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
             created_at: new Date(row.created_at),
             updated_at: new Date(row.updated_at),
             deleted_by: row.deleted_by ?? null,
+            deleted_by_name: row.deleted_by_name ?? null,
             deleted_at: row.deleted_at
                ? new Date(row.deleted_at)
                : null,

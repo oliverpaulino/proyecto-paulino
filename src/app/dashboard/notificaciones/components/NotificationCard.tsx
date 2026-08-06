@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Check, Delete, ExternalLink, Loader, Trash } from "lucide-react";
+import { Check, ExternalLink, Loader, Trash } from "lucide-react";
 import { useNotificationStore, type Notification } from "@/stores/useNotificationStore";
 import Link from "next/link";
 import { useState } from "react";
@@ -8,6 +8,8 @@ import { useState } from "react";
 const TYPE_LABELS: Record<string, string> = {
    PURCHASE_ORDER_REVIEW: "Orden de Compra",
    PURCHASE_ORDER_DELETED: "Orden de Compra Eliminada",
+   PURCHASE_ORDER_RESTORED: "Orden de Compra Restaurada",
+   PAYROLL_CLOSED: "Nómina",
    TASK_ASSIGNED: "Tarea",
    GENERAL: "General",
 };
@@ -15,13 +17,32 @@ const TYPE_LABELS: Record<string, string> = {
 const TYPE_COLORS: Record<string, string> = {
    PURCHASE_ORDER_REVIEW: "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-700",
    PURCHASE_ORDER_DELETED: "bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700",
+   PURCHASE_ORDER_RESTORED: "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700",
+   PAYROLL_CLOSED: "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700",
    TASK_ASSIGNED: "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700",
    GENERAL: "bg-gray-100 text-gray-700 border-gray-300 dark:bg-gray-800/40 dark:text-gray-300 dark:border-gray-600",
 };
 
 const REFERENCE_URLS: Record<string, (id: string) => string> = {
    purchase_order: (id) => `/dashboard/compras/${id}`,
+   payroll_cycle: (id) => `/dashboard/nomina`,
 };
+
+/**
+ * A dónde lleva el enlace de la notificación. La orden eliminada no tiene
+ * detalle (ya no existe): se abre la sección de órdenes eliminadas, no el
+ * detalle de la orden.
+ */
+function urlDe(n: Notification): string | null {
+   if (n.type === "PURCHASE_ORDER_DELETED") {
+      const search = n.reference_id ? `?search=${encodeURIComponent(n.reference_id)}` : "";
+      return `/dashboard/compras/eliminadas${search}`;
+   }
+   if (n.reference_type && n.reference_id) {
+      return REFERENCE_URLS[n.reference_type]?.(n.reference_id) ?? null;
+   }
+   return null;
+}
 
 
 
@@ -33,7 +54,7 @@ export default function NotificationCard({
    onMarkRead: (id: string) => void;
 }) {
 
-   const { deleteNotification, deleteLoading } = useNotificationStore();
+   const { deleteNotification } = useNotificationStore();
 
    function timeAgo(dateStr: string): string {
       const diff = Date.now() - new Date(dateStr).getTime();
@@ -58,10 +79,7 @@ export default function NotificationCard({
       }
    };
 
-   const refUrl =
-      n.reference_type && n.reference_id
-         ? REFERENCE_URLS[n.reference_type]?.(n.reference_id)
-         : null;
+   const refUrl = urlDe(n);
 
    const typeLabel = TYPE_LABELS[n.type] ?? n.type;
    const typeColor = TYPE_COLORS[n.type] ?? TYPE_COLORS.GENERAL;

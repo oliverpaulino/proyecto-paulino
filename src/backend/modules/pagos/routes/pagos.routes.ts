@@ -19,6 +19,8 @@ function extractParams(c: any) {
       gasto_empresa_id: c.req.query("gasto_empresa_id"),
       deduccion_empleado_id: c.req.query("deduccion_empleado_id"),
       orden_compra_id: c.req.query("orden_compra_id"),
+      // Pagos vinculados a un equipo (vía gasto / deducción / orden de compra).
+      equipo_id: c.req.query("equipo_id"),
       proveedor_id: c.req.query("proveedor_id"),
    };
 }
@@ -87,7 +89,7 @@ pagosRoute.patch("/:id", async (c) => {
 pagosRoute.patch("/:id/restore", async (c) => {
    try {
       const pago = await service.restore(c.req.param("id"));
-      
+
       if (!pago) {
          return c.json({ error: "Pago no encontrado" }, 404);
       }
@@ -104,7 +106,7 @@ pagosRoute.patch("/:id/restore", async (c) => {
 pagosRoute.delete("/:id", async (c) => {
    const body = await c.req.json();
    const parseResult = DeletePagoSchema.safeParse(body);
-   
+
    if (!parseResult.success) {
       return c.json({ error: parseResult.error.format() }, 400);
    }

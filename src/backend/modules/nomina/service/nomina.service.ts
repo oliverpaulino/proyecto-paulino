@@ -15,23 +15,6 @@ import {
    cicloEsEditable,
    salarioDelPeriodo,
 } from "../domain/nomina.domain";
-import type { RetencionesLey } from "../domain/fiscal.domain";
-import { anioFiscalDe, calcularRetenciones } from "../domain/fiscal.domain";
-
-/**
- * Lo que se guarda cuando al empleado no se le retiene. `anio_escala` en null
- * (y no el año del ciclo) porque no se aplicó ninguna escala: decir que se
- * aplicó la de 2026 y retuvo 0 sería mentir en el snapshot.
- */
-const SIN_RETENCIONES: RetencionesLey = {
-   afp: 0,
-   sfs: 0,
-   tss: 0,
-   isr: 0,
-   base_mensual: 0,
-   base_anual: 0,
-   anio_escala: null,
-};
 
 export interface ResultadoCalculo {
    cycle_id: string;
@@ -169,6 +152,23 @@ export class NominaService {
          this.repo.getPreciosManuales(cycleId),
       ]);
 
+      /*
+         Tarifas específicas de proyecto, indexadas por
+         `proyecto::empleado::tarifa`. Si el conduce tiene proyecto y esa
+         combinación está configurada, es el monto que se paga: gana sobre la
+         base del empleado (misma regla que la rentabilidad del equipo).
+      */
+      const proyectosDelPeriodo = [
+         ...new Set(conduces.map((c) => c.proyecto_id).filter((x): x is string => Boolean(x))),
+      ];
+      const empleadosDelPeriodo = [
+         ...new Set(conduces.map((c) => c.empleado_id).filter(Boolean)),
+      ];
+      const tarifasProyecto =
+         proyectosDelPeriodo.length > 0 && empleadosDelPeriodo.length > 0
+            ? await this.repo.getTarifasProyecto(proyectosDelPeriodo, empleadosDelPeriodo)
+            : new Map<string, number>();
+
       /** Precio escrito a mano para este empleado y esta tarifa, si lo hay. */
       const manualDe = (empleadoId: string, nombre: string) =>
          preciosManuales.get(`${empleadoId}::${(nombre ?? "").trim().toLowerCase()}`);
@@ -220,9 +220,18 @@ export class NominaService {
             // Id de la tarifa, recuperado por nombre si el conduce lo perdió.
             const tarifaId = idEfectivo(c);
 
-            // El monto que se le paga AL CHOFER por esta tarifa, según el
-            // catálogo. Si no la tiene asignada, no se le puede pagar.
-            const delCatalogo = tarifaId ? tarifasEmpleado.get(tarifaId) ?? 0 : 0;
+            // El monto que se le paga AL CHOFER por esta tarifa: el de su
+            // proyecto cuando existe (misma regla que la rentabilidad), y si
+            // no, la base del catálogo. Si no la tiene asignada, no se le
+            // puede pagar.
+            const delCatalogo =
+               c.proyecto_id && tarifaId
+                  ? (tarifasProyecto.get(`${c.proyecto_id}::${emp.id}::${tarifaId}`) ??
+                    tarifasEmpleado.get(tarifaId) ??
+                    0)
+                  : tarifaId
+                    ? (tarifasEmpleado.get(tarifaId) ?? 0)
+                    : 0;
 
             /*
                El precio manual es la salida para lo que el catálogo no puede
@@ -240,10 +249,11 @@ export class NominaService {
             if (montoPago === 0) conducesSinTarifa++;
 
             /*
-               Clave por (categoría, tarifa), no solo por tarifa: dos camiones
-               de categorías distintas que cobran la misma tarifa ("Viaje")
-               deben verse como dos filas, porque si no es imposible saber con
-               qué equipo se generó la producción.
+               Clave por (categoría, tarifa, proyecto), no solo por tarifa:
+               dos camiones de categorías distintas que cobran la misma tarifa
+               ("Viaje") deben verse como dos filas, y una misma tarifa con
+               precio distinto por proyecto (proyecto vs. base) también, porque
+               si no se mezclarían bajo el primer precio que se calculó.
 
                La parte de la tarifa sigue cayendo al nombre snapshoteado
                cuando el id se perdió y no se pudo recuperar (nombre ambiguo o
@@ -251,7 +261,8 @@ export class NominaService {
                el conduce tampoco lo tiene.
             */
             const claveTarifa = tarifaId ?? `nombre:${c.categoria_equipo_tarifa_nombre}`;
-            const clave = `${c.categoria_equipo_id ?? "sin"}::${claveTarifa}`;
+            const claveProyecto = c.proyecto_id ?? "sin-proyecto";
+            const clave = `${c.categoria_equipo_id ?? "sin"}::${claveTarifa}::${claveProyecto}`;
             const previo = acumulado.get(clave);
 
             if (previo) {
@@ -266,6 +277,10 @@ export class NominaService {
                   categoria_equipo_id: c.categoria_equipo_id,
                   categoria_equipo_nombre: c.categoria_equipo_nombre,
                   medida_cobro_nombre: c.medida_cobro_nombre,
+                  // El proyecto, para distinguir el precio que le tocó a cada
+                  // conduce (tarifa del proyecto vs. base).
+                  proyecto_id: c.proyecto_id,
+                  proyecto_nombre: c.proyecto_nombre,
                   // Se marca para que la UI distinga un monto escrito a mano
                   // de uno que sale de la configuración del empleado.
                   precio_manual: Boolean(manual),
@@ -300,9 +315,15 @@ export class NominaService {
          // igual para ambos, y la UI la etiqueta según la modalidad.
          const complemento = calcularComplemento(devengado, minimo);
 
-         const [deducciones, deudaTotal] = await Promise.all([
-            this.repo.getDeduccionesDelPeriodo(emp.id, ciclo.fecha_inicio, ciclo.fecha_fin),
+         const [deducciones, deudaTotal, deudaPendiente] = await Promise.all([
+            this.repo.getDeduccionesDelPeriodo(
+               emp.id,
+               cycleId,
+               ciclo.fecha_inicio,
+               ciclo.fecha_fin
+            ),
             this.repo.getDeudaTotal(emp.id),
+            this.repo.getDeudaPendiente(emp.id),
          ]);
 
          // El seguro es un campo libre: al recalcular se respeta el valor que
@@ -312,29 +333,17 @@ export class NominaService {
          const seguro = (await this.repo.getSeguroActual(cycleId, emp.id)) ?? 0;
 
          /*
-            Retenciones de ley (TSS e ISR). Se calculan sobre el BRUTO del
-            período —devengado + complemento—, nunca sobre el neto: la base
-            imponible es lo devengado antes de descuentos.
-
-            Solo se le retiene a quien esté marcado. Ver `aplica_retenciones`:
-            retener por defecto le bajaría el pago a choferes que hoy cobran su
-            producción completa, y eso lo decide la empresa, no el cálculo.
-
-            El año fiscal sale de `fecha_fin` del ciclo, que es cuando se
-            devenga. Un ciclo a caballo entre diciembre y enero se liquida con
-            la escala del año en que cierra.
+            Retenciones de ley: ELIMINADAS. El negocio no retiene TSS ni ISR en
+            la nómina de choferes. Las columnas `afp/sfs/isr` de la BD siguen
+            existiendo (hay ciclos cerrados que las usan) y se escriben en 0.
          */
          const bruto = calcularBruto(devengado, complemento);
-         const retenciones = emp.aplica_retenciones
-            ? calcularRetenciones(bruto, ciclo.frecuencia, anioFiscalDe(ciclo.fecha_fin))
-            : SIN_RETENCIONES;
 
          const neto = calcularNeto({
             devengado,
             complemento,
             seguro,
             deducciones,
-            retenciones: retenciones.tss + retenciones.isr,
          });
 
          await this.repo.upsertCycleEmployee(
@@ -349,15 +358,14 @@ export class NominaService {
                devengado_tarifas: devengado,
                complemento_minimo: complemento,
                seguro,
-               afp: retenciones.afp,
-               sfs: retenciones.sfs,
-               isr: retenciones.isr,
-               base_isr: retenciones.base_mensual,
-               isr_anio_escala: retenciones.anio_escala,
+               afp: 0,
+               sfs: 0,
+               isr: 0,
+               base_isr: 0,
+               isr_anio_escala: null,
                deducciones,
                deuda_total: deudaTotal,
-               // Lo que queda debiendo tras cobrar lo de este período.
-               deuda_pendiente: Math.max(0, deudaTotal - deducciones),
+               deuda_pendiente: deudaPendiente,
                neto_pagar: neto,
                total_conduces: suyos.length,
                conduces_inferidos: inferidos,
@@ -448,6 +456,41 @@ export class NominaService {
    }
 
    /**
+    * Cambia lo que el proyecto paga a este chofer por esta tarifa. La tarifa
+    * del proyecto gana sobre la base del empleado, así que no basta con tocar
+    * el catálogo: hay que actualizar `proyecto_empleado_tarifa` (el proyecto
+    * mismo) y recalcular el ciclo para que el snapshot refleje el nuevo monto.
+    * Por eso editar aquí afecta a las próximas nóminas de este chofer en este
+    * proyecto, no solo a la que se está mirando.
+    */
+   async actualizarTarifaProyecto(
+      cycleId: string,
+      empleadoId: string,
+      data: { proyecto_id: string; categoria_equipo_tarifa_id: string; monto_pago: number }
+   ): Promise<PayrollCycleEmployeeProps | null> {
+      const ciclo = await this.repo.findCycleById(cycleId);
+      if (!ciclo) throw new Error("Ciclo no encontrado");
+      if (!cicloEsEditable(ciclo.estado)) {
+         throw new Error(`El ciclo está ${ciclo.estado}: sus montos están congelados`);
+      }
+      if (!data.proyecto_id) throw new Error("El proyecto es requerido");
+      if (!data.categoria_equipo_tarifa_id) throw new Error("La tarifa es requerida");
+      if (!Number.isFinite(data.monto_pago) || data.monto_pago < 0) {
+         throw new Error("El monto debe ser mayor o igual a 0");
+      }
+
+      await this.repo.upsertTarifaProyecto({
+         proyecto_id: data.proyecto_id,
+         empleado_id: empleadoId,
+         categoria_equipo_tarifa_id: data.categoria_equipo_tarifa_id,
+         monto_pago: data.monto_pago,
+      });
+
+      await this.calcularCiclo(cycleId);
+      return await this.repo.findCycleEmployee(cycleId, empleadoId);
+   }
+
+   /**
     * Detalle de UN empleado del ciclo: su desglose de tarifas y las
     * deducciones concretas que componen su descuento.
     *
@@ -478,11 +521,21 @@ export class NominaService {
     * nómina ya actualizada. No modifica las deducciones existentes: añade una
     * más, con su concepto y su fecha, igual que si se creara desde el módulo
     * de deducciones.
+    *
+    * Si se indica más de una cuota, la deducción se divide: esta nómina cobra
+    * solo `monto_cuota` (editable) y las siguientes seguirán cobrándola hasta
+    * saldar, en vez de descontar el total de una sola vez.
     */
    async agregarDeduccion(
       cycleId: string,
       empleadoId: string,
-      data: { monto: number; concepto: string; fecha?: Date | string }
+      data: {
+         monto: number;
+         concepto: string;
+         fecha?: Date | string;
+         cuotas?: number;
+         monto_cuota?: number;
+      }
    ): Promise<PayrollCycleEmployeeProps | null> {
       const ciclo = await this.repo.findCycleById(cycleId);
       if (!ciclo) throw new Error("Ciclo no encontrado");
@@ -495,6 +548,16 @@ export class NominaService {
       if (!data.concepto?.trim()) {
          throw new Error("Debe indicar el concepto de la deducción");
       }
+      const cuotas = data.cuotas ?? 1;
+      if (!Number.isInteger(cuotas) || cuotas <= 0) {
+         throw new Error("La cantidad de cuotas debe ser un número entero mayor a 0");
+      }
+      // La cuota por defecto es total ÷ cuotas, pero es editable: subirla
+      // acelera el saldo, bajarla lo frena.
+      const montoCuota = data.monto_cuota ?? data.monto / cuotas;
+      if (!Number.isFinite(montoCuota) || montoCuota <= 0) {
+         throw new Error("El monto por cuota debe ser mayor a 0");
+      }
 
       // La fecha debe caer dentro del ciclo, si no la deducción se crearía
       // pero no la recogería esta nómina.
@@ -505,6 +568,8 @@ export class NominaService {
       await this.repo.crearDeduccion({
          empleado_id: empleadoId,
          monto_total: data.monto,
+         monto_cuota: montoCuota,
+         cuotas,
          concepto: data.concepto.trim(),
          fecha: dentro ? fecha : new Date(ciclo.fecha_fin),
       });
@@ -524,5 +589,36 @@ export class NominaService {
          throw new Error(`El ciclo está ${ciclo.estado}: sus montos están congelados`);
       }
       return { actualizados: await this.repo.refrescarDeducciones(cycleId) };
+   }
+
+   /**
+    * Cambia la cuota por nómina de una deducción del empleado y vuelve a
+    * aplicar los cobros del ciclo: subir la cuota acelera el saldo, bajarla lo
+    * frena, y el monto de ESTA nómina se actualiza si la nueva cuota alcanza.
+    */
+   async actualizarCuotaDeduccion(
+      cycleId: string,
+      empleadoId: string,
+      deduccionId: string,
+      montoCuota: number
+   ): Promise<PayrollCycleEmployeeProps | null> {
+      const ciclo = await this.repo.findCycleById(cycleId);
+      if (!ciclo) throw new Error("Ciclo no encontrado");
+      if (!cicloEsEditable(ciclo.estado)) {
+         throw new Error(`El ciclo está ${ciclo.estado}: sus montos están congelados`);
+      }
+      if (!Number.isFinite(montoCuota) || montoCuota <= 0) {
+         throw new Error("El monto por cuota debe ser mayor a 0");
+      }
+
+      const actualizada = await this.repo.actualizarCuotaDeduccion(
+         deduccionId,
+         empleadoId,
+         montoCuota
+      );
+      if (!actualizada) return null;
+
+      await this.repo.refrescarDeducciones(cycleId);
+      return await this.repo.findCycleEmployee(cycleId, empleadoId);
    }
 }

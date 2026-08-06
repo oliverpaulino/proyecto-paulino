@@ -1,8 +1,15 @@
+
+"use client"
 import Link from "next/link";
 import { ConducesEliminados } from "./components/conduces-eliminados";
 import { ArrowLeft, FileStack, StepBack, Trash2 } from "lucide-react";
+import { useEffect } from "react";
 
 export default function Page() {
+
+   useEffect(() => {
+      document.title = "Conduces Eliminados ";
+   })
    return <div className="p-4">
 
       <div className="mb-4">

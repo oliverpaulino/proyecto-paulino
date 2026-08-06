@@ -35,6 +35,7 @@ subcontratacionesRoute.get("/", async (c) => {
       const resultado = await service.listar({
          proveedor_id: q("proveedor_id") || undefined,
          proyecto_id: q("proyecto_id") || undefined,
+         equipo_id: q("equipo_id") || undefined,
          estado_trabajo:
             estadoTrabajo === "PENDIENTE" || estadoTrabajo === "EN_PROGRESO" ||
             estadoTrabajo === "TERMINADA" || estadoTrabajo === "CANCELADA"

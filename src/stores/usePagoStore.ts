@@ -12,6 +12,8 @@ type PagosFilters = {
    end?: string;
    gasto_empresa_id?: string;
    deduccion_empleado_id?: string;
+   orden_compra_id?: string;
+   equipo_id?: string;
    proveedor_id?: string;
 };
 
@@ -68,16 +70,16 @@ export const usePagoStore = create<PagoStore>((set, get) => ({
    _fetchedDeletedLists: new Set<string>(),
 
    invalidateCache: () => {
-      set({ 
+      set({
          _fetchedPagoLists: new Set<string>(),
-         _fetchedDeletedLists: new Set<string>() 
+         _fetchedDeletedLists: new Set<string>()
       });
    },
 
    GetPagos: async (params = {}) => {
       const { page = 1, limit = 20, force = false, ...filters } = params;
       const appliedFilters = { ...get().currentFilters, ...filters };
-      
+
       set({ currentFilters: appliedFilters });
 
       const query = new URLSearchParams({ page: String(page), limit: String(limit) });
@@ -114,7 +116,7 @@ export const usePagoStore = create<PagoStore>((set, get) => ({
    GetDeletedPagos: async (params = {}) => {
       const { page = 1, limit = 20, force = false, ...filters } = params;
       const appliedFilters = { ...get().currentFilters, ...filters };
-      
+
       set({ currentFilters: appliedFilters });
 
       const query = new URLSearchParams({ page: String(page), limit: String(limit) });
@@ -202,7 +204,7 @@ export const usePagoStore = create<PagoStore>((set, get) => ({
 
    DeletePago: async (id, data) => {
       try {
-         const res = await fetch(`${BASE_URL}/${id}`, { 
+         const res = await fetch(`${BASE_URL}/${id}`, {
             method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data)
          });
          if (!res.ok) throw new Error((await res.json()).error || "Error al eliminar");
@@ -217,8 +219,8 @@ export const usePagoStore = create<PagoStore>((set, get) => ({
 
    RestorePago: async (id) => {
       try {
-         const res = await fetch(`${BASE_URL}/${id}/restore`, { 
-            method: "PATCH" 
+         const res = await fetch(`${BASE_URL}/${id}/restore`, {
+            method: "PATCH"
          });
          if (!res.ok) throw new Error((await res.json()).error || "Error al restaurar");
 
@@ -234,12 +236,12 @@ export const usePagoStore = create<PagoStore>((set, get) => ({
       const { pagination } = get();
       if (pagination.hasNext) await get().GetPagos({ page: pagination.page + 1, limit: pagination.limit });
    },
-   
+
    PrevPage: async () => {
       const { pagination } = get();
       if (pagination.hasPrev) await get().GetPagos({ page: pagination.page - 1, limit: pagination.limit });
    },
-   
+
    GoToPage: async (page) => {
       const { pagination } = get();
       if (page >= 1 && page <= pagination.totalPages) await get().GetPagos({ page, limit: pagination.limit });

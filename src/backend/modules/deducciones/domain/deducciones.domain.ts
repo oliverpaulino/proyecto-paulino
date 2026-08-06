@@ -76,6 +76,8 @@ export interface CreateDeduccionDTO {
    monto_total: number;
    balance_pendiente?: number | null;
    cuotas_sugeridas?: number;
+   /** Monto descontado por nómina. Default: monto_total ÷ cuotas_sugeridas. */
+   monto_cuota?: number;
    concepto: string;
    fecha: Date;
 }

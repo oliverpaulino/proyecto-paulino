@@ -7,7 +7,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { AlertTriangle, Check, Pencil, Plus, Settings2, Tag, Trash2, X } from "lucide-react";
 import { useCategoriaEquipoStore } from "@/stores/useCategoriaEquipoStore";
 import { useEquipoStore } from "@/stores/useEquipoStore";
-import type { CategoriaEquipo } from "@/dtos/categoria-equipo.dto";
 import { PermissionGuard } from "@/components/permission-guard";
 import { useMedidaCobroStore } from "@/stores/useMedidaCobroStore";
 import type { CategoriaEquipo, TarifaCategoria } from "@/dtos/categoria-equipo.dto";
@@ -150,7 +149,6 @@ export function CategoriaEquipoManager({ open, onOpenChange }: CategoriaEquipoMa
       setBusy(true);
       setError(null);
 
-      console.log("Guardando edición para categoría:", id, editNombre, editTarifas);
 
       try {
          const result = await UpdateCategoriaEquipo(id, {

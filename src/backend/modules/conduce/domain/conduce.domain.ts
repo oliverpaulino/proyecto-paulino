@@ -180,8 +180,10 @@ export interface IConduceRepository {
    findAll(filtros: ConduceFiltros): Promise<ConduceListResult>;
    findCategoriasByProyecto(proyectoId: string): Promise<Array<{ nombre: string; count: number; subtotal: number; subtotalCobrable: number; cobrable_count: number }>>;
    findByProyectoId(proyectoId: string, search?: string, pagination?: { page: number, limit: number }): Promise<ConduceProps[]>;
-   findById(id: string): Promise<ConduceProps | null>;
-   create(data: CreateConduceDTO): Promise<ConduceProps>;
+    findById(id: string): Promise<ConduceProps | null>;
+    /** true si otro conduce (no eliminado) ya usa ese folio. */
+    existsNumeroReferencia(numeroReferencia: string, excludeId?: string): Promise<boolean>;
+    create(data: CreateConduceDTO): Promise<ConduceProps>;
    update(id: string, data: UpdateConduceDTO): Promise<ConduceProps>;
    /** Eliminación LÓGICA — nunca borra la fila, solo marca deleted_*. */
    delete(id: string, info?: { deletedBy?: string | null; deletedByName?: string | null; reason?: string | null }): Promise<void>;

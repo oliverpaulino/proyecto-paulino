@@ -141,6 +141,11 @@ export interface IEmployeeRepository {
    findAllOperators(params?: { page?: number; limit?: number; search?: string }): Promise<OperadorProps[]>;
    findById(id: string): Promise<Employee | null>;
    findOperatorById(id: string): Promise<OperadorProps | null>;
+   /**
+    * true si el operador existe y su empleado está activo; false si existe pero
+    * está inactivo; null si el id no corresponde a ningún operador.
+    */
+   isOperadorActivo(operadorId: string): Promise<boolean | null>;
    create(data: CreateEmployeeDTO): Promise<Employee>;
    update(id: string, data: UpdateEmployeeDTO): Promise<Employee | null>;
    delete(id: string): Promise<boolean>;

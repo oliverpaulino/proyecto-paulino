@@ -90,6 +90,15 @@ export interface TarifaDesglose {
    subtotal: number; // cantidad × monto_pago
 
    /*
+      Proyecto del conduce, cuando lo tiene. El desglose agrupa por
+      (categoría, tarifa, proyecto): un mismo chofer que cobra "Viaje" a 150
+      en un proyecto y a 300 fuera produce DOS filas, porque cada una tiene su
+      precio distinto. `undefined` en snapshots viejos (antes de esta columna).
+   */
+   proyecto_id?: string | null;
+   proyecto_nombre?: string | null;
+
+   /*
       Solo para las tarifas huérfanas (`categoria_equipo_tarifa_id` en NULL).
       Dice si el nombre snapshoteado corresponde HOY a una categoría viva, que
       es lo que decide si su precio se puede corregir desde la nómina:
@@ -156,12 +165,10 @@ export interface PayrollCycleEmployeeProps {
 
    seguro: number;
 
-   /*
-      Retenciones de ley. Se calculan solas (ver `fiscal.domain.ts`) y NO son
-      deducciones: no se guardan en la tabla `deduccion` porque no son deudas
-      con la empresa sino dinero que se entrega a la TSS y a la DGII.
-      Valen 0 en los empleados sin `aplica_retenciones`.
-   */
+   /**
+    * Retenciones de ley. Eliminadas del cálculo (siempre 0), pero las columnas
+    * siguen en la BD para no perder el histórico de los ciclos cerrados.
+    */
    afp: number;
    sfs: number;
    isr: number;
@@ -291,6 +298,14 @@ export function calcularNeto(p: {
 export interface ConduceParaNomina {
    conduce_id: string;
    empleado_id: string;
+   /**
+    * Proyecto al que pertenece el conduce, si tiene. Permite pagar al chofer
+    * con la tarifa específica del proyecto (`proyecto_empleado_tarifa`)
+    * cuando existe, en lugar de la base del empleado.
+    */
+   proyecto_id: string | null;
+   /** Nombre del proyecto (para mostrarlo en el desglose de la nómina). */
+   proyecto_nombre: string | null;
    /** true si el empleado se dedujo de `equipo.operador_id` y no del conduce. */
    inferido: boolean;
    fecha: Date;
@@ -304,11 +319,25 @@ export interface ConduceParaNomina {
    cantidad: number;
 }
 
-/** Una deducción concreta que cae dentro del período del ciclo. */
+/**
+ * Una deducción que se cobra (o se seguirá cobrando) en este ciclo.
+ *
+ * La deducción puede haberse creado en un ciclo ANTERIOR: con cuotas, una
+ * deducción de 10,000 en 10 cuotas se sigue descontando 1,000 por nómina hasta
+ * saldar. `monto_total` es la deuda completa; `monto_periodo` es lo que toca
+ * DESCONTAR en este ciclo en particular.
+ */
 export interface DeduccionDelPeriodo {
    id: string;
    concepto: string;
    monto_total: number;
+   /** Cuota configurada por nómina (editable). Puede diferir del período. */
+   monto_cuota: number;
+   /** Cuota que se descuenta en este período (≤ monto_total − ya aplicado). */
+   monto_periodo: number;
+   cuotas_sugeridas: number;
+   /** Cuotas ya aplicadas, incluida la de este período. */
+   cuotas_aplicadas: number;
    fecha: Date;
 }
 
@@ -328,12 +357,6 @@ export interface EmpleadoParaNomina {
    modalidad: ModalidadPago;
    salario: number;
    frecuencia_pago: string | null;
-   /**
-    * Si se le retienen TSS e ISR. Por defecto `false`: muchos choferes cobran
-    * por producción sin estar en planilla formal, y retenerles sin que nadie
-    * lo pida cambiaría lo que se llevan a casa.
-    */
-   aplica_retenciones: boolean;
 }
 
 export interface INominaRepository {
@@ -359,6 +382,31 @@ export interface INominaRepository {
 
    /** Mapa `categoria_equipo_tarifa_id → monto_pago` para un empleado. */
    getTarifasEmpleado(empleadoId: string): Promise<Map<string, number>>;
+
+   /**
+    * Mapa `proyecto_id::empleado_id::categoria_equipo_tarifa_id → monto_pago`
+    * de las tarifas específicas de proyecto. Ganan sobre la base: si un
+    * conduce tiene proyecto y existe la tarifa de ese proyecto, es lo que se
+    * paga.
+    */
+   getTarifasProyecto(
+      proyectoIds: string[],
+      empleadoIds: string[]
+   ): Promise<Map<string, number>>;
+
+   /**
+    * Cambia lo que un proyecto paga a un chofer por una tarifa
+    * (`proyecto_empleado_tarifa`). Es el precio que gana sobre la base del
+    * empleado: editarlo aquí desde la nómina actualiza el proyecto, no solo el
+    * ciclo — por eso se avisa en la UI. Idempotente por
+    * (proyecto, empleado, tarifa).
+    */
+   upsertTarifaProyecto(data: {
+      proyecto_id: string;
+      empleado_id: string;
+      categoria_equipo_tarifa_id: string;
+      monto_pago: number;
+   }): Promise<void>;
 
    /**
     * Mapa `nombre normalizado → id` de las categorías de tarifa cuyo nombre es
@@ -395,11 +443,29 @@ export interface INominaRepository {
       tarifaNombre: string
    ): Promise<boolean>;
 
-   /** Suma de deducciones cuya `fecha` cae dentro del período. */
-   getDeduccionesDelPeriodo(empleadoId: string, desde: Date, hasta: Date): Promise<number>;
+   /**
+    * Suma de lo que se descuenta a este empleado en el ciclo `cycleId`: la
+    * cuota de cada deducción activa (fecha ≤ `hasta` y con saldo pendiente),
+    * no el monto total. Registra el cobro en `deduccion_cuota` y sincroniza
+    * `balance_pendiente`. Idempotente: recalcular el mismo ciclo escribe el
+    * mismo monto.
+    */
+   getDeduccionesDelPeriodo(
+      empleadoId: string,
+      cycleId: string,
+      desde: Date,
+      hasta: Date
+   ): Promise<number>;
 
    /** Deuda histórica total del empleado (todas sus deducciones vivas). */
    getDeudaTotal(empleadoId: string): Promise<number>;
+
+   /**
+    * Lo que el empleado todavía debe: suma de los saldos restantes de sus
+    * deducciones vivas (monto_total − cuotas ya aplicadas). Con cuotas, cada
+    * nómina descuenta una parte; este es el verdadero pendiente.
+    */
+   getDeudaPendiente(empleadoId: string): Promise<number>;
 
    /** Reemplaza el resumen del empleado en el ciclo (idempotente). */
    upsertCycleEmployee(
@@ -429,11 +495,14 @@ export interface INominaRepository {
    /**
     * Crea una deducción nueva para el empleado y devuelve su id. La nómina la
     * recogerá como cualquier otra: no se toca el monto ya calculado, se añade
-    * un descuento con su propio concepto y fecha.
+    * un descuento con su propio concepto y fecha. Si `cuotas > 1`, cada nómina
+    * cobrará `monto_cuota` (editable) hasta saldar.
     */
    crearDeduccion(data: {
       empleado_id: string;
       monto_total: number;
+      monto_cuota: number;
+      cuotas: number;
       concepto: string;
       fecha: Date;
    }): Promise<string>;
@@ -444,9 +513,21 @@ export interface INominaRepository {
     */
    refrescarDeducciones(cycleId: string): Promise<number>;
 
-   /** Detalle de las deducciones del período, para mostrarlas en la nómina. */
+   /**
+    * Cambia cuánto descuenta por nómina una deducción con cuotas: subir la
+    * cuota acelera el saldo, bajarla lo frena. Al refrescar, la nómina vuelve
+    * a aplicar el cobro con el nuevo monto.
+    */
+   actualizarCuotaDeduccion(
+      deduccionId: string,
+      empleadoId: string,
+      montoCuota: number
+   ): Promise<boolean>;
+
+   /** Detalle de las deducciones que se cobran en el ciclo, con su cuota. */
    listDeduccionesDelPeriodo(
       empleadoId: string,
+      cycleId: string,
       desde: Date,
       hasta: Date
    ): Promise<DeduccionDelPeriodo[]>;

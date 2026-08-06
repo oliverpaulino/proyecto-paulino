@@ -148,6 +148,7 @@ export class KyselySubcontratacionRepository implements ISubcontratacionReposito
 
       if (filtros.proveedor_id) q = q.where("subcontratacion.proveedor_id", "=", filtros.proveedor_id);
       if (filtros.proyecto_id) q = q.where("subcontratacion.proyecto_id", "=", filtros.proyecto_id);
+      if (filtros.equipo_id) q = q.where("subcontratacion.equipo_id", "=", filtros.equipo_id);
       if (filtros.estado_trabajo) q = q.where("subcontratacion.estado", "=", filtros.estado_trabajo);
       if (filtros.fecha_desde) q = q.where("subcontratacion.fecha_deuda", ">=", aFechaISO(filtros.fecha_desde) as any);
       if (filtros.fecha_hasta) q = q.where("subcontratacion.fecha_deuda", "<=", aFechaISO(filtros.fecha_hasta) as any);

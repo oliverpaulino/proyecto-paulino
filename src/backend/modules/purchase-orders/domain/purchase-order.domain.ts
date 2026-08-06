@@ -58,11 +58,13 @@ export interface PurchaseOrderProps {
    approved_by_name: string | null;
    approved_at: Date | null;
    items: PurchaseOrderItemProps[];
-   created_at: Date;
-   updated_at: Date;
-   deleted_by: string | null;
-   deleted_at: Date | null;
-   deleted_reason: string | null;
+    created_at: Date;
+    updated_at: Date;
+    deleted_by: string | null;
+    /** Nombre del usuario que la eliminó (resuelto vía join a `user`). */
+    deleted_by_name?: string | null;
+    deleted_at: Date | null;
+    deleted_reason: string | null;
 }
 
 export interface PurchaseOrderPaginatedResult {
@@ -125,6 +127,7 @@ export class PurchaseOrder {
       return `OC-${yy}${mm}${dd}-${ref}`;
    }
    get deleted_by(): string | null { return this.props.deleted_by; }
+   get deleted_by_name(): string | null { return this.props.deleted_by_name ?? null; }
    get deleted_at(): Date | null { return this.props.deleted_at; }
    get deleted_reason(): string | null { return this.props.deleted_reason; }
 

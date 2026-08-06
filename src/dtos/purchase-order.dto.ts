@@ -49,6 +49,7 @@ const PurchaseOrderDTO = z.object({
    items: z.array(PurchaseOrderItemSchema),
    created_at: z.coerce.date(),
    deleted_by: z.string().nullable().optional(),
+   deleted_by_name: z.string().nullable().optional(),
    deleted_reason: z.string().nullable().optional(),
    deleted_at: z.coerce.date().nullable().optional(),
    updated_at: z.coerce.date(),
@@ -57,6 +58,7 @@ const PurchaseOrderDTO = z.object({
 
 const PurchaseOrderDeletedDTO = PurchaseOrderDTO.extend({
    deleted_by: z.string().nullable().optional(),
+   deleted_by_name: z.string().nullable().optional(),
    deleted_at: z.coerce.date().nullable().optional(),
    deleted_reason: z.string().nullable().optional(),
 });

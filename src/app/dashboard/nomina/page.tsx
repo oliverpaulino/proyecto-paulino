@@ -53,6 +53,11 @@ const money = (n: number) =>
 const fecha = (s: string) => new Date(`${s.slice(0, 10)}T12:00:00`).toLocaleDateString("es-DO");
 
 export default function NominaPage() {
+
+   useEffect(() => {
+      document.title = "Nómina";
+   }, []);
+
    const {
       cycles,
       selectedCycle,
@@ -157,24 +162,7 @@ export default function NominaPage() {
 
    return (
       <PermissionGuard resource="payroll" action="read" mode="page">
-         <header className="flex h-16 shrink-0 items-center gap-2">
-            <div className="flex items-center gap-2 px-4">
-               <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
-               <Breadcrumb>
-                  <BreadcrumbList>
-                     <BreadcrumbItem className="hidden md:block">
-                        <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
-                     </BreadcrumbItem>
-                     <BreadcrumbSeparator className="hidden md:block" />
-                     <BreadcrumbItem>
-                        <BreadcrumbPage>Nómina</BreadcrumbPage>
-                     </BreadcrumbItem>
-                  </BreadcrumbList>
-               </Breadcrumb>
-            </div>
-         </header>
-
-         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+         <div className="flex flex-1 flex-col gap-4 p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
                <div>
                   <h1 className="text-xl font-bold">Nómina</h1>
@@ -233,11 +221,10 @@ export default function NominaPage() {
                      <button
                         key={c.id}
                         onClick={() => SelectCycle(c)}
-                        className={`rounded-lg border px-3 py-2 text-left transition ${
-                           selectedCycle?.id === c.id
-                              ? "border-primary bg-primary/5"
-                              : "hover:bg-muted/40"
-                        }`}
+                        className={`rounded-lg border px-3 py-2 text-left transition ${selectedCycle?.id === c.id
+                           ? "border-primary bg-primary/5"
+                           : "hover:bg-muted/40"
+                           }`}
                      >
                         <div className="flex items-center gap-2">
                            <span className="text-sm font-medium">{c.nombre}</span>
@@ -341,8 +328,8 @@ export default function NominaPage() {
                            {seleccionados.size > 0
                               ? `PDF (${seleccionados.size})`
                               : empleadosFiltrados.length !== empleados.length
-                                ? `PDF (${empleadosFiltrados.length} filtrados)`
-                                : "PDF del ciclo"}
+                                 ? `PDF (${empleadosFiltrados.length} filtrados)`
+                                 : "PDF del ciclo"}
                         </Button>
 
                         {/*
@@ -360,8 +347,8 @@ export default function NominaPage() {
                                  if (
                                     confirm(
                                        `¿Cerrar el ciclo?\n\n` +
-                                          `Los montos quedarán congelados y se creará un gasto de ` +
-                                          `${money(total)} por la nómina.`
+                                       `Los montos quedarán congelados y se creará un gasto de ` +
+                                       `${money(total)} por la nómina.`
                                     )
                                  ) {
                                     CerrarCiclo(selectedCycle.id);

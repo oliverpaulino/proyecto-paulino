@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Lock } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
@@ -37,7 +37,19 @@ export function PermissionGuard({
 }: PermissionGuardProps) {
    const { canPerform, isLoading } = usePermissions({ resource, action });
 
-   if (isLoading) {
+   /*
+      La sesión no está resuelta durante el SSR (y puede llegar ya resuelta al
+      primer render del cliente), así que decidir por `isLoading` rompería la
+      hidratación: el servidor pintaría el skeleton y el cliente el contenido.
+      Mientras no se monta, ambos pintan lo mismo; el cambio real ocurre
+      después del primer pintado, ya sin hidratación que pueda desincronizar.
+   */
+   const [mounted, setMounted] = useState(false);
+   useEffect(() => setMounted(true), []);
+
+   const resolviendo = !mounted || isLoading;
+
+   if (resolviendo) {
       // An inline guard must not reserve space: a skeleton inside a table cell
       // or dropdown shifts every row while the session resolves.
       if (mode !== "page") return null;

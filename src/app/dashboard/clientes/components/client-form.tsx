@@ -104,7 +104,6 @@ export function ClientForm({
 
             const url = `/api/dgii/${debouncedIdentificacion.toString()}`;
             const response = await fetch(url);
-            console.log("DGII API response status:", response.status);
             console.log(response)
 
             if (response.ok) {

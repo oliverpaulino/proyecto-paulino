@@ -140,6 +140,7 @@ export interface SubcontratacionApunte {
 export interface SubcontratacionesFiltros {
    proveedor_id?: string;
    proyecto_id?: string;
+   equipo_id?: string;
    estado_trabajo?: EstadoTrabajo;
    estado_pago?: EstadoPago;
    incluir_pagadas?: boolean;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -88,10 +88,13 @@ type PagarItem = {
 };
 
 export default function SupplierDetailPage() {
+   const pathname = usePathname()
    const params = useParams();
    const router = useRouter();
    const supplierId = params.id as string;
-   const [currentTab, setCurrentTab] = useState("resumen");
+   const searchParams = useSearchParams();
+   const currentTab = searchParams.get("tab") || "resumen";
+
    const { UpdateSupplier, DeleteSupplier, GetSupplierById } = useSupplierStore();
    const { GetOrdenesCompraBySupplier, PurchaseOrders: ordenes } = usePurchaseOrderStore();
    const { GetCuentas, cuentas: cuentasPagar } = useCuentasPorPagarStore();
@@ -118,17 +121,17 @@ export default function SupplierDetailPage() {
    const [subSel, setSubSel] = useState<Set<string>>(new Set());
    const [pagoBusqueda, setPagoBusqueda] = useState("");
 
-   const handleTabChange = (value: string) => {
-      setCurrentTab(value);
-      const url = new URL(window.location.href);
-      url.searchParams.set("tab", value);
-      window.history.replaceState(null, "", url.toString());
-   };
+   // const handleTabChange = (value: string) => {
+   //    // setCurrentTab(value);
+   //    const url = new URL(window.location.href);
+   //    url.searchParams.set("tab", value);
+   //    window.history.replaceState(null, "", url.toString());
+   // };
 
-   useEffect(() => {
-      const fromUrl = new URLSearchParams(window.location.search).get("tab");
-      if (fromUrl) setCurrentTab(fromUrl);
-   }, []);
+   // useEffect(() => {
+   // const fromUrl = new URLSearchParams(window.location.search).get("tab");
+   // if (fromUrl) setCurrentTab(fromUrl);
+   // }, []);
 
    useEffect(() => {
       let active = true;
@@ -168,6 +171,11 @@ export default function SupplierDetailPage() {
       await GetPagos({ proveedor_id: supplierId, limit: 1000, force: true });
    }
 
+   const handleTabChange = (value: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("tab", value); // Seteas el valor
+      router.replace(`${pathname}?${params.toString()}`); // Actualizas la URL silenciosamente
+   };
    async function handleUpdate(values: {
       nombre: string; rnc: string; tipo: string;
       email: string; telefono: string; direccion: string;
@@ -315,7 +323,6 @@ export default function SupplierDetailPage() {
    const origenPago = (p: Pago) => {
       if (p.orden_compra_codigo_referencia) return { ref: p.orden_compra_codigo_referencia, tipo: "OC" };
       if (p.gasto_codigo_referencia) return { ref: p.gasto_codigo_referencia, tipo: "Gasto" };
-      if (p.costo_codigo_referencia) return { ref: p.costo_codigo_referencia, tipo: "Costo" };
       if (p.deduccion_codigo_referencia) return { ref: p.deduccion_codigo_referencia, tipo: "Ded." };
       if (p.proyecto_codigo_referencia) return { ref: p.proyecto_codigo_referencia, tipo: "Proy." };
       return { ref: "—", tipo: "" };
@@ -395,8 +402,8 @@ export default function SupplierDetailPage() {
                      <p className="text-xs text-muted-foreground/80">
                         Actualizado {formatoActualizado(supplier.updated_at)}
                      </p>
-                  </div>
-               </div>
+                  </div >
+               </div >
 
                <div className="flex flex-wrap gap-2 lg:justify-end">
                   <PermissionGuard resource="supplier" action="update">
@@ -412,19 +419,14 @@ export default function SupplierDetailPage() {
                      </Button>
                   </PermissionGuard>
                </div>
-            </div>
+            </div >
 
             {/* Tabs */}
-            <Tabs value={currentTab} onValueChange={handleTabChange} className="space-y-4">
+            < Tabs defaultValue={currentTab} onValueChange={handleTabChange} className="space-y-4" >
                <TabsList className="w-full flex-wrap justify-start gap-1 bg-transparent p-0">
                   {[
                      { value: "resumen", label: "Resumen" },
-                     ...(supplier.tipo === "SUB_CONTRATISTA" || supplier.tipo === "AMBOS"
-                        ? [{ value: "subcontrataciones", label: "Subcontrataciones" }]
-                        : []),
-                     ...(supplier.tipo === "SUPLIDOR" || supplier.tipo === "AMBOS"
-                        ? [{ value: "compras", label: "Órdenes de compra" }]
-                        : []),
+                     { value: "compras", label: "Órdenes de compra" },
                      { value: "pagos", label: "Pagos" },
                   ].map((tab) => (
                      <TabsTrigger
@@ -549,10 +551,10 @@ export default function SupplierDetailPage() {
                         </CardContent>
                      </Card>
                   </div>
-               </TabsContent>
+               </TabsContent >
 
                {/* ── ÓRDENES DE COMPRA ── */}
-               <TabsContent value="compras" className="space-y-4">
+               < TabsContent value="compras" className="space-y-4" >
                   <Card>
                      <CardHeader>
                         <CardTitle className="flex items-center gap-2">
@@ -561,8 +563,8 @@ export default function SupplierDetailPage() {
                         </CardTitle>
                         <CardDescription>
                            Historial de órdenes enviadas a este proveedor, su estado y deuda.
-                        </CardDescription>
-                     </CardHeader>
+                        </CardDescription >
+                     </CardHeader >
                      <CardContent className="space-y-4">
                         <div className="grid gap-4 md:grid-cols-3">
                            <MiniStat
@@ -628,22 +630,22 @@ export default function SupplierDetailPage() {
                               />
                               Solo pendientes por pagar
                            </label>
-                        {(ocBusqueda || ocDesde || ocHasta || ocEstado || ocSoloDeuda) && (
-                           <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                 setOcBusqueda("");
-                                 setOcDesde("");
-                                 setOcHasta("");
-                                 setOcEstado("");
-                                 setOcSoloDeuda(false);
-                              }}
-                           >
-                              Limpiar
-                           </Button>
-                        )}
-                     </div>
+                           {(ocBusqueda || ocDesde || ocHasta || ocEstado || ocSoloDeuda) && (
+                              <Button
+                                 variant="outline"
+                                 size="sm"
+                                 onClick={() => {
+                                    setOcBusqueda("");
+                                    setOcDesde("");
+                                    setOcHasta("");
+                                    setOcEstado("");
+                                    setOcSoloDeuda(false);
+                                 }}
+                              >
+                                 Limpiar
+                              </Button>
+                           )}
+                        </div>
 
                         {ocSel.size > 0 && (
                            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-brand-blue/30 bg-brand-blue/5 px-4 py-2.5">
@@ -808,8 +810,8 @@ export default function SupplierDetailPage() {
                            </div>
                         )}
                      </CardContent>
-                  </Card>
-               </TabsContent>
+                  </Card >
+               </TabsContent >
 
                {/* ── SUBCONTRATACIONES (solo subcontratistas) ── */}
                <TabsContent value="subcontrataciones" className="space-y-4">
@@ -1190,7 +1192,7 @@ export default function SupplierDetailPage() {
             </Dialog>
 
             {/* Delete dialog */}
-            <Dialog open={deleteOpen} onOpenChange={(open) => setDeleteOpen(open)}>
+            < Dialog open={deleteOpen} onOpenChange={(open) => setDeleteOpen(open)}>
                <DialogContent className="sm:max-w-md">
                   <DialogHeader>
                      <DialogTitle>Eliminar proveedor</DialogTitle>
@@ -1207,7 +1209,7 @@ export default function SupplierDetailPage() {
                      </Button>
                   </DialogFooter>
                </DialogContent>
-            </Dialog>
+            </Dialog >
 
             {/* Registrar pago (gastos, costos y órdenes de compra) */}
             <PagarDialog

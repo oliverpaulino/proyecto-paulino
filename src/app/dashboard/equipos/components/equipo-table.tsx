@@ -80,12 +80,23 @@ export function EquipoTable({ equipos, onEdit, onDelete }: EquipoTableProps) {
                         </span>
                      </td>
                      <td className="px-4 py-3 text-xs text-muted-foreground flex flex-col">
-                        <div>
-                           <User className="mr-1 size-4 bg-brand-blue rounded-full text-white inline-block" />
-                           <span>{Operators.find((o) => o.id === equipo.operador_id)?.nombre || "Sin operador asignado"}</span>
-
-                        </div>
-                        <span>{Operators.find((o) => o.id === equipo.operador_id)?.identificacion || "—"}</span>
+                        {(() => {
+                           const operadorAsignado = Operators.find((o) => o.id === equipo.operador_id);
+                           return (
+                              <>
+                                 <div>
+                                    <User className="mr-1 size-4 bg-brand-blue rounded-full text-white inline-block" />
+                                    <span>{operadorAsignado?.nombre || "Sin operador asignado"}</span>
+                                    {operadorAsignado && operadorAsignado.activo === false && (
+                                       <span className="ml-1.5 inline-flex items-center rounded-full border border-destructive/30 bg-destructive/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-destructive">
+                                          Inactivo
+                                       </span>
+                                    )}
+                                 </div>
+                                 <span>{operadorAsignado?.identificacion || "—"}</span>
+                              </>
+                           );
+                        })()}
                      </td>
                      <td className="px-4 py-3">
                         <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${ESTADO_BADGE[equipo.estado]}`}>

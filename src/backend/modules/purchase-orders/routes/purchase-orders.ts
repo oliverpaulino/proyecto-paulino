@@ -248,6 +248,26 @@ purchaseOrdersRoute.patch("/:id/restore", async (c) => {
          return c.json({ error: "Orden no encontrada" }, 404);
       }
 
+      // Avisar a los firmantes: la orden vuelve a estar viva y puede
+      // necesitar revisión de nuevo.
+      try {
+         const approvers = await service.listApprovers();
+         if (approvers.length > 0) {
+            await notifService.notifyMany(
+               approvers.map((a) => ({
+                  user_id: a.user_id,
+                  title: "Orden de compra restaurada",
+                  message: `La orden #${order.codigoReferencia} ha sido restaurada y vuelve a estar disponible.`,
+                  type: "PURCHASE_ORDER_RESTORED",
+                  reference_id: order.id,
+                  reference_type: "purchase_order",
+               }))
+            );
+         }
+      } catch {
+         // Don't fail the restore if notifications fail
+      }
+
       return c.json(order);
    } catch (err: unknown) {
       return c.json(

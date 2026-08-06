@@ -17,6 +17,7 @@ import { useConduceStore } from "@/stores/useConduceStores";
 import { ConduceForm } from "./components/conduce-form";
 import { ConduceFiltrosBar } from "./components/conduce-filtro";
 import { ConduceTable } from "./components/conduce-table";
+import { PageSizeSelector } from "@/components/page-size-selector";
 import Link from "next/link";
 import { useSession } from "@/lib/auth-client";
 import { generateConducesReportePDF } from "@/lib/pdf/conduces-reporte-pdf";
@@ -75,7 +76,7 @@ function ConducesPageContent() {
       */
       const desdeUrl: ConduceFiltros = {
          page: 1,
-         pageSize: filtros.pageSize ?? 25,
+         pageSize: filtros.pageSize ?? 10,
          empleado_id: empleadoId,
          fecha_desde: searchParams.get("fecha_desde") ?? undefined,
          fecha_hasta: searchParams.get("fecha_hasta") ?? undefined,
@@ -87,6 +88,11 @@ function ConducesPageContent() {
 
    function handleFiltrosChange(nuevos: ConduceFiltros) {
       GetConduces(nuevos);
+   }
+
+   function handlePageSizeChange(size: number) {
+      // Cambiar el tamaño de página vuelve al inicio.
+      GetConduces({ ...filtros, pageSize: size, page: 1 });
    }
 
    async function handleCreate(data: CreateConduceForm) {
@@ -238,27 +244,30 @@ function ConducesPageContent() {
          )}
 
          {total > 0 && (
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
-               <span>
-                  Mostrando {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} de {total}
-               </span>
-               <div className="flex gap-2">
-                  <Button
-                     variant="outline"
-                     size="sm"
-                     disabled={page <= 1}
-                     onClick={() => GetConduces({ ...filtros, page: page - 1 })}
-                  >
-                     <ChevronLeft className="size-4" /> Anterior
-                  </Button>
-                  <Button
-                     variant="outline"
-                     size="sm"
-                     disabled={page >= totalPages}
-                     onClick={() => GetConduces({ ...filtros, page: page + 1 })}
-                  >
-                     Siguiente <ChevronRight className="size-4" />
-                  </Button>
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+               <PageSizeSelector value={pageSize} onChange={handlePageSizeChange} />
+               <div className="flex flex-wrap items-center gap-4">
+                  <span>
+                     Mostrando {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} de {total}
+                  </span>
+                  <div className="flex gap-2">
+                     <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={page <= 1}
+                        onClick={() => GetConduces({ ...filtros, page: page - 1 })}
+                     >
+                        <ChevronLeft className="size-4" /> Anterior
+                     </Button>
+                     <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={page >= totalPages}
+                        onClick={() => GetConduces({ ...filtros, page: page + 1 })}
+                     >
+                        Siguiente <ChevronRight className="size-4" />
+                     </Button>
+                  </div>
                </div>
             </div>
          )}

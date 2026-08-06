@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
    Card,
@@ -21,19 +21,15 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
    ArrowLeft,
-   History,
    Loader2,
    Pencil,
    Plus,
-   ShoppingCart,
    Truck,
    UserRound,
    Wrench,
 } from "lucide-react";
 import type {
    Equipo,
-   EquipoCompraItem,
-   EquipoEstadoHistorial,
    EstadoEquipo,
 } from "@/dtos/equipo.dto";
 import { ESTADOS_EQUIPO } from "@/dtos/equipo.dto";
@@ -49,6 +45,13 @@ import { CategoriaEquipo } from "@/dtos/categoria-equipo.dto";
 import { OperadorAsignable } from "@/dtos/employee.dto";
 import { CategoriaEquipoManager } from "../components/categoria-equipo-manager";
 import { EquipoConduces } from "./components/equipo-conduce";
+import { EquipoRentabilidad } from "./components/equipo-rentabilidad";
+import { EquipoGastos } from "./components/equipo-gastos";
+import { EquipoCompras } from "./components/equipo-compras";
+import { EquipoPagos } from "./components/equipo-pagos";
+import { EquipoComprasCard } from "./components/equipo-compras-card";
+import { EquipoHistorial } from "./components/equipo-historial";
+import { EquipoSubcontrataciones } from "./components/equipo-subcontrataciones";
 import { useMantenimientoStore } from "@/stores/useMantenimientoStore";
 import {
    ESTADO_MANTENIMIENTO_BADGE,
@@ -77,15 +80,6 @@ function formatDate(value: string | Date): string {
    return new Date(value).toLocaleDateString("es-DO");
 }
 
-function formatDateTime(value: string | Date): string {
-   const d = new Date(value);
-   return (
-      d.toLocaleDateString("es-DO") +
-      " " +
-      d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-   );
-}
-
 // 1. Envolvemos la página en Suspense para manejar los Search Params correctamente en Next.js
 export default function EquipoDetailPage() {
    return (
@@ -102,22 +96,18 @@ export default function EquipoDetailPage() {
 // 2. Componente principal con la lógica
 function EquipoDetailContent() {
    const params = useParams();
-   const router = useRouter();
    const pathname = usePathname();
+   const router = useRouter();
    const searchParams = useSearchParams();
+   const currentTab = searchParams.get("tab") || "rentabilidad";
    const equipoId = params.id as string;
 
-   // Leer el tab actual de la URL
-   const currentTab = searchParams.get("tab") || "general";
-
    const { ChangeEstado, UpdateEquipo, GetCategoriasEquipoByEquipoId, GetOperadorByEquipoId } = useEquipoStore();
-   const { CreateMantenimiento, CloseMantenimiento } = useMantenimientoStore();
+   const { CreateMantenimiento, CloseMantenimiento, GetMantenimientosByEquipo } = useMantenimientoStore();
 
    const [equipo, setEquipo] = useState<Equipo | null>(null);
    const [categoria, setCategoria] = useState<CategoriaEquipo | null>(null);
    const [operador, setOperador] = useState<OperadorAsignable | null>(null);
-   const [compras, setCompras] = useState<EquipoCompraItem[]>([]);
-   const [historial, setHistorial] = useState<EquipoEstadoHistorial[]>([]);
    const [mantenimientos, setMantenimientos] = useState<Mantenimiento[]>([]);
    const [loading, setLoading] = useState(true);
    const [estadoLoading, setEstadoLoading] = useState(false);
@@ -140,26 +130,23 @@ function EquipoDetailContent() {
 
    async function loadAll(active = { value: true }) {
       try {
-         const [equipoRes, comprasRes, historialRes, mantRes] = await Promise.all([
-            fetch(`/api/equipos/${equipoId}`),
-            fetch(`/api/equipos/${equipoId}/compras`),
-            fetch(`/api/equipos/${equipoId}/historial`),
-            fetch(`/api/equipos/${equipoId}/mantenimientos`),
-         ]);
+         // Solo la data base del encabezado. Compras, historial, gastos, pagos
+         // y rentabilidad se piden cuando el usuario entra a cada tab.
+         const equipoRes = await fetch(`/api/equipos/${equipoId}`);
          if (!equipoRes.ok) throw new Error("Not found");
          const equipoData: Equipo = await equipoRes.json();
-         const comprasData: EquipoCompraItem[] = comprasRes.ok ? await comprasRes.json() : [];
-         const historialData: EquipoEstadoHistorial[] = historialRes.ok ? await historialRes.json() : [];
-         const mantData: Mantenimiento[] = mantRes.ok ? await mantRes.json() : [];
-         const categoria = await GetCategoriasEquipoByEquipoId(equipoId);
-         setCategoria(categoria);
-         const operadors = await GetOperadorByEquipoId(equipoId);
-         setOperador(operadors);
+
+         const [mantData, categoria, operadorData] = await Promise.all([
+            GetMantenimientosByEquipo(equipoId),
+            GetCategoriasEquipoByEquipoId(equipoId),
+            GetOperadorByEquipoId(equipoId),
+         ]);
+
          if (active.value) {
             setEquipo(equipoData);
-            setCompras(comprasData);
-            setHistorial(historialData);
             setMantenimientos(mantData);
+            setCategoria(categoria);
+            setOperador(operadorData);
          }
       } catch {
          if (active.value) setEquipo(null);
@@ -182,12 +169,8 @@ function EquipoDetailContent() {
       // eslint-disable-next-line react-hooks/exhaustive-deps
    }, [equipoId]);
 
-   // 3. Función para cambiar de Tab actualizando la URL
-   const handleTabChange = (value: string) => {
-      const newParams = new URLSearchParams(searchParams.toString());
-      newParams.set("tab", value);
-      router.replace(`${pathname}?${newParams.toString()}`);
-   };
+   // 3. El tab es local (igual que proveedores): cambiar de tab no recarga ni
+   // vuelve a pedir datos; cada tab ya cachea lo suyo.
 
    /** Aplica la transición de estado sin pasar por los diálogos. */
    async function applyEstado(nuevoEstado: EstadoEquipo) {
@@ -227,6 +210,11 @@ function EquipoDetailContent() {
       }
    }
 
+   const handleTabChange = (value: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("tab", value); // Seteas el valor
+      router.replace(`${pathname}?${params.toString()}`); // Actualizas la URL silenciosamente
+   };
    async function handleAbrirMantenimiento(data: CreateMantenimientoForm) {
       setMantLoading(true);
       setMantError(null);
@@ -380,15 +368,37 @@ function EquipoDetailContent() {
                </div>
             </div>
 
-            {/* 4. Sistema de Tabs controlado por URL */}
-            <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
-               <TabsList className="grid w-full max-w-[400px] grid-cols-2 mb-6">
-                  <TabsTrigger value="general">Información General</TabsTrigger>
-                  <TabsTrigger value="conduces">Conduces</TabsTrigger>
+            {/* 4. Sistema de Tabs: el tab activo vive en la URL (?tab=...) pero
+            cambiar de tab no recarga la página ni re-pide datos; cada tab
+            carga su data cuando el usuario entra en él. */}
+            <Tabs defaultValue={currentTab} onValueChange={handleTabChange} className="space-y-4">
+               <TabsList className="w-full flex-wrap justify-start gap-1 bg-transparent p-0">
+                  {[
+                     { value: "rentabilidad", label: "Rentabilidad" },
+                     { value: "general", label: "Información General" },
+                     { value: "conduces", label: "Conduces" },
+                      { value: "gastos", label: "Gastos" },
+                      { value: "compras", label: "Compras" },
+                      { value: "pagos", label: "Pagos" },
+                      { value: "subcontrataciones", label: "Subcontrataciones" },
+                   ].map((tab) => (
+                     <TabsTrigger
+                        key={tab.value}
+                        value={tab.value}
+                        className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white"
+                     >
+                        {tab.label}
+                     </TabsTrigger>
+                  ))}
                </TabsList>
 
+               {/* TAB: RENTABILIDAD */}
+               <TabsContent value="rentabilidad" className="space-y-4">
+                  <EquipoRentabilidad equipoId={equipoId} />
+               </TabsContent>
+
                {/* TAB: GENERAL */}
-               <TabsContent value="general" className="flex flex-col gap-6 mt-0">
+               <TabsContent value="general" className="space-y-4">
                   {/* Info card */}
                   <Card>
                      <CardHeader>
@@ -415,56 +425,8 @@ function EquipoDetailContent() {
                      </CardContent>
                   </Card>
 
-                  {/* Purchased items */}
-                  <Card>
-                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                           <ShoppingCart className="size-5 text-brand-blue" />
-                           Artículos comprados
-                        </CardTitle>
-                        <CardDescription>
-                           Ítems de órdenes de compra registrados para este equipo.
-                        </CardDescription>
-                     </CardHeader>
-                     <CardContent className="p-0">
-                        {compras.length === 0 ? (
-                           <div className="flex items-center justify-center p-8 text-sm text-muted-foreground">
-                              Sin artículos registrados para este equipo.
-                           </div>
-                        ) : (
-                           <div className="overflow-x-auto">
-                              <table className="w-full text-sm">
-                                 <thead>
-                                    <tr className="border-b border-border bg-muted/40">
-                                       <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Orden</th>
-                                       <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Fecha</th>
-                                       <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Descripción</th>
-                                       <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cantidad</th>
-                                       <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">P. Unitario</th>
-                                       <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Subtotal</th>
-                                    </tr>
-                                 </thead>
-                                 <tbody>
-                                    {compras.map((item) => (
-                                       <tr key={item.id} className="border-t border-border hover:bg-muted/20">
-                                          <td className="px-4 py-3">
-                                             <Link href={`/dashboard/compras/${item.orden_compra_id}`} className="font-medium text-brand-blue hover:underline">
-                                                {item.orden_compra_id.slice(0, 8)}…
-                                             </Link>
-                                          </td>
-                                          <td className="px-4 py-3 text-muted-foreground">{formatDate(item.orden_fecha)}</td>
-                                          <td className="px-4 py-3">{item.descripcion}</td>
-                                          <td className="px-4 py-3 text-right">{item.cantidad}</td>
-                                          <td className="px-4 py-3 text-right">{formatMoney(item.precio_unitario)}</td>
-                                          <td className="px-4 py-3 text-right font-semibold">{formatMoney(item.subtotal)}</td>
-                                       </tr>
-                                    ))}
-                                 </tbody>
-                              </table>
-                           </div>
-                        )}
-                     </CardContent>
-                  </Card>
+                  {/* Purchased items — carga cuando se entra a este tab */}
+                  <EquipoComprasCard equipoId={equipoId} />
 
                   {/* Historial de mantenimientos */}
                   <Card>
@@ -582,56 +544,37 @@ function EquipoDetailContent() {
                      </CardContent>
                   </Card>
 
-                  {/* Estado history */}
-                  <Card>
-                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                           <History className="size-5 text-brand-blue" />
-                           Historial de estados
-                        </CardTitle>
-                        <CardDescription>Cambios de estado registrados para este equipo.</CardDescription>
-                     </CardHeader>
-                     <CardContent>
-                        {historial.length === 0 ? (
-                           <div className="flex items-center justify-center p-8 text-sm text-muted-foreground">
-                              Aún no hay cambios de estado registrados.
-                           </div>
-                        ) : (
-                           <ul className="flex flex-col gap-3">
-                              {historial.map((h) => (
-                                 <li key={h.id} className="flex flex-col gap-1 rounded-lg border border-border bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <div className="flex flex-wrap items-center gap-2 text-sm">
-                                       {h.estado_anterior ? (
-                                          <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${ESTADO_BADGE[h.estado_anterior]}`}>
-                                             {ESTADO_LABEL[h.estado_anterior]}
-                                          </span>
-                                       ) : (
-                                          <span className="text-xs text-muted-foreground">Inicial</span>
-                                       )}
-                                       <span className="text-muted-foreground">→</span>
-                                       <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${ESTADO_BADGE[h.estado_nuevo]}`}>
-                                          {ESTADO_LABEL[h.estado_nuevo]}
-                                       </span>
-                                       {h.nota && <span className="text-xs text-muted-foreground">— {h.nota}</span>}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                       {h.changed_by_name ?? "Sistema"} · {formatDateTime(h.created_at)}
-                                    </div>
-                                 </li>
-                              ))}
-                           </ul>
-                        )}
-                     </CardContent>
-                  </Card>
+                  {/* Estado history — carga cuando se entra a este tab */}
+                  <EquipoHistorial equipoId={equipoId} />
                </TabsContent>
 
                {/* TAB: CONDUCES */}
-               <TabsContent value="conduces" className="mt-0">
+               <TabsContent value="conduces" className="space-y-4">
                   <div className="border border-dashed rounded-lg p-12 text-center text-muted-foreground bg-card">
                      <Truck className="size-10 mx-auto mb-3 opacity-40 text-brand-blue" />
                      <h3 className="text-lg font-medium mb-2 text-foreground">Conduces del Equipo</h3>
                      <EquipoConduces equipoId={equipoId} />
                   </div>
+               </TabsContent>
+
+               {/* TAB: GASTOS */}
+               <TabsContent value="gastos" className="space-y-4">
+                  <EquipoGastos equipoId={equipoId} />
+               </TabsContent>
+
+               {/* TAB: COMPRAS */}
+               <TabsContent value="compras" className="space-y-4">
+                  <EquipoCompras equipoId={equipoId} />
+               </TabsContent>
+
+               {/* TAB: PAGOS */}
+               <TabsContent value="pagos" className="space-y-4">
+                  <EquipoPagos equipoId={equipoId} />
+               </TabsContent>
+
+               {/* TAB: SUBCONTRATACIONES */}
+               <TabsContent value="subcontrataciones" className="space-y-4">
+                  <EquipoSubcontrataciones equipoId={equipoId} />
                </TabsContent>
             </Tabs>
 
