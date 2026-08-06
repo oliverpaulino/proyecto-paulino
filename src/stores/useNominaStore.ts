@@ -69,6 +69,8 @@ export interface DeduccionDelPeriodo {
    monto_cuota: number;
    /** Cuota que se descuenta en este período (no necesariamente el total). */
    monto_periodo: number;
+   /** Lo que queda por pagar de esta deducción tras el cobro de este período. */
+   monto_pendiente: number;
    cuotas_sugeridas: number;
    /** Cuotas ya aplicadas, incluida la de este período. */
    cuotas_aplicadas: number;

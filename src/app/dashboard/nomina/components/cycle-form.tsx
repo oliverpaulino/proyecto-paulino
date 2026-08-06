@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useNominaStore, type FrecuenciaPago } from "@/stores/useNominaStore";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 const INPUT_CLASS =
    "h-9 w-full rounded-md border border-input bg-input/30 px-3 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px]";
@@ -62,6 +63,21 @@ export function CycleForm({ onDone }: { onDone?: () => void }) {
    const [error, setError] = useState<string | null>(null);
    // Si el usuario escribe su propio nombre, la frecuencia ya no lo sobrescribe.
    const [nombreEditado, setNombreEditado] = useState(false);
+   // Confirmación para el ciclo mensual corto (no prorratea el sueldo).
+   const [confirmarCorto, setConfirmarCorto] = useState(false);
+
+   /** Días que abarca el ciclo (inclusive). */
+   const diasCiclo = Math.floor(
+      (new Date(fin).getTime() - new Date(inicio).getTime()) / 86_400_000
+   ) + 1;
+
+   /*
+      Una nómina MENSUAL corta no prorratea: el sueldo se convierte por
+      frecuencia (mensual → mes completo), no por días. Un ciclo mensual de
+      menos de un mes pagaría el mes entero al personal de salario fijo.
+      Se avisa para que quien lo esté creando sepa qué está por pasar.
+   */
+   const mensualCorto = frecuencia === "MENSUAL" && diasCiclo < 28;
 
    function cambiarFrecuencia(nueva: FrecuenciaPago) {
       const periodo = periodoActual(nueva);
@@ -71,13 +87,7 @@ export function CycleForm({ onDone }: { onDone?: () => void }) {
       if (!nombreEditado) setNombre(periodo.nombre);
    }
 
-   async function submit(e: React.FormEvent) {
-      e.preventDefault();
-      setError(null);
-      if (!nombre.trim()) return setError("El nombre es obligatorio.");
-      if (new Date(fin) < new Date(inicio))
-         return setError("La fecha final no puede ser anterior a la inicial.");
-
+   async function crear() {
       const creado = await CreateCycle({
          nombre,
          frecuencia,
@@ -86,6 +96,21 @@ export function CycleForm({ onDone }: { onDone?: () => void }) {
       } as any);
       if (creado) onDone?.();
       else setError("No se pudo crear el ciclo.");
+   }
+
+   async function submit(e: React.FormEvent) {
+      e.preventDefault();
+      setError(null);
+      if (!nombre.trim()) return setError("El nombre es obligatorio.");
+      if (new Date(fin) < new Date(inicio))
+         return setError("La fecha final no puede ser anterior a la inicial.");
+
+      if (mensualCorto) {
+         setConfirmarCorto(true);
+         return;
+      }
+
+      await crear();
    }
 
    return (
@@ -126,6 +151,14 @@ export function CycleForm({ onDone }: { onDone?: () => void }) {
             </div>
          </div>
 
+         {mensualCorto && (
+            <div className="rounded-md bg-amber-50 p-3 text-xs text-amber-800">
+               Este ciclo mensual abarca solo {diasCiclo} día{diasCiclo === 1 ? "" : "s"}. El
+               personal de salario fijo cobrará el mes completo (el sueldo se prorratea por
+               frecuencia, no por días), no la parte proporcional.
+            </div>
+         )}
+
          {error && (
             <div className="rounded-md bg-destructive/10 p-2.5 text-sm font-medium text-destructive">
                {error}
@@ -142,6 +175,20 @@ export function CycleForm({ onDone }: { onDone?: () => void }) {
                {loading ? "Creando..." : "Crear ciclo"}
             </Button>
          </div>
+
+         <ConfirmDialog
+            open={confirmarCorto}
+            onOpenChange={setConfirmarCorto}
+            title="¿Crear un ciclo mensual corto?"
+            description={`Este ciclo mensual abarca solo ${diasCiclo} día${
+               diasCiclo === 1 ? "" : "s"
+            }. El sueldo se prorratea por frecuencia, no por días: el personal de salario fijo cobrará el mes completo, no la parte proporcional al período.`}
+            confirmLabel="Crear de todas formas"
+            onConfirm={async () => {
+               setConfirmarCorto(false);
+               await crear();
+            }}
+         />
       </form>
    );
 }

@@ -10,6 +10,7 @@ import type { ConduceDTO } from "@/dtos/conduce.dto";
 import { ConduceDetalleDialog } from "../../components/conduce-detalle-dialog";
 import { ConduceRestoreDialog } from "./conduce-restore-dialog";
 import { PageSizeSelector } from "@/components/page-size-selector";
+import { toast } from "sonner";
 
 /**
  * Apartado de conduces eliminados (eliminación lógica). Pensado para vivir
@@ -47,8 +48,8 @@ export function ConducesEliminados() {
       setRestaurandoId(id);
       try {
          const resultado = await RestoreConduce(id);
-         if (resultado instanceof Error) {
-            alert(resultado.message);
+          if (resultado instanceof Error) {
+            toast.error(resultado.message);
          }
          // No hace falta refrescar manualmente: RestoreConduce ya quita el
          // conduce de `eliminados` en el store cuando tiene éxito.

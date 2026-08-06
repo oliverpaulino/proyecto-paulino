@@ -1,10 +1,12 @@
-import { Kysely } from "kysely";
+import { Kysely, sql } from "kysely";
 import { DB } from "@/backend/database";
 import {
    CreateDeduccionDTO,
    DeleteDeduccionDTO,
    Deduccion,
    IDeduccionRepository,
+   PagarDeduccionDTO,
+   PagoDeduccion,
    UpdateDeduccionDTO,
 } from "../domain/deducciones.domain";
 
@@ -16,12 +18,63 @@ export class KyselyDeduccionRepository implements IDeduccionRepository {
       return `${prefix}-${ref}`;
     }
 
+    /**
+     * Subconsultas del avance de cobro de una deducción: cuánto y cuántas
+     * cuotas han cobrado las nóminas (`deduccion_cuota`) y cuánto se ha pagado
+     * a mano contra la deducción (`pago`). Con eso la entidad deriva
+     * `cuotas_aplicadas`, `monto_cobrado` y `monto_pendiente`.
+     */
+    private cuotaSelects() {
+      return [
+         sql<string>`coalesce((
+            select sum(dc.monto) from deduccion_cuota dc
+            where dc.deduccion_id = deduccion.id
+         ), 0)`.as("monto_cobrado_cuotas"),
+         sql<string>`(
+            select count(*) from deduccion_cuota dc
+            where dc.deduccion_id = deduccion.id
+         )`.as("cuotas_aplicadas"),
+         sql<string>`coalesce((
+            select sum(p.monto_pagado) from pago p
+            where p.deduccion_empleado_id = deduccion.id
+              and p.deleted_at is null
+         ), 0)`.as("monto_cobrado_pagos"),
+         sql<string>`coalesce((
+            select json_agg(pg order by pg.fecha, pg.id)
+            from (
+               select dc.id,
+                      coalesce(pc.fecha_pago, pc.fecha_fin) as fecha,
+                      dc.monto,
+                      'NOMINA'::text as via,
+                      pc.nombre as referencia,
+                      null::text as metodo_pago
+               from deduccion_cuota dc
+               left join payroll_cycles pc on pc.id = dc.cycle_id
+               where dc.deduccion_id = deduccion.id
+               union all
+               select p.id,
+                      p.fecha,
+                      p.monto_pagado as monto,
+                      'DIRECTO'::text as via,
+                      p.concepto as referencia,
+                      p.metodo_pago::text
+               from pago p
+               where p.deduccion_empleado_id = deduccion.id
+                 and p.deleted_at is null
+            ) pg
+         ), '[]'::json)`.as("pagos_json"),
+      ];
+    }
+
    private mapToEntity(row: any): Deduccion {
+      const montoCobradoCuotas = Number(row.monto_cobrado_cuotas ?? 0);
+      const montoCobradoPagos = Number(row.monto_cobrado_pagos ?? 0);
+      const montoCobrado = montoCobradoCuotas + montoCobradoPagos;
       return Deduccion.create({
          ...row,
          codigoReferencia: this.buildCodigoReferencia("DED", row.referencia),
          empleado_nombre: row.empleado_nombre || null,
-         empleado_codigo_referenciar: row.empleado_referencia
+         empleado_codigo_referencia: row.empleado_referencia
             ? this.buildCodigoReferencia("EMP", row.empleado_referencia) 
             : null,
          equipo_codigo_referencia: row.equipo_referencia 
@@ -31,13 +84,30 @@ export class KyselyDeduccionRepository implements IDeduccionRepository {
             ? this.buildCodigoReferencia("GAS", row.gasto_referencia) 
             : null,
          monto_total: Number(row.monto_total),
+         monto_cuota: Number(row.monto_cuota),
          balance_pendiente: row.balance_pendiente != null ? Number(row.balance_pendiente) : null,
          cuotas_sugeridas: Number(row.cuotas_sugeridas),
+         cuotas_aplicadas: Number(row.cuotas_aplicadas ?? 0),
+         monto_cobrado: montoCobrado,
+         monto_pendiente: Math.max(0, Number(row.monto_total) - montoCobrado),
+         pagos: this.mapPagos(row.pagos_json),
          fecha: new Date(row.fecha),
          created_at: new Date(row.created_at),
          updated_at: new Date(row.updated_at),
          deleted_at: row.deleted_at ? new Date(row.deleted_at) : null,
       });
+   }
+
+   private mapPagos(raw: any): PagoDeduccion[] {
+      if (!Array.isArray(raw)) return [];
+      return raw.map((p: any) => ({
+         id: p.id,
+         fecha: new Date(p.fecha),
+         monto: Number(p.monto ?? 0),
+         via: p.via === "DIRECTO" ? "DIRECTO" : "NOMINA",
+         referencia: p.referencia ?? null,
+         metodo_pago: p.metodo_pago ?? null,
+      }));
    }
 
    private safeParseReferencia(search: string): number | null {
@@ -63,6 +133,7 @@ export class KyselyDeduccionRepository implements IDeduccionRepository {
             "empleado.referencia as empleado_referencia",
             "equipo.referencia as equipo_referencia",
             "gasto.referencia as gasto_referencia",
+            ...this.cuotaSelects(),
          ]);
 
       if (isDeleted) {
@@ -133,6 +204,7 @@ export class KyselyDeduccionRepository implements IDeduccionRepository {
             "empleado.referencia as empleado_referencia",
             "equipo.referencia as equipo_referencia",
             "gasto.referencia as gasto_referencia",
+            ...this.cuotaSelects(),
          ])
          .where("deduccion.id", "=", id)
          .where("deduccion.deleted_at", "is", null)
@@ -151,6 +223,7 @@ export class KyselyDeduccionRepository implements IDeduccionRepository {
          .select([
             "empleado.nombre as empleado_nombre",
             "equipo.referencia as equipo_referencia",
+            ...this.cuotaSelects(),
          ])
          .where("deduccion.id", "=", id)
          .where("deduccion.deleted_at", "is not", null)
@@ -189,6 +262,86 @@ export class KyselyDeduccionRepository implements IDeduccionRepository {
          .where("id", "=", id)
          .where("deleted_at", "is", null)
          .executeTakeFirst();
+
+      return this.findById(id);
+   }
+
+   /**
+    * Cobrado total de una deducción viva: nóminas (`deduccion_cuota`) + pagos
+    * directos (`pago`). Devuelve `null` si la deducción no existe o está
+    * anulada. Es la base para validar cuánto se puede pagar todavía.
+    */
+   private async getCobradoDeDeduccion(id: string) {
+      const row = await this.db
+         .selectFrom("deduccion as d")
+         .select([
+            "d.id",
+            "d.monto_total",
+            sql<string>`coalesce((
+               select sum(dc.monto) from deduccion_cuota dc
+               where dc.deduccion_id = d.id
+            ), 0)`.as("cuotas"),
+            sql<string>`coalesce((
+               select sum(p.monto_pagado) from pago p
+               where p.deduccion_empleado_id = d.id
+                 and p.deleted_at is null
+            ), 0)`.as("pagos"),
+         ])
+         .where("d.id", "=", id)
+         .where("d.deleted_at", "is", null)
+         .executeTakeFirst();
+
+      if (!row) return null;
+      const montoTotal = Number(row.monto_total);
+      const cuotas = Number(row.cuotas ?? 0);
+      const pagos = Number(row.pagos ?? 0);
+      return {
+         montoTotal,
+         cuotas,
+         pagos,
+         pendiente: Math.max(0, montoTotal - cuotas - pagos),
+      };
+   }
+
+   async pagar(id: string, data: PagarDeduccionDTO): Promise<Deduccion | null> {
+      const cobrado = await this.getCobradoDeDeduccion(id);
+      if (!cobrado) return null;
+
+      if (!Number.isFinite(data.monto) || data.monto <= 0) {
+         throw new Error("El monto del pago debe ser mayor a 0");
+      }
+      if (data.monto > cobrado.pendiente + 0.01) {
+         throw new Error(
+            `El monto del pago excede lo que queda por pagar de la deducción (` +
+            `${cobrado.pendiente.toLocaleString("es-DO")})`
+         );
+      }
+
+      // El pago queda como movimiento de salida vinculado a la deducción:
+      // sale dinero de la empresa que la deducción le cobra al empleado.
+      await this.db
+         .insertInto("pago")
+         .values({
+            metodo_pago: data.metodo_pago ?? "EFECTIVO",
+            monto_pagado: data.monto,
+            concepto: data.concepto?.trim() || "Pago de deducción",
+            tipo_movimiento: "SALIDA",
+            fecha: data.fecha ?? new Date(),
+            deduccion_empleado_id: id,
+            created_at: new Date(),
+            updated_at: new Date(),
+         })
+         .execute();
+
+      const nuevoBalance = Math.max(
+         0,
+         cobrado.montoTotal - cobrado.cuotas - cobrado.pagos - data.monto
+      );
+      await this.db
+         .updateTable("deduccion")
+         .set({ balance_pendiente: nuevoBalance, updated_at: new Date() })
+         .where("id", "=", id)
+         .execute();
 
       return this.findById(id);
    }

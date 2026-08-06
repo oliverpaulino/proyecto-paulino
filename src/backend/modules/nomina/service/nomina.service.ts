@@ -315,13 +315,21 @@ export class NominaService {
          // igual para ambos, y la UI la etiqueta según la modalidad.
          const complemento = calcularComplemento(devengado, minimo);
 
-         const [deducciones, deudaTotal, deudaPendiente] = await Promise.all([
-            this.repo.getDeduccionesDelPeriodo(
-               emp.id,
-               cycleId,
-               ciclo.fecha_inicio,
-               ciclo.fecha_fin
-            ),
+         /*
+            El orden importa: `getDeduccionesDelPeriodo` REGISTRA el cobro de
+            este ciclo en `deduccion_cuota` (idempotente), y la deuda pendiente
+            se lee DESPUÉS para que sea "lo que queda tras este cobro". En
+            paralelo, la lectura de `getDeudaPendiente` podía ganarle al
+            registro y sobrar el monto de este ciclo en la deuda que se
+            congela al cerrar la nómina.
+         */
+         const deducciones = await this.repo.getDeduccionesDelPeriodo(
+            emp.id,
+            cycleId,
+            ciclo.fecha_inicio,
+            ciclo.fecha_fin
+         );
+         const [deudaTotal, deudaPendiente] = await Promise.all([
             this.repo.getDeudaTotal(emp.id),
             this.repo.getDeudaPendiente(emp.id),
          ]);
@@ -609,6 +617,17 @@ export class NominaService {
       }
       if (!Number.isFinite(montoCuota) || montoCuota <= 0) {
          throw new Error("El monto por cuota debe ser mayor a 0");
+      }
+
+      // La cuota es "cuánto se descuenta por nómina": no puede intentar cobrar
+      // más de lo que queda por pagar de la deducción. El cobro del período ya
+      // se vuelve a aplicar con el nuevo monto al refrescar.
+      const restante = await this.repo.getDeudaRestanteDeDeduccion(deduccionId, cycleId);
+      if (montoCuota > restante) {
+         throw new Error(
+            `La cuota no puede superar lo que queda pendiente de la deducción (` +
+            `${restante.toLocaleString("es-DO")})`
+         );
       }
 
       const actualizada = await this.repo.actualizarCuotaDeduccion(
