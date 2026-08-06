@@ -30,6 +30,11 @@ export class PurchaseOrderService {
       return order ? order.toJSON() : null;
    }
 
+   async getDeletedById(id: string): Promise<PurchaseOrderProps | null> {
+      const order = await this.repo.findDeletedById(id);
+      return order ? order.toJSON() : null;
+   }
+
    async create(data: CreatePurchaseOrderDTO): Promise<PurchaseOrderProps> {
       if (!data.proveedor_id?.trim()) {
          throw new Error("Proveedor es requerido");
@@ -116,8 +121,11 @@ export class PurchaseOrderService {
       return this.repo.removeApprover(userId);
    }
 
-   async delete(userId: string, id: string): Promise<boolean> {
-      return this.repo.delete(userId, id);
+   async delete(userId: string, id: string, deleted_reason?: string | null): Promise<boolean> {
+      if (!deleted_reason?.trim()) {
+         throw new Error("Debe especificar el motivo de la anulación");
+      }
+      return this.repo.delete(userId, id, deleted_reason);
    }
 
    private validateItems(items: PurchaseOrderItemInput[]): void {

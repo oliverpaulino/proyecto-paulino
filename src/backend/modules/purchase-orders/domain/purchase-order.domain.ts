@@ -171,6 +171,7 @@ export interface IPurchaseOrderRepository {
    findAll(params: PurchaseOrderFilters): Promise<PurchaseOrderPaginatedResult>;
    findAllDeleted(params: PurchaseOrderFilters): Promise<PurchaseOrderPaginatedResult>
    findById(id: string): Promise<PurchaseOrder | null>;
+   findDeletedById(id: string): Promise<PurchaseOrder | null>;
    restore(id: string): Promise<PurchaseOrder | null>;
    create(data: CreatePurchaseOrderDTO): Promise<PurchaseOrder>;
    updateHeader(
@@ -187,7 +188,7 @@ export interface IPurchaseOrderRepository {
       approvedBy?: string,
       approvedByName?: string
    ): Promise<PurchaseOrder | null>;
-   delete(userId: string, id: string): Promise<boolean>;
+   delete(userId: string, id: string, deleted_reason?: string | null): Promise<boolean>;
    // Approver management
    isApprover(userId: string): Promise<boolean>;
    listApprovers(): Promise<ApproverRecord[]>;
