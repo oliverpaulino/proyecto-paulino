@@ -53,6 +53,7 @@ type ConduceStore = {
    RestoreConduce: (id: string) => Promise<ConduceDTO | Error>;
    /** Trae TODOS los conduces de un proyecto, opcionalmente filtrados (búsqueda global, reemplaza la carga per-categoría). */
    GetAllConducesByProyecto: (proyectoId: string, filtros?: { busqueda?: string; es_cobrable?: string; tipo_conduce?: string; categoria?: string }) => Promise<void>;
+   FetchConducesParaReporte: (filtros: ConduceFiltros) => Promise<ConduceDTO[]>;
    /** Limpia conducesPorCategoria (vuelve a lazy loading per-categoría). */
    ClearConducesPorCategoria: () => void;
    BulkToggleCobrable: (ids: string[], es_cobrable: boolean) => Promise<true | Error>;
