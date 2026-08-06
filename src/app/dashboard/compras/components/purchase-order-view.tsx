@@ -21,6 +21,7 @@ import {
 } from "./purchase-order-filters";
 import { DeletePurchaseOrderDialog } from "./delete-purchase-order-dialog";
 import { TableSearch } from "@/components/table-search";
+import { PageSizeSelector } from "@/components/page-size-selector";
 import Link from "next/link";
 import { useSession } from "@/lib/auth-client";
 
@@ -75,7 +76,7 @@ export default function ComprasView() {
    const [formLoading, setFormLoading] = useState(false);
    const [searchInput, setSearchInput] = useState("");
    const [page, setPage] = useState(1);
-   const limit = 10;
+   const [limit, setLimit] = useState(10);
    const [search, setSearch] = useState("");
    const [filters, setFilters] = useState<PurchaseOrderFiltersValues>({
       proveedorId: "",
@@ -102,6 +103,7 @@ export default function ComprasView() {
    }, [
       GetPurchaseOrders,
       page,
+      limit,
       search,
       filters.proveedorId,
       filters.estado,
@@ -124,6 +126,11 @@ export default function ComprasView() {
    function handleClearFilters() {
       setFilters({ proveedorId: "", estado: "", estadoPago: "", equipoId: "" });
       setFiltersResetKey((k) => k + 1);
+      setPage(1);
+   }
+
+   function handleLimitChange(value: number) {
+      setLimit(value);
       setPage(1);
    }
 
@@ -194,15 +201,8 @@ export default function ComprasView() {
             <div className="mt-4 h-px bg-gradient-to-r from-brand-blue via-brand-yellow/50 to-transparent" />
          </div>
 
-         {/* Stat cards */}
-         <div className="grid grid-cols-1 gap-4 sm:grid-cols-1 lg:grid-cols-3">
-            <StatCard label="Total Órdenes" value={total} accent="blue" />
-            <StatCard label="Pendientes" value={pendientes} accent="yellow" />
-            <StatCard label="Aprobadas" value={aprobadas} accent="red" />
-         </div>
-
          {/* Search + New */}
-         <div className="flex items-center gap-3">
+         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <TableSearch
                value={searchInput}
                onValueChange={setSearchInput}
@@ -212,10 +212,10 @@ export default function ComprasView() {
                }}
                placeholder="Buscar por proveedor, estado…"
                debounceDelay={350}
-               className="w-full max-w-sm"
+               className="w-full sm:max-w-sm"
             />
 
-            <div className="ml-auto">
+            <div className="sm:ml-auto">
                <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                   <DialogTrigger asChild>
                      <Button className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold shadow-md shadow-brand-yellow/30 border-0">
@@ -262,39 +262,44 @@ export default function ComprasView() {
                onDelete={setDeleteTarget}
             />
          )}
-         <div className="flex items-center justify-between mt-4">
-            <p className="text-sm text-muted-foreground">
-               Página {page} de {Math.ceil(PurchaseOrders.total / limit)}
-            </p>
+         <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
+            <PageSizeSelector value={limit} onChange={handleLimitChange} />
+            <div className="flex flex-wrap items-center gap-4">
+               <p className="text-sm text-muted-foreground">
+                  Mostrando {(page - 1) * limit + 1}–{Math.min(page * limit, total)} de {total}
+                  {/* Mostrando {PurchaseOrders.data.length} de {total} órdenes */}
+                  {/* Página {page} de {Math.ceil(PurchaseOrders.total / limit)} - total {PurchaseOrders.total} órdenes */}
+               </p>
 
-            <div className="flex gap-2">
-               <Button
-                  variant="outline"
-                  disabled={page === 1}
-                  onClick={() => setPage((p) => p - 1)}
-               >
-                  Anterior
-               </Button>
+               <div className="flex gap-2">
+                  <Button
+                     variant="outline"
+                     disabled={page === 1}
+                     onClick={() => setPage((p) => p - 1)}
+                  >
+                     Anterior
+                  </Button>
 
-               <Button
-                  variant="outline"
-                  disabled={page >= Math.ceil(PurchaseOrders.total / limit)}
-                  onClick={() => setPage((p) => p + 1)}
-               >
-                  Siguiente
-               </Button>
+                  <Button
+                     variant="outline"
+                     disabled={page >= Math.ceil(PurchaseOrders.total / limit)}
+                     onClick={() => setPage((p) => p + 1)}
+                  >
+                     Siguiente
+                  </Button>
+               </div>
             </div>
          </div>
 
          {useSession().data?.user?.role === "administrador" && (
-            <div className="flex gap-2 mt-4 w-full justify-center" >
-               <Button asChild variant="outline" className="font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive w-1/2">
+            <div className="flex flex-col sm:flex-row gap-2 mt-4 w-full justify-center" >
+               <Button asChild variant="outline" className="font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive w-full sm:w-1/2">
                   <Link href="/dashboard/compras/eliminadas">
                      <Trash2 className="size-4 mr-2" />
                      Ordenes Eliminados
                   </Link>
                </Button>
-               <Button asChild variant="outline" className="font-semibold text-brand-blue hover:bg-brand-blue/10 hover:text-brand-blue w-1/2">
+               <Button asChild variant="outline" className="font-semibold text-brand-blue hover:bg-brand-blue/10 hover:text-brand-blue w-full sm:w-1/2">
                   <Link href="/dashboard/compras/aprobadores">
                      <Pencil className="size-4 mr-2" />
                      Firmantes de Ordenes de Compras

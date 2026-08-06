@@ -110,7 +110,7 @@ export function PurchaseOrderTable({
 
    return (
       <>
-      <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
+      <div className="hidden md:block overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
          <table className="w-full text-sm">
             <thead>
                <tr className="bg-brand-blue">
@@ -232,8 +232,114 @@ export function PurchaseOrderTable({
                      </td>
                   </tr>
                ))}
-               </tbody>
-            </table>
+                </tbody>
+             </table>
+          </div>
+
+         {/* Vista móvil: tarjetas apiladas */}
+         <div className="md:hidden space-y-3">
+            {orders.map((order) => (
+               <div key={order.codigoReferencia} className="rounded-xl border border-border bg-card p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                     <div className="min-w-0">
+                        <Link href={`/dashboard/compras/${order.id}`} className="hover:underline">
+                           <span className="inline-block rounded bg-brand-yellow/25 px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-black dark:text-brand-yellow">
+                              {order.codigoReferencia}
+                           </span>
+                        </Link>
+                        <div className="text-xs text-muted-foreground mt-1">
+                           {new Date(order.fecha).toLocaleDateString("es-DO")}
+                        </div>
+                     </div>
+                     <div className="flex items-center gap-1 shrink-0">
+                        <PermissionGuard resource="material_request" action="update">
+                           <button
+                              onClick={() => onEdit(order)}
+                              className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10 transition-colors"
+                              title="Editar"
+                           >
+                              <Pencil className="size-4" />
+                           </button>
+                        </PermissionGuard>
+                        <PermissionGuard resource="material_request" action="delete">
+                           <button
+                              onClick={() => onDelete(order)}
+                              className="rounded-md p-1.5 text-brand-red hover:bg-brand-red/10 transition-colors"
+                              title="Eliminar"
+                           >
+                              <Trash2 className="size-4" />
+                           </button>
+                        </PermissionGuard>
+                        <DropdownMenu modal={false}>
+                           <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                 <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                           </DropdownMenuTrigger>
+                           <DropdownMenuContent
+                              align="end"
+                              className="z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+                           >
+                              <DropdownMenuItem
+                                 className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground"
+                                 onClick={() => router.push(`/dashboard/compras/${order.id}`)}
+                              >
+                                 <Eye className="w-4 h-4 mr-2" />
+                                 Ver en detalle
+                              </DropdownMenuItem>
+                              {["APROBADA", "RECIBIDA"].includes(order.estado) && (
+                                 <DropdownMenuItem
+                                    className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground"
+                                    onClick={() => setPayOrder(order)}
+                                 >
+                                    <Wallet className="w-4 h-4 mr-2" />
+                                    Realizar pago
+                                 </DropdownMenuItem>
+                              )}
+                           </DropdownMenuContent>
+                        </DropdownMenu>
+                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                     <div>
+                        <div className="text-xs text-muted-foreground">Proveedor</div>
+                        <div className="font-semibold text-brand-blue dark:text-white truncate">
+                           {order.proveedor_nombre ?? order.proveedor_id}
+                        </div>
+                     </div>
+                     <div>
+                        <div className="text-xs text-muted-foreground">Creada</div>
+                        <div>{new Date(order.created_at).toLocaleDateString("es-DO")}</div>
+                     </div>
+                     <div>
+                        <div className="text-xs text-muted-foreground">Estado</div>
+                        <span
+                           title="Estado logístico"
+                           className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${ESTADO_BADGE[order.estado] ?? ""}`}
+                        >
+                           {ESTADO_LABEL[order.estado] ?? order.estado}
+                        </span>
+                     </div>
+                     <div>
+                        <div className="text-xs text-muted-foreground">Pago</div>
+                        <span
+                           title="Estado financiero"
+                           className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${ESTADO_PAGO_BADGE[order.estado_pago] ?? ""}`}
+                        >
+                           {ESTADO_PAGO_LABEL[order.estado_pago] ?? order.estado_pago}
+                        </span>
+                     </div>
+                  </div>
+
+                  <div className="flex items-center justify-between border-t border-border pt-3">
+                     <span className="text-xs text-muted-foreground">Total</span>
+                     <span className="font-semibold text-brand-blue dark:text-white">
+                        {formatMoney(order.total)}
+                     </span>
+                  </div>
+               </div>
+            ))}
          </div>
 
          <Dialog open={!!payOrder} onOpenChange={(open) => { if (!open) setPayOrder(null); }}>

@@ -9,6 +9,7 @@ import type { PurchaseOrderDeleted } from "@/dtos/purchase-order.dto";
 import { RestorePurchaseOrderDialog } from "../components/restore-purchase-order-dialog";
 import { PermissionGuard } from "@/components/permission-guard";
 import { TableSearch } from "@/components/table-search";
+import { PageSizeSelector } from "@/components/page-size-selector";
 
 // Utilidades puras fuera del componente para no recrearlas en cada render
 const formatMoney = (value: number): string =>
@@ -29,7 +30,7 @@ export default function ComprasEliminadasPage() {
 
    const [search, setSearch] = useState(searchParams.get("search") ?? "");
    const [page, setPage] = useState(1);
-   const limit = 10;
+   const [limit, setLimit] = useState(10);
 
    const [restoreTarget, setRestoreTarget] = useState<PurchaseOrderDeleted | null>(null);
    const [formLoading, setFormLoading] = useState(false);
@@ -44,6 +45,11 @@ export default function ComprasEliminadasPage() {
    const handleSearch = (value: string) => {
       setSearch(value);
       setPage(1); // Crucial: Volver a la página 1 al buscar
+   };
+
+   const handleLimitChange = (value: number) => {
+      setLimit(value);
+      setPage(1);
    };
 
    const handleRestore = async () => {
@@ -85,8 +91,8 @@ export default function ComprasEliminadasPage() {
             </div>
 
             {/* Barra de Herramientas (Buscador + Indicador de carga) */}
-            <div className="flex items-center justify-between gap-3">
-               <div className="w-full max-w-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+               <div className="w-full sm:max-w-sm">
                   <TableSearch
                      placeholder="Buscar por OC, proveedor o motivo..."
                      value={search}
@@ -115,7 +121,8 @@ export default function ComprasEliminadasPage() {
                   <span className="text-gray-400 mt-1">Intenta con otros términos de búsqueda.</span>
                </div>
             ) : (
-               <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
+               <>
+               <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
                   <table className="w-full text-sm">
                      <thead>
                         <tr className="bg-brand-blue/90 border-b">
@@ -168,12 +175,72 @@ export default function ComprasEliminadasPage() {
                                  </Button>
                               </td>
                            </tr>
-                        ))}
-                     </tbody>
-                  </table>
+                         ))}
+                      </tbody>
+                   </table>
+               </div>
 
-                  {/* Paginación */}
-                  <div className="flex p-4 border-t items-center justify-between bg-gray-50 dark:bg-gray-900/20">
+               {/* Vista móvil: tarjetas apiladas */}
+               <div className="md:hidden space-y-3">
+                  {PurchaseOrdersDeleted.data.map((order) => (
+                     <div key={order.id} className="rounded-lg border border-gray-200 bg-white p-4 space-y-3 shadow-sm dark:border-gray-800 dark:bg-gray-950">
+                        <div className="flex items-start justify-between gap-2">
+                           <div className="min-w-0">
+                              <span className="font-mono text-xs text-gray-700 bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300">
+                                 {order.codigoReferencia}
+                              </span>
+                              <div className="text-xs text-gray-500 mt-1">
+                                 {formatDate(order.fecha)}
+                              </div>
+                           </div>
+                           <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setRestoreTarget(order)}
+                              disabled={loading || formLoading}
+                              className="h-8 shrink-0 text-brand-blue border-brand-blue/20 hover:bg-brand-blue hover:text-white transition-all"
+                           >
+                              <RefreshCw className="size-3.5 mr-1.5" />
+                              Restaurar
+                           </Button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                           <div>
+                              <div className="text-xs text-gray-500">Proveedor</div>
+                              <div className="font-medium text-gray-900 truncate dark:text-gray-100">
+                                 {order.proveedor_nombre ?? "Proveedor Desconocido"}
+                              </div>
+                           </div>
+                           <div>
+                              <div className="text-xs text-gray-500">Eliminado por</div>
+                              <div className="font-medium text-gray-700 truncate dark:text-gray-300">
+                                 {order.deleted_by_name ?? order.deleted_by ?? "Sistema"}
+                              </div>
+                           </div>
+                           <div className="col-span-2">
+                              <div className="text-xs text-gray-500">Motivo</div>
+                              <div className="text-xs text-red-600 italic dark:text-red-400">
+                                 {order.deleted_reason ?? "Sin motivo especificado"}
+                              </div>
+                           </div>
+                        </div>
+
+                        <div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-800 pt-3">
+                           <span className="text-xs text-gray-500">Fecha eliminación</span>
+                           <span className="text-sm font-medium text-gray-400 line-through">
+                              {formatMoney(order.total)}
+                           </span>
+                        </div>
+                     </div>
+                  ))}
+               </div>
+
+               {/* Paginación */}
+               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
+                  <PageSizeSelector value={limit} onChange={handleLimitChange} />
+
+                  <div className="flex flex-wrap items-center gap-4">
                      <p className="text-sm text-gray-500 font-medium">
                         Página {PurchaseOrdersDeleted.page} de {Math.max(1, PurchaseOrdersDeleted.totalPages)}
                      </p>
@@ -198,6 +265,7 @@ export default function ComprasEliminadasPage() {
                      </div>
                   </div>
                </div>
+               </>
             )}
 
             <RestorePurchaseOrderDialog
