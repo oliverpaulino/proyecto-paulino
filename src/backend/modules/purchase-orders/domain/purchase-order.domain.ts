@@ -80,7 +80,9 @@ const TRANSITIONS: Record<EstadoOrdenCompra, EstadoOrdenCompra[]> = {
    PENDIENTE: ["APROBADA", "BORRADOR", "CANCELADA"],
    APROBADA: ["RECIBIDA", "CANCELADA"],
    RECIBIDA: [],
-   CANCELADA: [],
+   // Descancelar devuelve la orden a borrador: vuelve a estar editable y debe
+   // pasar de nuevo por el flujo (revisión → aprobación) antes de recibirse.
+   CANCELADA: ["BORRADOR"],
 };
 
 export function canTransition(
