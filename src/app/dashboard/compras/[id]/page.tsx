@@ -59,7 +59,7 @@ const TRANSITIONS: Record<EstadoOrdenCompra, EstadoOrdenCompra[]> = {
    PENDIENTE: ["APROBADA", "BORRADOR", "CANCELADA"],
    APROBADA: ["RECIBIDA", "CANCELADA"],
    RECIBIDA: [],
-   CANCELADA: [],
+   CANCELADA: ["BORRADOR"],
 };
 
 const TRANSITION_BUTTON_LABEL: Record<EstadoOrdenCompra, string> = {
