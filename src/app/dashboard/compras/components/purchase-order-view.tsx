@@ -10,7 +10,7 @@ import {
    DialogTitle,
    DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, ShoppingCart } from "lucide-react";
+import { Pencil, Plus, ShoppingCart, Trash2 } from "lucide-react";
 import { usePurchaseOrderStore } from "@/stores/usePurchaseOrderStore";
 import type { PurchaseOrder } from "@/dtos/purchase-order.dto";
 import { PurchaseOrderForm } from "./purchase-order-form";
@@ -21,6 +21,8 @@ import {
 } from "./purchase-order-filters";
 import { DeletePurchaseOrderDialog } from "./delete-purchase-order-dialog";
 import { TableSearch } from "@/components/table-search";
+import Link from "next/link";
+import { useSession } from "@/lib/auth-client";
 
 const STAT_STYLES = {
    blue: {
@@ -283,6 +285,24 @@ export default function ComprasView() {
                </Button>
             </div>
          </div>
+
+         {useSession().data?.user?.role === "administrador" && (
+            <div className="flex gap-2 mt-4 w-full justify-center" >
+               <Button asChild variant="outline" className="font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive w-1/2">
+                  <Link href="/dashboard/compras/eliminadas">
+                     <Trash2 className="size-4 mr-2" />
+                     Ordenes Eliminados
+                  </Link>
+               </Button>
+               <Button asChild variant="outline" className="font-semibold text-brand-blue hover:bg-brand-blue/10 hover:text-brand-blue w-1/2">
+                  <Link href="/dashboard/compras/aprobadores">
+                     <Pencil className="size-4 mr-2" />
+                     Firmantes de Ordenes de Compras
+                  </Link>
+               </Button>
+            </div>
+         )}
+
 
          {/* Edit dialog */}
          <Dialog
