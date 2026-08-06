@@ -36,6 +36,7 @@ import {
    Trash2,
    Contact,
    ReceiptText,
+   ArrowDownRight,
 } from "lucide-react";
 import { EmployeeForm, type OperadorFormData } from "../../components/employee-form";
 import { DeleteEmployeeDialog } from "../../components/delete-employee-dialog";
@@ -418,13 +419,16 @@ export default function EmployeeDetailView() {
             <TabsContent value="deducciones" className="space-y-4">
                <Card>
                   <CardHeader>
-                     <CardTitle>Deducciones del empleado</CardTitle>
+                     <CardTitle className="flex items-center gap-2">
+                        <ArrowDownRight className="size-5 text-brand-blue" />
+                        Deducciones del empleado
+                     </CardTitle>
                      <CardDescription>
-                        Cuotas y saldos de las deducciones (daños, adelantos, etc.) de {empleado.nombre}.
+                        Cuotas, saldos y pagos de las deducciones (daños, adelantos, etc.) de {empleado.nombre}.
                      </CardDescription>
                   </CardHeader>
                   <CardContent>
-                     <EmployeeDeducciones empleadoId={empleadoId} />
+                     <EmployeeDeducciones empleadoId={empleadoId} empleadoNombre={empleado.nombre} />
                   </CardContent>
                </Card>
             </TabsContent>

@@ -10,7 +10,7 @@ import {
    DialogTitle,
    DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Receipt, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { Plus, Receipt, ChevronLeft, ChevronRight, Trash2, Tags } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "@/lib/auth-client";
 import { useGastoStore } from "@/stores/useGastoStore";
@@ -113,12 +113,20 @@ export default function GastosPage() {
           )}
  
           {useSession().data?.user?.role === "administrador" && (
-             <Button asChild variant="outline" className="font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive">
-                <Link href="/dashboard/gastos/anulados">
-                   <Trash2 className="size-4 mr-2" />
-                   Gastos Anulados
-                </Link>
-             </Button>
+             <div className="flex flex-col sm:flex-row gap-2 mt-4 w-full justify-center">
+                <Button asChild variant="outline" className="font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive w-full sm:w-1/2">
+                   <Link href="/dashboard/gastos/anulados">
+                      <Trash2 className="size-4 mr-2" />
+                      Gastos Anulados
+                   </Link>
+                </Button>
+                <Button asChild variant="outline" className="font-semibold text-brand-blue hover:bg-brand-blue/10 hover:text-brand-blue w-full sm:w-1/2">
+                   <Link href="/dashboard/categorias-gastos">
+                      <Tags className="size-4 mr-2" />
+                      Categorías de Gastos
+                   </Link>
+                </Button>
+             </div>
           )}
       </div>
    );
