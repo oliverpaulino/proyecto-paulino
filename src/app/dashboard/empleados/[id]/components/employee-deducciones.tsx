@@ -299,11 +299,10 @@ export function EmployeeDeducciones({ empleadoId, empleadoNombre }: EmployeeDedu
                                                       </td>
                                                       <td className="py-1.5 pr-4">
                                                          <span
-                                                            className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                                                               p.via === "NOMINA"
+                                                            className={`rounded-full px-2 py-0.5 text-xs font-semibold ${p.via === "NOMINA"
                                                                   ? "bg-brand-blue/10 text-brand-blue"
                                                                   : "bg-brand-yellow/25 text-brand-black"
-                                                            }`}
+                                                               }`}
                                                          >
                                                             {p.via === "NOMINA" ? "Nómina" : "Pago directo"}
                                                          </span>

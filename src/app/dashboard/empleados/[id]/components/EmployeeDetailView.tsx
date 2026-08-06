@@ -397,9 +397,9 @@ export default function EmployeeDetailView() {
                                        >
                                           <Pencil className="size-4 text-muted-foreground" />
                                        </Button>
-                                        <Button variant="ghost" size="icon" onClick={() => setTarifaAEliminar({ id: tarifa.id, nombre: tarifa.tarifa_nombre })}>
-                                           <Trash2 className="size-4 text-red-500" />
-                                        </Button>
+                                       <Button variant="ghost" size="icon" onClick={() => setTarifaAEliminar({ id: tarifa.id, nombre: tarifa.tarifa_nombre })}>
+                                          <Trash2 className="size-4 text-red-500" />
+                                       </Button>
                                     </TableCell>
                                  </TableRow>
                               ))}
