@@ -30,7 +30,7 @@ export function SelectBuscadorClient({
    const [inputValue, setInputValue] = useState(initialLabel);
    const containerRef = useRef<HTMLDivElement>(null);
 
-   const debouncedSearch = useDebounce(inputValue, 500);
+   const debouncedSearch = useDebounce(inputValue, 200);
 
    useEffect(() => {
       setInputValue(initialLabel);
@@ -41,8 +41,6 @@ export function SelectBuscadorClient({
          if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
             setIsOpen(false);
 
-            // FIX: Si hay un cliente seleccionado, revertimos el texto a su nombre real
-            // para no dejar texto "basura" que el usuario escribió pero no seleccionó.
             if (value) {
                setInputValue(initialLabel);
             } else {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Loader2, User, X } from "lucide-react";
+import { Loader2, TriangleAlert, User, X } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useEmployeeStore } from "@/stores/useEmployeeStore";
 import type { Employee, OperadorAsignable } from "@/dtos/employee.dto";
@@ -30,6 +30,13 @@ export function SelectBuscadorOperator({
    const debouncedSearch = useDebounce(inputValue, 500);
 
    let operators = Operators ?? [];
+
+   // Un empleado inactivo no puede asignarse: solo se ofrece para seleccionar
+   // el que sigue activo. El ya asignado inactivo se sigue viendo (con aviso)
+   // para que quede claro por qué el equipo quedó sin operador.
+   const asignables = operators.filter((o) => o.activo !== false);
+   const valorAsignado = value ? operators.find((o) => o.id === value) : undefined;
+   const valorInactivo = valorAsignado && valorAsignado.activo === false;
 
    useEffect(() => {
       GetOperators({ search: "", limit: 20, force: true });
@@ -123,10 +130,10 @@ export function SelectBuscadorOperator({
 
          {isOpen && (
             <div className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-md p-1">
-               {loading && (operators?.length ?? 0) === 0 ? (
+               {loading && (asignables?.length ?? 0) === 0 ? (
                   <div className="p-4 text-center text-sm text-muted-foreground">Buscando operadores...</div>
-               ) : (operators?.length ?? 0) > 0 ? (
-                  operators
+               ) : (asignables?.length ?? 0) > 0 ? (
+                  asignables
                      .filter(o => o.id !== value) // Filtrar solo operadores activos y no seleccionados
                      .map((operator) => (
                         <div
@@ -149,6 +156,13 @@ export function SelectBuscadorOperator({
                   <div className="p-4 text-center text-sm text-muted-foreground">No se encontraron empleados.</div>
                )}
             </div>
+         )}
+
+         {valorInactivo && (
+            <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-amber-600">
+               <TriangleAlert className="size-3.5" />
+               {valorAsignado.nombre} está inactivo — no puede operar. Selecciona otro operador.
+            </p>
          )}
       </div>
    );
