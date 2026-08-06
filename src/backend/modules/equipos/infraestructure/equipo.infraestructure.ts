@@ -119,6 +119,16 @@ export class KyselyEquipoRepository implements IEquipoRepository {
       return this.mapToEntity(row);
    }
 
+   async existsPlaca(placa: string, excludeId?: string): Promise<boolean> {
+      let qb = this.db
+         .selectFrom("equipo")
+         .select("equipo.id")
+         .where("equipo.placa", "ilike", placa.trim());
+      if (excludeId) qb = qb.where("equipo.id", "!=", excludeId);
+      const row = await qb.limit(1).executeTakeFirst();
+      return !!row;
+   }
+
    async create(data: CreateEquipoDTO): Promise<Equipo> {
       const row = await this.db
          .insertInto("equipo")

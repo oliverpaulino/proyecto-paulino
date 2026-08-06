@@ -46,9 +46,12 @@ export class EquipoService {
       }
       this.validateAno(data.ano);
       await this.validarOperadorActivo(data.operador_id);
+      await this.validarPlacaUnica(data.placa ?? null);
 
       const equipo = await this.repo.create({
          ...data,
+         // La placa en blanco se guarda como null, no como "".
+         placa: data.placa != null && data.placa.trim() ? data.placa.trim() : null,
          ano: data.ano != null ? Number(data.ano) : null,
       });
       return equipo.toJSON();
@@ -71,9 +74,15 @@ export class EquipoService {
             await this.validarOperadorActivo(data.operador_id);
          }
       }
+      if (data.placa !== undefined) {
+         await this.validarPlacaUnica(data.placa ?? null, id);
+      }
 
       const payload: UpdateEquipoDTO = { ...data };
       if (data.ano !== undefined && data.ano !== null) payload.ano = Number(data.ano);
+      if (data.placa !== undefined) {
+         payload.placa = data.placa != null && data.placa.trim() ? data.placa.trim() : null;
+      }
 
       const equipo = await this.repo.update(id, payload);
       return equipo ? equipo.toJSON() : null;
@@ -152,6 +161,16 @@ export class EquipoService {
       const activo = await this.employeeRepo.isOperadorActivo(operadorId);
       if (activo === null) throw new Error("El operador seleccionado no existe");
       if (activo === false) throw new Error("No se puede asignar un operador inactivo a un equipo");
+   }
+
+   /**
+    * La placa es opcional pero única: dos equipos no pueden compartir la misma
+    * placa. `excludeId` evita el falso positivo al editar el mismo equipo.
+    */
+   private async validarPlacaUnica(placa: string | null, excludeId?: string): Promise<void> {
+      if (!placa || !placa.trim()) return;
+      const existe = await this.repo.existsPlaca(placa.trim(), excludeId);
+      if (existe) throw new Error(`Ya existe un equipo con la placa ${placa.trim()}`);
    }
 
    private validateAno(ano: number | null | undefined): void {
