@@ -5,10 +5,14 @@ import { auth } from "@/lib/auth";
 import { requirePermission } from "@/backend/shared/require-permission";
 import { KyselyNominaRepository } from "../infraestructure/nomina.infraestructure";
 import { NominaService } from "../service/nomina.service";
+import { KyselyNotificationRepository } from "../../notifications/infrastructure/notification.infrastructure";
+import { NotificationService } from "../../notifications/service/notification.service";
 
 const nominaRoute = new Hono();
 const repo = new KyselyNominaRepository(db);
 const service = new NominaService(repo);
+const notifRepo = new KyselyNotificationRepository(db);
+const notifService = new NotificationService(notifRepo);
 
 const fail = (c: any, err: unknown, fallback: string, status = 400) =>
    c.json({ error: err instanceof Error ? err.message : fallback }, status);
@@ -110,6 +114,32 @@ nominaRoute.post("/cycles/:id/cerrar", puedeCerrar, async (c) => {
    try {
       const ciclo = await service.cerrarCiclo(c.req.param("id"));
       if (!ciclo) return c.json({ error: "Ciclo no encontrado" }, 404);
+
+      // Avisar a los administradores: la nómina quedó cerrada y congelada,
+      // con su gasto contable generado.
+      try {
+         const admins = await db
+            .selectFrom("user")
+            .select(["id"])
+            .where("role", "=", "administrador")
+            .execute();
+
+         if (admins.length > 0) {
+            await notifService.notifyMany(
+               admins.map((a) => ({
+                  user_id: a.id,
+                  title: "Nómina cerrada",
+                  message: `La nómina "${ciclo.nombre}" fue cerrada. Los montos quedaron congelados.`,
+                  type: "PAYROLL_CLOSED",
+                  reference_id: ciclo.id,
+                  reference_type: "payroll_cycle",
+               }))
+            );
+         }
+      } catch {
+         // Notificar no debe fallar el cierre: el ciclo ya quedó guardado.
+      }
+
       return c.json(ciclo);
    } catch (err) {
       return fail(c, err, "Error al cerrar el ciclo");

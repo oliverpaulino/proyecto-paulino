@@ -73,7 +73,7 @@ function PrecioUnitario({
             <TriangleAlert className="size-3.5 shrink-0" />
             <span className="whitespace-nowrap">
                {precios.length === 1
-                  ? "sin tarifa"
+                  ? "sin tarifa · asignar"
                   : `${money(precios[0])} – ${money(precios[precios.length - 1])}`}
             </span>
             <Badge className="border-0 bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0">
@@ -478,6 +478,7 @@ function TarifasDialog({
                                            {tocado && Number(editado[k]) !== t.monto_pago && (
                                               <span className="text-[10px] text-muted-foreground">
                                                  antes {t.monto_pago === 0 ? "sin tarifa" : money(t.monto_pago)}
+                                                 {t.monto_pago === 0 && !manual && !esProyecto(t) && " · se crea la tarifa del empleado"}
                                                  {manual && " · se guarda solo en este ciclo"}
                                                  {!manual && esProyecto(t) && " · se guarda como tarifa del proyecto"}
                                               </span>
@@ -541,7 +542,7 @@ function TarifasDialog({
                            tarifa asignada a este empleado: esos conduces se cuentan en RD$ 0.
                            {readOnly
                               ? " Asígnele la tarifa y recalcule el ciclo."
-                              : " Escriba el precio aquí y guarde para corregirlo."}
+                              : " Escriba el precio aquí y guarde: se crea la tarifa de este empleado para ese tipo de cobro y el ciclo se recalcula."}
                         </span>
                      </p>
                   )}
