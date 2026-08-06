@@ -71,7 +71,7 @@ export const useConduceStore = create<ConduceStore>((set, get) => ({
    conduces: [],
    total: 0,
    page: 1,
-   pageSize: 25,
+   pageSize: 10,
    loading: false,
    filtros: {},
 

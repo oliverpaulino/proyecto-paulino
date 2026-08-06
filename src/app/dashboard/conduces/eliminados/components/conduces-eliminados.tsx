@@ -34,7 +34,7 @@ export function ConducesEliminados() {
          busqueda: busqueda || undefined,
          fecha_desde: fechaDesde || undefined,
          fecha_hasta: fechaHasta || undefined,
-         pageSize: 50,
+         pageSize: 10,
       });
       // eslint-disable-next-line react-hooks/exhaustive-deps
    }, [busqueda, fechaDesde, fechaHasta]);
