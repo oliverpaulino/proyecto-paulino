@@ -6,6 +6,7 @@ import {
    Deduccion,
    IDeduccionRepository,
    PagarDeduccionDTO,
+   PagoDeduccion,
    UpdateDeduccionDTO,
 } from "../domain/deducciones.domain";
 
@@ -38,6 +39,30 @@ export class KyselyDeduccionRepository implements IDeduccionRepository {
             where p.deduccion_empleado_id = deduccion.id
               and p.deleted_at is null
          ), 0)`.as("monto_cobrado_pagos"),
+         sql<string>`coalesce((
+            select json_agg(pg order by pg.fecha, pg.id)
+            from (
+               select dc.id,
+                      coalesce(pc.fecha_pago, pc.fecha_fin) as fecha,
+                      dc.monto,
+                      'NOMINA'::text as via,
+                      pc.nombre as referencia,
+                      null::text as metodo_pago
+               from deduccion_cuota dc
+               left join payroll_cycles pc on pc.id = dc.cycle_id
+               where dc.deduccion_id = deduccion.id
+               union all
+               select p.id,
+                      p.fecha,
+                      p.monto_pagado as monto,
+                      'DIRECTO'::text as via,
+                      p.concepto as referencia,
+                      p.metodo_pago::text
+               from pago p
+               where p.deduccion_empleado_id = deduccion.id
+                 and p.deleted_at is null
+            ) pg
+         ), '[]'::json)`.as("pagos_json"),
       ];
     }
 
@@ -65,11 +90,24 @@ export class KyselyDeduccionRepository implements IDeduccionRepository {
          cuotas_aplicadas: Number(row.cuotas_aplicadas ?? 0),
          monto_cobrado: montoCobrado,
          monto_pendiente: Math.max(0, Number(row.monto_total) - montoCobrado),
+         pagos: this.mapPagos(row.pagos_json),
          fecha: new Date(row.fecha),
          created_at: new Date(row.created_at),
          updated_at: new Date(row.updated_at),
          deleted_at: row.deleted_at ? new Date(row.deleted_at) : null,
       });
+   }
+
+   private mapPagos(raw: any): PagoDeduccion[] {
+      if (!Array.isArray(raw)) return [];
+      return raw.map((p: any) => ({
+         id: p.id,
+         fecha: new Date(p.fecha),
+         monto: Number(p.monto ?? 0),
+         via: p.via === "DIRECTO" ? "DIRECTO" : "NOMINA",
+         referencia: p.referencia ?? null,
+         metodo_pago: p.metodo_pago ?? null,
+      }));
    }
 
    private safeParseReferencia(search: string): number | null {

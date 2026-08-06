@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+export const PagoDeduccionDTO = z.object({
+   id: z.uuid(),
+   fecha: z.coerce.date(),
+   monto: z.number(),
+   via: z.enum(["NOMINA", "DIRECTO"]),
+   referencia: z.string().nullable(),
+   metodo_pago: z.string().nullable(),
+});
+
 export const DeduccionDTO = z.object({
    id: z.uuid(),
    referencia: z.number(),
@@ -12,6 +21,7 @@ export const DeduccionDTO = z.object({
    cuotas_aplicadas: z.number(),
    monto_cobrado: z.number(),
    monto_pendiente: z.number(),
+   pagos: z.array(PagoDeduccionDTO),
    concepto: z.string(),
 
    empleado_id: z.uuid(),

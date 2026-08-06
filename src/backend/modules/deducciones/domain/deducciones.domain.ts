@@ -1,3 +1,14 @@
+export interface PagoDeduccion {
+   id: string;
+   fecha: Date;
+   monto: number;
+   /** De dónde salió el pago: cuota cobrada por una nómina o pago directo a mano. */
+   via: "NOMINA" | "DIRECTO";
+   /** Nombre del ciclo (nómina) o concepto/referencia del pago (directo). */
+   referencia: string | null;
+   metodo_pago: string | null;
+}
+
 export interface DeduccionProps {
    id: string;
    referencia: number;
@@ -12,9 +23,11 @@ export interface DeduccionProps {
    cuotas_aplicadas: number;
    /** Cobrado por nómina + pagos directos registrados contra la deducción. */
    monto_cobrado: number;
-   /** Lo que queda por pagar: monto_total − monto_cobrado. */
-   monto_pendiente: number;
-   concepto: string;
+    /** Lo que queda por pagar: monto_total − monto_cobrado. */
+    monto_pendiente: number;
+    /** Historial de pagos de la deducción: cuotas por nómina y pagos directos. */
+    pagos: PagoDeduccion[];
+    concepto: string;
    
    empleado_id: string;
    //join empleado
@@ -60,8 +73,9 @@ export class Deduccion {
    get monto_cuota() { return this.props.monto_cuota; }
    get cuotas_aplicadas() { return this.props.cuotas_aplicadas; }
    get monto_cobrado() { return this.props.monto_cobrado; }
-   get monto_pendiente() { return this.props.monto_pendiente; }
-   get concepto() { return this.props.concepto; }
+    get monto_pendiente() { return this.props.monto_pendiente; }
+    get pagos() { return this.props.pagos; }
+    get concepto() { return this.props.concepto; }
    get empleado_id() { return this.props.empleado_id; }
    get empleado_codigo_referencia() { return this.props.empleado_codigo_referencia; }
    get empleado_nombre() { return this.props.empleado_nombre; }
