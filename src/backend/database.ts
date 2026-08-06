@@ -429,6 +429,10 @@ export interface DB {
       // no se recalculan.
       categoria_equipo_id: string | null;
       categoria_equipo_nombre: string | null; // snapshot
+      // Proyecto del conduce que generó esta producción. NULL en filas sin
+      // proyecto y en snapshots anteriores a la migración 019.
+      proyecto_id: string | null;
+      proyecto_nombre: string | null; // snapshot
       medida_cobro_nombre: string | null;
       cantidad: Generated<number>;
       monto_pago: Generated<number>; // precio unitario AL CHOFER
@@ -703,6 +707,8 @@ export interface DB {
       equipo_id: string | null;
       gasto_id: string | null;
       monto_total: number;
+      /** Lo que se descuenta por nómina. Por defecto total ÷ cuotas. Editable. */
+      monto_cuota: number;
       concepto: string;
       balance_pendiente: number | null;
       cuotas_sugeridas: number;
@@ -713,6 +719,21 @@ export interface DB {
       deleted_by: string | null;
       deleted_at: Date | null;
       deleted_reason: string | null;
+   };
+
+   /**
+    * Qué nómina cobró cada cuota de una deducción. Es la única forma de saber
+    * cuántas cuotas van aplicadas sin descontar dos veces al recalcular: el
+    * cobro queda pegado al ciclo, no a un contador que se incrementaría en
+    * cada vuelta del motor.
+    */
+   deduccion_cuota: {
+      id: Generated<string>;
+      deduccion_id: string;
+      cycle_id: string;
+      monto: number;
+      created_at: Generated<Date>;
+      updated_at: Generated<Date>;
    };
 
    pago: {

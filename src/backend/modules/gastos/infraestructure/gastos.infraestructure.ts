@@ -203,6 +203,7 @@ export class KyselyGastoRepository implements IGastoRepository {
                monto_total: deduccion.monto_total,
                balance_pendiente: deduccion.balance_pendiente ?? null,
                cuotas_sugeridas: deduccion.cuotas_sugeridas ?? 1,
+               monto_cuota: deduccion.monto_cuota ?? deduccion.monto_total / (deduccion.cuotas_sugeridas ?? 1),
                concepto: deduccion.concepto,
                fecha: deduccion.fecha ?? gastoRow.fecha,
                created_at: new Date(),
