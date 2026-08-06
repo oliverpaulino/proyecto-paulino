@@ -124,7 +124,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         { id: "fin-cuentas-por-pagar", title: "Cuentas por Pagar", url: "/dashboard/cuentas-por-pagar" },
         { id: "fin-subcontrataciones", title: "Subcontrataciones", url: "/dashboard/subcontrataciones" },
         { id: "fin-gastos", title: "Gastos", url: "/dashboard/gastos" },
-        { id: "fin-categorias-gastos", title: "Categorías de Gastos", url: "/dashboard/categorias-gastos" },
         { id: "fin-deducciones", title: "Deducciones", url: "/dashboard/deducciones" },
         { id: "fin-pagos", title: "Pagos", url: "/dashboard/pagos" },
 
