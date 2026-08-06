@@ -22,6 +22,10 @@ const soloFecha = (v: string) => String(v).slice(0, 10);
  * Crea una deducción NUEVA para el chofer. No modifica las que ya existen:
  * cada descuento queda como un registro propio, con su concepto y su fecha,
  * igual que una creada desde el módulo de deducciones.
+ *
+ * Con más de una cuota, la deducción se divide: cada nómina descuenta
+ * `total ÷ cuotas` hasta saldar. Ese monto por cuota se ajusta después,
+ * en el detalle de deducciones de la nómina (no aquí).
  */
 export function AgregarDeduccionDialog({
    empleado,
@@ -33,6 +37,7 @@ export function AgregarDeduccionDialog({
    const { selectedCycle, AgregarDeduccion } = useNominaStore();
 
    const [monto, setMonto] = useState("");
+   const [cuotas, setCuotas] = useState("1");
    const [concepto, setConcepto] = useState("");
    // Por defecto el último día del ciclo, para que caiga dentro del período.
    const [fecha, setFecha] = useState(
@@ -41,18 +46,24 @@ export function AgregarDeduccionDialog({
    const [guardando, setGuardando] = useState(false);
    const [error, setError] = useState<string | null>(null);
 
+   const montoNum = Number(monto);
+   const cuotasNum = Number(cuotas);
+
    async function submit(e: React.FormEvent) {
       e.preventDefault();
       setError(null);
 
-      const n = Number(monto);
-      if (!Number.isFinite(n) || n <= 0) return setError("El monto debe ser mayor a 0.");
+      if (!Number.isFinite(montoNum) || montoNum <= 0)
+         return setError("El monto debe ser mayor a 0.");
+      if (!Number.isInteger(cuotasNum) || cuotasNum <= 0)
+         return setError("Las cuotas deben ser un número entero mayor a 0.");
       if (!concepto.trim()) return setError("Indique el concepto de la deducción.");
       if (!selectedCycle) return setError("No hay un ciclo seleccionado.");
 
       setGuardando(true);
       const ok = await AgregarDeduccion(selectedCycle.id, empleado.empleado_id, {
-         monto: n,
+         monto: montoNum,
+         cuotas: cuotasNum,
          concepto: concepto.trim(),
          fecha,
       });
@@ -81,18 +92,37 @@ export function AgregarDeduccionDialog({
             </DialogHeader>
 
             <form onSubmit={submit} className="flex flex-col gap-4">
-               <div className="flex flex-col gap-1.5">
-                  <Label>Monto *</Label>
-                  <Input
-                     type="number"
-                     step="0.01"
-                     min="0.01"
-                     value={monto}
-                     onChange={(e) => setMonto(e.target.value)}
-                     placeholder="0.00"
-                     autoFocus
-                     required
-                  />
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                     <Label>Monto total *</Label>
+                     <Input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={monto}
+                        onChange={(e) => setMonto(e.target.value)}
+                        placeholder="0.00"
+                        autoFocus
+                        required
+                     />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                     <Label>Cuotas *</Label>
+                     <Input
+                        type="number"
+                        step="1"
+                        min="1"
+                        value={cuotas}
+                        onChange={(e) => setCuotas(e.target.value)}
+                        placeholder="1"
+                        required
+                     />
+                     <span className="text-xs text-muted-foreground">
+                        En cuántas nóminas se reparte. Con 1 se descuenta completa.
+                        El monto por cuota se ajusta después en el detalle de la nómina.
+                     </span>
+                  </div>
                </div>
 
                <div className="flex flex-col gap-1.5">
