@@ -36,6 +36,7 @@ export class ConduceService {
 
    async create(data: CreateConduceDTO): Promise<ConduceProps> {
       this.#validate(data);
+      await this.#validarFolioUnico(data.numero_referencia);
       await this.#validarOperadorActivo(data.operador_id);
       const conduce = await this.repo.create(data);
       // Solo recalcula el proyecto si el conduce quedó asignado a uno — en
@@ -47,6 +48,9 @@ export class ConduceService {
    async update(id: string, data: UpdateConduceDTO, proyectoIdAnterior?: string | null): Promise<ConduceProps> {
       if (data.numero_referencia !== undefined && !data.numero_referencia.trim()) {
          throw new Error("El número de referencia es requerido");
+      }
+      if (data.numero_referencia !== undefined && data.numero_referencia.trim()) {
+         await this.#validarFolioUnico(data.numero_referencia.trim(), id);
       }
       if (data.precio_unitario !== undefined && data.precio_unitario < 0) {
          throw new Error("El precio unitario debe ser mayor o igual a 0");
@@ -148,5 +152,14 @@ export class ConduceService {
       const activo = await this.employeeRepo.isOperadorActivo(operadorId);
       if (activo === null) throw new Error("El operador seleccionado no existe");
       if (activo === false) throw new Error("No se puede registrar un conduce con un operador inactivo");
+   }
+
+   /**
+    * El folio físico que digita la oficina no puede repetirse entre conduces
+    * activos. `excludeId` evita el falso positivo al editar el mismo conduce.
+    */
+   async #validarFolioUnico(numeroReferencia: string, excludeId?: string): Promise<void> {
+      const existe = await this.repo.existsNumeroReferencia(numeroReferencia.trim(), excludeId);
+      if (existe) throw new Error(`El folio ${numeroReferencia.trim()} ya está registrado en otro conduce`);
    }
 }

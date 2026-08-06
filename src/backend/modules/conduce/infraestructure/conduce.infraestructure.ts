@@ -257,6 +257,18 @@ export class KyselyConduceRepository implements IConduceRepository {
       return row ? this.#mapRow(row) : null;
    }
 
+   async existsNumeroReferencia(numeroReferencia: string, excludeId?: string): Promise<boolean> {
+      let qb = this.db
+         .selectFrom("conduce")
+         .select("conduce.id")
+         .where("conduce.numero_referencia", "=", numeroReferencia)
+         // Solo folios en uso visible: un conduce eliminado no ocupa su folio.
+         .where("conduce.deleted_at", "is", null);
+      if (excludeId) qb = qb.where("conduce.id", "!=", excludeId);
+      const row = await qb.limit(1).executeTakeFirst();
+      return !!row;
+   }
+
    async create(data: CreateConduceDTO): Promise<ConduceProps> {
       const categoriaEquipoTarifaId = data.categoria_equipo_tarifa_id || null;
 
