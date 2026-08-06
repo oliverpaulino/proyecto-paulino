@@ -19,19 +19,25 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+   AlertTriangle,
    ArrowLeft,
+   Clock,
    Download,
    Loader2,
    Pencil,
+   RotateCcw,
    ShoppingCart,
    Trash2,
 } from "lucide-react";
 import type { PurchaseOrder, EstadoOrdenCompra } from "@/dtos/purchase-order.dto";
 import { usePurchaseOrderStore } from "@/stores/usePurchaseOrderStore";
 import { DeletePurchaseOrderDialog } from "../../components/delete-purchase-order-dialog";
+import { RestorePurchaseOrderDialog } from "../../components/restore-purchase-order-dialog";
 import { PurchaseOrderForm } from "../../components/purchase-order-form";
 import { generatePurchaseOrderPDF } from "./purchase-order-pdf";
 import { PurchaseOrderPagos } from "./purchase-order-pagos";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 const ESTADO_BADGE: Record<string, string> = {
    BORRADOR:
@@ -93,7 +99,8 @@ function formatMoney(value: number): string {
    }).format(value);
 }
 
-function formatDate(value: string | Date) {
+function formatDate(value: string | Date | null | undefined): string {
+   if (!value) return "-";
    return new Date(value).toLocaleDateString("es-DO");
 }
 
@@ -114,16 +121,23 @@ export default function PurchaseOrderDetail() {
    const searchParams = useSearchParams();
    const orderId = params.id as string;
 
-   const { UpdatePurchaseOrder, ChangeStatus, DeletePurchaseOrder, CheckIsApprover, GetPurchaseOrderById } =
-      usePurchaseOrderStore();
+   const { 
+      UpdatePurchaseOrder, 
+      ChangeStatus, 
+      DeletePurchaseOrder, 
+      RestorePurchaseOrder, 
+      CheckIsApprover, 
+      GetPurchaseOrderById 
+   } = usePurchaseOrderStore();
 
    const [order, setOrder] = useState<PurchaseOrder | null>(null);
    const [loading, setLoading] = useState(true);
    const [actionLoading, setActionLoading] = useState(false);
    const [editOpen, setEditOpen] = useState(false);
    const [deleteOpen, setDeleteOpen] = useState(false);
+   const [restoreOpen, setRestoreOpen] = useState(false);
    const [isApprover, setIsApprover] = useState(false);
-   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "detalles")
+   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "detalles");
    const [approveError, setApproveError] = useState<string | null>(null);
 
    useEffect(() => {
@@ -192,12 +206,27 @@ export default function PurchaseOrderDetail() {
       }
    }
 
-   async function handleDelete() {
+   async function handleDelete(reason: string) {
       setActionLoading(true);
       try {
-         const result = await DeletePurchaseOrder(orderId);
+         const result = await DeletePurchaseOrder(orderId, reason);
          if (result instanceof Error) throw result;
-         router.push("/dashboard/compras");
+         await refreshOrder();
+         setDeleteOpen(false);
+      } finally {
+         setActionLoading(false);
+      }
+   }
+
+   async function handleRestore() {
+      setActionLoading(true);
+      try {
+         const result = await RestorePurchaseOrder(orderId);
+         if (result instanceof Error) throw result;
+         setRestoreOpen(false);
+         await refreshOrder();
+      } catch (error: any) {
+         alert(error.message || "Error al restaurar la orden");
       } finally {
          setActionLoading(false);
       }
@@ -227,8 +256,10 @@ export default function PurchaseOrderDetail() {
       );
    }
 
+   // Identificador clave: si tiene `deleted_by`, la orden se considera eliminada/anulada
+   const isDeleted = !!order.deleted_by;
+
    const nextStates = TRANSITIONS[order.estado] ?? [];
-   // Only show the APROBADA transition if current user is an approved signer
    const visibleNextStates = nextStates.filter(
       (s) => s !== "APROBADA" || isApprover
    );
@@ -236,7 +267,7 @@ export default function PurchaseOrderDetail() {
    return (
       <div className="flex flex-col gap-6 p-6">
 
-         {/* Header */}
+         {/* ── ENCABEZADO Y CONTROLES ── */}
          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex items-start gap-4">
                <Button
@@ -249,7 +280,7 @@ export default function PurchaseOrderDetail() {
                <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                      <h1 className="text-2xl font-bold text-brand-blue dark:text-white">
-                        Orden {order.codigoReferencia}…
+                        Orden {order.codigoReferencia}
                      </h1>
                      <span
                         title="Estado logístico"
@@ -263,19 +294,25 @@ export default function PurchaseOrderDetail() {
                      >
                         {ESTADO_PAGO_LABEL[order.estado_pago] ?? order.estado_pago}
                      </span>
+                     {isDeleted && (
+                        <span className="rounded-full px-2.5 py-1 text-xs font-semibold bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300">
+                           Anulada
+                        </span>
+                     )}
                   </div>
                   <p className="text-sm text-muted-foreground">
                      Proveedor:{" "}
                      <strong>{order.proveedor_nombre ?? order.proveedor_id}</strong>
                   </p>
-                  <p className="text-sm text-muted-foreground">
-                     Fecha: {formatDate(order.fecha)}
+                  <p className="text-sm text-muted-foreground flex items-center gap-1.5 truncate">
+                     <Clock className="size-4 text-brand-blue" />
+                     {format(new Date(order.fecha), "EEEE, d 'de' MMMM yyyy", { locale: es })}
                   </p>
                </div>
             </div>
 
-            <div className="flex flex-wrap gap-2 lg:justify-end">
-               {/* PDF download */}
+            <div className="flex flex-wrap gap-2 lg:justify-end shrink-0">
+               {/* PDF download (Siempre visible) */}
                <Button
                   variant="outline"
                   size="sm"
@@ -285,48 +322,81 @@ export default function PurchaseOrderDetail() {
                   Descargar PDF
                </Button>
 
-               {/* Status transition buttons */}
-               {visibleNextStates.map((estado) => (
-                  <Button
-                     key={estado}
-                     variant={estado === "CANCELADA" ? "destructive" : "outline"}
-                     onClick={() => handleStatusChange(estado)}
-                     disabled={actionLoading}
+               {/* Lógica de botones: Ocultar todo excepto PDF/Restaurar si está anulada */}
+               {!isDeleted ? (
+                  <>
+                     {/* Status transition buttons */}
+                     {visibleNextStates.map((estado) => (
+                        <Button
+                           key={estado}
+                           variant={estado === "CANCELADA" ? "destructive" : "outline"}
+                           onClick={() => handleStatusChange(estado)}
+                           disabled={actionLoading}
+                           size="sm"
+                        >
+                           {TRANSITION_BUTTON_LABEL[estado]}
+                        </Button>
+                     ))}
+
+                     {/* Hint when APROBADA is hidden */}
+                     {nextStates.includes("APROBADA") && !isApprover && (
+                        <p className="self-center text-xs text-muted-foreground italic">
+                           Solo firmantes autorizados pueden aprobar
+                        </p>
+                     )}
+
+                     <Button
+                        variant="outline"
+                        onClick={() => setEditOpen(true)}
+                        disabled={order.estado !== "BORRADOR"}
+                        size="sm"
+                     >
+                        <Pencil className="mr-2 size-4" />
+                        Editar
+                     </Button>
+                     
+                     {order.estado === "BORRADOR" && (
+                        <Button
+                           variant="destructive"
+                           onClick={() => setDeleteOpen(true)}
+                           size="sm"
+                        >
+                           <Trash2 className="mr-2 size-4" />
+                           Anular
+                        </Button>
+                     )}
+                  </>
+               ) : (
+                  // Botón de restaurar visible solo si la orden está eliminada
+                  <Button 
+                     onClick={() => setRestoreOpen(true)} 
+                     disabled={actionLoading} 
                      size="sm"
+                     className="bg-amber-500 hover:bg-amber-600 text-white"
                   >
-                     {TRANSITION_BUTTON_LABEL[estado]}
+                     <RotateCcw className="mr-2 size-4" />
+                     Restaurar Orden
                   </Button>
-               ))}
-
-               {/* Hint when APROBADA is hidden */}
-               {nextStates.includes("APROBADA") && !isApprover && (
-                  <p className="self-center text-xs text-muted-foreground italic">
-                     Solo firmantes autorizados pueden aprobar
-                  </p>
                )}
-
-               <Button
-                  variant="outline"
-                  onClick={() => setEditOpen(true)}
-                  disabled={
-                     order.estado !== "BORRADOR"
-                  }
-               >
-                  <Pencil className="mr-2 size-4" />
-                  Editar
-               </Button>
-               {order.estado === "BORRADOR" &&
-                  <Button
-                     variant="destructive"
-                     onClick={() => setDeleteOpen(true)}
-                  >
-                     <Trash2 className="mr-2 size-4" />
-                     Eliminar
-                  </Button>
-               }
-
             </div>
          </div>
+
+         {/* ── BANNER DE ESTADO ELIMINADO ── */}
+         {isDeleted && (
+            <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-4 flex items-start gap-3 w-full">
+               <AlertTriangle className="size-5 text-destructive mt-0.5 shrink-0" />
+               <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-semibold text-destructive">Orden de Compra Anulada</h3>
+                  <p className="text-sm text-destructive/80 mt-1 break-words">
+                     <span className="font-semibold">Motivo:</span> {order.deleted_reason || "No especificado"}
+                  </p>
+                  <p className="text-xs text-destructive/60 mt-1">
+                     Anulado el {order.deleted_at ? format(new Date(order.deleted_at), "dd/MM/yyyy HH:mm") : "Fecha desconocida"}
+                     {order.deleted_by && ` (Por: ${order.deleted_by})`}
+                  </p>
+               </div>
+            </div>
+         )}
 
          {approveError && (
             <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">
@@ -350,6 +420,9 @@ export default function PurchaseOrderDetail() {
                <TabsTrigger value="pagos" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
                   Pagos
                </TabsTrigger>
+               <TabsTrigger value="clasificacion" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                  Auditoría
+               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="detalles" className="space-y-4">
@@ -368,7 +441,7 @@ export default function PurchaseOrderDetail() {
                         />
                         <InfoField label="Fecha" value={formatDate(order.fecha)} />
                         <InfoField
-                           label="Estado"
+                           label="Estado Logístico"
                            value={ESTADO_LABEL[order.estado] ?? order.estado}
                         />
                         <InfoField
@@ -378,7 +451,6 @@ export default function PurchaseOrderDetail() {
                         {order.notas && (
                            <InfoField label="Notas" value={order.notas} />
                         )}
-                        <InfoField label="Registrado" value={formatDate(order.created_at)} />
                         {order.approved_by_name && (
                            <InfoField
                               label="Aprobado por"
@@ -467,6 +539,48 @@ export default function PurchaseOrderDetail() {
             <TabsContent value="pagos" className="space-y-4">
                <PurchaseOrderPagos orderId={order.id} codigoReferencia={order.codigoReferencia} total={order.total} estado={order.estado} onPaymentsChanged={refreshOrder} />
             </TabsContent>
+
+            {/* ── SECCIÓN DE AUDITORÍA ── */}
+            <TabsContent value="clasificacion" className="space-y-4">
+               <Card className="w-full">
+                  <CardHeader>
+                     <CardTitle className="flex items-center gap-2">
+                        <Clock className="size-5 text-brand-blue" />
+                        Auditoría del Sistema
+                     </CardTitle>
+                     <CardDescription>Metadatos sobre el ciclo de vida de la orden.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                     <InfoField 
+                        label="Orden Registrada el" 
+                        value={format(new Date(order.created_at), "dd/MM/yyyy HH:mm", { locale: es })} 
+                     />
+                     <InfoField 
+                        label="Última modificación el" 
+                        value={format(new Date(order.updated_at), "dd/MM/yyyy HH:mm", { locale: es })} 
+                     />
+                     {isDeleted && (
+                        <>
+                           <InfoField 
+                              label="Anulado por ID / Usuario" 
+                              value={order.deleted_by || "No registrado"} 
+                           />
+                           {order.deleted_at && (
+                              <InfoField 
+                                 label="Fecha de Anulación" 
+                                 value={format(new Date(order.deleted_at), "dd/MM/yyyy HH:mm", { locale: es })} 
+                              />
+                           )}
+                           <InfoField 
+                              label="Motivo de Anulación" 
+                              value={order.deleted_reason || "Sin motivo especificado"} 
+                           />
+                        </>
+                     )}
+                  </CardContent>
+               </Card>
+            </TabsContent>
+
          </Tabs>
 
          {/* Edit dialog */}
@@ -491,11 +605,19 @@ export default function PurchaseOrderDetail() {
             </DialogContent>
          </Dialog>
 
-         {/* Delete dialog */}
+         {/* Delete (Anular) dialog */}
          <DeletePurchaseOrderDialog
             order={deleteOpen ? order : null}
             onConfirm={handleDelete}
             onClose={() => setDeleteOpen(false)}
+            loading={actionLoading}
+         />
+
+         {/* Restore dialog */}
+         <RestorePurchaseOrderDialog
+            order={restoreOpen ? order : null}
+            onConfirm={handleRestore}
+            onClose={() => setRestoreOpen(false)}
             loading={actionLoading}
          />
       </div>
@@ -515,10 +637,8 @@ function InfoCard({ color, className, label, value }: { color?: string; classNam
 
 function InfoField({ label, value }: { label: string; value: string }) {
    return (
-      <div className="rounded-lg border border-border bg-muted/20 p-3">
-         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {label}
-         </p>
+      <div className="w-full min-w-0 rounded-lg border border-border bg-muted/20 p-3">
+         <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground truncate">{label}</p>
          <p className="mt-1 break-words text-sm font-medium">{value}</p>
       </div>
    );
