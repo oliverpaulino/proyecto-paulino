@@ -43,7 +43,7 @@ type PurchaseOrderStore = {
       id: string,
       estado: EstadoOrdenCompra
    ) => Promise<void | Error>;
-   DeletePurchaseOrder: (id: string) => Promise<void | Error>;
+   DeletePurchaseOrder: (id: string, deleted_reason?: string) => Promise<void | Error>;
    GetOrdenesCompraBySupplier: (supplierId: string, params?: { force?: boolean, page?: number, limit?: number, search?: string, estado?: string, estadoPago?: string }) => Promise<void>;
    RestorePurchaseOrder: (id: string) => Promise<void | Error>;
    GetPurchaseOrderById: (id: string) => Promise<PurchaseOrder | null>;
@@ -285,10 +285,12 @@ export const usePurchaseOrderStore = create<PurchaseOrderStore>((set, get) => ({
       }
    },
 
-   DeletePurchaseOrder: async (id) => {
+   DeletePurchaseOrder: async (id, deleted_reason) => {
       try {
          const res = await fetch(`/api/purchase-orders/${id}`, {
             method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ deleted_reason: deleted_reason ?? null }),
          });
 
          const responseData = await res.json();

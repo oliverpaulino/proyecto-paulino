@@ -129,8 +129,12 @@ purchaseOrdersRoute.get("/approvers/me", async (c) => {
 // GET /api/purchase-orders/:id
 purchaseOrdersRoute.get("/:id", async (c) => {
    try {
-      const order = await service.getById(c.req.param("id"));
-      if (!order) return c.json({ error: "Orden no encontrada" }, 404);
+      const id = c.req.param("id");
+      let order = await service.getById(id);
+      if (!order) {
+         order = await service.getDeletedById(id);
+         if (!order) return c.json({ error: "Órden no encontrado" }, 404);
+      }
       return c.json(order);
    } catch (err: unknown) {
       return c.json(
@@ -259,10 +263,17 @@ purchaseOrdersRoute.delete("/:id", async (c) => {
       const session = await auth.api.getSession({ headers: c.req.raw.headers });
       if (!session?.user) return c.json({ error: "No autenticado" }, 401);
 
+      let body: { deleted_reason?: string } = {};
+      try {
+         body = await c.req.json();
+      } catch {
+         // Sin cuerpo: el motivo quedará como null y el service lo validará
+      }
+
       const order = await service.getById(c.req.param("id"));
       if (!order) return c.json({ error: "Orden no encontrada" }, 404);
 
-      const deleted = await service.delete(session.user.id, c.req.param("id"));
+      const deleted = await service.delete(session.user.id, c.req.param("id"), body.deleted_reason);
       if (!deleted) return c.json({ error: "Orden no encontrada" }, 404);
 
       try {

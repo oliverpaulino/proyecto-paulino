@@ -511,6 +511,91 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
       });
    }
 
+   async findDeletedById(id: string): Promise<PurchaseOrder | null> {
+      const row = await this.db
+         .selectFrom("orden_compra")
+         .leftJoin("proveedor", "proveedor.id", "orden_compra.proveedor_id")
+         .select([
+            "orden_compra.id",
+            "orden_compra.referencia",
+            "orden_compra.proveedor_id",
+            "proveedor.nombre as proveedor_nombre",
+            "orden_compra.fecha",
+            "orden_compra.estado",
+            pagadoDeOrden.as("pagado"),
+            "orden_compra.notas",
+            "orden_compra.total",
+            "orden_compra.approved_by",
+            "orden_compra.approved_by_name",
+            "orden_compra.approved_at",
+            "orden_compra.created_at",
+            "orden_compra.updated_at",
+            "orden_compra.deleted_by",
+            "orden_compra.deleted_at",
+            "orden_compra.deleted_reason",
+         ])
+         .where("orden_compra.id", "=", id)
+         .where("orden_compra.deleted_at", "is not", null)
+         .executeTakeFirst();
+
+      if (!row) return null;
+
+      const itemRows = await this.db
+         .selectFrom("orden_compra_item")
+         .leftJoin("equipo", "equipo.id", "orden_compra_item.equipo_id")
+         .select([
+            "orden_compra_item.id",
+            "orden_compra_item.orden_compra_id",
+            "orden_compra_item.equipo_id",
+            "equipo.nombre as equipo_nombre",
+            "orden_compra_item.descripcion",
+            "orden_compra_item.cantidad",
+            "orden_compra_item.precio_unitario",
+            "orden_compra_item.subtotal",
+            "orden_compra_item.created_at",
+            "orden_compra_item.updated_at",
+         ])
+         .where("orden_compra_item.orden_compra_id", "=", id)
+         .execute();
+
+      const items: PurchaseOrderItemProps[] = itemRows.map((i) => ({
+         id: i.id,
+         orden_compra_id: i.orden_compra_id,
+         equipo_id: i.equipo_id ?? null,
+         equipo_nombre: i.equipo_nombre ?? null,
+         descripcion: i.descripcion,
+         cantidad: Number(i.cantidad),
+         precio_unitario: Number(i.precio_unitario),
+         subtotal: Number(i.subtotal),
+         created_at: new Date(i.created_at),
+         updated_at: new Date(i.updated_at),
+      }));
+
+      return PurchaseOrder.create({
+         id: row.id,
+         referencia: row.referencia,
+         codigoReferencia: buildCodigoReferencia(row.referencia, new Date(row.fecha)),
+         proveedor_id: row.proveedor_id,
+         proveedor_nombre: row.proveedor_nombre ?? undefined,
+         fecha: new Date(row.fecha),
+         estado: row.estado as EstadoOrdenCompra,
+         estado_pago: estadoPagoOrden(Number(row.total), Number(row.pagado)),
+         notas: row.notas ?? null,
+         total: Number(row.total),
+         pagado: Number(row.pagado),
+         pendiente: Math.max(0, Number(row.total) - Number(row.pagado)),
+         approved_by: row.approved_by ?? null,
+         approved_by_name: row.approved_by_name ?? null,
+         approved_at: row.approved_at ? new Date(row.approved_at) : null,
+         items,
+         created_at: new Date(row.created_at),
+         updated_at: new Date(row.updated_at),
+         deleted_by: row.deleted_by ?? null,
+         deleted_at: row.deleted_at ? new Date(row.deleted_at) : null,
+         deleted_reason: row.deleted_reason ?? null,
+      });
+   }
+
    async create(data: CreatePurchaseOrderDTO): Promise<PurchaseOrder> {
       const result = await this.db.transaction().execute(async (trx) => {
          const header = await trx
@@ -749,12 +834,14 @@ export class KyselyPurchaseOrderRepository implements IPurchaseOrderRepository {
          .execute();
    }
 
-   async delete(userId: string, id: string): Promise<boolean> {
-
-
+   async delete(userId: string, id: string, deleted_reason?: string | null): Promise<boolean> {
       const result = await this.db
          .updateTable("orden_compra")
-         .set({ deleted_by: userId, deleted_at: new Date() })
+         .set({
+            deleted_by: userId,
+            deleted_at: new Date(),
+            deleted_reason: deleted_reason ?? null,
+         })
          .where("id", "=", id)
          .where("deleted_at", "is", null)
          .executeTakeFirst();

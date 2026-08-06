@@ -10,7 +10,7 @@ import {
    DialogTitle,
    DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, ShoppingCart } from "lucide-react";
+import { Plus, ShoppingCart, Trash2 } from "lucide-react";
 import { usePurchaseOrderStore } from "@/stores/usePurchaseOrderStore";
 import type { PurchaseOrder } from "@/dtos/purchase-order.dto";
 import { PurchaseOrderForm } from "./purchase-order-form";
@@ -21,6 +21,8 @@ import {
 } from "./purchase-order-filters";
 import { DeletePurchaseOrderDialog } from "./delete-purchase-order-dialog";
 import { TableSearch } from "@/components/table-search";
+import { useSession } from "@/lib/auth-client";
+import Link from "next/link";
 
 const STAT_STYLES = {
    blue: {
@@ -163,11 +165,11 @@ export default function ComprasView() {
       }
    }
 
-   async function handleDelete() {
+   async function handleDelete(reason: string) {
       if (!deleteTarget) return;
       setFormLoading(true);
       try {
-         const result = await DeletePurchaseOrder(deleteTarget.id);
+         const result = await DeletePurchaseOrder(deleteTarget.id, reason);
          if (result instanceof Error) throw result;
          setDeleteTarget(null);
       } finally {
@@ -283,6 +285,15 @@ export default function ComprasView() {
                </Button>
             </div>
          </div>
+         
+         {useSession().data?.user?.role === "administrador" && (
+                      <Button asChild variant="outline" className="font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive">
+                         <Link href="/dashboard/compras/eliminadas">
+                            <Trash2 className="size-4 mr-2" />
+                            Órdenes de Compras Anuladas
+                         </Link>
+                      </Button>
+                   )}
 
          {/* Edit dialog */}
          <Dialog
