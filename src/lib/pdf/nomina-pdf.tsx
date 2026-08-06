@@ -100,9 +100,6 @@ const s = StyleSheet.create({
 
 const bruto = (e: NominaEmpleado) => e.devengado_tarifas + e.complemento_minimo;
 
-/** Retenciones de ley del período: TSS (AFP + SFS) más ISR. */
-const retenciones = (e: NominaEmpleado) => e.afp + e.sfs + e.isr;
-
 /** Volante individual: el desglose de un empleado. */
 function DetalleEmpleado({ e }: { e: NominaEmpleado }) {
    const esFijo = e.modalidad === "FIJO";
@@ -191,9 +188,14 @@ function DetalleEmpleado({ e }: { e: NominaEmpleado }) {
                {deducciones.map((d, i) => (
                   <View key={d.id} style={[s.tableRow, i % 2 !== 0 ? s.tableRowAlt : {}]}>
                      <Text style={[s.tableCell, { width: 70 }]}>{fmtDate(d.fecha)}</Text>
-                     <Text style={[s.tableCell, { flex: 1 }]}>{d.concepto}</Text>
+                     <Text style={[s.tableCell, { flex: 1 }]}>
+                        {d.concepto}
+                        {d.cuotas_sugeridas > 1
+                           ? ` · cuota ${d.cuotas_aplicadas} de ${d.cuotas_sugeridas}`
+                           : ""}
+                     </Text>
                      <Text style={[s.tableCell, s.colSub, { color: "#DC2626" }]}>
-                        - {fmt(d.monto_total)}
+                        - {fmt(d.monto_periodo)}
                      </Text>
                   </View>
                ))}
@@ -212,31 +214,10 @@ function DetalleEmpleado({ e }: { e: NominaEmpleado }) {
                </View>
             )}
             {/*
-               Las retenciones de ley se detallan línea por línea y no como un
-               solo total: el volante es el comprobante que recibe el empleado,
-               y AFP, SFS e ISR van a destinos distintos. Un monto agregado no
-               le permitiría cuadrarlo con su estado de la TSS.
+               Las deducciones se muestran como un solo total aquí y detalladas
+               línea por línea arriba: el volante es el comprobante que recibe
+               el empleado y debe poder cuadrar cada descuento.
             */}
-            {e.afp > 0 && (
-               <View style={s.resumenRow}>
-                  <Text style={s.resumenLabel}>AFP (pensiones)</Text>
-                  <Text style={[s.resumenValue, { color: "#DC2626" }]}>- {fmt(e.afp)}</Text>
-               </View>
-            )}
-            {e.sfs > 0 && (
-               <View style={s.resumenRow}>
-                  <Text style={s.resumenLabel}>SFS (salud)</Text>
-                  <Text style={[s.resumenValue, { color: "#DC2626" }]}>- {fmt(e.sfs)}</Text>
-               </View>
-            )}
-            {e.isr > 0 && (
-               <View style={s.resumenRow}>
-                  <Text style={s.resumenLabel}>
-                     ISR{e.isr_anio_escala ? ` (escala ${e.isr_anio_escala})` : ""}
-                  </Text>
-                  <Text style={[s.resumenValue, { color: "#DC2626" }]}>- {fmt(e.isr)}</Text>
-               </View>
-            )}
             {e.deducciones > 0 && (
                <View style={s.resumenRow}>
                   <Text style={s.resumenLabel}>Deducciones</Text>
@@ -286,11 +267,10 @@ export function NominaDocument({
       (a, e) => ({
          bruto: a.bruto + bruto(e),
          seguro: a.seguro + e.seguro,
-         retenciones: a.retenciones + retenciones(e),
          deducciones: a.deducciones + e.deducciones,
          neto: a.neto + e.neto_pagar,
       }),
-      { bruto: 0, seguro: 0, retenciones: 0, deducciones: 0, neto: 0 }
+      { bruto: 0, seguro: 0, deducciones: 0, neto: 0 }
    );
 
    const choferes = empleados.filter((e) => e.modalidad === "PRODUCCION").length;
@@ -350,11 +330,10 @@ export function NominaDocument({
                         <View style={s.tableHead}>
                            <Text style={[s.tableHeadCell, s.colNombre]}>Empleado</Text>
                            <Text style={[s.tableHeadCell, s.colModalidad]}>Modalidad</Text>
-                           <Text style={[s.tableHeadCell, s.colMonto]}>Bruto</Text>
-                           <Text style={[s.tableHeadCell, s.colMonto]}>Seguro</Text>
-                           <Text style={[s.tableHeadCell, s.colMonto]}>TSS/ISR</Text>
-                           <Text style={[s.tableHeadCell, s.colMonto]}>Deducc.</Text>
-                           <Text style={[s.tableHeadCell, s.colNeto]}>Neto</Text>
+                            <Text style={[s.tableHeadCell, s.colMonto]}>Bruto</Text>
+                            <Text style={[s.tableHeadCell, s.colMonto]}>Seguro</Text>
+                            <Text style={[s.tableHeadCell, s.colMonto]}>Deducc.</Text>
+                            <Text style={[s.tableHeadCell, s.colNeto]}>Neto</Text>
                         </View>
 
                         {empleados.map((e, i) => (
@@ -370,9 +349,6 @@ export function NominaDocument({
                                  {e.seguro > 0 ? fmt(e.seguro) : "—"}
                               </Text>
                               <Text style={[s.tableCell, s.colMonto]}>
-                                 {retenciones(e) > 0 ? fmt(retenciones(e)) : "—"}
-                              </Text>
-                              <Text style={[s.tableCell, s.colMonto]}>
                                  {e.deducciones > 0 ? fmt(e.deducciones) : "—"}
                               </Text>
                               <Text
@@ -386,15 +362,12 @@ export function NominaDocument({
                         <View style={s.tableFoot}>
                            <Text style={[s.tableFootCell, s.colNombre]}>Totales</Text>
                            <Text style={[s.tableFootCell, s.colModalidad]} />
-                           <Text style={[s.tableFootCell, s.colMonto]}>{fmt(totales.bruto)}</Text>
-                           <Text style={[s.tableFootCell, s.colMonto]}>{fmt(totales.seguro)}</Text>
-                           <Text style={[s.tableFootCell, s.colMonto]}>
-                              {fmt(totales.retenciones)}
-                           </Text>
-                           <Text style={[s.tableFootCell, s.colMonto]}>
-                              {fmt(totales.deducciones)}
-                           </Text>
-                           <Text style={[s.tableFootCell, s.colNeto]}>{fmt(totales.neto)}</Text>
+                            <Text style={[s.tableFootCell, s.colMonto]}>{fmt(totales.bruto)}</Text>
+                            <Text style={[s.tableFootCell, s.colMonto]}>{fmt(totales.seguro)}</Text>
+                            <Text style={[s.tableFootCell, s.colMonto]}>
+                               {fmt(totales.deducciones)}
+                            </Text>
+                            <Text style={[s.tableFootCell, s.colNeto]}>{fmt(totales.neto)}</Text>
                         </View>
                      </View>
                   </>
