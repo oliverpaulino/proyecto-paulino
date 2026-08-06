@@ -36,11 +36,13 @@ import {
    Trash2,
    Contact,
    ReceiptText,
+   ArrowDownRight,
 } from "lucide-react";
 import { EmployeeForm, type OperadorFormData } from "../../components/employee-form";
 import { DeleteEmployeeDialog } from "../../components/delete-employee-dialog";
 import StatCard from "./StatCard";
 import { EmployeeConduces } from "./employee-conduces";
+import { EmployeeDeducciones } from "./employee-deducciones";
 import { TarifaEmpleadoDialog } from "./TarifaEmpleadoDialog";
 
 const ROL_LABEL: Record<string, string> = {
@@ -210,6 +212,9 @@ export default function EmployeeDetailView() {
                )}
                <TabsTrigger value="tarifas" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
                   Tarifas por Equipo
+               </TabsTrigger>
+               <TabsTrigger value="deducciones" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                  Deducciones
                </TabsTrigger>
             </TabsList>
 
@@ -405,6 +410,24 @@ export default function EmployeeDetailView() {
                            description="Este empleado no tiene tarifas configuradas para operar equipos. Ganará su salario base a menos que le asocies el pago por equipo."
                         />
                      )}
+                  </CardContent>
+               </Card>
+            </TabsContent>
+
+            {/* ── DEDUCCIONES ── */}
+            <TabsContent value="deducciones" className="space-y-4">
+               <Card>
+                  <CardHeader>
+                     <CardTitle className="flex items-center gap-2">
+                        <ArrowDownRight className="size-5 text-brand-blue" />
+                        Deducciones del Empleado
+                     </CardTitle>
+                     <CardDescription>
+                        Deducciones asociadas a este empleado.
+                     </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                     <EmployeeDeducciones empleadoId={empleadoId} empleadoNombre={empleado.nombre} />
                   </CardContent>
                </Card>
             </TabsContent>
