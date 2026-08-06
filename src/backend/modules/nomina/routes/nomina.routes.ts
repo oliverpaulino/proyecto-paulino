@@ -159,15 +159,22 @@ nominaRoute.patch("/cycle-employees/:id/seguro", puedeEditar, async (c) => {
  * Agrega una deducción NUEVA al chofer dentro del ciclo. No modifica las
  * existentes: crea una más, con su concepto y fecha, y devuelve la nómina
  * ya actualizada.
- * Body: `{ monto: number, concepto: string, fecha?: string }`
+ * Body: `{ monto: number, concepto: string, fecha?: string,
+ *         cuotas?: number, monto_cuota?: number }`
  */
 nominaRoute.post("/cycles/:cycleId/empleados/:empleadoId/deducciones", puedeEditar, async (c) => {
    try {
-      const { monto, concepto, fecha } = await c.req.json();
+      const { monto, concepto, fecha, cuotas, monto_cuota } = await c.req.json();
       const row = await service.agregarDeduccion(
          c.req.param("cycleId"),
          c.req.param("empleadoId"),
-         { monto: Number(monto), concepto, fecha }
+         {
+            monto: Number(monto),
+            concepto,
+            fecha,
+            cuotas: cuotas !== undefined ? Number(cuotas) : undefined,
+            monto_cuota: monto_cuota !== undefined ? Number(monto_cuota) : undefined,
+         }
       );
       if (!row) return c.json({ error: "Registro no encontrado" }, 404);
       return c.json(row, 201);
@@ -175,6 +182,31 @@ nominaRoute.post("/cycles/:cycleId/empleados/:empleadoId/deducciones", puedeEdit
       return fail(c, err, "Error al agregar la deducción");
    }
 });
+
+/**
+ * Cambia la cuota por nómina de una deducción con cuotas y vuelve a aplicar
+ * los cobros del ciclo (el monto de esta nómina se actualiza si alcanza).
+ * Body: `{ monto_cuota: number }`
+ */
+nominaRoute.patch(
+   "/cycles/:cycleId/empleados/:empleadoId/deducciones/:deduccionId",
+   puedeEditar,
+   async (c) => {
+      try {
+         const { monto_cuota } = await c.req.json();
+         const row = await service.actualizarCuotaDeduccion(
+            c.req.param("cycleId"),
+            c.req.param("empleadoId"),
+            c.req.param("deduccionId"),
+            Number(monto_cuota)
+         );
+         if (!row) return c.json({ error: "Deducción no encontrada" }, 404);
+         return c.json(row);
+      } catch (err) {
+         return fail(c, err, "Error al actualizar la cuota de la deducción");
+      }
+   }
+);
 
 /**
  * Fija a mano lo que se le paga al chofer por una tarifa que la nómina no
@@ -226,6 +258,38 @@ nominaRoute.delete(
          );
       } catch (err) {
          return fail(c, err, "Error al quitar el precio manual");
+      }
+   }
+);
+
+/**
+ * Cambia lo que el proyecto paga a este chofer por una tarifa. Como la tarifa
+ * del proyecto gana sobre la base del empleado, editarla aquí actualiza el
+ * proyecto mismo (`proyecto_empleado_tarifa`), recalcula el ciclo y devuelve
+ * la fila ya refrescada. Afecta a las próximas nóminas de este chofer en este
+ * proyecto, no solo a la actual.
+ * Body: `{ proyecto_id: string, categoria_equipo_tarifa_id: string,
+ *         monto_pago: number }`
+ */
+nominaRoute.patch(
+   "/cycles/:cycleId/empleados/:empleadoId/tarifa-proyecto",
+   puedeEditar,
+   async (c) => {
+      try {
+         const { proyecto_id, categoria_equipo_tarifa_id, monto_pago } = await c.req.json();
+         const row = await service.actualizarTarifaProyecto(
+            c.req.param("cycleId"),
+            c.req.param("empleadoId"),
+            {
+               proyecto_id,
+               categoria_equipo_tarifa_id,
+               monto_pago: Number(monto_pago),
+            }
+         );
+         if (!row) return c.json({ error: "Registro no encontrado" }, 404);
+         return c.json(row);
+      } catch (err) {
+         return fail(c, err, "Error al actualizar la tarifa del proyecto");
       }
    }
 );
