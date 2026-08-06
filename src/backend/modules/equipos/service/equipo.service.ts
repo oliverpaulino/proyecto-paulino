@@ -45,6 +45,7 @@ export class EquipoService {
          throw new Error("Estado de equipo inválido");
       }
       this.validateAno(data.ano);
+      await this.validarOperadorActivo(data.operador_id);
 
       const equipo = await this.repo.create({
          ...data,
@@ -61,6 +62,15 @@ export class EquipoService {
          throw new Error("Estado de equipo inválido");
       }
       this.validateAno(data.ano);
+      // Solo se valida cuando el operador cambia: un equipo que se creó con un
+      // operador activo y luego ese empleado quedó inactivo, se puede seguir
+      // editando (otros campos) sin reasignar. Asignarlo ahora a un inactivo, no.
+      if (data.operador_id !== undefined) {
+         const existing = await this.repo.findById(id);
+         if (existing && existing.operador_id !== data.operador_id) {
+            await this.validarOperadorActivo(data.operador_id);
+         }
+      }
 
       const payload: UpdateEquipoDTO = { ...data };
       if (data.ano !== undefined && data.ano !== null) payload.ano = Number(data.ano);
@@ -130,6 +140,18 @@ export class EquipoService {
       if (costo !== undefined && (Number.isNaN(Number(costo)) || Number(costo) < 0)) {
          throw new Error("Costo por hora debe ser un número mayor o igual a 0");
       }
+   }
+
+   /**
+    * Un empleado inactivo no puede quedar asignado a un equipo: se rechaza en
+    * creación y, en edición, solo si el operador cambia. `operador_id` ausente
+    * (sin cambio) se deja pasar.
+    */
+   private async validarOperadorActivo(operadorId?: string | null): Promise<void> {
+      if (!operadorId) return;
+      const activo = await this.employeeRepo.isOperadorActivo(operadorId);
+      if (activo === null) throw new Error("El operador seleccionado no existe");
+      if (activo === false) throw new Error("No se puede asignar un operador inactivo a un equipo");
    }
 
    private validateAno(ano: number | null | undefined): void {
