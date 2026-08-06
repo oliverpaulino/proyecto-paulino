@@ -170,11 +170,13 @@ const EmployeeDetailsDTO = z.object({
 });
 
 const OperadorAsignableDTO = z.object({
-   id: z.string(), // empleado_id
+   id: z.string(), // operador.id (id del perfil de operador, no del empleado)
    nombre: z.string(),
    identificacion: z.string(),
    licencia: z.string().nullable(),
    fecha_vencimiento: z.coerce.date().nullable(),
+   // Si es false, el operador no debe poder asignarse a nada nuevo.
+   activo: z.boolean().optional().default(true),
 });
 
 export type Employee = z.infer<typeof EmployeeDTO>;
