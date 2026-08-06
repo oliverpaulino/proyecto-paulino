@@ -31,6 +31,7 @@ export default function ComprasEliminadasPage() {
    const { PurchaseOrdersDeleted, loading, GetPurchaseOrdersDeleted, RestorePurchaseOrder } = usePurchaseOrderStore();
 
    const [search, setSearch] = useState(searchParams.get("search") ?? "");
+   const [searchInput, setSearchInput] = useState(searchParams.get("search") ?? "");
    const [page, setPage] = useState(1);
    const [limit, setLimit] = useState(10);
 
@@ -98,8 +99,11 @@ export default function ComprasEliminadasPage() {
                <div className="w-full sm:max-w-sm">
                   <TableSearch
                      placeholder="Buscar por OC, proveedor o motivo..."
-                     value={search}
-                     onValueChange={handleSearch}
+                     value={searchInput}
+                     onValueChange={setSearchInput}
+                     onSearch={handleSearch}
+                     debounceDelay={500}
+                     loading={isBackgroundLoading}
                   />
                </div>
                {/* Feedback visual sutil cuando busca o cambia de página */}

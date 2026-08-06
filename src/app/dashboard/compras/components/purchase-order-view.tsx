@@ -291,14 +291,6 @@ export default function ComprasView() {
             </div>
          </div>
 
-         {useSession().data?.user?.role === "administrador" && (
-            <Button asChild variant="outline" className="font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive">
-               <Link href="/dashboard/compras/eliminadas">
-                  <Trash2 className="size-4 mr-2" />
-                  Órdenes de Compras Anuladas
-               </Link>
-            </Button>
-         )}
 
          {useSession().data?.user?.role === "administrador" && (
             <div className="flex flex-col sm:flex-row gap-2 mt-4 w-full justify-center" >
