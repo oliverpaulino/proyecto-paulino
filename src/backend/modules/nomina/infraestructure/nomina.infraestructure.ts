@@ -439,8 +439,10 @@ export class KyselyNominaRepository implements INominaRepository {
       const desdeISO = aFechaISO(desde);
       const hastaISO = aFechaISO(hasta);
 
-      // Lo ya aplicado = cuotas cobradas en ciclos que TERMINAN antes de este.
-      // (un ciclo que termina después todavía no debió cobrar la suya).
+      // Lo ya aplicado = cuotas cobradas en ciclos que TERMINAN antes de este
+      // (o al inicio exacto: un ciclo que cierra el 22 y el siguiente abre el 22
+      // ya cobró su cuota, y sin el `<=` se cobraría dos veces el mismo período).
+      // Un ciclo que termina después todavía no debió cobrar la suya.
       const filas = await this.db
          .selectFrom("deduccion as d")
          .select([
@@ -454,7 +456,7 @@ export class KyselyNominaRepository implements INominaRepository {
                select sum(dc.monto) from deduccion_cuota dc
                join payroll_cycles pc on pc.id = dc.cycle_id
                where dc.deduccion_id = d.id
-                 and pc.fecha_fin < ${desdeISO}
+                 and pc.fecha_fin <= ${desdeISO}
             ), 0)`.as("aplicado_prev"),
             sql<string>`(
                select count(*) from deduccion_cuota dc
@@ -486,6 +488,7 @@ export class KyselyNominaRepository implements INominaRepository {
                monto_total: montoTotal,
                monto_cuota: montoCuota,
                monto_periodo: montoPeriodo,
+               monto_pendiente: Math.max(0, montoTotal - aplicadoPrev - montoPeriodo),
                cuotas_sugeridas: num(f.cuotas_sugeridas),
                cuotas_aplicadas: num(f.cuotas_aplicadas) + 1,
                fecha: f.fecha,
@@ -508,8 +511,17 @@ export class KyselyNominaRepository implements INominaRepository {
                .execute();
 
             // El balance pendiente que muestra el módulo de deducciones sigue
-            // a lo que de verdad se ha cobrado en nóminas.
-            const nuevoBalance = Math.max(0, montoTotal - aplicadoPrev - montoPeriodo);
+            // a lo que de verdad se ha cobrado en nóminas. Se calcula desde la
+            // SUMA de todos los cobros (incluido el de este ciclo, recién
+            // escrito) y no desde `aplicadoPrev + montoPeriodo`: así un ciclo
+            // recalculado fuera de orden o uno que solapa a otro no puede
+            // "inflar" el saldo de vuelta ignorando cuotas ya cobradas.
+            const sumaCobros = await this.db
+               .selectFrom("deduccion_cuota")
+               .select(sql<number>`coalesce(sum(monto), 0)`.as("total"))
+               .where("deduccion_id", "=", f.id)
+               .executeTakeFirst();
+            const nuevoBalance = Math.max(0, montoTotal - num(sumaCobros?.total));
             await this.db
                .updateTable("deduccion")
                .set({ balance_pendiente: nuevoBalance, updated_at: new Date() })
@@ -991,6 +1003,39 @@ export class KyselyNominaRepository implements INominaRepository {
    }
 
    /**
+    * Lo que todavía se puede cobrar de UNA deducción en el ciclo `cycleId`:
+    * `monto_total` menos lo ya cobrado en ciclos que terminan antes de este
+    * (la cuota de ESTE ciclo aún se puede reemplazar). Es el tope de la
+    * cuota por nómina: fijar una mayor intentaría cobrar de más.
+    */
+   async getDeudaRestanteDeDeduccion(
+      deduccionId: string,
+      cycleId: string
+   ): Promise<number> {
+      const ciclo = await this.findCycleById(cycleId);
+      if (!ciclo) return 0;
+      const desdeISO = aFechaISO(ciclo.fecha_inicio);
+
+      const row = await this.db
+         .selectFrom("deduccion as d")
+         .select([
+            "d.monto_total",
+            sql<string>`coalesce((
+               select sum(dc.monto) from deduccion_cuota dc
+               join payroll_cycles pc on pc.id = dc.cycle_id
+               where dc.deduccion_id = d.id
+                 and pc.fecha_fin < ${desdeISO}
+            ), 0)`.as("aplicado"),
+         ])
+         .where("d.id", "=", deduccionId)
+         .where("d.deleted_at", "is", null)
+         .executeTakeFirst();
+
+      if (!row) return 0;
+      return Math.max(0, num(row.monto_total) - num(row.aplicado));
+   }
+
+   /**
     * Relee las deducciones del período para recoger las que se crearon
     * DESPUÉS de calcular el ciclo. No toca la producción: solo actualiza
     * `deducciones`, `deuda_*` y el neto. Devuelve cuántas filas cambiaron.
@@ -1008,13 +1053,17 @@ export class KyselyNominaRepository implements INominaRepository {
       let cambiadas = 0;
 
       for (const f of filas) {
-         const [periodo, total, pendiente] = await Promise.all([
-            this.getDeduccionesDelPeriodo(
-               f.empleado_id,
-               cycleId,
-               ciclo.fecha_inicio,
-               ciclo.fecha_fin
-            ),
+         // Primero se registran los cobros de este ciclo en `deduccion_cuota`;
+         // la deuda pendiente se lee después, para que refleje la cuota de
+         // ESTE ciclo. En paralelo, la lectura podía ganarle al registro y
+         // sobrar el pendiente en la nómina.
+         const periodo = await this.getDeduccionesDelPeriodo(
+            f.empleado_id,
+            cycleId,
+            ciclo.fecha_inicio,
+            ciclo.fecha_fin
+         );
+         const [total, pendiente] = await Promise.all([
             this.getDeudaTotal(f.empleado_id),
             this.getDeudaPendiente(f.empleado_id),
          ]);

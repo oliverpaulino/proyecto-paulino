@@ -335,6 +335,16 @@ export interface DeduccionDelPeriodo {
    monto_cuota: number;
    /** Cuota que se descuenta en este período (≤ monto_total − ya aplicado). */
    monto_periodo: number;
+   /**
+    * Lo que queda por pagar de esta deducción DESPUÉS del cobro de este
+    * período (`monto_total − ya aplicado − monto_periodo`). Es el saldo que
+    * verá el empleado: la deuda de la deducción no es el total, sino esto.
+    *
+    * El tope de la cuota por nómina es `monto_pendiente + monto_periodo`
+    * (lo que todavía se puede cobrar, incluido lo que este período ya cobró):
+    * fijar una cuota mayor intentaría cobrar de más.
+    */
+   monto_pendiente: number;
    cuotas_sugeridas: number;
    /** Cuotas ya aplicadas, incluida la de este período. */
    cuotas_aplicadas: number;
@@ -523,6 +533,13 @@ export interface INominaRepository {
       empleadoId: string,
       montoCuota: number
    ): Promise<boolean>;
+
+   /**
+    * Tope de la cuota por nómina de una deducción: lo que queda por cobrar
+    * (`monto_total` menos lo ya aplicado en ciclos anteriores a `cycleId`).
+    * Validar aquí evita que la cuota intente cobrar de más.
+    */
+   getDeudaRestanteDeDeduccion(deduccionId: string, cycleId: string): Promise<number>;
 
    /** Detalle de las deducciones que se cobran en el ciclo, con su cuota. */
    listDeduccionesDelPeriodo(
