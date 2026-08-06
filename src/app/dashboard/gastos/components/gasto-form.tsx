@@ -58,6 +58,7 @@ export function GastoForm({ initialData, predefinedValues, onSubmit, onCancel, l
       concepto: "",
       fecha: new Date(),
    });
+   
    // Campos de la deducción que el usuario ya modificó a mano (dejan de sincronizarse)
    const [deduccionTouched, setDeduccionTouched] = useState<Set<string>>(() => new Set());
 
@@ -372,6 +373,14 @@ export function GastoForm({ initialData, predefinedValues, onSubmit, onCancel, l
 
                   {asociarEmpleado && (
                      <div className="flex flex-col gap-4 border-t border-border pt-4">
+                        
+                        {/* ── Advertencia de Múltiples Deducciones ── */}
+                        <div className="rounded-md border border-yellow-500/50 bg-yellow-500/10 p-3 text-sm text-yellow-700 dark:text-yellow-400">
+                           <p>
+                              <strong>Nota:</strong> En este formulario solo puedes asociar <strong>una deducción</strong> al gasto. Si necesitas registrar varias deducciones para este mismo gasto, desmarca el boton negro de la deducción. Después, <strong>guarda</strong> este registro y dirígete a <strong>Deducciones</strong> para completarlas.
+                           </p>
+                        </div>
+
                         <div className="flex flex-col gap-1.5">
                            <Label>Empleado Asociado *</Label>
                            <SelectBuscadorEmployee
