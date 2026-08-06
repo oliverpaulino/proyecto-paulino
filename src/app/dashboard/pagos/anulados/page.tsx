@@ -8,6 +8,7 @@ import { ArrowLeft, Trash2, Eye, RotateCcw } from "lucide-react";
 import { usePagoStore } from "@/stores/usePagoStore";
 import type { Pago } from "@/dtos/pagos.dto";
 import { RestorePagoDialog } from "../components/restore-pago-dialog";
+import { toast } from "sonner";
 
 function formatMoney(value: number): string {
    return new Intl.NumberFormat("es-DO", {
@@ -48,9 +49,9 @@ export default function PagosEliminadosPage() {
       setFormLoading(true);
       try {
          const result = await RestorePago(restoreTarget.id);
-         if (result instanceof Error) {
-            alert(result.message);
-         } else {
+          if (result instanceof Error) {
+             toast.error(result.message);
+          } else {
             setRestoreTarget(null);
          }
       } finally {

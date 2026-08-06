@@ -8,6 +8,10 @@ export const DeduccionDTO = z.object({
    balance_pendiente: z.number().nullable(),
    cuotas_sugeridas: z.number(),
    monto_sugerido: z.number(),
+   monto_cuota: z.number(),
+   cuotas_aplicadas: z.number(),
+   monto_cobrado: z.number(),
+   monto_pendiente: z.number(),
    concepto: z.string(),
 
    empleado_id: z.uuid(),
@@ -49,7 +53,15 @@ export const DeleteDeduccionSchema = z.object({
    deleted_reason: z.string().min(1, "Debe proveer una razón").optional(),
 });
 
+export const PagarDeduccionSchema = z.object({
+   monto: z.coerce.number().min(0.01, "El monto debe ser mayor a 0"),
+   metodo_pago: z.string().min(1, "El método de pago es requerido").optional(),
+   concepto: z.string().optional(),
+   fecha: z.coerce.date().optional(),
+});
+
 export type Deduccion = z.infer<typeof DeduccionDTO>;
 export type CreateDeduccionForm = z.infer<typeof CreateDeduccionSchema>;
 export type UpdateDeduccionForm = z.infer<typeof UpdateDeduccionSchema>;
 export type DeleteDeduccionForm = z.infer<typeof DeleteDeduccionSchema>;
+export type PagarDeduccionForm = z.infer<typeof PagarDeduccionSchema>;
