@@ -75,7 +75,7 @@ function ConducesPageContent() {
       */
       const desdeUrl: ConduceFiltros = {
          page: 1,
-         pageSize: filtros.pageSize ?? 25,
+         pageSize: filtros.pageSize ?? 10,
          empleado_id: empleadoId,
          fecha_desde: searchParams.get("fecha_desde") ?? undefined,
          fecha_hasta: searchParams.get("fecha_hasta") ?? undefined,

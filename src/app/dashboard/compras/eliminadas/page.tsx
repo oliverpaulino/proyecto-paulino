@@ -142,9 +142,9 @@ export default function ComprasEliminadasPage() {
                                  {order.proveedor_nombre ?? "Proveedor Desconocido"}
                               </td>
                               <td className="px-4 py-3 text-xs">
-                                 <div className="font-medium text-gray-700 dark:text-gray-300">
-                                    {order.deleted_by ?? "Sistema"}
-                                 </div>
+                                  <div className="font-medium text-gray-700 dark:text-gray-300">
+                                     {order.deleted_by_name ?? order.deleted_by ?? "Sistema"}
+                                  </div>
                                  <div className="text-gray-400 mt-0.5">
                                     {formatDate(order.deleted_at)}
                                  </div>
