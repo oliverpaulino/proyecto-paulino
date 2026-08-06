@@ -32,9 +32,18 @@ export interface TarifaDesglose {
    categoria_equipo_id: string | null;
    categoria_equipo_nombre: string | null;
    medida_cobro_nombre: string | null;
-   cantidad: number;
-   monto_pago: number;
-   subtotal: number;
+    cantidad: number;
+    monto_pago: number;
+    subtotal: number;
+
+    /**
+     * Proyecto del conduce, cuando lo tiene. El desglose agrupa por
+     * (categoría, tarifa, proyecto): la misma tarifa con precio distinto por
+     * proyecto (tarifa del proyecto vs. base) aparece en filas separadas.
+     * `undefined` en snapshots viejos (ciclos de antes de esta columna).
+     */
+    proyecto_id?: string | null;
+    proyecto_nombre?: string | null;
 
    /**
     * Solo en tarifas sin id. Dice si el nombre guardado corresponde hoy a una

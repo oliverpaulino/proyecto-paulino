@@ -92,6 +92,7 @@ export async function getEquipoRentabilidad(
          "conduce.medida_cobro_nombre",
          sql<number>`coalesce(conduce.cantidad, conduce.total_horas)`.as("cantidad"),
          empleadoEfectivo.as("empleado_id"),
+         "conduce.proyecto_id",
          "empleado.nombre as operador_nombre",
          "cliente.nombre as cliente_nombre",
          "proyecto.nombre as proyecto_nombre",
@@ -105,15 +106,27 @@ export async function getEquipoRentabilidad(
 
    // Resolver el monto que se le paga AL OPERADOR por cada conduce, con las
    // mismas reglas que usa la nómina:
-   //   - monto_pago de `empleado_categoria_tarifa` por (empleado, tarifa)
+   //   - monto_pago de `proyecto_empleado_tarifa` por (proyecto, empleado,
+   //     tarifa) si el conduce tiene proyecto: la tarifa del proyecto gana.
+   //   - si no hay tarifa de proyecto, monto_pago de
+   //     `empleado_categoria_tarifa` por (empleado, tarifa) — la base.
    //   - si el conduce perdió el id de la tarifa, se recupera por nombre único
    const empleados = [...new Set(conducesRows.map((c) => c.empleado_id).filter(Boolean))];
+   const proyectos = [...new Set(conducesRows.map((c: any) => c.proyecto_id).filter(Boolean))];
 
-   const [tarifasEmpleadoRows, catalogoTarifasRows] = await Promise.all([
+   const [tarifasEmpleadoRows, tarifasProyectoRows, catalogoTarifasRows] = await Promise.all([
       empleados.length > 0
          ? db
               .selectFrom("empleado_categoria_tarifa")
               .select(["empleado_id", "categoria_equipo_tarifa_id", "monto_pago"])
+              .where("empleado_id", "in", empleados)
+              .execute()
+         : Promise.resolve([]),
+      proyectos.length > 0 && empleados.length > 0
+         ? db
+              .selectFrom("proyecto_empleado_tarifa")
+              .select(["proyecto_id", "empleado_id", "categoria_equipo_tarifa_id", "monto_pago"])
+              .where("proyecto_id", "in", proyectos)
               .where("empleado_id", "in", empleados)
               .execute()
          : Promise.resolve([]),
@@ -123,6 +136,15 @@ export async function getEquipoRentabilidad(
    const montoPorEmpleadoTarifa = new Map<string, number>();
    for (const t of tarifasEmpleadoRows) {
       montoPorEmpleadoTarifa.set(`${t.empleado_id}::${t.categoria_equipo_tarifa_id}`, num(t.monto_pago));
+   }
+
+   // Tarifa específica del proyecto: `proyecto_id::empleado_id::tarifa_id`.
+   const montoPorProyectoEmpleadoTarifa = new Map<string, number>();
+   for (const t of tarifasProyectoRows) {
+      montoPorProyectoEmpleadoTarifa.set(
+         `${t.proyecto_id}::${t.empleado_id}::${t.categoria_equipo_tarifa_id}`,
+         num(t.monto_pago)
+      );
    }
 
    // Nombres de tarifa únicos → id (solo los que no son ambiguos).
@@ -142,7 +164,11 @@ export async function getEquipoRentabilidad(
          tarifaIdPorNombreUnico.get((r.categoria_equipo_tarifa_nombre ?? "").trim().toLowerCase()) ??
          null;
       const montoPago =
-         r.empleado_id && tarifaId ? montoPorEmpleadoTarifa.get(`${r.empleado_id}::${tarifaId}`) ?? 0 : 0;
+         r.empleado_id && tarifaId
+            ? montoPorProyectoEmpleadoTarifa.get(`${r.proyecto_id}::${r.empleado_id}::${tarifaId}`) ??
+              montoPorEmpleadoTarifa.get(`${r.empleado_id}::${tarifaId}`) ??
+              0
+            : 0;
       const cantidad = num(r.cantidad);
       return {
          id: r.id,

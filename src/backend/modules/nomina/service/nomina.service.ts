@@ -169,6 +169,23 @@ export class NominaService {
          this.repo.getPreciosManuales(cycleId),
       ]);
 
+      /*
+         Tarifas específicas de proyecto, indexadas por
+         `proyecto::empleado::tarifa`. Si el conduce tiene proyecto y esa
+         combinación está configurada, es el monto que se paga: gana sobre la
+         base del empleado (misma regla que la rentabilidad del equipo).
+      */
+      const proyectosDelPeriodo = [
+         ...new Set(conduces.map((c) => c.proyecto_id).filter((x): x is string => Boolean(x))),
+      ];
+      const empleadosDelPeriodo = [
+         ...new Set(conduces.map((c) => c.empleado_id).filter(Boolean)),
+      ];
+      const tarifasProyecto =
+         proyectosDelPeriodo.length > 0 && empleadosDelPeriodo.length > 0
+            ? await this.repo.getTarifasProyecto(proyectosDelPeriodo, empleadosDelPeriodo)
+            : new Map<string, number>();
+
       /** Precio escrito a mano para este empleado y esta tarifa, si lo hay. */
       const manualDe = (empleadoId: string, nombre: string) =>
          preciosManuales.get(`${empleadoId}::${(nombre ?? "").trim().toLowerCase()}`);
@@ -220,9 +237,18 @@ export class NominaService {
             // Id de la tarifa, recuperado por nombre si el conduce lo perdió.
             const tarifaId = idEfectivo(c);
 
-            // El monto que se le paga AL CHOFER por esta tarifa, según el
-            // catálogo. Si no la tiene asignada, no se le puede pagar.
-            const delCatalogo = tarifaId ? tarifasEmpleado.get(tarifaId) ?? 0 : 0;
+            // El monto que se le paga AL CHOFER por esta tarifa: el de su
+            // proyecto cuando existe (misma regla que la rentabilidad), y si
+            // no, la base del catálogo. Si no la tiene asignada, no se le
+            // puede pagar.
+            const delCatalogo =
+               c.proyecto_id && tarifaId
+                  ? (tarifasProyecto.get(`${c.proyecto_id}::${emp.id}::${tarifaId}`) ??
+                    tarifasEmpleado.get(tarifaId) ??
+                    0)
+                  : tarifaId
+                    ? (tarifasEmpleado.get(tarifaId) ?? 0)
+                    : 0;
 
             /*
                El precio manual es la salida para lo que el catálogo no puede
@@ -240,10 +266,11 @@ export class NominaService {
             if (montoPago === 0) conducesSinTarifa++;
 
             /*
-               Clave por (categoría, tarifa), no solo por tarifa: dos camiones
-               de categorías distintas que cobran la misma tarifa ("Viaje")
-               deben verse como dos filas, porque si no es imposible saber con
-               qué equipo se generó la producción.
+               Clave por (categoría, tarifa, proyecto), no solo por tarifa:
+               dos camiones de categorías distintas que cobran la misma tarifa
+               ("Viaje") deben verse como dos filas, y una misma tarifa con
+               precio distinto por proyecto (proyecto vs. base) también, porque
+               si no se mezclarían bajo el primer precio que se calculó.
 
                La parte de la tarifa sigue cayendo al nombre snapshoteado
                cuando el id se perdió y no se pudo recuperar (nombre ambiguo o
@@ -251,7 +278,8 @@ export class NominaService {
                el conduce tampoco lo tiene.
             */
             const claveTarifa = tarifaId ?? `nombre:${c.categoria_equipo_tarifa_nombre}`;
-            const clave = `${c.categoria_equipo_id ?? "sin"}::${claveTarifa}`;
+            const claveProyecto = c.proyecto_id ?? "sin-proyecto";
+            const clave = `${c.categoria_equipo_id ?? "sin"}::${claveTarifa}::${claveProyecto}`;
             const previo = acumulado.get(clave);
 
             if (previo) {
@@ -266,6 +294,10 @@ export class NominaService {
                   categoria_equipo_id: c.categoria_equipo_id,
                   categoria_equipo_nombre: c.categoria_equipo_nombre,
                   medida_cobro_nombre: c.medida_cobro_nombre,
+                  // El proyecto, para distinguir el precio que le tocó a cada
+                  // conduce (tarifa del proyecto vs. base).
+                  proyecto_id: c.proyecto_id,
+                  proyecto_nombre: c.proyecto_nombre,
                   // Se marca para que la UI distinga un monto escrito a mano
                   // de uno que sale de la configuración del empleado.
                   precio_manual: Boolean(manual),

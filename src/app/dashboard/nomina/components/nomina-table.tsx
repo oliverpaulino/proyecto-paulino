@@ -374,78 +374,100 @@ function TarifasDialog({
             ) : (
                <div className="max-h-[60vh] overflow-y-auto">
                   <table className="w-full text-sm">
-                     <thead className="sticky top-0 bg-background">
-                        <tr className="text-xs uppercase text-muted-foreground">
-                           <th className="pb-2 text-left font-semibold">Equipo</th>
-                           <th className="pb-2 text-left font-semibold">Tarifa</th>
-                           <th className="pb-2 text-left font-semibold">Medida</th>
-                           <th className="pb-2 text-right font-semibold">Cantidad</th>
-                           <th className="pb-2 text-right font-semibold">Precio unit.</th>
-                           <th className="pb-2 text-right font-semibold">Subtotal</th>
-                        </tr>
-                     </thead>
-                     <tbody>
-                        {tarifas.map((t, i) => {
-                           // Toda tarifa se edita; `manual` solo dice a dónde
-                           // se guarda el precio (ciclo en vez de catálogo).
-                           const k = claveEdicion(t);
-                           const manual = esManual(t);
-                           const precio = precioActual(t);
-                           const tocado = editado[k] !== undefined;
-                           return (
-                              <tr key={`${k}:${i}`} className="border-t border-border/50">
-                                 {/*
-                                    Snapshots anteriores a la migración 015 no
-                                    guardaron la categoría. Se dice explícito en
-                                    vez de dejar la celda vacía, que parecería
-                                    un dato faltante y no un ciclo viejo.
-                                 */}
-                                 <td className="py-2">
-                                    {t.categoria_equipo_nombre ?? (
-                                       <span
-                                          className="text-muted-foreground"
-                                          title="Este ciclo se calculó antes de que se guardara la categoría del equipo. Recalcúlalo para verla (los ciclos cerrados no se recalculan)."
-                                       >
-                                          —
-                                       </span>
-                                    )}
-                                    {compartePrecio(t) && (
-                                       <Badge
-                                          className="ml-2 border-0 bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0"
-                                          title="Esta tarifa se usa con más de una categoría de equipo y su precio es uno solo en el catálogo: al cambiarlo aquí cambia también en las otras filas de la misma tarifa."
-                                       >
-                                          precio compartido
-                                       </Badge>
-                                    )}
-                                 </td>
-                                 <td className="py-2">
-                                    {t.categoria_equipo_tarifa_nombre}
-                                    {t.precio_manual && (
-                                       <Badge
-                                          className="ml-2 border-0 bg-purple-100 text-purple-800 text-[10px] px-1.5 py-0"
-                                          title={
-                                             t.precio_manual_nota ??
-                                             "Precio escrito a mano para este ciclo. No sale del catálogo."
-                                          }
-                                       >
-                                          a mano
-                                       </Badge>
-                                    )}
-                                 </td>
-                                 <td className="py-2 text-muted-foreground">
-                                    {t.medida_cobro_nombre ?? "—"}
-                                 </td>
-                                 <td className="py-2 text-right">
-                                    {t.cantidad.toLocaleString("es-DO")}
-                                 </td>
-                                 <td className="py-2 text-right">
-                                    {readOnly ? (
-                                       t.monto_pago === 0 ? (
-                                          <span className="text-amber-600">sin tarifa</span>
-                                       ) : (
-                                          money(t.monto_pago)
-                                       )
-                                    ) : (
+                      <thead className="sticky top-0 bg-background">
+                         <tr className="text-xs uppercase text-muted-foreground">
+                            <th className="pb-2 text-left font-semibold">Equipo</th>
+                            <th className="pb-2 text-left font-semibold">Tarifa</th>
+                            <th className="pb-2 text-left font-semibold">Proyecto</th>
+                            <th className="pb-2 text-left font-semibold">Medida</th>
+                            <th className="pb-2 text-right font-semibold">Cantidad</th>
+                            <th className="pb-2 text-right font-semibold">Precio unit.</th>
+                            <th className="pb-2 text-right font-semibold">Subtotal</th>
+                         </tr>
+                      </thead>
+                      <tbody>
+                         {tarifas.map((t, i) => {
+                            // Toda tarifa se edita; `manual` solo dice a dónde
+                            // se guarda el precio (ciclo en vez de catálogo).
+                            const k = claveEdicion(t);
+                            const manual = esManual(t);
+                            const precio = precioActual(t);
+                            const tocado = editado[k] !== undefined;
+                            // La tarifa del proyecto no se edita aquí: su precio
+                            // lo define el proyecto, no el catálogo del empleado.
+                            const esProyecto = Boolean(t.proyecto_id);
+                            return (
+                               <tr key={`${k}:${i}`} className="border-t border-border/50">
+                                  {/*
+                                     Snapshots anteriores a la migración 015 no
+                                     guardaron la categoría. Se dice explícito en
+                                     vez de dejar la celda vacía, que parecería
+                                     un dato faltante y no un ciclo viejo.
+                                  */}
+                                  <td className="py-2">
+                                     {t.categoria_equipo_nombre ?? (
+                                        <span
+                                           className="text-muted-foreground"
+                                           title="Este ciclo se calculó antes de que se guardara la categoría del equipo. Recalcúlalo para verla (los ciclos cerrados no se recalculan)."
+                                        >
+                                           —
+                                        </span>
+                                     )}
+                                     {compartePrecio(t) && !esProyecto && (
+                                        <Badge
+                                           className="ml-2 border-0 bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0"
+                                           title="Esta tarifa se usa con más de una categoría de equipo y su precio es uno solo en el catálogo: al cambiarlo aquí cambia también en las otras filas de la misma tarifa."
+                                        >
+                                           precio compartido
+                                        </Badge>
+                                     )}
+                                  </td>
+                                  <td className="py-2">
+                                     {t.categoria_equipo_tarifa_nombre}
+                                     {t.precio_manual && (
+                                        <Badge
+                                           className="ml-2 border-0 bg-purple-100 text-purple-800 text-[10px] px-1.5 py-0"
+                                           title={
+                                              t.precio_manual_nota ??
+                                              "Precio escrito a mano para este ciclo. No sale del catálogo."
+                                           }
+                                        >
+                                           a mano
+                                        </Badge>
+                                     )}
+                                     {esProyecto && (
+                                        <Badge
+                                           className="ml-2 border-0 bg-blue-100 text-blue-800 text-[10px] px-1.5 py-0"
+                                           title="Este precio lo define el proyecto, no el catálogo del empleado. Se cambia en las tarifas del proyecto."
+                                        >
+                                           del proyecto
+                                        </Badge>
+                                     )}
+                                  </td>
+                                  <td className="py-2">
+                                     {t.proyecto_nombre ?? (
+                                        <span
+                                           className="text-muted-foreground"
+                                           title="Conduce sin proyecto: se paga la tarifa general del empleado."
+                                        >
+                                           Sin proyecto
+                                        </span>
+                                     )}
+                                  </td>
+                                  <td className="py-2 text-muted-foreground">
+                                     {t.medida_cobro_nombre ?? "—"}
+                                  </td>
+                                  <td className="py-2 text-right">
+                                     {t.cantidad.toLocaleString("es-DO")}
+                                  </td>
+                                  <td className="py-2 text-right">
+                                     {readOnly || esProyecto ? (
+                                        t.monto_pago === 0 ? (
+                                           <span className="text-amber-600">sin tarifa</span>
+                                        ) : (
+                                           money(t.monto_pago)
+                                        )
+                                     ) : (
                                        <div className="flex flex-col items-end gap-0.5">
                                           <Input
                                              type="number"
@@ -499,7 +521,7 @@ function TarifasDialog({
                            );
                         })}
                         <tr className="border-t border-border font-semibold">
-                           <td className="py-2" colSpan={5}>
+                           <td className="py-2" colSpan={6}>
                               Devengado por producción
                            </td>
                            <td className="py-2 text-right">
@@ -517,7 +539,7 @@ function TarifasDialog({
                         </tr>
                         {empleado.complemento_minimo > 0 && (
                            <tr className="text-blue-600">
-                              <td className="py-2" colSpan={5}>
+                              <td className="py-2" colSpan={6}>
                                  Complemento para alcanzar el mínimo de{" "}
                                  {money(empleado.minimo_garantizado)}
                               </td>
@@ -835,65 +857,73 @@ function FilaDesglose({
                </Button>
             )}
          </div>
-         <table className="w-full text-sm">
-            <thead>
-               <tr className="text-xs uppercase text-muted-foreground">
-                  <th className="pb-2 text-left font-semibold">Equipo</th>
-                  <th className="pb-2 text-left font-semibold">Tarifa</th>
-                  <th className="pb-2 text-left font-semibold">Medida</th>
-                  <th className="pb-2 text-right font-semibold">Cantidad</th>
-                  <th className="pb-2 text-right font-semibold">Precio unit.</th>
-                  <th className="pb-2 text-right font-semibold">Subtotal</th>
-               </tr>
-            </thead>
-            <tbody>
-               {tarifas.map((t, i) => (
-                  <tr key={i} className="border-t border-border/50">
-                     {/* NULL = ciclo calculado antes de la migración 015. */}
-                     <td className="py-2">
-                        {t.categoria_equipo_nombre ?? (
-                           <span
-                              className="text-muted-foreground"
-                              title="Este ciclo se calculó antes de que se guardara la categoría del equipo. Recalcúlalo para verla (los ciclos cerrados no se recalculan)."
-                           >
-                              —
-                           </span>
-                        )}
-                     </td>
-                     <td className="py-2">{t.categoria_equipo_tarifa_nombre}</td>
-                     <td className="py-2 text-muted-foreground">{t.medida_cobro_nombre ?? "—"}</td>
-                     <td className="py-2 text-right">{t.cantidad.toLocaleString("es-DO")}</td>
-                     <td className="py-2 text-right">
-                        {t.monto_pago === 0 ? (
-                           <span className="text-amber-600" title="Este chofer no tiene tarifa asignada para este tipo de cobro">
-                              sin tarifa
-                           </span>
-                        ) : (
-                           money(t.monto_pago)
-                        )}
-                     </td>
-                     <td className="py-2 text-right font-medium">{money(t.subtotal)}</td>
-                  </tr>
-               ))}
-               <tr className="border-t border-border font-semibold">
-                  <td className="py-2" colSpan={5}>
-                     Devengado por producción
-                  </td>
-                  <td className="py-2 text-right">{money(empleado.devengado_tarifas)}</td>
-               </tr>
-               {empleado.complemento_minimo > 0 && (
-                  <tr className="text-blue-600">
-                     <td className="py-2" colSpan={5}>
-                        Complemento para alcanzar el mínimo de{" "}
-                        {money(empleado.minimo_garantizado)}
-                     </td>
-                     <td className="py-2 text-right font-semibold">
-                        + {money(empleado.complemento_minimo)}
-                     </td>
-                  </tr>
-               )}
-            </tbody>
-         </table>
+          <table className="w-full text-sm">
+             <thead>
+                <tr className="text-xs uppercase text-muted-foreground">
+                   <th className="pb-2 text-left font-semibold">Equipo</th>
+                   <th className="pb-2 text-left font-semibold">Tarifa</th>
+                   <th className="pb-2 text-left font-semibold">Proyecto</th>
+                   <th className="pb-2 text-left font-semibold">Medida</th>
+                   <th className="pb-2 text-right font-semibold">Cantidad</th>
+                   <th className="pb-2 text-right font-semibold">Precio unit.</th>
+                   <th className="pb-2 text-right font-semibold">Subtotal</th>
+                </tr>
+             </thead>
+             <tbody>
+                {tarifas.map((t, i) => (
+                   <tr key={i} className="border-t border-border/50">
+                      {/* NULL = ciclo calculado antes de la migración 015. */}
+                      <td className="py-2">
+                         {t.categoria_equipo_nombre ?? (
+                            <span
+                               className="text-muted-foreground"
+                               title="Este ciclo se calculó antes de que se guardara la categoría del equipo. Recalcúlalo para verla (los ciclos cerrados no se recalculan)."
+                            >
+                               —
+                            </span>
+                         )}
+                      </td>
+                      <td className="py-2">{t.categoria_equipo_tarifa_nombre}</td>
+                      <td className="py-2">
+                         {t.proyecto_nombre ?? (
+                            <span className="text-muted-foreground" title="Conduce sin proyecto: se paga la tarifa general del empleado.">
+                               Sin proyecto
+                            </span>
+                         )}
+                      </td>
+                      <td className="py-2 text-muted-foreground">{t.medida_cobro_nombre ?? "—"}</td>
+                      <td className="py-2 text-right">{t.cantidad.toLocaleString("es-DO")}</td>
+                      <td className="py-2 text-right">
+                         {t.monto_pago === 0 ? (
+                            <span className="text-amber-600" title="Este chofer no tiene tarifa asignada para este tipo de cobro">
+                               sin tarifa
+                            </span>
+                         ) : (
+                            money(t.monto_pago)
+                         )}
+                      </td>
+                      <td className="py-2 text-right font-medium">{money(t.subtotal)}</td>
+                   </tr>
+                ))}
+                <tr className="border-t border-border font-semibold">
+                   <td className="py-2" colSpan={6}>
+                      Devengado por producción
+                   </td>
+                   <td className="py-2 text-right">{money(empleado.devengado_tarifas)}</td>
+                </tr>
+                {empleado.complemento_minimo > 0 && (
+                   <tr className="text-blue-600">
+                      <td className="py-2" colSpan={6}>
+                         Complemento para alcanzar el mínimo de{" "}
+                         {money(empleado.minimo_garantizado)}
+                      </td>
+                      <td className="py-2 text-right font-semibold">
+                         + {money(empleado.complemento_minimo)}
+                      </td>
+                   </tr>
+                )}
+             </tbody>
+          </table>
 
          <RetencionesExpandible empleado={empleado} />
          <DeduccionesExpandible empleado={empleado} />
@@ -1117,10 +1147,22 @@ export function NominaTable({
                                              {e.total_conduces === 1 ? "" : "s"}
                                           </>
                                        )}
+                                       {/*
+                                          Lo que pide la revisión: cuánto generó
+                                          por conduces y cuál es el piso. Si no
+                                          llega, se le completa la diferencia — se
+                                          paga el mínimo, pero se ve que llegó a lo
+                                          que llegó.
+                                       */}
+                                       <span className="text-muted-foreground">
+                                          {" "}
+                                          · devengado {money(e.devengado_tarifas)} · mínimo{" "}
+                                          {money(e.minimo_garantizado)}
+                                       </span>
                                        {e.complemento_minimo > 0 && (
                                           <span className="text-blue-600">
                                              {" "}
-                                             · complementado al mínimo
+                                             · se completa {money(e.complemento_minimo)}
                                           </span>
                                        )}
                                     </>

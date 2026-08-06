@@ -90,6 +90,15 @@ export interface TarifaDesglose {
    subtotal: number; // cantidad × monto_pago
 
    /*
+      Proyecto del conduce, cuando lo tiene. El desglose agrupa por
+      (categoría, tarifa, proyecto): un mismo chofer que cobra "Viaje" a 150
+      en un proyecto y a 300 fuera produce DOS filas, porque cada una tiene su
+      precio distinto. `undefined` en snapshots viejos (antes de esta columna).
+   */
+   proyecto_id?: string | null;
+   proyecto_nombre?: string | null;
+
+   /*
       Solo para las tarifas huérfanas (`categoria_equipo_tarifa_id` en NULL).
       Dice si el nombre snapshoteado corresponde HOY a una categoría viva, que
       es lo que decide si su precio se puede corregir desde la nómina:
@@ -291,6 +300,14 @@ export function calcularNeto(p: {
 export interface ConduceParaNomina {
    conduce_id: string;
    empleado_id: string;
+   /**
+    * Proyecto al que pertenece el conduce, si tiene. Permite pagar al chofer
+    * con la tarifa específica del proyecto (`proyecto_empleado_tarifa`)
+    * cuando existe, en lugar de la base del empleado.
+    */
+   proyecto_id: string | null;
+   /** Nombre del proyecto (para mostrarlo en el desglose de la nómina). */
+   proyecto_nombre: string | null;
    /** true si el empleado se dedujo de `equipo.operador_id` y no del conduce. */
    inferido: boolean;
    fecha: Date;
@@ -359,6 +376,17 @@ export interface INominaRepository {
 
    /** Mapa `categoria_equipo_tarifa_id → monto_pago` para un empleado. */
    getTarifasEmpleado(empleadoId: string): Promise<Map<string, number>>;
+
+   /**
+    * Mapa `proyecto_id::empleado_id::categoria_equipo_tarifa_id → monto_pago`
+    * de las tarifas específicas de proyecto. Ganan sobre la base: si un
+    * conduce tiene proyecto y existe la tarifa de ese proyecto, es lo que se
+    * paga.
+    */
+   getTarifasProyecto(
+      proyectoIds: string[],
+      empleadoIds: string[]
+   ): Promise<Map<string, number>>;
 
    /**
     * Mapa `nombre normalizado → id` de las categorías de tarifa cuyo nombre es

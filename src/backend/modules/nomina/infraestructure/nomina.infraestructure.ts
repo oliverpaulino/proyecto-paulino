@@ -202,6 +202,7 @@ export class KyselyNominaRepository implements INominaRepository {
          // el id), así que se resuelve por join. Es leftJoin porque la
          // categoría pudo borrarse y aun así el conduce debe contarse.
          .leftJoin("categoria_equipo", "categoria_equipo.id", "conduce.categoria_equipo_id")
+         .leftJoin("proyecto", "proyecto.id", "conduce.proyecto_id")
          .select([
             "conduce.id as conduce_id",
             "conduce.fecha",
@@ -213,6 +214,8 @@ export class KyselyNominaRepository implements INominaRepository {
             "conduce.categoria_equipo_id",
             "categoria_equipo.nombre as categoria_equipo_nombre",
             "conduce.medida_cobro_nombre",
+            "conduce.proyecto_id",
+            "proyecto.nombre as proyecto_nombre",
             empleadoEfectivo.as("empleado_id"),
             // Inferido = no venía persona en el conduce y se dedujo del equipo.
             sql<boolean>`(
@@ -230,6 +233,8 @@ export class KyselyNominaRepository implements INominaRepository {
       return rows.map((r: any) => ({
          conduce_id: r.conduce_id,
          empleado_id: r.empleado_id,
+         proyecto_id: r.proyecto_id ?? null,
+         proyecto_nombre: r.proyecto_nombre ?? null,
          inferido: Boolean(r.inferido),
          fecha: r.fecha,
          categoria_equipo_tarifa_id: r.categoria_equipo_tarifa_id ?? null,
@@ -253,6 +258,25 @@ export class KyselyNominaRepository implements INominaRepository {
          .execute();
 
       return new Map(rows.map((r) => [r.categoria_equipo_tarifa_id, num(r.monto_pago)]));
+   }
+
+   async getTarifasProyecto(
+      proyectoIds: string[],
+      empleadoIds: string[]
+   ): Promise<Map<string, number>> {
+      const rows = await this.db
+         .selectFrom("proyecto_empleado_tarifa")
+         .select(["proyecto_id", "empleado_id", "categoria_equipo_tarifa_id", "monto_pago"])
+         .where("proyecto_id", "in", proyectoIds)
+         .where("empleado_id", "in", empleadoIds)
+         .execute();
+
+      return new Map(
+         rows.map((r) => [
+            `${r.proyecto_id}::${r.empleado_id}::${r.categoria_equipo_tarifa_id}`,
+            num(r.monto_pago),
+         ])
+      );
    }
 
    /**

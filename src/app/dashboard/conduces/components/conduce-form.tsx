@@ -372,11 +372,28 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId, fixe
                </SelectTrigger>
                <SelectContent>
                   <SelectItem value="manual">-- Manual / Sin tarifa --</SelectItem>
-                  {opcionesTarifa.map((t) => (
-                     <SelectItem key={t.id} value={t.id as string}>
-                        {t.nombre} ({t.medida_cobro_nombre}) · RD$ {t.precio_unitario.toLocaleString("es-DO")}
-                     </SelectItem>
-                  ))}
+                  {opcionesTarifa.map((t) => {
+                     // Precio del proyecto para esta tarifa, si el proyecto está
+                     // seleccionado: gana sobre el general (se aplica por
+                     // prioridad), pero el general se muestra como referencia.
+                     const tarifaProyecto = proyectoId
+                        ? getTarifa(proyectoId, t.id as string)
+                        : undefined;
+                     return (
+                        <SelectItem key={t.id} value={t.id as string}>
+                           {t.nombre} ({t.medida_cobro_nombre}) ·{" "}
+                           {tarifaProyecto ? (
+                              <>
+                                 proyecto RD${" "}
+                                 {tarifaProyecto.precio_unitario.toLocaleString("es-DO")} · general{" "}
+                                 RD$ {t.precio_unitario.toLocaleString("es-DO")}
+                              </>
+                           ) : (
+                              <>general RD$ {t.precio_unitario.toLocaleString("es-DO")}</>
+                           )}
+                        </SelectItem>
+                     );
+                  })}
                </SelectContent>
             </Select>
          </div>
