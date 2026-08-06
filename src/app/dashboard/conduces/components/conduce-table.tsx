@@ -10,6 +10,7 @@ import { ConduceDeleteDialog } from "./conduce-delete-dialog";
 import { ConduceEditDialog } from "./conduce-edit-dialog";
 import { ConduceDetalleDialog } from "./conduce-detalle-dialog";
 import type { ConduceDTO } from "@/dtos/conduce.dto";
+import { toast } from "sonner";
 
 interface Props {
    conduces: ConduceDTO[];
@@ -46,8 +47,8 @@ export function ConduceTable({ conduces, onDelete, deletingId, ocultarProyecto }
       setEliminandoId(id);
       try {
          const resultado = await DeleteConduce(id, motivo);
-         if (resultado instanceof Error) {
-            alert(resultado.message);
+          if (resultado instanceof Error) {
+            toast.error(resultado.message);
          }
       } finally {
          setEliminandoId(null);
