@@ -68,9 +68,9 @@ export function EmployeeForm({
       tipo_identificacion: initialData?.tipo_identificacion ?? "CEDULA",
       rol: initialData?.rol ?? "INGENIERO",
       frecuencia_pago: initialData?.frecuencia_pago ?? "QUINCENAL",
-      salario: initialData?.salario ?? 0,
-      aplica_retenciones: initialData?.aplica_retenciones ?? false,
-      activo: initialData?.activo ?? true,
+       salario: initialData?.salario ?? 0,
+       aplica_retenciones: initialData?.aplica_retenciones ?? false,
+       activo: initialData?.activo ?? true,
    });
 
    const [operadorData, setOperadorData] = useState<OperadorFormData>({
@@ -287,29 +287,6 @@ export function EmployeeForm({
             El salario se interpreta según esta frecuencia y se prorratea al período
             del ciclo de nómina.
          </p>
-
-         {/*
-            Apagado por defecto: muchos choferes cobran su producción completa
-            sin estar en planilla formal, así que activarlo BAJA lo que la
-            persona recibe. Es una decisión de la empresa, empleado por
-            empleado, no algo que deba pasar solo.
-         */}
-         <div className="flex items-start gap-2">
-            <input
-               id="ef-retenciones"
-               type="checkbox"
-               checked={values.aplica_retenciones}
-               onChange={(e) => set("aplica_retenciones", e.target.checked)}
-               className="mt-1 rounded border-input"
-            />
-            <div className="flex flex-col">
-               <Label htmlFor="ef-retenciones">Aplicar retenciones de ley (TSS e ISR)</Label>
-               <span className="text-xs text-muted-foreground">
-                  Descuenta AFP (2.87%), SFS (3.04%) e ISR según la escala de la DGII. Al
-                  activarlo baja el neto a pagar de este empleado.
-               </span>
-            </div>
-         </div>
 
          <div className="flex items-center gap-2">
             <input
