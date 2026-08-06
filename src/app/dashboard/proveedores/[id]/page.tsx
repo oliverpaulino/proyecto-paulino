@@ -323,7 +323,6 @@ export default function SupplierDetailPage() {
    const origenPago = (p: Pago) => {
       if (p.orden_compra_codigo_referencia) return { ref: p.orden_compra_codigo_referencia, tipo: "OC" };
       if (p.gasto_codigo_referencia) return { ref: p.gasto_codigo_referencia, tipo: "Gasto" };
-      if (p.costo_codigo_referencia) return { ref: p.costo_codigo_referencia, tipo: "Costo" };
       if (p.deduccion_codigo_referencia) return { ref: p.deduccion_codigo_referencia, tipo: "Ded." };
       if (p.proyecto_codigo_referencia) return { ref: p.proyecto_codigo_referencia, tipo: "Proy." };
       return { ref: "—", tipo: "" };
