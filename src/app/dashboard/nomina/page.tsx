@@ -39,6 +39,7 @@ import {
    FILTROS_CICLO_VACIOS,
    type FiltrosCiclo,
 } from "./components/nomina-filters";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 const ESTADO_STYLE: Record<EstadoCiclo, string> = {
    ABIERTO: "bg-gray-100 text-gray-700",
@@ -83,6 +84,7 @@ export default function NominaPage() {
    });
 
    const [dialogAbierto, setDialogAbierto] = useState(false);
+   const [cerrarOpen, setCerrarOpen] = useState(false);
    const [refrescando, setRefrescando] = useState(false);
    const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
    const [generandoPdf, setGenerandoPdf] = useState(false);
@@ -187,6 +189,21 @@ export default function NominaPage() {
                      </DialogContent>
                   </Dialog>
                </PermissionGuard>
+
+               <ConfirmDialog
+                  open={cerrarOpen}
+                  onOpenChange={setCerrarOpen}
+                  title="¿Cerrar el ciclo?"
+                  description={`Los montos quedarán congelados y se creará un gasto de ${money(
+                     empleados.reduce((s, e) => s + e.neto_pagar, 0)
+                  )} por la nómina.`}
+                  confirmLabel="Cerrar"
+                  destructive
+                  onConfirm={async () => {
+                     await CerrarCiclo(selectedCycle?.id ?? "");
+                     setCerrarOpen(false);
+                  }}
+               />
             </div>
 
             {error && (
@@ -342,18 +359,7 @@ export default function NominaPage() {
                               variant="outline"
                               className="gap-2"
                               disabled={cerrado || empleados.length === 0}
-                              onClick={() => {
-                                 const total = empleados.reduce((s, e) => s + e.neto_pagar, 0);
-                                 if (
-                                    confirm(
-                                       `¿Cerrar el ciclo?\n\n` +
-                                       `Los montos quedarán congelados y se creará un gasto de ` +
-                                       `${money(total)} por la nómina.`
-                                    )
-                                 ) {
-                                    CerrarCiclo(selectedCycle.id);
-                                 }
-                              }}
+                              onClick={() => setCerrarOpen(true)}
                            >
                               <Lock className="size-4" /> Cerrar
                            </Button>
