@@ -170,6 +170,7 @@ export class KyselyDeduccionRepository implements IDeduccionRepository {
             monto_total: data.monto_total,
             balance_pendiente: data.balance_pendiente ?? null,
             cuotas_sugeridas: data.cuotas_sugeridas ?? 1,
+            monto_cuota: data.monto_cuota ?? data.monto_total / (data.cuotas_sugeridas ?? 1),
             concepto: data.concepto,
             fecha: data.fecha ?? new Date(),
             created_at: new Date(),
