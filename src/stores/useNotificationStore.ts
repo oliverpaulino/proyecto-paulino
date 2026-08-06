@@ -13,13 +13,32 @@ export interface Notification {
    read_at: string | null;
 }
 
+export interface NotificationFetchParams {
+   page?: number;
+   pageSize?: number;
+   tipo?: string;
+   estado?: "LEIDA" | "NO_LEIDA";
+}
+
+export interface NotificationPaginated {
+   data: Notification[];
+   total: number;
+   page: number;
+   pageSize: number;
+   totalPages: number;
+}
+
 type NotificationStore = {
    notifications: Notification[];
+   total: number;
+   page: number;
+   pageSize: number;
+   totalPages: number;
    unreadCount: number;
    loading: boolean;
    deleteLoading: boolean;
 
-   fetchNotifications: () => Promise<void>;
+   fetchNotifications: (params?: NotificationFetchParams) => Promise<void>;
    fetchUnreadCount: () => Promise<void>;
    markAsRead: (id: string) => Promise<void>;
    markAllAsRead: () => Promise<void>;
@@ -28,18 +47,31 @@ type NotificationStore = {
 
 export const useNotificationStore = create<NotificationStore>((set, get) => ({
    notifications: [],
+   total: 0,
+   page: 1,
+   pageSize: 10,
+   totalPages: 1,
    unreadCount: 0,
    loading: false,
    deleteLoading: false,
-   fetchNotifications: async () => {
+   fetchNotifications: async (params = {}) => {
+      const page = params.page ?? 1;
+      const pageSize = params.pageSize ?? 10;
       set({ loading: true });
       try {
-         const res = await fetch("/api/notifications");
+         const qs = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+         if (params.tipo) qs.set("tipo", params.tipo);
+         if (params.estado) qs.set("estado", params.estado);
+
+         const res = await fetch(`/api/notifications?${qs.toString()}`);
          if (!res.ok) return;
-         const data: Notification[] = await res.json();
+         const data: NotificationPaginated = await res.json();
          set({
-            notifications: data,
-            unreadCount: data.filter((n) => !n.is_read).length,
+            notifications: data.data,
+            total: data.total,
+            page: data.page,
+            pageSize: data.pageSize,
+            totalPages: data.totalPages,
          });
       } catch {
          // silent

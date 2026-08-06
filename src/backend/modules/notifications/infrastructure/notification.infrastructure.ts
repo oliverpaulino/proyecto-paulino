@@ -4,22 +4,66 @@ import { notificationEmitter } from "@/backend/shared/notification-emitter";
 import type {
    CreateNotificationDTO,
    INotificationRepository,
+   NotificationFilters,
+   NotificationPaginatedResult,
    NotificationProps,
 } from "../domain/notification.domain";
+
+const MAX_PAGE_SIZE = 50;
 
 export class KyselyNotificationRepository implements INotificationRepository {
    constructor(private readonly db: Kysely<DB>) { }
 
-   async findByUserId(userId: string): Promise<NotificationProps[]> {
-      const rows = await this.db
+   async findByUserId(
+      userId: string,
+      filters: NotificationFilters = {}
+   ): Promise<NotificationPaginatedResult> {
+      const page = filters.page && filters.page > 0 ? filters.page : 1;
+      const pageSize =
+         filters.pageSize && filters.pageSize > 0
+            ? Math.min(filters.pageSize, MAX_PAGE_SIZE)
+            : 10;
+      const tipo = filters.tipo?.trim() || undefined;
+      const estado = filters.estado;
+
+      let dataQuery = this.db
          .selectFrom("notifications")
          .selectAll()
-         .where("user_id", "=", userId)
+         .where("user_id", "=", userId);
+      let countQuery = this.db
+         .selectFrom("notifications")
+         .select((eb) => eb.fn.countAll<string>().as("count"))
+         .where("user_id", "=", userId);
+
+      if (tipo) {
+         dataQuery = dataQuery.where("type", "=", tipo);
+         countQuery = countQuery.where("type", "=", tipo);
+      }
+      if (estado === "LEIDA") {
+         dataQuery = dataQuery.where("is_read", "=", true);
+         countQuery = countQuery.where("is_read", "=", true);
+      } else if (estado === "NO_LEIDA") {
+         dataQuery = dataQuery.where("is_read", "=", false);
+         countQuery = countQuery.where("is_read", "=", false);
+      }
+
+      const countResult = await countQuery.executeTakeFirst();
+      const total = Number(countResult?.count ?? 0);
+
+      const rows = await dataQuery
          .orderBy("is_read", "asc")
          .orderBy("created_at", "desc")
+         .offset((page - 1) * pageSize)
+         .limit(pageSize)
          .execute();
 
-      return rows.map((r) => ({ ...r, is_read: Boolean(r.is_read) }));
+      return {
+         data: rows.map((r) => ({ ...r, is_read: Boolean(r.is_read) })),
+         total,
+         page,
+         pageSize,
+         totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      };
    }
 
    async countUnread(userId: string): Promise<number> {

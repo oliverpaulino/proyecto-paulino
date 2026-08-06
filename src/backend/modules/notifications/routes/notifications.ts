@@ -10,12 +10,18 @@ const notificationsRoute = new Hono();
 const repo = new KyselyNotificationRepository(db);
 export const notificationService = new NotificationService(repo);
 
-// GET /api/notifications - all for current user
+// GET /api/notifications - paginated list for current user (tipo/estado opcionales)
 notificationsRoute.get("/", async (c) => {
    const session = await auth.api.getSession({ headers: c.req.raw.headers });
    if (!session?.user) return c.json({ error: "No autenticado" }, 401);
 
-   const notifications = await notificationService.getForUser(session.user.id);
+   const { page, pageSize, tipo, estado } = c.req.query();
+   const notifications = await notificationService.getForUser(session.user.id, {
+      page: page ? Number(page) : undefined,
+      pageSize: pageSize ? Number(pageSize) : undefined,
+      tipo: tipo || undefined,
+      estado: estado === "LEIDA" || estado === "NO_LEIDA" ? estado : undefined,
+   });
    return c.json(notifications);
 });
 
