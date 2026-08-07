@@ -745,6 +745,9 @@ export interface DB {
       tipo_movimiento: string;
       gasto_empresa_id: string | null;
       deduccion_empleado_id: string | null;
+      // ENTRADA de cuentas por cobrar: pago de un cliente aplicado a un
+      // conduce cobrable (ver migración 017). NULL en los pagos de salida.
+      conduce_id: string | null;
       proyecto_id: string | null;
       orden_compra_id: string | null;
       fecha: Date;
