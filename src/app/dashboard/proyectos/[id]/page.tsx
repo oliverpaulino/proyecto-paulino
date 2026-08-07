@@ -144,13 +144,25 @@ export default function ProyectoDetailPage() {
          <ProyectoHeader proyecto={proyecto} pdfLoading={pdfLoading} onPDF={handleGenerarPDF} onBack={() => router.push("/dashboard/proyectos")} />
 
          <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-6 xl:w-auto">
-               <TabsTrigger value="general">General</TabsTrigger>
-               <TabsTrigger value="configuracion">Configuracion</TabsTrigger>
-               <TabsTrigger value="conduces">Conduces</TabsTrigger>
-               <TabsTrigger value="cobrables">Cobrables</TabsTrigger>
-               <TabsTrigger value="incobrables">Incobrables</TabsTrigger>
-               <TabsTrigger value="archivos">Archivos</TabsTrigger>
+         <TabsList className="w-full flex flex-nowrap overflow-x-auto justify-start gap-1 bg-transparent">
+               <TabsTrigger value="general" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                  General
+               </TabsTrigger>
+               <TabsTrigger value="configuracion" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                  Configuración
+               </TabsTrigger>
+               <TabsTrigger value="conduces" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                  Conduces
+               </TabsTrigger>
+               <TabsTrigger value="cobrables" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                  Cobrables
+               </TabsTrigger>
+               <TabsTrigger value="incobrables" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                  Incobrables
+               </TabsTrigger>
+               <TabsTrigger value="archivos" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                  Archivos
+               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="general" className="space-y-6">
