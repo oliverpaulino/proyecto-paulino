@@ -317,80 +317,124 @@ export default function DetalleClienteCxcPage() {
                               {expandido === c.id && (
                                  <tr className="border-b border-border/50 bg-brand-blue/[0.03]">
                                     <td colSpan={8} className="px-4 py-3">
-                                       <div className="grid gap-3 lg:grid-cols-3">
-                                          <div className="rounded-lg border border-border/60 bg-card p-3">
-                                             <p className="text-[10px] font-semibold uppercase text-muted-foreground">
-                                                Tarifa del servicio
-                                             </p>
-                                             <p className="text-lg font-bold text-brand-blue dark:text-blue-400">
-                                                {c.tarifa_servicio > 0 ? money(c.tarifa_servicio) : "—"}
-                                             </p>
-                                             {c.tipo === "PROYECTO" && c.pendiente_tarifa_cargos > 0 && (
-                                                <p className="text-[10px] font-medium text-red-600">
-                                                   {money(c.pendiente_tarifa_cargos)} pendientes
+                                       <div className="flex flex-col gap-3">
+                                          <div className="grid gap-3 lg:grid-cols-3">
+                                             <div className="rounded-lg border border-border/60 bg-card p-3">
+                                                <p className="text-[10px] font-semibold uppercase text-muted-foreground">
+                                                   Tarifa del servicio
                                                 </p>
-                                             )}
-                                          </div>
-                                          <div className="rounded-lg border border-border/60 bg-card p-3">
-                                             <p className="text-[10px] font-semibold uppercase text-muted-foreground">
-                                                Cargos cobrables
-                                             </p>
-                                             <p className="text-lg font-bold">
-                                                {c.cargos_cobrables > 0 ? money(c.cargos_cobrables) : "—"}
-                                             </p>
-                                             {c.tipo === "PROYECTO" && (
-                                                <p className="text-[10px] text-muted-foreground">
-                                                   Detalles cobrables del proyecto
+                                                <p className="text-lg font-bold text-brand-blue dark:text-blue-400">
+                                                   {c.tarifa_servicio > 0 ? money(c.tarifa_servicio) : "—"}
                                                 </p>
-                                             )}
-                                          </div>
-                                          <div className="rounded-lg border border-border/60 bg-card p-3">
-                                             <p className="text-[10px] font-semibold uppercase text-muted-foreground">
-                                                Conduces ({c.conduces_count})
-                                             </p>
-                                             <ul className="mt-1 flex flex-col gap-1">
-                                                {c.conduces.length === 0 ? (
-                                                   <li className="text-xs text-muted-foreground">
-                                                      Sin conduces cobrables.
-                                                   </li>
-                                                ) : (
-                                                   c.conduces.map((cc) => (
-                                                      <li
-                                                         key={cc.id}
-                                                         className="flex items-center justify-between gap-2 text-xs"
-                                                      >
-                                                         <span className="flex min-w-0 items-baseline gap-1.5">
-                                                            <span className="font-mono font-medium text-brand-blue">
-                                                               {cc.numero_referencia}
-                                                            </span>
-                                                            <span className="truncate text-muted-foreground">
-                                                               {cc.tipo_conduce}
-                                                            </span>
-                                                         </span>
-                                                         <span className="whitespace-nowrap font-semibold">
-                                                            {money(cc.monto_total)}
-                                                         </span>
-                                                      </li>
-                                                   ))
+                                                {c.tipo === "PROYECTO" && c.pendiente_tarifa_cargos > 0 && (
+                                                   <p className="text-[10px] font-medium text-red-600">
+                                                      {money(c.pendiente_tarifa_cargos)} pendientes
+                                                   </p>
                                                 )}
-                                             </ul>
-                                             {c.conduces_cobrables > 0 && (
-                                                <p className="mt-1 border-t border-border/60 pt-1 text-[10px] text-muted-foreground">
-                                                   Total conduces:{" "}
-                                                   <span className="font-semibold text-foreground">
-                                                      {money(c.conduces_cobrables)}
-                                                   </span>
+                                             </div>
+                                             <div className="rounded-lg border border-border/60 bg-card p-3">
+                                                <p className="text-[10px] font-semibold uppercase text-muted-foreground">
+                                                   Cargos cobrables
                                                 </p>
-                                             )}
+                                                <p className="text-lg font-bold">
+                                                   {c.cargos_cobrables > 0 ? money(c.cargos_cobrables) : "—"}
+                                                </p>
+                                                {c.tipo === "PROYECTO" && (
+                                                   <p className="text-[10px] text-muted-foreground">
+                                                      Detalles cobrables del proyecto
+                                                   </p>
+                                                )}
+                                             </div>
+                                             <div className="rounded-lg border border-border/60 bg-card p-3">
+                                                <p className="text-[10px] font-semibold uppercase text-muted-foreground">
+                                                   Conduces ({c.conduces_count})
+                                                </p>
+                                                <p className="text-lg font-bold">
+                                                   {c.conduces_cobrables > 0 ? money(c.conduces_cobrables) : "—"}
+                                                </p>
+                                                {c.conduces.length === 0 && (
+                                                   <p className="text-[10px] text-muted-foreground">
+                                                      Sin conduces cobrables.
+                                                   </p>
+                                                )}
+                                             </div>
                                           </div>
-                                       </div>
-                                       <div className="mt-2 flex items-center justify-end gap-4 text-xs">
-                                          <span className="text-muted-foreground">
-                                             Tarifa + Cargos + Conduces
-                                          </span>
-                                          <span className="font-bold text-brand-blue">
-                                             {money(c.monto_total)}
-                                          </span>
+
+                                          {c.conduces.length > 0 && (
+                                             <div className="rounded-lg border border-border/60 bg-card">
+                                                <div className="max-h-56 overflow-y-auto">
+                                                   <table className="w-full text-xs">
+                                                      <thead>
+                                                         <tr className="sticky top-0 border-b border-border/60 bg-muted/40">
+                                                            <th className="px-3 py-2 text-left font-semibold uppercase text-muted-foreground">
+                                                               Conduce
+                                                            </th>
+                                                            <th className="px-3 py-2 text-left font-semibold uppercase text-muted-foreground">
+                                                               Tipo
+                                                            </th>
+                                                            <th className="px-3 py-2 text-right font-semibold uppercase text-muted-foreground">
+                                                               Facturado
+                                                            </th>
+                                                            <th className="px-3 py-2 text-right font-semibold uppercase text-muted-foreground">
+                                                               Pendiente
+                                                            </th>
+                                                         </tr>
+                                                      </thead>
+                                                      <tbody>
+                                                         {c.conduces.map((cc) => (
+                                                            <tr
+                                                               key={cc.id}
+                                                               className="border-b border-border/40 last:border-0"
+                                                            >
+                                                               <td className="whitespace-nowrap px-3 py-1.5 font-mono font-medium text-brand-blue">
+                                                                  {cc.numero_referencia}
+                                                               </td>
+                                                               <td
+                                                                  className="max-w-[260px] truncate px-3 py-1.5 text-muted-foreground"
+                                                                  title={cc.tipo_conduce}
+                                                               >
+                                                                  {cc.tipo_conduce}
+                                                               </td>
+                                                               <td className="whitespace-nowrap px-3 py-1.5 text-right">
+                                                                  {money(cc.monto_total)}
+                                                               </td>
+                                                               <td className="whitespace-nowrap px-3 py-1.5 text-right font-semibold text-red-600">
+                                                                  {money(cc.pendiente)}
+                                                               </td>
+                                                            </tr>
+                                                         ))}
+                                                      </tbody>
+                                                      <tfoot>
+                                                         <tr className="sticky bottom-0 border-t border-border/60 bg-muted/40 font-semibold">
+                                                            <td className="px-3 py-2" colSpan={2}>
+                                                               {c.conduces_count} conduces
+                                                            </td>
+                                                            <td className="whitespace-nowrap px-3 py-2 text-right">
+                                                               {money(c.conduces_cobrables)}
+                                                            </td>
+                                                            <td className="whitespace-nowrap px-3 py-2 text-right text-red-600">
+                                                               {money(
+                                                                  c.conduces.reduce(
+                                                                     (acc, cc) => acc + cc.pendiente,
+                                                                     0
+                                                                  )
+                                                               )}
+                                                            </td>
+                                                         </tr>
+                                                      </tfoot>
+                                                   </table>
+                                                </div>
+                                             </div>
+                                          )}
+
+                                          <div className="flex items-center justify-end gap-4 text-xs">
+                                             <span className="text-muted-foreground">
+                                                Tarifa + Cargos + Conduces
+                                             </span>
+                                             <span className="font-bold text-brand-blue">
+                                                {money(c.monto_total)}
+                                             </span>
+                                          </div>
                                        </div>
                                     </td>
                                  </tr>
