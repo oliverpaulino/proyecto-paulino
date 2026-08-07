@@ -67,6 +67,9 @@ function Tarjeta({
 
 export default function DetalleClienteCxcPage() {
 
+   useEffect(() => {
+      document.title = "Cargando cuenta por cobrar ";
+   }, [])
 
    const params = useParams();
    const router = useRouter();
@@ -429,10 +432,10 @@ export default function DetalleClienteCxcPage() {
                   <table className="w-full text-sm">
                      <thead>
                         <tr className="bg-brand-blue">
-                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Folio</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Fecha</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Destino</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Concepto</th>
+                           <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Folio</th>
+                           <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Fecha</th>
+                           <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Destino</th>
+                           <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Concepto</th>
                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Método</th>
                            <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-blue-200">Monto</th>
                         </tr>
@@ -448,11 +451,11 @@ export default function DetalleClienteCxcPage() {
                               <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                                  {fecha(p.fecha)}
                               </td>
-                               <td className="px-4 py-3">
-                                  <span className="font-mono text-xs">
-                                     {p.conduce_numero_referencia ?? p.proyecto_codigo_referencia ?? "—"}
-                                  </span>
-                               </td>
+                              <td className="px-4 py-3">
+                                 <span className="font-mono text-xs">
+                                    {p.conduce_numero_referencia ?? p.proyecto_codigo_referencia ?? "—"}
+                                 </span>
+                              </td>
                               <td className="max-w-[240px] truncate px-4 py-3" title={p.concepto}>
                                  {p.concepto}
                               </td>
