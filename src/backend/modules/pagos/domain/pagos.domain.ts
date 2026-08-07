@@ -18,6 +18,12 @@ export interface PagoProps {
    // join
    deduccion_codigo_referencia: string | null;
 
+   // ENTRADA de cuentas por cobrar: pago de un cliente contra un conduce
+   // cobrable. Mutuamente excluyente con los orígenes de salida.
+   conduce_id: string | null;
+   // join — `conduce` no tiene `referencia` numérica: se muestra el folio.
+   conduce_numero_referencia: string | null;
+
    proyecto_id: string | null;
    // join
    proyecto_codigo_referencia: string | null;
@@ -55,6 +61,8 @@ export class Pago {
    get gasto_codigo_referencia() { return this.props.gasto_codigo_referencia; }
    get deduccion_empleado_id() { return this.props.deduccion_empleado_id; }
    get deduccion_codigo_referencia() { return this.props.deduccion_codigo_referencia; }
+   get conduce_id() { return this.props.conduce_id; }
+   get conduce_numero_referencia() { return this.props.conduce_numero_referencia; }
    get proyecto_id() { return this.props.proyecto_id; }
    get proyecto_codigo_referencia() { return this.props.proyecto_codigo_referencia; }
    get orden_compra_id() { return this.props.orden_compra_id; }
@@ -79,6 +87,7 @@ export interface CreatePagoDTO {
    fecha: Date;
    gasto_empresa_id?: string | null;
    deduccion_empleado_id?: string | null;
+   conduce_id?: string | null;
    proyecto_id?: string | null;
    orden_compra_id?: string | null;
 }
@@ -96,6 +105,13 @@ export interface SaldoPendienteOrdenCompra {
    estado: string;
 }
 
+export interface SaldoPendienteConduce {
+   conduce_id: string;
+   monto_total: number;
+   pagado: number;
+   cliente_id: string;
+}
+
 export interface IPagoRepository {
    findAll( params?: { page?: number; 
                      limit?: number; 
@@ -104,6 +120,7 @@ export interface IPagoRepository {
                      end?: Date; 
                      gasto_empresa_id?: string | null;
                      deduccion_empleado_id?: string | null;
+                     conduce_id?: string | null;
                      proyecto_id?: string | null;
                      orden_compra_id?: string | null; }): Promise<Pago[]>;
 
@@ -114,6 +131,7 @@ export interface IPagoRepository {
                      end?: Date; 
                      gasto_empresa_id?: string | null;
                      deduccion_empleado_id?: string | null;
+                     conduce_id?: string | null;
                      proyecto_id?: string | null;
                      orden_compra_id?: string | null; }): Promise<Pago[]>;
 
@@ -126,4 +144,7 @@ export interface IPagoRepository {
 
    /** Total y pagado directo de una OC. `null` si la orden no existe. */
    getSaldoPendienteOrdenCompra(ordenCompraId: string): Promise<SaldoPendienteOrdenCompra | null>;
+
+   /** Total y pagado directo de un conduce. `null` si el conduce no existe. */
+   getSaldoPendienteConduce(conduceId: string): Promise<SaldoPendienteConduce | null>;
 }
