@@ -377,11 +377,11 @@ function EquipoDetailContent() {
                      { value: "rentabilidad", label: "Rentabilidad" },
                      { value: "general", label: "Información General" },
                      { value: "conduces", label: "Conduces" },
-                      { value: "gastos", label: "Gastos" },
-                      { value: "compras", label: "Compras" },
-                      { value: "pagos", label: "Pagos" },
-                      { value: "subcontrataciones", label: "Subcontrataciones" },
-                   ].map((tab) => (
+                     { value: "gastos", label: "Gastos" },
+                     { value: "compras", label: "Compras" },
+                     { value: "pagos", label: "Pagos" },
+                     { value: "subcontrataciones", label: "Subcontrataciones" },
+                  ].map((tab) => (
                      <TabsTrigger
                         key={tab.value}
                         value={tab.value}

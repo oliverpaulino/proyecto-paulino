@@ -18,6 +18,7 @@ function extractParams(c: any) {
       end: c.req.query("end") ? new Date(`${c.req.query("end")}T23:59:59.999`) : undefined,
       gasto_empresa_id: c.req.query("gasto_empresa_id"),
       deduccion_empleado_id: c.req.query("deduccion_empleado_id"),
+      conduce_id: c.req.query("conduce_id"),
       orden_compra_id: c.req.query("orden_compra_id"),
       // Pagos vinculados a un equipo (vía gasto / deducción / orden de compra).
       equipo_id: c.req.query("equipo_id"),

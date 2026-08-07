@@ -51,7 +51,9 @@ export function MedidaCobroManager({ open, onOpenChange }: MedidaCobroManagerPro
    }, [open, GetMedidaCobros]);
 
    function countCategoriasEqupos(medidaId: string): number {
-      return CategoriaEquipos.filter((e) => e.medida_cobro_id === medidaId).length;
+      return CategoriaEquipos.reduce((count, categoria) => {
+         return count + categoria.tarifas.filter((tarifa) => tarifa.medida_cobro_id === medidaId).length;
+      }, 0);
    }
 
    async function handleCreate(e: React.FormEvent) {

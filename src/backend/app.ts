@@ -29,6 +29,7 @@ import deduccionesRoute from "./modules/deducciones/routes/deducciones.routes";
 import pagosRoute from "./modules/pagos/routes/pagos.routes";
 import nominaRoute from "./modules/nomina/routes/nomina.routes";
 import cuentasPorPagarRoute from "./modules/cuentas-por-pagar/routes/cuentas-por-pagar.routes";
+import cuentasPorCobrarRoute from "./modules/cuentas-por-cobrar/routes/cuentas-por-cobrar.routes";
 import subcontratacionesRoute from "./modules/subcontrataciones/routes/subcontrataciones";
 
 const app = new Hono().basePath("/api");
@@ -67,6 +68,7 @@ app.use("/tipo-items/*", requireResourcePermission("inventory"));
 app.use("/items/*", requireResourcePermission("inventory"));
 app.use("/units/*", requireResourcePermission("inventory"));
 app.use("/roles/*", requireResourcePermission("user"));
+app.use("/cuentas-por-cobrar/*", requireResourcePermission("account_receivable"));
 app.use("/proyecto-tarifas/*", requireResourcePermission("project"));
 app.use("/proyecto-empleado-tarifas/*", requireResourcePermission("project"));
 // Los archivos de proyecto se sirven desde disco: nunca sin permiso ni sin
@@ -101,6 +103,7 @@ app.route("/roles", rolesRoute);
 app.route("/conduces", conducesRoute);
 app.route("/nomina", nominaRoute);
 app.route("/cuentas-por-pagar", cuentasPorPagarRoute);
+app.route("/cuentas-por-cobrar", cuentasPorCobrarRoute);
 app.route("/subcontrataciones", subcontratacionesRoute);
 
 app.get("/dgii/:rnc", async (c) => {

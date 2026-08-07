@@ -34,7 +34,7 @@ function aDate(v: unknown): Date | null {
 }
 
 export class KyselySubcontratacionRepository implements ISubcontratacionRepository {
-   constructor(private readonly db: Kysely<DB>) {}
+   constructor(private readonly db: Kysely<DB>) { }
 
    // ── Queries base ───────────────────────────────────────────────────────────
 
@@ -426,7 +426,6 @@ export class KyselySubcontratacionRepository implements ISubcontratacionReposito
             concepto: data.concepto?.trim() || "Pago a subcontratista",
             tipo_movimiento: "SALIDA",
             gasto_empresa_id: sub.gasto_id,
-            costo_cliente_id: null,
             deduccion_empleado_id: null,
             proyecto_id: null,
             orden_compra_id: null,

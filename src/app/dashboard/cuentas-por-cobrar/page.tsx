@@ -1,35 +1,41 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import {
-   Wallet,
+   Receipt,
    ChevronLeft,
    ChevronRight,
    Loader2,
    Eye,
    TriangleAlert,
+   Zap,
+   Phone,
 } from "lucide-react";
 import {
-   useCuentasPorPagarStore,
-   type EstadoCuenta,
-   type TipoCuenta,
-} from "@/stores/useCuentasPorPagarStore";
+   useCuentasPorCobrarStore,
+   type EstadoCxc,
+} from "@/stores/useCuentasPorCobrarStore";
+import { SelectBuscadorClient } from "@/components/shared/selectBuscadorClient";
+import { SelectBuscadorProyecto } from "@/components/shared/selectBuscadorProyecto";
+import { PagoRapidoDialog } from "./components/pago-rapido-dialog";
 
 const money = (n: number) =>
    `RD$ ${n.toLocaleString("es-DO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const fecha = (s: string) =>
-   new Date(`${String(s).slice(0, 10)}T12:00:00`).toLocaleDateString("es-DO", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-   });
+   s
+      ? new Date(`${String(s).slice(0, 10)}T12:00:00`).toLocaleDateString("es-DO", {
+         day: "2-digit",
+         month: "short",
+         year: "numeric",
+      })
+      : "—";
 
-const ESTADO_STYLE: Record<EstadoCuenta, string> = {
+const ESTADO_STYLE: Record<EstadoCxc, string> = {
    PENDIENTE: "bg-red-100 text-red-800",
    PARCIAL: "bg-amber-100 text-amber-800",
    PAGADO: "bg-green-100 text-green-800",
@@ -57,7 +63,12 @@ function Tarjeta({
    );
 }
 
-export default function CuentasPorPagarPage() {
+export default function CuentasPorCobrarPage() {
+
+   useEffect(() => {
+      document.title = "Cuentas por cobrar"
+   }, [])
+
    const {
       cuentas,
       resumen,
@@ -71,7 +82,8 @@ export default function CuentasPorPagarPage() {
       SetFiltros,
       NextPage,
       PrevPage,
-   } = useCuentasPorPagarStore();
+   } = useCuentasPorCobrarStore();
+   const [pagoDialog, setPagoDialog] = useState(false);
 
    useEffect(() => {
       GetCuentas();
@@ -79,38 +91,43 @@ export default function CuentasPorPagarPage() {
 
    const desde = total === 0 ? 0 : (page - 1) * pageSize + 1;
    const hasta = Math.min(page * pageSize, total);
+   const conFiltros = !!(filtros.busqueda || filtros.cliente_id || filtros.estado || filtros.fecha_desde || filtros.fecha_hasta);
 
    return (
       <div className="flex flex-col gap-6 p-6">
          <div>
             <div className="flex items-center gap-3">
                <div className="h-9 w-1.5 rounded-full bg-brand-yellow" />
-               <Wallet className="size-7 text-brand-blue dark:text-blue-400" />
+               <Receipt className="size-7 text-brand-blue dark:text-blue-400" />
                <h1 className="text-3xl font-bold tracking-tight text-brand-blue dark:text-white">
-                  Cuentas por pagar
+                  Cuentas por cobrar
                </h1>
             </div>
             <p className="mt-1 pl-[calc(0.375rem+0.75rem)] text-sm text-muted-foreground">
-               Gastos que aún no se han saldado. El pendiente se calcula restando los
-               pagos registrados a cada documento.
+               Lo que los clientes deben por folios. El pendiente se calcula restando los pagos
+               registrados a cada folio.
             </p>
          </div>
 
          {/* ── Resumen ── */}
          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Tarjeta
-               label="Total pendiente"
+               label="Total por cobrar"
                valor={money(resumen.total_pendiente)}
                detalle={`${resumen.total_documentos} documento${resumen.total_documentos === 1 ? "" : "s"}`}
                acento="text-red-600"
+            />
+            <Tarjeta
+               label="Clientes con deuda"
+               valor={String(resumen.clientes_con_deuda)}
+               detalle={`${resumen.total_clientes} clientes con conduces`}
             />
             <Tarjeta
                label="Sin ningún pago"
                valor={String(resumen.pendientes)}
                detalle={`${resumen.parciales} con abono parcial`}
             />
-            <Tarjeta label="En gastos" valor={money(resumen.gastos_pendiente)} />
-            {/* <Tarjeta label="En costos" valor={money(resumen.costos_pendiente)} /> */}
+            <Tarjeta label="Facturado total" valor={money(resumen.total_facturado)} />
          </div>
 
          {/* ── Antigüedad ── */}
@@ -142,7 +159,7 @@ export default function CuentasPorPagarPage() {
                   Buscar
                </label>
                <Input
-                  placeholder="Concepto, NCF o referencia"
+                  placeholder="Nombre o referencia del cliente"
                   defaultValue={filtros.busqueda ?? ""}
                   onKeyDown={(e) => {
                      if (e.key === "Enter") SetFiltros({ busqueda: e.currentTarget.value });
@@ -154,19 +171,45 @@ export default function CuentasPorPagarPage() {
                />
             </div>
 
+            <div className="min-w-[220px] flex-1">
+               <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Cliente
+               </label>
+               <SelectBuscadorClient
+                  value={filtros.cliente_id}
+                  initialLabel={filtros.cliente_id ? "" : ""}
+                  onChange={(id) => SetFiltros({ cliente_id: id ?? undefined })}
+               />
+            </div>
+
+            <div className="min-w-[200px] flex-1">
+               <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Proyecto
+               </label>
+               <SelectBuscadorProyecto
+                  value={filtros.proyecto_id}
+                  onChange={(id) => SetFiltros({ proyecto_id: id ?? undefined })}
+               />
+            </div>
+
             <div>
-               <label className="mb-1 block text-xs font-medium text-muted-foreground">Tipo</label>
-               <div className="flex gap-1">
-                  {([undefined, "GASTO"] as (TipoCuenta | undefined)[]).map((t) => (
-                     <Button
-                        key={t ?? "todos"}
-                        size="sm"
-                        variant={filtros.tipo === t ? "default" : "outline"}
-                        onClick={() => SetFiltros({ tipo: t })}
-                     >
-                        {t === undefined ? "Todos" : t === "GASTO" ? "Gastos" : ""}
-                     </Button>
-                  ))}
+               <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                   Fecha del folio
+               </label>
+               <div className="flex items-center gap-1">
+                  <Input
+                     type="date"
+                     value={filtros.fecha_desde ?? ""}
+                     onChange={(e) => SetFiltros({ fecha_desde: e.target.value || undefined })}
+                     className="h-9 w-[140px]"
+                  />
+                  <span className="text-xs text-muted-foreground">a</span>
+                  <Input
+                     type="date"
+                     value={filtros.fecha_hasta ?? ""}
+                     onChange={(e) => SetFiltros({ fecha_hasta: e.target.value || undefined })}
+                     className="h-9 w-[140px]"
+                  />
                </div>
             </div>
 
@@ -175,14 +218,14 @@ export default function CuentasPorPagarPage() {
                   Estado
                </label>
                <div className="flex gap-1">
-                  {([undefined, "PENDIENTE", "PARCIAL"] as (EstadoCuenta | undefined)[]).map((e) => (
+                  {([undefined, "PENDIENTE", "PARCIAL"] as (EstadoCxc | undefined)[]).map((e) => (
                      <Button
                         key={e ?? "todos"}
                         size="sm"
                         variant={filtros.estado === e ? "default" : "outline"}
                         onClick={() => SetFiltros({ estado: e })}
                      >
-                        {e === undefined ? "Por pagar" : e === "PENDIENTE" ? "Sin pagos" : "Parcial"}
+                        {e === undefined ? "Por cobrar" : e === "PENDIENTE" ? "Sin pagos" : "Parcial"}
                      </Button>
                   ))}
                   <Button
@@ -191,7 +234,7 @@ export default function CuentasPorPagarPage() {
                      onClick={() =>
                         SetFiltros({ incluir_pagadas: !filtros.incluir_pagadas, estado: undefined })
                      }
-                     title="Incluir también los documentos ya saldados"
+                     title="Incluir también los clientes ya saldados"
                   >
                      Ver pagadas
                   </Button>
@@ -205,6 +248,13 @@ export default function CuentasPorPagarPage() {
             </div>
          )}
 
+         {/* ── Botón de pago rápido ── */}
+         <div className="flex justify-end">
+            <Button onClick={() => setPagoDialog(true)} className="gap-2">
+               <Zap className="size-4" /> Pago rápido
+            </Button>
+         </div>
+
          {/* ── Tabla ── */}
          {loading ? (
             <div className="flex items-center justify-center py-16">
@@ -212,11 +262,11 @@ export default function CuentasPorPagarPage() {
             </div>
          ) : cuentas.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand-blue/20 bg-brand-blue/5 p-12 text-sm text-muted-foreground">
-               <Wallet className="size-10 opacity-30" />
+               <Receipt className="size-10 opacity-30" />
                <span>
-                  {filtros.busqueda || filtros.tipo || filtros.estado
+                  {conFiltros
                      ? "No hay cuentas con los filtros actuales."
-                     : "No hay cuentas pendientes de pago."}
+                     : "No hay cuentas pendientes de cobro."}
                </span>
             </div>
          ) : (
@@ -225,22 +275,22 @@ export default function CuentasPorPagarPage() {
                   <thead>
                      <tr className="bg-brand-blue">
                         <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">
-                           Referencia
+                           Cliente
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">
-                           Fecha
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">
-                           Concepto
+                        <th className="px-4 py-3 text-center text-xs font-semibold uppercase text-blue-200">
+                           Documentos
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-blue-200">
-                           Monto
+                           Facturado
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-blue-200">
-                           Pagado
+                           Cobrado
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-blue-200">
                            Pendiente
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">
+                           Antigüedad
                         </th>
                         <th className="px-4 py-3 text-center text-xs font-semibold uppercase text-blue-200">
                            Estado
@@ -253,50 +303,51 @@ export default function CuentasPorPagarPage() {
                   <tbody>
                      {cuentas.map((c) => (
                         <tr
-                           key={`${c.tipo}-${c.id}`}
+                           key={c.cliente_id}
                            className="border-b border-border/50 transition-colors hover:bg-brand-blue/5"
                         >
-                           <td className="px-4 py-3">
-                              <span className="font-mono font-medium text-brand-blue">
-                                 {c.codigoReferencia}
-                              </span>
-                              <div className="text-[10px] uppercase text-muted-foreground">
-                                 {c.tipo}
+                           <td className="max-w-[240px] px-4 py-3">
+                              <div className="truncate font-medium" title={c.cliente_nombre}>
+                                 {c.cliente_nombre}
                               </div>
-                           </td>
-                           <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                              {fecha(c.fecha)}
-                              {c.dias_transcurridos > 60 && c.estado !== "PAGADO" && (
-                                 <div className="flex items-center gap-1 text-[10px] text-red-600">
-                                    <TriangleAlert className="size-3" />
-                                    {c.dias_transcurridos} días
+                              {c.cliente_telefono && (
+                                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                    <Phone className="size-3" />
+                                    {c.cliente_telefono}
                                  </div>
                               )}
                            </td>
-                           <td className="max-w-[240px] px-4 py-3">
-                              <div className="truncate font-medium" title={c.concepto}>
-                                 {c.concepto}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                 {c.categoria_gasto_nombre ??
-                                    c.proyecto_nombre ??
-                                    "—"}
-                                 {c.ncf ? ` · NCF ${c.ncf}` : ""}
+                           <td className="whitespace-nowrap px-4 py-3 text-center">
+                              <span className="font-semibold">{c.cantidad_documentos}</span>
+                              <div className="text-[10px] text-muted-foreground">
+                                 {c.documentos_pendientes} pendiente
+                                 {c.documentos_pendientes === 1 ? "" : "s"}
                               </div>
                            </td>
                            <td className="whitespace-nowrap px-4 py-3 text-right font-semibold">
-                              {money(c.monto_total)}
+                              {money(c.total_facturado)}
                            </td>
                            <td className="whitespace-nowrap px-4 py-3 text-right text-muted-foreground">
-                              {c.pagado > 0 ? money(c.pagado) : "—"}
-                              {c.cantidad_pagos > 0 && (
-                                 <div className="text-[10px]">
-                                    {c.cantidad_pagos} pago{c.cantidad_pagos === 1 ? "" : "s"}
-                                 </div>
+                              {c.total_pagado > 0 ? money(c.total_pagado) : "—"}
+                              {c.ultimo_pago_fecha && (
+                                 <div className="text-[10px]">{fecha(c.ultimo_pago_fecha)}</div>
                               )}
                            </td>
                            <td className="whitespace-nowrap px-4 py-3 text-right font-bold text-red-600">
-                              {c.pendiente > 0 ? money(c.pendiente) : "—"}
+                              {c.saldo_pendiente > 0 ? money(c.saldo_pendiente) : "—"}
+                           </td>
+                           <td className="whitespace-nowrap px-4 py-3">
+                              {c.dias_transcurridos > 0 && c.estado !== "PAGADO" ? (
+                                 <span
+                                    className={`flex items-center gap-1 text-[10px] ${c.dias_transcurridos > 60 ? "text-red-600" : "text-muted-foreground"
+                                       }`}
+                                 >
+                                    <TriangleAlert className="size-3" />
+                                    {c.dias_transcurridos} días
+                                 </span>
+                              ) : (
+                                 <span className="text-xs text-muted-foreground">—</span>
+                              )}
                            </td>
                            <td className="px-4 py-3 text-center">
                               <Badge className={`border-0 text-[10px] ${ESTADO_STYLE[c.estado]}`}>
@@ -304,16 +355,10 @@ export default function CuentasPorPagarPage() {
                               </Badge>
                            </td>
                            <td className="px-4 py-3 text-center">
-                              <Link
-                                 href={
-                                    // c.tipo === "GASTO"
-                                    `/dashboard/gastos/${c.id}`
-                                    // : `/dashboard/costos/${c.id}`
-                                 }
-                              >
+                              <Link href={`/dashboard/cuentas-por-cobrar/${c.cliente_id}`}>
                                  <button
                                     className="rounded-md p-1.5 text-brand-blue transition-colors hover:bg-brand-blue/10"
-                                    title="Ver detalle y registrar pago"
+                                    title="Ver detalle del cliente"
                                  >
                                     <Eye className="size-4" />
                                  </button>
@@ -324,15 +369,15 @@ export default function CuentasPorPagarPage() {
                   </tbody>
                   <tfoot>
                      <tr className="border-t-2 bg-muted/30 font-bold">
-                        <td className="px-4 py-3" colSpan={3}>
-                           Total filtrado ({resumen.total_documentos})
+                        <td className="px-4 py-3" colSpan={2}>
+                           Total filtrado ({resumen.total_clientes} clientes)
                         </td>
-                        <td className="px-4 py-3 text-right">{money(resumen.total_monto)}</td>
+                        <td className="px-4 py-3 text-right">{money(resumen.total_facturado)}</td>
                         <td className="px-4 py-3 text-right">{money(resumen.total_pagado)}</td>
                         <td className="px-4 py-3 text-right text-red-600">
                            {money(resumen.total_pendiente)}
                         </td>
-                        <td className="px-4 py-3" colSpan={2} />
+                        <td className="px-4 py-3" colSpan={3} />
                      </tr>
                   </tfoot>
                </table>
@@ -360,6 +405,8 @@ export default function CuentasPorPagarPage() {
                </div>
             </div>
          )}
+
+         <PagoRapidoDialog open={pagoDialog} onClose={() => setPagoDialog(false)} />
       </div>
    );
 }
