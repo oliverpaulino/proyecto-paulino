@@ -58,6 +58,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     resource: "payroll",
     action: "read",
   })
+  const { canPerform: puedeVerCxC } = usePermissions({
+    resource: "account_receivable",
+    action: "read",
+  })
 
   const contactos = [
     {
@@ -122,6 +126,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       items: [
         { id: "fin-compras", title: "Compras", url: "/dashboard/compras" },
         { id: "fin-cuentas-por-pagar", title: "Cuentas por Pagar", url: "/dashboard/cuentas-por-pagar" },
+        ...(puedeVerCxC
+          ? [{ id: "fin-cuentas-por-cobrar", title: "Cuentas por Cobrar", url: "/dashboard/cuentas-por-cobrar" }]
+          : []),
         { id: "fin-subcontrataciones", title: "Subcontrataciones", url: "/dashboard/subcontrataciones" },
         { id: "fin-gastos", title: "Gastos", url: "/dashboard/gastos" },
         { id: "fin-deducciones", title: "Deducciones", url: "/dashboard/deducciones" },
