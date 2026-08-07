@@ -628,7 +628,14 @@ export interface DB {
       orden_compra_id: string | null;
       proyecto_id: string | null;
       equipo_id: string | null;
-      // Contexto de proveedor/subcontratista (migración 015). Cuando un gasto
+       // Cobrabilidad frente al cliente del proyecto (módulo de gastos).
+       cobrable_proyecto: Generated<boolean>;
+       cobrable_monto: number | null;
+       // Cantidad y precio unitario del ítem cobrable (para la factura). Si
+       // cantidad > 1, monto_total se deriva como cantidad × monto_unitario.
+       cantidad: Generated<number>;
+       monto_unitario: number | null;
+       // Contexto de proveedor/subcontratista (migración 015). Cuando un gasto
       // nace de una subcontratación, subcontratacion_id apunta a ella.
       proveedor_id: string | null;
       subcontratacion_id: string | null;

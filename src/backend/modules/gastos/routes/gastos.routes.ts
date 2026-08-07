@@ -2,12 +2,14 @@ import { Hono } from "hono";
 import db from "@/backend/database";
 import { KyselyGastoRepository } from "../infraestructure/gastos.infraestructure";
 import { GastoService } from "../service/gastos.service";
-import { CreateGastoSchema, DeleteGastoSchema, UpdateGastoSchema } from "@/dtos/gastos.dto";
+import { KyselyProyectoRepository } from "../../proyectos/infraestructure/proyecto.infraestructure";
+import { CreateGastoSchema, DeleteGastoSchema, MoveCobrableSchema, UpdateGastoSchema } from "@/dtos/gastos.dto";
 import { auth } from "@/lib/auth";
 
 const gastosRoute = new Hono();
 const repo = new KyselyGastoRepository(db);
-const service = new GastoService(repo);
+const proyectoRepo = new KyselyProyectoRepository(db);
+const service = new GastoService(repo, proyectoRepo);
 
 function extractParams(c: any) {
    return {
@@ -21,6 +23,9 @@ function extractParams(c: any) {
       orden_compra_id: c.req.query("orden_compra_id"),
       proyecto_id: c.req.query("proyecto_id"),
       equipo_id: c.req.query("equipo_id"),
+      cobrable_proyecto: c.req.query("cobrable_proyecto") === undefined
+         ? undefined
+         : c.req.query("cobrable_proyecto") === "true",
    };
 }
 
@@ -78,6 +83,24 @@ gastosRoute.patch("/:id", async (c) => {
 
    try {
       const gasto = await service.update(c.req.param("id"), parseResult.data);
+      if (!gasto) return c.json({ error: "Gasto no encontrado" }, 404);
+      return c.json(gasto);
+   } catch (err: unknown) {
+      return c.json({ error: err instanceof Error ? err.message : "Error desconocido" }, 400);
+   }
+});
+
+// PATCH /api/gastos/:id/cobrable — mover entre cobrable / incobrable del proyecto
+gastosRoute.patch("/:id/cobrable", async (c) => {
+   const body = await c.req.json();
+   const parseResult = MoveCobrableSchema.safeParse(body);
+
+   if (!parseResult.success) {
+      return c.json({ error: parseResult.error.format() }, 400);
+   }
+
+   try {
+      const gasto = await service.moveCobrable(c.req.param("id"), parseResult.data);
       if (!gasto) return c.json({ error: "Gasto no encontrado" }, 404);
       return c.json(gasto);
    } catch (err: unknown) {

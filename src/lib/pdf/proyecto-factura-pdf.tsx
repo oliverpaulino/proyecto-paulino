@@ -36,14 +36,24 @@ const c = StyleSheet.create({
    anexoSub: { width: 68, textAlign: "right" },
 });
 
-function ProyectoFacturaDocument({ proyecto }: { proyecto: Proyecto }) {
-   const equiposCobrables = proyecto?.conduces?.filter((e) => e.es_cobrable);
-   const cargosCobrables = proyecto.detalle.filter((d) => d.es_cobrable);
+function ProyectoFacturaDocument({
+   proyecto,
+   conduces = [],
+   incluirAnexo = true,
+}: {
+   proyecto: Proyecto;
+   conduces: ConduceDTO[];
+   incluirAnexo?: boolean;
+}) {
+   // Los renglones facturables del proyecto ahora viven en la tabla `gasto`
+   // (cobrable_proyecto = true), no en proyecto_detalle. La tarifa se suma como
+   // renglón fijo aparte.
+   const cargosCobrables = (proyecto.gastos ?? []).filter((g) => g.cobrable_proyecto);
    const conducesCobrables = conduces.filter((cc) => cc.es_cobrable);
    const grupos = agruparConduces(conducesCobrables);
 
    const totalConduces = grupos.reduce((acc, g) => acc + g.subtotal, 0);
-   const totalCargos = cargosCobrables.reduce((acc, d) => acc + d.subtotal, 0);
+   const totalCargos = cargosCobrables.reduce((acc, g) => acc + Number(g.cobrable_monto ?? g.monto_total), 0);
    const totalGeneral = proyecto.tarifa_servicio + totalConduces + totalCargos;
 
    return (
@@ -91,27 +101,34 @@ function ProyectoFacturaDocument({ proyecto }: { proyecto: Proyecto }) {
                      </View>
                   )}
 
-                  {equiposCobrables?.map((e, i) => (
+                  {conducesCobrables.map((e, i) => (
                      <View key={e.id} style={[s.tableRow, i % 2 !== 0 ? s.tableRowAlt : {}]}>
-                        <Text style={[s.tableCell, s.colDesc]}>
+                        <Text style={[s.tableCell, c.colDesc]}>
                            {e.equipo_nombre ?? "Equipo"} ({e.medida_cobro_nombre ?? "unidad"})
                         </Text>
-                        <Text style={[s.tableCell, s.colQty]}>{e.tipo_conduce === "CAMION" ? e.cantidad : e.total_horas}</Text>
-                        <Text style={[s.tableCell, s.colPrice]}>{fmt(e.precio_unitario)}</Text>
-                        <Text style={[s.tableCell, s.colSub]}>{fmt(e.subtotal)}</Text>
+                        <Text style={[s.tableCell, c.colQty]}>{e.tipo_conduce === "CAMION" ? e.cantidad : e.total_horas}</Text>
+                        <Text style={[s.tableCell, c.colPrice]}>{fmt(e.precio_unitario)}</Text>
+                        <Text style={[s.tableCell, c.colSub]}>{fmt(e.subtotal)}</Text>
                      </View>
                   ))}
 
-                  {/* Cargos cobrables sueltos del proyecto */}
-                  {cargosCobrables.map((cargo, i) => (
+                  {/* Gastos cobrables del proyecto (tabla gasto, cobrable_proyecto = true) */}
+                  {cargosCobrables.map((g, i) => (
                      <View
-                        key={cargo.id}
+                        key={g.id}
                         style={[s.tableRow, (grupos.length + i) % 2 !== 0 ? s.tableRowAlt : {}]}
                      >
-                        <Text style={[s.tableCell, c.colDesc]}>{cargo.descripcion}</Text>
-                        <Text style={[s.tableCell, c.colQty]}>{fmtNum(cargo.cantidad)}</Text>
-                        <Text style={[s.tableCell, c.colPrice]}>{fmt(cargo.precio_unitario)}</Text>
-                        <Text style={[s.tableCell, c.colSub]}>{fmt(cargo.subtotal)}</Text>
+                        <Text style={[s.tableCell, c.colDesc]}>
+                           {g.concepto}
+                           {g.proyecto_codigo_referencia ? ` (${g.proyecto_codigo_referencia})` : ""}
+                        </Text>
+                        <Text style={[s.tableCell, c.colQty]}>{fmtNum(g.cantidad ?? 1)}</Text>
+                        <Text style={[s.tableCell, c.colPrice]}>
+                           {fmt(g.monto_unitario ?? g.cobrable_monto ?? g.monto_total)}
+                        </Text>
+                        <Text style={[s.tableCell, c.colSub]}>
+                           {fmt(Number(g.cobrable_monto ?? g.monto_total))}
+                        </Text>
                      </View>
                   ))}
 
@@ -224,14 +241,14 @@ export async function generateProyectoFacturaPDF(
 ): Promise<void> {
    // Los conduces pueden venir del store de la pantalla; si no, se usan los que
    // trae el propio proyecto.
-   const lista = conduces ?? proyecto.conduces ?? [];
-   const blob = await pdf(
-      <ProyectoFacturaDocument
-         proyecto={proyecto}
-         conduces={lista}
-         incluirAnexo={opciones?.incluirAnexo ?? true}
-      />
-   ).toBlob();
+    const lista = conduces ?? proyecto.conduces ?? [];
+    const blob = await pdf(
+       <ProyectoFacturaDocument
+          proyecto={proyecto}
+          conduces={lista}
+          incluirAnexo={opciones?.incluirAnexo ?? true}
+       />
+    ).toBlob();
 
    const nombre = proyecto.nombre || proyecto.cliente_nombre || proyecto.id.slice(0, 8);
    descargar(blob, `factura-${nombre.replace(/[^\w\-]+/g, "-").toLowerCase()}.pdf`);
