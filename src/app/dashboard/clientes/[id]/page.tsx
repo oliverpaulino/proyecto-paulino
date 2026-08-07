@@ -54,6 +54,7 @@ import {
 import { ClientForm } from "../components/client-form";
 import StatCard from "./components/StatCard";
 import { PermissionGuard } from "@/components/permission-guard";
+import { ClienteCxcTab } from "./components/cliente-cxc-tab";
 
 // IMPORTAMOS NUESTROS SCHEMAS Y ENUMS
 import { TipoIdentificacion } from "@/dtos/schema.dto";
@@ -390,23 +391,7 @@ export default function ClientDetailPage() {
             </TabsContent>
 
             <TabsContent value="cxc" className="space-y-4">
-               <Card>
-                  <CardHeader>
-                     <CardTitle>Cuentas por cobrar</CardTitle>
-                     <CardDescription>Base para facturas, saldos pendientes y vencimientos.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                     <div className="grid gap-4 md:grid-cols-3">
-                        <MiniStat label="Pendientes" value="0" />
-                        <MiniStat label="Vencidas" value="0" />
-                        <MiniStat label="Cobrado" value="0" />
-                     </div>
-                     <EmptyState
-                        title="Sin cuentas por cobrar"
-                        description="Más adelante podrás ver aquí facturas, pagos pendientes y alertas de vencimiento."
-                     />
-                  </CardContent>
-               </Card>
+               <ClienteCxcTab clientId={clientId} clienteNombre={selectedClient.nombre} />
             </TabsContent>
 
             <TabsContent value="cxp" className="space-y-4">
