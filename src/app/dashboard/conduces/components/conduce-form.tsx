@@ -15,7 +15,7 @@ import {
 // Importar componentes del Dialog
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { Truck, HardHat } from "lucide-react";
+import { Truck, HardHat, TriangleAlert } from "lucide-react";
 import { useClientStore } from "@/stores/useClientStore";
 import { useEquipoStore } from "@/stores/useEquipoStore";
 import { useCategoriaEquipoStore } from "@/stores/useCategoriaEquipoStore";
@@ -25,12 +25,14 @@ import { useProyectoStore } from "@/stores/useProyectoStore";
 import { SelectBuscarEquipos } from "@/components/select-equipos";
 import type { Equipo } from "@/dtos/equipo.dto";
 import type { CreateConduceForm, TipoConduce } from "@/dtos/conduce.dto";
+import type { Proyecto } from "@/dtos/proyecto.dto";
 import { fechaRD } from "@/lib/utils";
 import { SelectBuscadorClient } from "@/components/shared/selectBuscadorClient";
 import { ClientForm } from "../../clientes/components/client-form";
 import { SelectBuscadorProyecto } from "@/components/shared/selectBuscadorProyecto";
 import { ProyectoForm } from "../../proyectos/components/proyecto-form";
 import { SelectBuscadorOperator } from "@/components/select-operator";
+import { useEmployeeStore } from "@/stores/useEmployeeStore";
 
 // AÑADIR ESTA IMPORTACIÓN (Ajusta la ruta según tu proyecto)
 
@@ -39,6 +41,8 @@ interface Props {
    onCancel: () => void;
    loading: boolean;
    fixedProyectoId?: string;
+   fixedClienteId?: string;
+   fixedClienteNombre?: string;
 }
 
 function ayerISO() {
@@ -58,13 +62,14 @@ function calcularHoras(inicio?: string, fin?: string): number {
    return minutos > 0 ? Math.round((minutos / 60) * 100) / 100 : 0;
 }
 
-export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Props) {
+export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId, fixedClienteId, fixedClienteNombre }: Props) {
    const { Clients, GetClients, CreateClient } = useClientStore();
    const { GetEquipos } = useEquipoStore();
    const { CategoriaEquipos, GetCategoriaEquipos } = useCategoriaEquipoStore();
    const { GetMedidaCobros, getNombre: getNombreMedidaCobro, MedidaCobros } = useMedidaCobroStore();
-   const { proyectos, CreateProyecto, GetProyectosByClientId } = useProyectoStore();
+   const { proyectos, CreateProyecto, GetProyectosByClientId, GetProyectoById } = useProyectoStore();
    const { GetTarifas, getTarifa } = useProyectoTarifaStore();
+   const { GetOperators, Operators } = useEmployeeStore();
 
    // ── Estados para el Modal de Crear Cliente ──
    const [isClientModalOpen, setIsClientModalOpen] = useState(false);
@@ -82,13 +87,23 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
       GetEquipos();
       GetCategoriaEquipos();
       GetMedidaCobros();
+      GetOperators({ search: "", limit: 20, force: true });
 
       // (Opcional) Si quieres que al inicio salgan TODOS los proyectos si no hay cliente:
-   }, [GetClients, GetEquipos, GetCategoriaEquipos, GetMedidaCobros]);
+   }, [GetClients, GetEquipos, GetCategoriaEquipos, GetMedidaCobros, GetOperators]);
 
    useEffect(() => {
       if (clienteId) { GetProyectosByClientId(clienteId); }
    }, [clienteId]);
+
+   // Auto-completar cliente cuando viene desde un proyecto
+   useEffect(() => {
+      if (!fixedClienteId || Clients.length === 0) return;
+      const cliente = Clients.find((c) => c.id === fixedClienteId);
+      setClienteId(fixedClienteId);
+      setClienteNombre(fixedClienteNombre ?? cliente?.nombre ?? "");
+      if (cliente?.telefono) setClienteTelefono(cliente.telefono);
+   }, [fixedClienteId, fixedClienteNombre, Clients]);
 
    const [tipoConduce, setTipoConduce] = useState<TipoConduce>("CAMION");
 
@@ -126,10 +141,20 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
    const [firmaCamionero, setFirmaCamionero] = useState(true);
 
    const [error, setError] = useState<string | null>(null);
+   const [avisoOperador, setAvisoOperador] = useState<string | null>(null);
+   const [repetirCampos, setRepetirCampos] = useState(false);
 
    useEffect(() => {
       if (proyectoId) GetTarifas(proyectoId);
    }, [proyectoId, GetTarifas]);
+
+   // Si se selecciona un proyecto y ya hay una tarifa seleccionada, actualizar el precio
+   useEffect(() => {
+      if (!proyectoId) return;
+      if (!categoriaEquipoTarifaId) return;
+      const nuevoPrecio = resolverPrecio(categoriaEquipoTarifaId);
+      setPrecioUnitario(nuevoPrecio);
+   }, [proyectoId]);
 
    const opcionesTarifa = useMemo(() => {
       const categoria = CategoriaEquipos.find((c) => c.id === categoriaEquipoId);
@@ -175,6 +200,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
       setTipoConduce(tipo);
       setEquipoId("");
       setOperadorId("")
+      setAvisoOperador(null);
       setCategoriaEquipoId("");
       setCategoriaEquipoTarifaId("");
       setMedidaCobroId("");
@@ -205,15 +231,28 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
          setEquipoId("");
          setCategoriaEquipoId("");
          setOperadorId("")
+         setAvisoOperador(null);
          return;
       }
       setEquipoId(String(id ?? ""));
       setCategoriaEquipoId(equipo.categoria_id);
 
       if (equipo.operador_id) {
-         setOperadorId(String(equipo.operador_id));
+         // No se registra un conduce con un operador inactivo: si el operador
+         // asignado al equipo está inactivo, se exige elegir otro a mano.
+         const operadorDelEquipo = Operators.find((o) => o.id === equipo.operador_id);
+         if (operadorDelEquipo && operadorDelEquipo.activo === false) {
+            setOperadorId("");
+            setAvisoOperador(
+               `El operador de este equipo (${operadorDelEquipo.nombre}) está inactivo. Selecciona otro operador para registrar el conduce.`
+            );
+         } else {
+            setOperadorId(String(equipo.operador_id));
+            setAvisoOperador(null);
+         }
       } else {
          setOperadorId("");
+         setAvisoOperador(null);
       }
    }
 
@@ -270,15 +309,15 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
       };
 
       if (tipoConduce === "CAMION") {
-         if (!procedencia.trim()) { setError("La procedencia es requerida"); return null; }
-         if (!destino.trim()) { setError("El destino es requerido"); return null; }
+         // if (!procedencia.trim()) { setError("La procedencia es requerida"); return null; }
+         // if (!destino.trim()) { setError("El destino es requerido"); return null; }
          if (cantidad <= 0) { setError("Los botes/viajes deben ser mayor a 0"); return null; }
 
          return {
             tipo_conduce: "CAMION",
             ...comun,
-            procedencia: procedencia.trim(),
-            destino: destino.trim(),
+            procedencia: procedencia.trim() ?? "",
+            destino: destino.trim() ?? "",
             cantidad,
             firma_chofer: firmaChofer,
             firma_recibido: firmaRecibido,
@@ -307,7 +346,10 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
       const payload = buildPayload();
       if (!payload) return;
 
-      if (seguirRegistrando) {
+      if (!seguirRegistrando) {
+         // Si es "Guardar y Cerrar", cerramos el modal de inmediato
+         onCancel();
+      } else if (!repetirCampos) {
          // 1. LIMPIEZA INMEDIATA (Optimista)
          // Reseteamos los campos al instante para que el usuario pueda escribir el siguiente conduce sin esperar
          setNumeroReferencia("");
@@ -329,9 +371,6 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
             setFirmaObservante(true);
             setFirmaCamionero(true);
          }
-      } else {
-         // Si es "Guardar y Cerrar", cerramos el modal de inmediato
-         onCancel();
       }
 
       // 2. PETICIÓN EN SEGUNDO PLANO (Background Mutation)
@@ -349,6 +388,12 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
    // Determinar el nombre de la medida para las etiquetas dinámicas
    const nombreMedidaActual = tarifaSeleccionada?.medida_cobro_nombre || getNombreMedidaCobro(medidaCobroId);
 
+   // Valor del proyecto para la tarifa elegida, si el proyecto tiene uno
+   // (gana sobre el general por prioridad; el general se muestra de referencia).
+   const tarifaSeleccionadaProyecto = tarifaSeleccionada && proyectoId
+      ? getTarifa(proyectoId, tarifaSeleccionada.id as string)
+      : undefined;
+
    const selectorTarifa = (
       <div className="space-y-2">
          <div className="space-y-1.5">
@@ -361,12 +406,36 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
                   <SelectItem value="manual">-- Manual / Sin tarifa --</SelectItem>
                   {opcionesTarifa.map((t) => (
                      <SelectItem key={t.id} value={t.id as string}>
-                        {t.nombre} ({t.medida_cobro_nombre}) · RD$ {t.precio_unitario.toLocaleString("es-DO")}
+                        {t.nombre}
                      </SelectItem>
                   ))}
                </SelectContent>
             </Select>
          </div>
+
+         {/* Valor que se aplica: el del proyecto si lo tiene, si no la general. */}
+         {tarifaSeleccionada && (
+            <div className="animate-in fade-in slide-in-from-top-1 mt-1 rounded-md border bg-muted/10 p-2">
+               {tarifaSeleccionadaProyecto ? (
+                  <p className="text-xs">
+                     <span className="text-muted-foreground">Valor de este proyecto: </span>
+                     <span className="font-semibold">
+                        RD$ {tarifaSeleccionadaProyecto.precio_unitario.toLocaleString("es-DO")}
+                     </span>
+                     <span className="text-muted-foreground">
+                        {" "}· general RD$ {tarifaSeleccionada.precio_unitario.toLocaleString("es-DO")}
+                     </span>
+                  </p>
+               ) : (
+                  <p className="text-xs">
+                     <span className="text-muted-foreground">Tarifa general: </span>
+                     <span className="font-semibold">
+                        RD$ {tarifaSeleccionada.precio_unitario.toLocaleString("es-DO")}
+                     </span>
+                  </p>
+               )}
+            </div>
+         )}
 
          {/* ── SE MUESTRA SOLO SI ESTÁ EN MODO MANUAL ── */}
          {!categoriaEquipoTarifaId && (
@@ -467,6 +536,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
                      value={clienteId}
                      onChange={(e) => handleClienteChange(e || "")}
                      initialLabel={clienteNombre}
+                     disabled={!!fixedClienteId}
                      onCreateNew={(term) => {
                         setNewClientInitialName(term);
                         setIsClientModalOpen(true);
@@ -495,13 +565,18 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
                         setNewProyectoInitialName(term);
                         setIsProyectoModalOpen(true);
                      }}
-                     onChange={(id) => {
+                     onChange={async (id) => {
                         setProyectoId(id || "");
-                        if (id) {
-                           const proy = proyectos.find((p) => p.id === id);
-                           setProyectoNombre(proy?.nombre || "");
-                        } else {
-                           setProyectoNombre("");
+                        let proy: Proyecto | null | undefined = id ? proyectos.find((p) => p.id === id) : undefined;
+                        if (id && !proy) proy = await GetProyectoById(id);
+                        setProyectoNombre(proy?.nombre ?? "");
+
+                        // Auto-completar el cliente según el proyecto elegido
+                        if (proy?.cliente_id && !fixedClienteId) {
+                           const cliente = Clients.find((c) => c.id === proy.cliente_id);
+                           setClienteId(proy.cliente_id);
+                           setClienteNombre(proy.cliente_nombre || cliente?.nombre || "");
+                           setClienteTelefono(cliente?.telefono ?? "");
                         }
                      }}
                   />
@@ -519,18 +594,30 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
                      </div>
                      <div className="space-y-1.5">
                         <Label>Operador *</Label>
-                        <SelectBuscadorOperator value={operadorId || null} onChange={(id) => setOperadorId(id || "")} />
+                        <SelectBuscadorOperator
+                           value={operadorId || null}
+                           onChange={(id) => {
+                              setOperadorId(id || "");
+                              setAvisoOperador(null);
+                           }}
+                        />
+                        {avisoOperador && (
+                           <p className="flex items-center gap-1.5 text-xs font-medium text-amber-600">
+                              <TriangleAlert className="size-3.5" />
+                              {avisoOperador}
+                           </p>
+                        )}
                      </div>
                      {selectorTarifa}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                      <div className="space-y-1.5">
-                        <Label htmlFor="procedencia">Procedencia *</Label>
+                        <Label htmlFor="procedencia">Procedencia</Label>
                         <Input id="procedencia" value={procedencia} onChange={(e) => setProcedencia(e.target.value)} placeholder="Origen del material" />
                      </div>
                      <div className="space-y-1.5">
-                        <Label htmlFor="destino">Destino *</Label>
+                        <Label htmlFor="destino">Destino</Label>
                         <Input id="destino" value={destino} onChange={(e) => setDestino(e.target.value)} placeholder="Destino de entrega" />
                      </div>
                   </div>
@@ -584,7 +671,19 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
                      </div>
                      <div className="space-y-1.5">
                         <Label>Operador *</Label>
-                        <SelectBuscadorOperator value={operadorId || null} onChange={(id) => setOperadorId(id || "")} />
+                        <SelectBuscadorOperator
+                           value={operadorId || null}
+                           onChange={(id) => {
+                              setOperadorId(id || "");
+                              setAvisoOperador(null);
+                           }}
+                        />
+                        {avisoOperador && (
+                           <p className="flex items-center gap-1.5 text-xs font-medium text-amber-600">
+                              <TriangleAlert className="size-3.5" />
+                              {avisoOperador}
+                           </p>
+                        )}
                      </div>
                      {selectorTarifa}
                   </div>
@@ -670,25 +769,33 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
 
             {error && <p className="text-sm text-destructive">{error}</p>}
 
-            <div className="flex flex-wrap justify-end gap-2 pt-1">
-               <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
-                  Cancelar
-               </Button>
-               <Button
-                  type="button"
-                  variant="outline"
-                  disabled={loading}
-                  onClick={(e) => handleSubmit(e, true)}
-               >
-                  {loading ? "Guardando…" : "Guardar y Registrar Otro"}
-               </Button>
-               <Button
-                  type="submit"
-                  disabled={loading}
-                  className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold border-0"
-               >
-                  {loading ? "Guardando…" : "Guardar y Cerrar"}
-               </Button>
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+               <CheckboxField
+                  id="repetir-campos"
+                  label="Mantener los mismos campos al registrar otro"
+                  checked={repetirCampos}
+                  onChange={setRepetirCampos}
+               />
+               <div className="flex flex-wrap justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
+                     Cancelar
+                  </Button>
+                  <Button
+                     type="button"
+                     variant="outline"
+                     disabled={loading}
+                     onClick={(e) => handleSubmit(e, true)}
+                  >
+                     {loading ? "Guardando…" : "Guardar y Registrar Otro"}
+                  </Button>
+                  <Button
+                     type="submit"
+                     disabled={loading}
+                     className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold border-0"
+                  >
+                     {loading ? "Guardando…" : "Guardar y Cerrar"}
+                  </Button>
+               </div>
             </div>
          </form>
 
@@ -755,8 +862,8 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId }: Pr
                         const result = await CreateProyecto({
                            ...data,
                            cliente_id: clienteId || data.cliente_id,
-                           fecha_inicio: data.fecha_inicio ? new Date(data.fecha_inicio) : undefined,
-                           fecha_fin: data.fecha_fin ? new Date(data.fecha_fin) : undefined,
+                           fecha_inicio: data.fecha_inicio ? new Date(data.fecha_inicio).toISOString() : undefined,
+                           fecha_fin: data.fecha_fin ? new Date(data.fecha_fin).toISOString() : undefined,
                            cargos_cobrables: data.cargos_cobrables ?? [],
                            gastos_internos: data.gastos_internos ?? [],
                         });

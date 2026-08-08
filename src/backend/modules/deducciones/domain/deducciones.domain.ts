@@ -1,10 +1,33 @@
+export interface PagoDeduccion {
+   id: string;
+   fecha: Date;
+   monto: number;
+   /** De dónde salió el pago: cuota cobrada por una nómina o pago directo a mano. */
+   via: "NOMINA" | "DIRECTO";
+   /** Nombre del ciclo (nómina) o concepto/referencia del pago (directo). */
+   referencia: string | null;
+   metodo_pago: string | null;
+}
+
 export interface DeduccionProps {
    id: string;
    referencia: number;
    codigoReferencia: string;
    monto_total: number;
    balance_pendiente: number | null;
-   concepto: string;
+   cuotas_sugeridas: number;
+   monto_sugerido: number;
+   /** Lo que se descuenta por nómina. Por defecto total ÷ cuotas. Editable. */
+   monto_cuota: number;
+   /** Cuotas ya cobradas por nómina (filas de `deduccion_cuota`). */
+   cuotas_aplicadas: number;
+   /** Cobrado por nómina + pagos directos registrados contra la deducción. */
+   monto_cobrado: number;
+    /** Lo que queda por pagar: monto_total − monto_cobrado. */
+    monto_pendiente: number;
+    /** Historial de pagos de la deducción: cuotas por nómina y pagos directos. */
+    pagos: PagoDeduccion[];
+    concepto: string;
    
    empleado_id: string;
    //join empleado
@@ -42,7 +65,17 @@ export class Deduccion {
    }
    get monto_total() { return this.props.monto_total; }
    get balance_pendiente() { return this.props.balance_pendiente; }
-   get concepto() { return this.props.concepto; }
+   get cuotas_sugeridas() { return this.props.cuotas_sugeridas; }
+   get monto_sugerido() {
+      if (!this.props.cuotas_sugeridas || this.props.cuotas_sugeridas <= 0) return 0;
+      return this.props.monto_total / this.props.cuotas_sugeridas;
+   }
+   get monto_cuota() { return this.props.monto_cuota; }
+   get cuotas_aplicadas() { return this.props.cuotas_aplicadas; }
+   get monto_cobrado() { return this.props.monto_cobrado; }
+    get monto_pendiente() { return this.props.monto_pendiente; }
+    get pagos() { return this.props.pagos; }
+    get concepto() { return this.props.concepto; }
    get empleado_id() { return this.props.empleado_id; }
    get empleado_codigo_referencia() { return this.props.empleado_codigo_referencia; }
    get empleado_nombre() { return this.props.empleado_nombre; }
@@ -58,7 +91,7 @@ export class Deduccion {
    get deleted_reason() { return this.props.deleted_reason; }
    
    toJSON(): DeduccionProps {
-      return { ...this.props };
+      return { ...this.props, monto_sugerido: this.monto_sugerido };
    }
 }
 
@@ -68,11 +101,21 @@ export interface CreateDeduccionDTO {
    gasto_id?: string | null;
    monto_total: number;
    balance_pendiente?: number | null;
+   cuotas_sugeridas?: number;
+   /** Monto descontado por nómina. Default: monto_total ÷ cuotas_sugeridas. */
+   monto_cuota?: number;
    concepto: string;
    fecha: Date;
 }
 
 export type UpdateDeduccionDTO = Partial<CreateDeduccionDTO>;
+
+export interface PagarDeduccionDTO {
+   monto: number;
+   metodo_pago?: string;
+   concepto?: string;
+   fecha?: Date;
+}
 
 export interface DeleteDeduccionDTO {
    deleted_by?: string;
@@ -96,10 +139,16 @@ export interface IDeduccionRepository {
                      empleado_id?: string;
                      equipo_id?: string | null; }): Promise<Deduccion[]>;
 
-   findById(id: string): Promise<Deduccion | null>;
-   findDeletedById(id: string): Promise<Deduccion | null>;
-   create(data: CreateDeduccionDTO): Promise<Deduccion>;
-   update(id: string, data: UpdateDeduccionDTO): Promise<Deduccion | null>;
-   delete(id: string, data: DeleteDeduccionDTO): Promise<boolean>;
-   restore(id: string): Promise<Deduccion | null>;
+    findById(id: string): Promise<Deduccion | null>;
+    findDeletedById(id: string): Promise<Deduccion | null>;
+    create(data: CreateDeduccionDTO): Promise<Deduccion>;
+    update(id: string, data: UpdateDeduccionDTO): Promise<Deduccion | null>;
+    /**
+     * Registra un pago directo contra la deducción: crea el `pago` (vinculado a
+     * la deducción, tipo SALIDA) y reduce `balance_pendiente`. Lanza error si
+     * el monto excede lo que queda por pagar.
+     */
+    pagar(id: string, data: PagarDeduccionDTO): Promise<Deduccion | null>;
+    delete(id: string, data: DeleteDeduccionDTO): Promise<boolean>;
+    restore(id: string): Promise<Deduccion | null>;
 }

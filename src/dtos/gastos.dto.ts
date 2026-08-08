@@ -24,6 +24,9 @@ export const GastoDTO = z.object({
    equipo_id: z.uuid().nullable(),
    //join equipo
    equipo_codigo_referencia: z.string().nullable(),
+
+   cobrable_proyecto: z.boolean(),
+   cobrable_monto: z.number().nullable(),
    
    fecha: z.coerce.date(),
    created_at: z.coerce.date(),
@@ -31,6 +34,16 @@ export const GastoDTO = z.object({
    deleted_by: z.string().nullable(),
    deleted_at: z.coerce.date().nullable(),
    deleted_reason: z.string().nullable(),
+});
+
+export const CreateGastoDeduccionSchema = z.object({
+   empleado_id: z.uuid("ID de empleado inválido"),
+   equipo_id: z.uuid().optional().nullable(),
+   monto_total: z.coerce.number().min(0.01, "El monto de la deducción debe ser mayor a 0"),
+   balance_pendiente: z.coerce.number().optional().nullable(),
+   cuotas_sugeridas: z.coerce.number().int().min(1, "Las cuotas sugeridas deben ser mayores a 0").optional(),
+   concepto: z.string().min(1, "El concepto es requerido"),
+   fecha: z.coerce.date(),
 });
 
 export const CreateGastoSchema = z.object({
@@ -42,9 +55,12 @@ export const CreateGastoSchema = z.object({
    orden_compra_id: z.uuid().optional().nullable(),
    proyecto_id: z.uuid().optional().nullable(),
    equipo_id: z.uuid().optional().nullable(),
+   cobrable_proyecto: z.boolean().default(false),
+   cobrable_monto: z.coerce.number().min(0, "El monto a cobrar al cliente no puede ser menor a 0").optional().nullable(),
+   deduccion: CreateGastoDeduccionSchema.optional(),
 });
 
-export const UpdateGastoSchema = CreateGastoSchema.partial();
+export const UpdateGastoSchema = CreateGastoSchema.omit({ deduccion: true }).partial();
 
 export const DeleteGastoSchema = z.object({
    deleted_by: z.uuid().optional(),

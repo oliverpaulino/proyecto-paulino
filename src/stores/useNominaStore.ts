@@ -21,10 +21,29 @@ export interface PayrollCycle {
 export interface TarifaDesglose {
    categoria_equipo_tarifa_id: string | null;
    categoria_equipo_tarifa_nombre: string;
+   /**
+    * Categoría del equipo (el "tipo de camión") con el que se generó esta
+    * producción. El desglose agrupa por (categoría, tarifa), así que la misma
+    * tarifa usada con dos categorías distintas aparece en dos filas.
+    *
+    * NULL en snapshots viejos: ciclos calculados antes de la migración 015 y
+    * ciclos cerrados, que ya no se recalculan.
+    */
+   categoria_equipo_id: string | null;
+   categoria_equipo_nombre: string | null;
    medida_cobro_nombre: string | null;
-   cantidad: number;
-   monto_pago: number;
-   subtotal: number;
+    cantidad: number;
+    monto_pago: number;
+    subtotal: number;
+
+    /**
+     * Proyecto del conduce, cuando lo tiene. El desglose agrupa por
+     * (categoría, tarifa, proyecto): la misma tarifa con precio distinto por
+     * proyecto (tarifa del proyecto vs. base) aparece en filas separadas.
+     * `undefined` en snapshots viejos (ciclos de antes de esta columna).
+     */
+    proyecto_id?: string | null;
+    proyecto_nombre?: string | null;
 
    /**
     * Solo en tarifas sin id. Dice si el nombre guardado corresponde hoy a una
@@ -46,6 +65,15 @@ export interface DeduccionDelPeriodo {
    id: string;
    concepto: string;
    monto_total: number;
+   /** Cuota configurada por nómina (editable). Puede diferir del período. */
+   monto_cuota: number;
+   /** Cuota que se descuenta en este período (no necesariamente el total). */
+   monto_periodo: number;
+   /** Lo que queda por pagar de esta deducción tras el cobro de este período. */
+   monto_pendiente: number;
+   cuotas_sugeridas: number;
+   /** Cuotas ya aplicadas, incluida la de este período. */
+   cuotas_aplicadas: number;
    fecha: string;
 }
 
@@ -145,18 +173,40 @@ interface NominaState {
     * empleado, pero el devengado del ciclo es un snapshot — sin recalcular, el
     * "sin tarifa" en RD$ 0 seguiría ahí después de guardar.
     */
-   GuardarTarifasEmpleado: (
-      cycleId: string,
-      empleadoId: string,
-      tarifas: { categoria_equipo_tarifa_id: string; monto_pago: number }[]
-   ) => Promise<boolean>;
+    GuardarTarifasEmpleado: (
+       cycleId: string,
+       empleadoId: string,
+       tarifas: { categoria_equipo_tarifa_id: string; monto_pago: number }[]
+    ) => Promise<boolean>;
+    /**
+     * Cambia lo que el proyecto paga a este chofer por una tarifa. El backend
+     * actualiza `proyecto_empleado_tarifa` y recalcula el ciclo, así que se
+     * actualiza en sitio la fila del empleado y el detalle cacheado de su
+     * acordeón, para no recargar todo el listado.
+     */
+    GuardarTarifaProyecto: (
+       cycleId: string,
+       empleadoId: string,
+       data: { proyecto_id: string; categoria_equipo_tarifa_id: string; monto_pago: number }
+    ) => Promise<boolean>;
    UpdateSeguro: (cycleEmployeeId: string, seguro: number) => Promise<void>;
    AgregarDeduccion: (
       cycleId: string,
       empleadoId: string,
-      data: { monto: number; concepto: string; fecha?: string }
+      data: { monto: number; concepto: string; fecha?: string; cuotas?: number; monto_cuota?: number }
    ) => Promise<boolean>;
    RefrescarDeducciones: (cycleId: string) => Promise<number>;
+   /**
+    * Cambia la cuota por nómina de una deducción con cuotas. Subir la cuota
+    * acelera el saldo, bajarla lo frena. Recarga la nómina para ver el monto
+    * ya aplicado.
+    */
+   ActualizarCuotaDeduccion: (
+      cycleId: string,
+      empleadoId: string,
+      deduccionId: string,
+      montoCuota: number
+   ) => Promise<boolean>;
    /**
     * Fija a mano el precio de una tarifa que la nómina no puede resolver.
     * Aplica solo a este empleado en este ciclo; recalcula al guardar.
@@ -378,6 +428,38 @@ export const useNominaStore = create<NominaState>((set, get) => ({
       }
    },
 
+   /**
+    * El backend recalcula el ciclo al guardar y devuelve la fila ya
+    * refrescada, así que se actualiza en sitio (como ActualizarCuotaDeduccion)
+    * y el desglose expandido queda al día sin recargar el listado.
+    */
+   GuardarTarifaProyecto: async (cycleId, empleadoId, data) => {
+      set({ error: null });
+      try {
+         const row = await pedir<NominaEmpleado>(
+            `/api/nomina/cycles/${cycleId}/empleados/${empleadoId}/tarifa-proyecto`,
+            { method: "PATCH", body: JSON.stringify(data) }
+         );
+         set({
+            empleados: get().empleados.map((e) =>
+               e.empleado_id === empleadoId ? { ...e, ...row } : e
+            ),
+            detalles: {
+               ...get().detalles,
+               [empleadoId]: {
+                  tarifas: row.tarifas ?? [],
+                  detalle_deducciones: row.detalle_deducciones ?? [],
+                  cargadoEn: Date.now(),
+               },
+            },
+         });
+         return true;
+      } catch (e: any) {
+         set({ error: e.message });
+         return false;
+      }
+   },
+
    /*
       El backend recalcula el ciclo al guardar, así que se recargan los
       empleados para ver el monto ya aplicado. Guardar sin recalcular dejaría
@@ -441,15 +523,32 @@ export const useNominaStore = create<NominaState>((set, get) => ({
       }
    },
 
-   /** Crea una deducción NUEVA; no modifica las existentes. */
+   /**
+    * Crea una deducción NUEVA (no modifica las existentes) y actualiza en
+    * sitio la fila del empleado y el detalle cacheado de su acordeón. El
+    * backend devuelve la fila ya refrescada (deducciones, pendiente, neto y
+    * detalle), así que no hace falta recargar todo el listado.
+    */
    AgregarDeduccion: async (cycleId, empleadoId, data) => {
       set({ error: null });
       try {
-         await pedir(`/api/nomina/cycles/${cycleId}/empleados/${empleadoId}/deducciones`, {
-            method: "POST",
-            body: JSON.stringify(data),
+         const row = await pedir<NominaEmpleado>(
+            `/api/nomina/cycles/${cycleId}/empleados/${empleadoId}/deducciones`,
+            { method: "POST", body: JSON.stringify(data) }
+         );
+         set({
+            empleados: get().empleados.map((e) =>
+               e.empleado_id === empleadoId ? { ...e, ...row } : e
+            ),
+            detalles: {
+               ...get().detalles,
+               [empleadoId]: {
+                  tarifas: row.tarifas ?? [],
+                  detalle_deducciones: row.detalle_deducciones ?? [],
+                  cargadoEn: Date.now(),
+               },
+            },
          });
-         await get().GetEmpleados(cycleId);
          return true;
       } catch (e: any) {
          set({ error: e.message });
@@ -470,6 +569,39 @@ export const useNominaStore = create<NominaState>((set, get) => ({
       } catch (e: any) {
          set({ error: e.message });
          return 0;
+      }
+   },
+
+   /**
+    * Cambia la cuota por nómina de una deducción con cuotas. El backend vuelve
+    * a aplicar los cobros del ciclo, así que se actualiza en sitio la fila del
+    * empleado (deducciones, pendiente, neto) y el detalle cacheado de su
+    * acordeón, para no dejarlo en "Cargando…".
+    */
+   ActualizarCuotaDeduccion: async (cycleId, empleadoId, deduccionId, montoCuota) => {
+      set({ error: null });
+      try {
+         const row = await pedir<NominaEmpleado>(
+            `/api/nomina/cycles/${cycleId}/empleados/${empleadoId}/deducciones/${deduccionId}`,
+            { method: "PATCH", body: JSON.stringify({ monto_cuota: montoCuota }) }
+         );
+         set({
+            empleados: get().empleados.map((e) =>
+               e.empleado_id === empleadoId ? { ...e, ...row } : e
+            ),
+            detalles: {
+               ...get().detalles,
+               [empleadoId]: {
+                  tarifas: row.tarifas ?? [],
+                  detalle_deducciones: row.detalle_deducciones ?? [],
+                  cargadoEn: Date.now(),
+               },
+            },
+         });
+         return true;
+      } catch (e: any) {
+         set({ error: e.message });
+         return false;
       }
    },
 }));

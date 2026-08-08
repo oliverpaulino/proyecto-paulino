@@ -104,8 +104,6 @@ export function ConduceEditDialog({ conduce, open, onOpenChange }: Props) {
       if (!fecha) return setError("La fecha es requerida");
       if (precioUnitario < 0) return setError("El precio unitario debe ser mayor o igual a 0");
       if (conduce.tipo_conduce === "CAMION") {
-         if (!procedencia.trim()) return setError("La procedencia es requerida");
-         if (!destino.trim()) return setError("El destino es requerido");
          if (cantidad <= 0) return setError("Los metros/viajes deben ser mayor a 0");
       } else {
          if (totalHoras <= 0) return setError("El total de horas trabajadas debe ser mayor a 0");

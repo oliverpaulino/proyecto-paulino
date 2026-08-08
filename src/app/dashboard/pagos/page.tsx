@@ -10,7 +10,9 @@ import {
    DialogTitle,
    DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Wallet, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Wallet, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { useSession } from "@/lib/auth-client";
 import { usePagoStore } from "@/stores/usePagoStore";
 import type { CreatePagoForm } from "@/dtos/pagos.dto";
 import { PagoForm } from "./components/pago-form";
@@ -64,7 +66,7 @@ export default function PagosPage() {
                   <DialogHeader>
                      <DialogTitle>Registrar Nuevo Pago</DialogTitle>
                      <DialogDescription>
-                        Ingresa los detalles financieros y la vinculación exclusiva a un Costo, Gasto o Deducción.
+                        Ingresa los detalles financieros y la vinculación exclusiva a un Gasto, Proyecto, Orden de Compra o Deducción.
                      </DialogDescription>
                   </DialogHeader>
                   <PagoForm
@@ -108,7 +110,16 @@ export default function PagosPage() {
                   </div>
                </div>
             </div>
-         )}
+          )}
+ 
+          {useSession().data?.user?.role === "administrador" && (
+             <Button asChild variant="outline" className="font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive">
+                <Link href="/dashboard/pagos/anulados">
+                   <Trash2 className="size-4 mr-2" />
+                   Pagos Anulados
+                </Link>
+             </Button>
+          )}
       </div>
    );
 }

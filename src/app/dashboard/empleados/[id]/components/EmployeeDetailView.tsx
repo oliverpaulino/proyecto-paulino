@@ -36,13 +36,16 @@ import {
    Trash2,
    Contact,
    ReceiptText,
+   ArrowDownRight,
 } from "lucide-react";
 import { EmployeeForm, type OperadorFormData } from "../../components/employee-form";
 import { DeleteEmployeeDialog } from "../../components/delete-employee-dialog";
 import StatCard from "./StatCard";
-import { EmployeeConceptsWidget } from "../../conceptos/components/concept-employee-widget";
 import { EmployeeConduces } from "./employee-conduces";
+import { EmployeeDeducciones } from "./employee-deducciones";
 import { TarifaEmpleadoDialog } from "./TarifaEmpleadoDialog";
+import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 const ROL_LABEL: Record<string, string> = {
    OPERADOR: "Operador",
@@ -82,6 +85,7 @@ export default function EmployeeDetailView() {
    // Estados para controlar el modal de asignación de tarifas
    const [tarifaModalOpen, setTarifaModalOpen] = useState(false);
    const [categoriaEditarId, setCategoriaEditarId] = useState<string | null>(null);
+   const [tarifaAEliminar, setTarifaAEliminar] = useState<{ id: string; nombre: string } | null>(null);
 
    useEffect(() => {
       GetEmployeeDetails(empleadoId);
@@ -113,12 +117,10 @@ export default function EmployeeDetailView() {
    }
 
    const handleEliminarTarifa = async (tarifaId: string) => {
-      if (confirm("¿Estás seguro de que deseas eliminar esta tarifa de operación?")) {
-         try {
-            await DeleteTarifaEmpleado(empleadoId, tarifaId);
-         } catch (error: any) {
-            alert(error.message || "Error al eliminar la tarifa");
-         }
+      try {
+         await DeleteTarifaEmpleado(empleadoId, tarifaId);
+      } catch (error: any) {
+         toast.error(error.message || "Error al eliminar la tarifa");
       }
    };
 
@@ -211,6 +213,9 @@ export default function EmployeeDetailView() {
                )}
                <TabsTrigger value="tarifas" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
                   Tarifas por Equipo
+               </TabsTrigger>
+               <TabsTrigger value="deducciones" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                  Deducciones
                </TabsTrigger>
             </TabsList>
 
@@ -392,7 +397,7 @@ export default function EmployeeDetailView() {
                                        >
                                           <Pencil className="size-4 text-muted-foreground" />
                                        </Button>
-                                       <Button variant="ghost" size="icon" onClick={() => handleEliminarTarifa(tarifa.id)}>
+                                       <Button variant="ghost" size="icon" onClick={() => setTarifaAEliminar({ id: tarifa.id, nombre: tarifa.tarifa_nombre })}>
                                           <Trash2 className="size-4 text-red-500" />
                                        </Button>
                                     </TableCell>
@@ -409,9 +414,25 @@ export default function EmployeeDetailView() {
                   </CardContent>
                </Card>
             </TabsContent>
-         </Tabs>
 
-         {/* Edit Dialog */}
+            {/* ── DEDUCCIONES ── */}
+            <TabsContent value="deducciones" className="space-y-4">
+               <Card>
+                  <CardHeader>
+                     <CardTitle className="flex items-center gap-2">
+                        <ArrowDownRight className="size-5 text-brand-blue" />
+                        Deducciones del empleado
+                     </CardTitle>
+                     <CardDescription>
+                        Cuotas, saldos y pagos de las deducciones (daños, adelantos, etc.) de {empleado.nombre}.
+                     </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                     <EmployeeDeducciones empleadoId={empleadoId} empleadoNombre={empleado.nombre} />
+                  </CardContent>
+               </Card>
+            </TabsContent>
+         </Tabs>
          <Dialog open={editOpen} onOpenChange={(open) => { if (!open) setEditOpen(false); }}>
             <DialogContent className="sm:max-w-md">
                <DialogHeader>
@@ -443,6 +464,25 @@ export default function EmployeeDetailView() {
             onClose={() => { setTarifaModalOpen(false); setCategoriaEditarId(null); }}
             empleadoId={empleadoId}
             categoriaInicialId={categoriaEditarId}
+         />
+
+         <ConfirmDialog
+            open={!!tarifaAEliminar}
+            onOpenChange={(v) => !v && setTarifaAEliminar(null)}
+            title="¿Eliminar la tarifa?"
+            description={
+               tarifaAEliminar
+                  ? `La tarifa de operación "${tarifaAEliminar.nombre}" se quitará de este empleado.`
+                  : undefined
+            }
+            confirmLabel="Eliminar"
+            destructive
+            onConfirm={() => {
+               if (tarifaAEliminar) {
+                  handleEliminarTarifa(tarifaAEliminar.id);
+                  setTarifaAEliminar(null);
+               }
+            }}
          />
       </div>
    );

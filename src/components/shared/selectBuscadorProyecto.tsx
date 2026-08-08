@@ -41,6 +41,9 @@ export function SelectBuscadorProyecto({
 
    // Sincroniza el label inicial
    useEffect(() => {
+      setInputValue(initialLabel);
+   }, [initialLabel]);
+   useEffect(() => {
       if (!value) {
          setInputValue("");
       }

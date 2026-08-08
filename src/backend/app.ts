@@ -8,14 +8,12 @@ import employeesRoute from "@/backend/modules/employees/routes/employees";
 import suppliersRoute from "@/backend/modules/suppliers/routes/suppliers";
 import purchaseOrdersRoute from "./modules/purchase-orders/routes/purchase-orders";
 import proyectosRoute from "./modules/proyectos/routes/proyectos";
+import proyectoArchivosRoute from "./modules/proyecto-archivos/routes/proyecto-archivos";
 import proyectoTarifasRoute from "./modules/proyectos/routes/proyecto-tarifa";
+import proyectoTarifasEmpleadoRoute from "./modules/proyectos/routes/proyecto-empleado-tarifa";
 import appointmentsRoute from "./modules/appointments/routes/appointments.routes";
-import servicesRoute from "@/backend/modules/services/routes/services";
-import tareasRoute from "@/backend/modules/tareas/routes/tareas";
 import equiposRoute from "./modules/equipos/routes/equipos";
 import categoriaEquiposRoute from "./modules/categoria-equipos/routes/categoria-equipos";
-import tipoItemsRoute from "./modules/tipo-items/routes/tipo-items";
-import itemsRoute from "./modules/items/routes/items";
 import notificationsRoute from "./modules/notifications/routes/notifications";
 import { dgiiProvider } from "./providers/dgii.provider";
 import medidaCobroRoute from "./modules/categoria-equipos/routes/medida-cobro";
@@ -27,12 +25,12 @@ import conducesRoute from "./modules/conduce/routes/conduce";
 import categoriaGastosRoute from "./modules/categoria-gastos/routes/categoria-gastos.routes";
 import gastosRoute from "./modules/gastos/routes/gastos.routes";
 import mantenimientosRoute from "./modules/mantenimientos/routes/mantenimientos.routes";
-import costosRoute from "./modules/costos/routes/costos.routes";
 import deduccionesRoute from "./modules/deducciones/routes/deducciones.routes";
 import pagosRoute from "./modules/pagos/routes/pagos.routes";
-import payrollConceptsRoute from "./modules/payroll-concepts/routes/payroll-concepts";
 import nominaRoute from "./modules/nomina/routes/nomina.routes";
 import cuentasPorPagarRoute from "./modules/cuentas-por-pagar/routes/cuentas-por-pagar.routes";
+import cuentasPorCobrarRoute from "./modules/cuentas-por-cobrar/routes/cuentas-por-cobrar.routes";
+import subcontratacionesRoute from "./modules/subcontrataciones/routes/subcontrataciones";
 
 const app = new Hono().basePath("/api");
 
@@ -59,9 +57,9 @@ app.all("/auth/*", (c) => auth.handler(c.req.raw));
 app.use("/clients/*", requireResourcePermission("client"));
 app.use("/employees/*", requireResourcePermission("employee"));
 app.use("/suppliers/*", requireResourcePermission("supplier"));
+app.use("/subcontrataciones/*", requireResourcePermission("supplier"));
 app.use("/purchase-orders/*", requireResourcePermission("purchase_order"));
 app.use("/appointments/*", requireResourcePermission("appointment"));
-app.use("/services/*", requireResourcePermission("service"));
 app.use("/tareas/*", requireResourcePermission("task"));
 app.use("/equipos/*", requireResourcePermission("machinery"));
 app.use("/categoria-equipos/*", requireResourcePermission("machinery"));
@@ -70,36 +68,43 @@ app.use("/tipo-items/*", requireResourcePermission("inventory"));
 app.use("/items/*", requireResourcePermission("inventory"));
 app.use("/units/*", requireResourcePermission("inventory"));
 app.use("/roles/*", requireResourcePermission("user"));
+app.use("/cuentas-por-cobrar/*", requireResourcePermission("account_receivable"));
+app.use("/proyecto-tarifas/*", requireResourcePermission("project"));
+app.use("/proyecto-empleado-tarifas/*", requireResourcePermission("project"));
+// Los archivos de proyecto se sirven desde disco: nunca sin permiso ni sin
+// sesión. Las rutas además validan la sesión a mano (ver módulo).
+app.use("/proyectos/*/archivos", requireResourcePermission("project"));
+app.use("/proyectos/*/archivos/*", requireResourcePermission("project"));
+// GET /api/proyectos/archivos/:id/descargar — signed URLs de 60s.
+app.use("/proyectos/archivos/*", requireResourcePermission("project"));
 
 app.route("/clients", clientsRoute);
 app.route("/employees", employeesRoute);
 app.route("/suppliers", suppliersRoute);
 app.route("/purchase-orders", purchaseOrdersRoute);
+app.route("/proyectos", proyectoArchivosRoute);
 app.route("/proyectos", proyectosRoute);
 app.route("/proyecto-tarifas", proyectoTarifasRoute);
+app.route("/proyecto-empleado-tarifas", proyectoTarifasEmpleadoRoute);
 app.route("/appointments", appointmentsRoute);
-app.route("/services", servicesRoute);
 app.route("/medida-cobros", medidaCobroRoute);
-app.route("/tareas", tareasRoute);
 app.route("/equipos", equiposRoute);
 app.route("/categoria-equipos", categoriaEquiposRoute);
 app.route("/gastos", gastosRoute);
 app.route("/mantenimientos", mantenimientosRoute);
-app.route("/costos", costosRoute);
 app.route("/pagos", pagosRoute);
 app.route("/deducciones", deduccionesRoute);
 app.route("/categoria-gastos", categoriaGastosRoute);
-app.route("/tipo-items", tipoItemsRoute);
-app.route("/items", itemsRoute);
 app.route("/notifications", notificationsRoute);
 app.route("/units", unitsRoute);
 app.route("/user-employee-links", userEmployeeLinksRoute);
 app.route("/roles", rolesRoute);
 
 app.route("/conduces", conducesRoute);
-app.route("/payroll", payrollConceptsRoute);
 app.route("/nomina", nominaRoute);
 app.route("/cuentas-por-pagar", cuentasPorPagarRoute);
+app.route("/cuentas-por-cobrar", cuentasPorCobrarRoute);
+app.route("/subcontrataciones", subcontratacionesRoute);
 
 app.get("/dgii/:rnc", async (c) => {
    const rnc = c.req.param("rnc");

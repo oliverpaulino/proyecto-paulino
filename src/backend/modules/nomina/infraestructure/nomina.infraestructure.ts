@@ -58,6 +58,13 @@ function mapCycleEmployee(row: any): PayrollCycleEmployeeProps {
       devengado_tarifas: num(row.devengado_tarifas),
       complemento_minimo: num(row.complemento_minimo),
       seguro: num(row.seguro),
+      afp: num(row.afp),
+      sfs: num(row.sfs),
+      isr: num(row.isr),
+      base_isr: num(row.base_isr),
+      // No pasa por `num()`: aquí null significa "no se calculó" y convertirlo
+      // a 0 lo volvería un año fiscal inválido.
+      isr_anio_escala: row.isr_anio_escala ?? null,
       deducciones: num(row.deducciones),
       deuda_total: num(row.deuda_total),
       deuda_pendiente: num(row.deuda_pendiente),
@@ -187,6 +194,11 @@ export class KyselyNominaRepository implements INominaRepository {
          .leftJoin("operador", "operador.id", "conduce.operador_id")
          .leftJoin("equipo", "equipo.id", "conduce.equipo_id")
          .leftJoin("operador as eq_op", "eq_op.id", "equipo.operador_id")
+         // El nombre de la categoría no está snapshoteado en el conduce (solo
+         // el id), así que se resuelve por join. Es leftJoin porque la
+         // categoría pudo borrarse y aun así el conduce debe contarse.
+         .leftJoin("categoria_equipo", "categoria_equipo.id", "conduce.categoria_equipo_id")
+         .leftJoin("proyecto", "proyecto.id", "conduce.proyecto_id")
          .select([
             "conduce.id as conduce_id",
             "conduce.fecha",
@@ -195,7 +207,11 @@ export class KyselyNominaRepository implements INominaRepository {
             "conduce.total_horas",
             "conduce.categoria_equipo_tarifa_id",
             "conduce.categoria_equipo_tarifa_nombre",
+            "conduce.categoria_equipo_id",
+            "categoria_equipo.nombre as categoria_equipo_nombre",
             "conduce.medida_cobro_nombre",
+            "conduce.proyecto_id",
+            "proyecto.nombre as proyecto_nombre",
             empleadoEfectivo.as("empleado_id"),
             // Inferido = no venía persona en el conduce y se dedujo del equipo.
             sql<boolean>`(
@@ -213,10 +229,14 @@ export class KyselyNominaRepository implements INominaRepository {
       return rows.map((r: any) => ({
          conduce_id: r.conduce_id,
          empleado_id: r.empleado_id,
+         proyecto_id: r.proyecto_id ?? null,
+         proyecto_nombre: r.proyecto_nombre ?? null,
          inferido: Boolean(r.inferido),
          fecha: r.fecha,
          categoria_equipo_tarifa_id: r.categoria_equipo_tarifa_id ?? null,
          categoria_equipo_tarifa_nombre: r.categoria_equipo_tarifa_nombre ?? "(sin tarifa)",
+         categoria_equipo_id: r.categoria_equipo_id ?? null,
+         categoria_equipo_nombre: r.categoria_equipo_nombre ?? null,
          medida_cobro_nombre: r.medida_cobro_nombre ?? null,
          // CAMION cobra por viajes/botes; EQUIPO_PESADO por horas.
          cantidad:
@@ -234,6 +254,55 @@ export class KyselyNominaRepository implements INominaRepository {
          .execute();
 
       return new Map(rows.map((r) => [r.categoria_equipo_tarifa_id, num(r.monto_pago)]));
+   }
+
+   async getTarifasProyecto(
+      proyectoIds: string[],
+      empleadoIds: string[]
+   ): Promise<Map<string, number>> {
+      const rows = await this.db
+         .selectFrom("proyecto_empleado_tarifa")
+         .select(["proyecto_id", "empleado_id", "categoria_equipo_tarifa_id", "monto_pago"])
+         .where("proyecto_id", "in", proyectoIds)
+         .where("empleado_id", "in", empleadoIds)
+         .execute();
+
+      return new Map(
+         rows.map((r) => [
+            `${r.proyecto_id}::${r.empleado_id}::${r.categoria_equipo_tarifa_id}`,
+            num(r.monto_pago),
+         ])
+      );
+   }
+
+   /**
+    * Upsert de la tarifa de proyecto. Misma regla que el módulo de proyectos:
+    * por (proyecto, empleado, tarifa) existe una sola; crear la fila que
+    * faltaba o corregir la existente es el mismo camino.
+    */
+   async upsertTarifaProyecto(data: {
+      proyecto_id: string;
+      empleado_id: string;
+      categoria_equipo_tarifa_id: string;
+      monto_pago: number;
+   }): Promise<void> {
+      await this.db
+         .insertInto("proyecto_empleado_tarifa")
+         .values({
+            proyecto_id: data.proyecto_id,
+            empleado_id: data.empleado_id,
+            categoria_equipo_tarifa_id: data.categoria_equipo_tarifa_id,
+            monto_pago: data.monto_pago,
+         })
+         .onConflict((oc) =>
+            oc
+               .columns(["proyecto_id", "empleado_id", "categoria_equipo_tarifa_id"])
+               .doUpdateSet({
+                  monto_pago: (eb) => eb.ref("excluded.monto_pago"),
+                  updated_at: new Date(),
+               })
+         )
+         .execute();
    }
 
    /**
@@ -349,20 +418,129 @@ export class KyselyNominaRepository implements INominaRepository {
 
    // ── Deducciones ──────────────────────────────────────────────────────────
 
+   /**
+    * Deducciones vivas del empleado que cobran algo en el ciclo `cycleId`, con
+    * la cuota que toca en este período ya calculada y REGISTRADA.
+    *
+    * La cuota de un período es `monto_cuota`, pero nunca más de lo que queda
+    * por cobrar (monto_total − lo ya aplicado en ciclos anteriores). Se escribe
+    * en `deduccion_cuota` por (deduccion_id, cycle_id) y se sincroniza
+    * `balance_pendiente`: recalcular el mismo ciclo escribe el MISMO monto, así
+    * que el cobro es idempotente.
+    *
+    * Devuelve las filas con su monto_periodo y el conteo de cuotas aplicadas.
+    */
+   async #cobrosDeDeducciones(
+      empleadoId: string,
+      cycleId: string,
+      desde: Date,
+      hasta: Date
+   ): Promise<DeduccionDelPeriodo[]> {
+      const desdeISO = aFechaISO(desde);
+      const hastaISO = aFechaISO(hasta);
+
+      // Lo ya aplicado = cuotas cobradas en ciclos que TERMINAN antes de este
+      // (o al inicio exacto: un ciclo que cierra el 22 y el siguiente abre el 22
+      // ya cobró su cuota, y sin el `<=` se cobraría dos veces el mismo período).
+      // Un ciclo que termina después todavía no debió cobrar la suya.
+      const filas = await this.db
+         .selectFrom("deduccion as d")
+         .select([
+            "d.id",
+            "d.concepto",
+            "d.monto_total",
+            "d.monto_cuota",
+            "d.cuotas_sugeridas",
+            "d.fecha",
+            sql<string>`coalesce((
+               select sum(dc.monto) from deduccion_cuota dc
+               join payroll_cycles pc on pc.id = dc.cycle_id
+               where dc.deduccion_id = d.id
+                 and pc.fecha_fin <= ${desdeISO}
+            ), 0)`.as("aplicado_prev"),
+            sql<string>`(
+               select count(*) from deduccion_cuota dc
+               join payroll_cycles pc on pc.id = dc.cycle_id
+               where dc.deduccion_id = d.id
+                 and pc.fecha_fin <= ${hastaISO}
+            )`.as("cuotas_aplicadas"),
+         ])
+         .where("d.empleado_id", "=", empleadoId)
+         .where("d.deleted_at", "is", null)
+         .where("d.fecha", "<=", hastaISO as any)
+         .orderBy("d.fecha", "asc")
+         .execute();
+
+      const cobros: DeduccionDelPeriodo[] = [];
+
+      for (const f of filas) {
+         const montoTotal = num(f.monto_total);
+         const montoCuota = num(f.monto_cuota);
+         const aplicadoPrev = num(f.aplicado_prev);
+         const restante = Math.max(0, montoTotal - aplicadoPrev);
+         // Nunca más de la cuota, y nunca más de lo que queda por cobrar.
+         const montoPeriodo = Math.max(0, Math.min(montoCuota, restante));
+
+         if (montoPeriodo > 0) {
+            cobros.push({
+               id: f.id,
+               concepto: f.concepto,
+               monto_total: montoTotal,
+               monto_cuota: montoCuota,
+               monto_periodo: montoPeriodo,
+               monto_pendiente: Math.max(0, montoTotal - aplicadoPrev - montoPeriodo),
+               cuotas_sugeridas: num(f.cuotas_sugeridas),
+               cuotas_aplicadas: num(f.cuotas_aplicadas) + 1,
+               fecha: f.fecha,
+            });
+
+            // Registra el cobro de ESTE ciclo. Es la fuente de la idempotencia.
+            await this.db
+               .insertInto("deduccion_cuota")
+               .values({
+                  deduccion_id: f.id,
+                  cycle_id: cycleId,
+                  monto: montoPeriodo,
+                  updated_at: new Date(),
+               })
+               .onConflict((oc) =>
+                  oc
+                     .columns(["deduccion_id", "cycle_id"])
+                     .doUpdateSet({ monto: montoPeriodo, updated_at: new Date() })
+               )
+               .execute();
+
+            // El balance pendiente que muestra el módulo de deducciones sigue
+            // a lo que de verdad se ha cobrado en nóminas. Se calcula desde la
+            // SUMA de todos los cobros (incluido el de este ciclo, recién
+            // escrito) y no desde `aplicadoPrev + montoPeriodo`: así un ciclo
+            // recalculado fuera de orden o uno que solapa a otro no puede
+            // "inflar" el saldo de vuelta ignorando cuotas ya cobradas.
+            const sumaCobros = await this.db
+               .selectFrom("deduccion_cuota")
+               .select(sql<number>`coalesce(sum(monto), 0)`.as("total"))
+               .where("deduccion_id", "=", f.id)
+               .executeTakeFirst();
+            const nuevoBalance = Math.max(0, montoTotal - num(sumaCobros?.total));
+            await this.db
+               .updateTable("deduccion")
+               .set({ balance_pendiente: nuevoBalance, updated_at: new Date() })
+               .where("id", "=", f.id)
+               .execute();
+         }
+      }
+
+      return cobros;
+   }
+
    async getDeduccionesDelPeriodo(
       empleadoId: string,
+      cycleId: string,
       desde: Date,
       hasta: Date
    ): Promise<number> {
-      const row = await this.db
-         .selectFrom("deduccion")
-         .select(sql<string>`coalesce(sum(monto_total), 0)`.as("total"))
-         .where("empleado_id", "=", empleadoId)
-         .where("deleted_at", "is", null)
-         .where("fecha", ">=", aFechaISO(desde) as any)
-         .where("fecha", "<=", aFechaISO(hasta) as any)
-         .executeTakeFirst();
-      return num(row?.total);
+      const cobros = await this.#cobrosDeDeducciones(empleadoId, cycleId, desde, hasta);
+      return cobros.reduce((s, c) => s + c.monto_periodo, 0);
    }
 
    async getDeudaTotal(empleadoId: string): Promise<number> {
@@ -373,6 +551,27 @@ export class KyselyNominaRepository implements INominaRepository {
          .where("deleted_at", "is", null)
          .executeTakeFirst();
       return num(row?.total);
+   }
+
+   /**
+    * Lo que todavía debe: monto_total de cada deducción viva menos lo que las
+    * nóminas ya cobraron (suma de `deduccion_cuota`).
+    */
+   async getDeudaPendiente(empleadoId: string): Promise<number> {
+      const rows = await this.db
+         .selectFrom("deduccion as d")
+         .select([
+            "d.monto_total",
+            sql<string>`coalesce((
+               select sum(dc.monto) from deduccion_cuota dc
+               where dc.deduccion_id = d.id
+            ), 0)`.as("aplicado"),
+         ])
+         .where("d.empleado_id", "=", empleadoId)
+         .where("d.deleted_at", "is", null)
+         .execute();
+
+      return rows.reduce((s, r) => s + Math.max(0, num(r.monto_total) - num(r.aplicado)), 0);
    }
 
    // ── Resumen por empleado ─────────────────────────────────────────────────
@@ -398,6 +597,11 @@ export class KyselyNominaRepository implements INominaRepository {
                devengado_tarifas: row.devengado_tarifas,
                complemento_minimo: row.complemento_minimo,
                seguro: row.seguro,
+               afp: row.afp,
+               sfs: row.sfs,
+               isr: row.isr,
+               base_isr: row.base_isr,
+               isr_anio_escala: row.isr_anio_escala,
                deducciones: row.deducciones,
                deuda_total: row.deuda_total,
                deuda_pendiente: row.deuda_pendiente,
@@ -417,6 +621,15 @@ export class KyselyNominaRepository implements INominaRepository {
                   // `seguro` NO se pisa al recalcular: es un campo libre que
                   // el usuario edita a mano. `deducciones` sí se recalcula
                   // siempre desde la tabla `deduccion`.
+                  //
+                  // Las retenciones también se pisan: son cálculo puro sobre
+                  // el bruto, no un valor que nadie escribe a mano. Si la
+                  // producción cambió, la retención que le corresponde cambió.
+                  afp: row.afp,
+                  sfs: row.sfs,
+                  isr: row.isr,
+                  base_isr: row.base_isr,
+                  isr_anio_escala: row.isr_anio_escala,
                   deducciones: row.deducciones,
                   deuda_total: row.deuda_total,
                   deuda_pendiente: row.deuda_pendiente,
@@ -442,6 +655,10 @@ export class KyselyNominaRepository implements INominaRepository {
                      cycle_employee_id: saved.id,
                      categoria_equipo_tarifa_id: t.categoria_equipo_tarifa_id,
                      categoria_equipo_tarifa_nombre: t.categoria_equipo_tarifa_nombre,
+                     categoria_equipo_id: t.categoria_equipo_id ?? null,
+                     categoria_equipo_nombre: t.categoria_equipo_nombre ?? null,
+                     proyecto_id: t.proyecto_id ?? null,
+                     proyecto_nombre: t.proyecto_nombre ?? null,
                      medida_cobro_nombre: t.medida_cobro_nombre,
                      cantidad: t.cantidad,
                      monto_pago: t.monto_pago,
@@ -554,6 +771,10 @@ export class KyselyNominaRepository implements INominaRepository {
          lista.push({
             categoria_equipo_tarifa_id: t.categoria_equipo_tarifa_id ?? null,
             categoria_equipo_tarifa_nombre: t.categoria_equipo_tarifa_nombre,
+            categoria_equipo_id: t.categoria_equipo_id ?? null,
+            categoria_equipo_nombre: t.categoria_equipo_nombre ?? null,
+            proyecto_id: t.proyecto_id ?? null,
+            proyecto_nombre: t.proyecto_nombre ?? null,
             medida_cobro_nombre: t.medida_cobro_nombre ?? null,
             cantidad: num(t.cantidad),
             monto_pago: num(t.monto_pago),
@@ -579,18 +800,28 @@ export class KyselyNominaRepository implements INominaRepository {
       const conteos = new Map<string, number>();
 
       if (ciclo) {
+         const desdeISO = aFechaISO(ciclo.fecha_inicio);
+         const hastaISO = aFechaISO(ciclo.fecha_fin);
          const filas = await this.db
-            .selectFrom("deduccion")
-            .select(["empleado_id", sql<string>`count(*)`.as("total")])
+            .selectFrom("deduccion as d")
+            .select(["d.empleado_id", sql<string>`count(*)`.as("total")])
             .where(
-               "empleado_id",
+               "d.empleado_id",
                "in",
                rows.map((r) => r.empleado_id)
             )
-            .where("deleted_at", "is", null)
-            .where("fecha", ">=", aFechaISO(ciclo.fecha_inicio) as any)
-            .where("fecha", "<=", aFechaISO(ciclo.fecha_fin) as any)
-            .groupBy("empleado_id")
+            .where("d.deleted_at", "is", null)
+            .where("d.fecha", "<=", hastaISO as any)
+            // La fila colapsada cuenta lo que el detalle va a mostrar: las
+            // deducciones que cobran algo en este ciclo (fecha ya pasada y
+            // saldo restante), no solo las creadas dentro del período.
+            .where(sql<boolean>`d.monto_total > coalesce((
+               select sum(dc.monto) from deduccion_cuota dc
+               join payroll_cycles pc on pc.id = dc.cycle_id
+               where dc.deduccion_id = d.id
+                 and pc.fecha_fin < ${desdeISO}
+            ), 0)`)
+            .groupBy("d.empleado_id")
             .execute();
 
          for (const f of filas) conteos.set(f.empleado_id, num(f.total));
@@ -629,7 +860,7 @@ export class KyselyNominaRepository implements INominaRepository {
             .where("cycle_employee_id", "=", row.id)
             .execute(),
          ciclo
-            ? this.listDeduccionesDelPeriodo(empleadoId, ciclo.fecha_inicio, ciclo.fecha_fin)
+            ? this.listDeduccionesDelPeriodo(empleadoId, cycleId, ciclo.fecha_inicio, ciclo.fecha_fin)
             : Promise.resolve([]),
       ]);
 
@@ -651,6 +882,10 @@ export class KyselyNominaRepository implements INominaRepository {
             return {
                categoria_equipo_tarifa_id: t.categoria_equipo_tarifa_id ?? null,
                categoria_equipo_tarifa_nombre: t.categoria_equipo_tarifa_nombre,
+               categoria_equipo_id: t.categoria_equipo_id ?? null,
+               categoria_equipo_nombre: t.categoria_equipo_nombre ?? null,
+               proyecto_id: t.proyecto_id ?? null,
+               proyecto_nombre: t.proyecto_nombre ?? null,
                medida_cobro_nombre: t.medida_cobro_nombre ?? null,
                cantidad: num(t.cantidad),
                monto_pago: num(t.monto_pago),
@@ -714,6 +949,8 @@ export class KyselyNominaRepository implements INominaRepository {
    async crearDeduccion(data: {
       empleado_id: string;
       monto_total: number;
+      monto_cuota: number;
+      cuotas: number;
       concepto: string;
       fecha: Date;
    }): Promise<string> {
@@ -723,8 +960,11 @@ export class KyselyNominaRepository implements INominaRepository {
             empleado_id: data.empleado_id,
             equipo_id: null,
             monto_total: data.monto_total,
-            // Nace saldada contra esta nómina: se cobra completa en el ciclo.
-            balance_pendiente: 0,
+            // Se cobra de a cuotas: nace debiendo todo el total, y cada nómina
+            // aplica `monto_cuota` (refrescarDeducciones lo sincroniza).
+            monto_cuota: data.monto_cuota,
+            balance_pendiente: data.monto_total,
+            cuotas_sugeridas: data.cuotas,
             concepto: data.concepto,
             fecha: aFechaISO(data.fecha) as any,
          })
@@ -735,25 +975,64 @@ export class KyselyNominaRepository implements INominaRepository {
 
    async listDeduccionesDelPeriodo(
       empleadoId: string,
+      cycleId: string,
       desde: Date,
       hasta: Date
    ): Promise<DeduccionDelPeriodo[]> {
-      const rows = await this.db
-         .selectFrom("deduccion")
-         .select(["id", "concepto", "monto_total", "fecha"])
+      return await this.#cobrosDeDeducciones(empleadoId, cycleId, desde, hasta);
+   }
+
+   /**
+    * Cambia la cuota por nómina de una deducción del empleado. Verifica que la
+    * deducción exista y sea de ese empleado: actualizar una ajena devuelve 0
+    * filas y por tanto false.
+    */
+   async actualizarCuotaDeduccion(
+      deduccionId: string,
+      empleadoId: string,
+      montoCuota: number
+   ): Promise<boolean> {
+      const res = await this.db
+         .updateTable("deduccion")
+         .set({ monto_cuota: montoCuota, updated_at: new Date() })
+         .where("id", "=", deduccionId)
          .where("empleado_id", "=", empleadoId)
          .where("deleted_at", "is", null)
-         .where("fecha", ">=", aFechaISO(desde) as any)
-         .where("fecha", "<=", aFechaISO(hasta) as any)
-         .orderBy("fecha", "asc")
-         .execute();
+         .executeTakeFirst();
+      return Number(res.numUpdatedRows ?? 0) > 0;
+   }
 
-      return rows.map((r) => ({
-         id: r.id,
-         concepto: r.concepto,
-         monto_total: num(r.monto_total),
-         fecha: r.fecha,
-      }));
+   /**
+    * Lo que todavía se puede cobrar de UNA deducción en el ciclo `cycleId`:
+    * `monto_total` menos lo ya cobrado en ciclos que terminan antes de este
+    * (la cuota de ESTE ciclo aún se puede reemplazar). Es el tope de la
+    * cuota por nómina: fijar una mayor intentaría cobrar de más.
+    */
+   async getDeudaRestanteDeDeduccion(
+      deduccionId: string,
+      cycleId: string
+   ): Promise<number> {
+      const ciclo = await this.findCycleById(cycleId);
+      if (!ciclo) return 0;
+      const desdeISO = aFechaISO(ciclo.fecha_inicio);
+
+      const row = await this.db
+         .selectFrom("deduccion as d")
+         .select([
+            "d.monto_total",
+            sql<string>`coalesce((
+               select sum(dc.monto) from deduccion_cuota dc
+               join payroll_cycles pc on pc.id = dc.cycle_id
+               where dc.deduccion_id = d.id
+                 and pc.fecha_fin < ${desdeISO}
+            ), 0)`.as("aplicado"),
+         ])
+         .where("d.id", "=", deduccionId)
+         .where("d.deleted_at", "is", null)
+         .executeTakeFirst();
+
+      if (!row) return 0;
+      return Math.max(0, num(row.monto_total) - num(row.aplicado));
    }
 
    /**
@@ -774,12 +1053,28 @@ export class KyselyNominaRepository implements INominaRepository {
       let cambiadas = 0;
 
       for (const f of filas) {
-         const [periodo, total] = await Promise.all([
-            this.getDeduccionesDelPeriodo(f.empleado_id, ciclo.fecha_inicio, ciclo.fecha_fin),
+         // Primero se registran los cobros de este ciclo en `deduccion_cuota`;
+         // la deuda pendiente se lee después, para que refleje la cuota de
+         // ESTE ciclo. En paralelo, la lectura podía ganarle al registro y
+         // sobrar el pendiente en la nómina.
+         const periodo = await this.getDeduccionesDelPeriodo(
+            f.empleado_id,
+            cycleId,
+            ciclo.fecha_inicio,
+            ciclo.fecha_fin
+         );
+         const [total, pendiente] = await Promise.all([
             this.getDeudaTotal(f.empleado_id),
+            this.getDeudaPendiente(f.empleado_id),
          ]);
 
-         if (periodo === num(f.deducciones) && total === num(f.deuda_total)) continue;
+         if (
+            periodo === num(f.deducciones) &&
+            total === num(f.deuda_total) &&
+            pendiente === num(f.deuda_pendiente)
+         ) {
+            continue;
+         }
 
          const bruto = num(f.devengado_tarifas) + num(f.complemento_minimo);
 
@@ -788,7 +1083,7 @@ export class KyselyNominaRepository implements INominaRepository {
             .set({
                deducciones: periodo,
                deuda_total: total,
-               deuda_pendiente: Math.max(0, total - periodo),
+               deuda_pendiente: pendiente,
                neto_pagar: bruto - num(f.seguro) - periodo,
                updated_at: new Date(),
             } as any)

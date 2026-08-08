@@ -10,6 +10,7 @@ import { ConduceDeleteDialog } from "./conduce-delete-dialog";
 import { ConduceEditDialog } from "./conduce-edit-dialog";
 import { ConduceDetalleDialog } from "./conduce-detalle-dialog";
 import type { ConduceDTO } from "@/dtos/conduce.dto";
+import { toast } from "sonner";
 
 interface Props {
    conduces: ConduceDTO[];
@@ -46,8 +47,8 @@ export function ConduceTable({ conduces, onDelete, deletingId, ocultarProyecto }
       setEliminandoId(id);
       try {
          const resultado = await DeleteConduce(id, motivo);
-         if (resultado instanceof Error) {
-            alert(resultado.message);
+          if (resultado instanceof Error) {
+            toast.error(resultado.message);
          }
       } finally {
          setEliminandoId(null);
@@ -63,7 +64,8 @@ export function ConduceTable({ conduces, onDelete, deletingId, ocultarProyecto }
    }
 
    return (
-      <div className="overflow-x-auto">
+      <>
+      <div className="hidden md:block overflow-x-auto">
          <table className="w-full text-sm">
             <thead>
                <tr className="border-b border-border bg-muted/40">
@@ -128,7 +130,23 @@ export function ConduceTable({ conduces, onDelete, deletingId, ocultarProyecto }
                            )}
                         </td>
                      )}
-                     <td className="px-3 py-3">{c.equipo_nombre ?? "—"}</td>
+                     <td className="px-3 py-3">
+                        {c.equipo_nombre ?? "—"}
+                        {/*
+                           La tarifa no cuelga del equipo sino de su categoría
+                           (equipo → categoria_equipo → categoria_equipo_tarifa),
+                           así que mostrarla aquí explica de dónde sale el precio
+                           cuando el chofer manejó varias categorías.
+                        */}
+                        {c.categoria_equipo_nombre && (
+                           <div className="text-xs text-muted-foreground">
+                              {c.categoria_equipo_nombre}
+                              {c.categoria_equipo_tarifa_nombre
+                                 ? ` · ${c.categoria_equipo_tarifa_nombre}`
+                                 : ""}
+                           </div>
+                        )}
+                     </td>
                      <td className="px-3 py-3">{c.operador_nombre ?? "—"}</td>
                      <td className="px-3 py-3 text-xs text-muted-foreground max-w-[220px]">
                         {c.tipo_conduce === "CAMION" ? (
@@ -199,8 +217,157 @@ export function ConduceTable({ conduces, onDelete, deletingId, ocultarProyecto }
                ))}
             </tbody>
          </table>
+      </div>
 
-         <ConduceDetalleDialog
+      {/* Vista móvil: tarjetas apiladas */}
+      <div className="md:hidden space-y-3">
+         {conduces.map((c) => (
+            <div key={c.id} className="rounded-xl border border-border bg-card p-4 space-y-3">
+               <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                     {c.tipo_conduce === "CAMION" ? (
+                        <Badge className="border-0 bg-blue-100 text-blue-800 text-xs gap-1 shrink-0">
+                           <Truck className="size-3" /> Camión
+                        </Badge>
+                     ) : (
+                        <Badge className="border-0 bg-orange-100 text-orange-800 text-xs gap-1 shrink-0">
+                           <HardHat className="size-3" /> Equipo
+                        </Badge>
+                     )}
+                     <button
+                        type="button"
+                        onClick={() => setConduceDetalle(c)}
+                        className="font-medium text-left hover:underline hover:text-blue-600 truncate"
+                     >
+                        {c.numero_referencia}
+                     </button>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                     <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 text-muted-foreground hover:text-foreground"
+                        onClick={() => setConduceDetalle(c)}
+                     >
+                        <Eye className="h-4 w-4" />
+                     </Button>
+                     <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 text-muted-foreground hover:text-foreground"
+                        onClick={() => setConduceAEditar(c)}
+                     >
+                        <Pencil className="h-4 w-4" />
+                     </Button>
+                     <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 text-muted-foreground hover:text-destructive"
+                        disabled={idEnProceso === c.id}
+                        onClick={() => setConduceAEliminar(c)}
+                     >
+                        <Trash2 className="h-4 w-4" />
+                     </Button>
+                  </div>
+               </div>
+
+               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <div>
+                     <div className="text-xs text-muted-foreground">Fecha</div>
+                     <div>{new Date(c.fecha).toLocaleDateString("es-DO")}</div>
+                  </div>
+                  <div>
+                     <div className="text-xs text-muted-foreground">Cliente</div>
+                     <div className="truncate">
+                        {c.cliente_nombre ?? "—"}
+                        {c.cliente_telefono && (
+                           <span className="text-xs text-muted-foreground"> · {c.cliente_telefono}</span>
+                        )}
+                     </div>
+                  </div>
+                  {!ocultarProyecto && (
+                     <div>
+                        <div className="text-xs text-muted-foreground">Proyecto</div>
+                        {c.proyecto_id ? (
+                           <Link
+                              href={`/dashboard/proyectos/${c.proyecto_id}`}
+                              className="text-blue-600 hover:underline"
+                           >
+                              {c.proyecto_nombre ?? "Ver proyecto"}
+                           </Link>
+                        ) : (
+                           <Badge variant="outline" className="text-xs font-normal text-muted-foreground">
+                              Sin asignar
+                           </Badge>
+                        )}
+                     </div>
+                  )}
+                  <div>
+                     <div className="text-xs text-muted-foreground">Equipo</div>
+                     <div className="truncate">
+                        {c.equipo_nombre ?? "—"}
+                        {c.categoria_equipo_nombre && (
+                           <div className="text-xs text-muted-foreground truncate">
+                              {c.categoria_equipo_nombre}
+                              {c.categoria_equipo_tarifa_nombre
+                                 ? ` · ${c.categoria_equipo_tarifa_nombre}`
+                                 : ""}
+                           </div>
+                        )}
+                     </div>
+                  </div>
+                  <div>
+                     <div className="text-xs text-muted-foreground">Operador</div>
+                     <div>{c.operador_nombre ?? "—"}</div>
+                  </div>
+                  <div>
+                     <div className="text-xs text-muted-foreground">Detalle</div>
+                     <div className="text-xs text-muted-foreground">
+                        {c.tipo_conduce === "CAMION" ? (
+                           <span>
+                              {c.categoria_equipo_tarifa_nombre ?? "-"} · {c.procedencia} → {c.destino}
+                           </span>
+                        ) : (
+                           <span>
+                              {c.horario_manana_inicio && c.horario_manana_fin
+                                 ? `AM ${c.horario_manana_inicio}-${c.horario_manana_fin}`
+                                 : "AM —"}
+                              {" / "}
+                              {c.horario_tarde_inicio && c.horario_tarde_fin
+                                 ? `PM ${c.horario_tarde_inicio}-${c.horario_tarde_fin}`
+                                 : "PM —"}
+                              {c.combustible_pagado_cliente && " · combustible cliente"}
+                           </span>
+                        )}
+                     </div>
+                  </div>
+               </div>
+
+               <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                     {c.tipo_conduce === "CAMION"
+                        ? `${c.categoria_equipo_tarifa_nombre ?? "S.T."} / ${c.cantidad}`
+                        : `${c.total_horas.toFixed(2)} h`}
+                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                     {c.es_cobrable ? (
+                        <Badge className="border-0 bg-green-100 text-green-800 text-xs">Sí</Badge>
+                     ) : (
+                        <Badge className="border-0 bg-gray-100 text-gray-600 text-xs">No</Badge>
+                     )}
+                     <span className="font-semibold whitespace-nowrap">
+                        RD$ {c.subtotal.toLocaleString("es-DO")}
+                     </span>
+                  </div>
+               </div>
+            </div>
+         ))}
+      </div>
+
+      <ConduceDetalleDialog
             conduce={conduceDetalle}
             open={!!conduceDetalle}
             onOpenChange={(v) => !v && setConduceDetalle(null)}
@@ -218,6 +385,6 @@ export function ConduceTable({ conduces, onDelete, deletingId, ocultarProyecto }
             open={!!conduceAEditar}
             onOpenChange={(v) => !v && setConduceAEditar(null)}
          />
-      </div>
+      </>
    );
 }

@@ -159,7 +159,7 @@ export function DeduccionDetail({ deduccion, onRefresh }: { deduccion: Deduccion
             <TabsContent value="detalles" className="space-y-4">
                
                {/* Tarjetas de Métricas Principales */}
-               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                   <div className="rounded-xl p-4 bg-brand-blue text-white shadow-sm flex items-center justify-between overflow-hidden">
                      <div className="min-w-0">
                         <p className="text-xs font-medium text-brand-yellow uppercase tracking-wider truncate">Monto Total</p>
@@ -180,10 +180,22 @@ export function DeduccionDetail({ deduccion, onRefresh }: { deduccion: Deduccion
 
                   <div className="rounded-xl p-4 bg-brand-black text-white shadow-sm flex items-center justify-between overflow-hidden">
                      <div className="min-w-0">
-                        <p className="text-xs font-medium text-brand-yellow uppercase tracking-wider truncate">Estado Actual</p>
-                        <p className="text-lg font-bold mt-1 truncate">{isDeleted ? "Anulada" : "Activa"}</p>
+                        <p className="text-xs font-medium text-brand-yellow uppercase tracking-wider truncate">Cuotas Sugeridas</p>
+                        <p className="text-lg font-bold mt-1 truncate">
+                           {deduccion.cuotas_sugeridas}
+                        </p>
                      </div>
-                     <ArrowDownRight className="size-6 opacity-70 shrink-0 ml-2" />
+                     <Layers className="size-6 opacity-70 text-brand-yellow shrink-0 ml-2" />
+                  </div>
+
+                  <div className="rounded-xl p-4 bg-muted text-foreground shadow-sm flex items-center justify-between overflow-hidden">
+                     <div className="min-w-0">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider truncate">Monto Sugerido / Cuota</p>
+                        <p className="text-lg font-bold mt-1 truncate">
+                           ${deduccion.monto_sugerido.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </p>
+                     </div>
+                     <ArrowDownRight className="size-6 opacity-70 text-brand-blue shrink-0 ml-2" />
                   </div>
                </div>
 
@@ -197,13 +209,21 @@ export function DeduccionDetail({ deduccion, onRefresh }: { deduccion: Deduccion
                      <CardDescription>Detalles operativos y de vinculación.</CardDescription>
                   </CardHeader>
                   <CardContent>
-                     <div className="grid gap-4 sm:grid-cols-2">
-                        <InfoField label="Referencia Interna" value={deduccion.codigoReferencia} />
-                        <InfoField 
-                           label="Empleado Asociado" 
-                           value={deduccion.empleado_nombre || "No vinculado"} 
-                        />
-                        <div className="sm:col-span-2">
+                      <div className="grid gap-4 sm:grid-cols-2">
+                         <InfoField label="Referencia Interna" value={deduccion.codigoReferencia} />
+                         <InfoField 
+                            label="Estado" 
+                            value={isDeleted ? "Anulada" : "Activa"} 
+                         />
+                         <InfoField 
+                            label="Empleado Asociado" 
+                            value={deduccion.empleado_nombre || "No vinculado"} 
+                         />
+                         <InfoField 
+                            label="Cuotas Sugeridas" 
+                            value={`${deduccion.cuotas_sugeridas} cuota${deduccion.cuotas_sugeridas === 1 ? "" : "s"} · $${deduccion.monto_sugerido.toLocaleString('en-US', { minimumFractionDigits: 2 })} por cuota`} 
+                         />
+                         <div className="sm:col-span-2">
                            <InfoField 
                               label="Equipo Asociado" 
                               value={deduccion.equipo_codigo_referencia || "No vinculado a un equipo en específico"} 

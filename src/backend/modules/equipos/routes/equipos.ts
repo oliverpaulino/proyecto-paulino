@@ -3,6 +3,7 @@ import db from "@/backend/database";
 import { auth } from "@/lib/auth";
 import { KyselyEquipoRepository } from "../infraestructure/equipo.infraestructure";
 import { EquipoService } from "../service/equipo.service";
+import { getEquipoRentabilidad } from "../service/rentabilidad.service";
 import { EmployeeService } from "../../employees/service/employees.service";
 import { KyselyEmployeeRepository } from "../../employees/infraestructure/employees.infraestructure";
 import { KyselyMantenimientoRepository } from "../../mantenimientos/infraestructure/mantenimiento.infraestructure";
@@ -38,8 +39,29 @@ equiposRoute.get("/:id/historial", async (c) => {
 
 // GET /api/equipos/:id/compras — purchase-order items registered against this equipo
 equiposRoute.get("/:id/compras", async (c) => {
-   const items = await service.getComprasItems(c.req.param("id"));
+   const items = await service.getComprasItems(c.req.param("id"), {
+      desde: c.req.query("desde") || undefined,
+      hasta: c.req.query("hasta") || undefined,
+   });
    return c.json(items);
+});
+
+// GET /api/equipos/:id/rentabilidad?desde=&hasta= — reporte financiero completo
+// del equipo: conduces (facturado vs. costo del operador), gastos, órdenes de
+// compra, mantenimientos y pagos vinculados.
+equiposRoute.get("/:id/rentabilidad", async (c) => {
+   try {
+      const reporte = await getEquipoRentabilidad(db, c.req.param("id"), {
+         desde: c.req.query("desde") || undefined,
+         hasta: c.req.query("hasta") || undefined,
+      });
+      return c.json(reporte);
+   } catch (err: unknown) {
+      return c.json(
+         { error: err instanceof Error ? err.message : "Error al calcular la rentabilidad" },
+         500
+      );
+   }
 });
 
 // GET /api/equipos/:id/mantenimientos — bitácora de mantenimientos del equipo
@@ -147,28 +169,5 @@ equiposRoute.get(":id/operador", async (c) => {
    return c.json(operador);
 })
 
-// GET /api/equipos/:id/historial-trabajo
-equiposRoute.get("/:id/historial-trabajo", async (c) => {
-   const rows = await db
-      .selectFrom("proyecto_equipos")
-      .innerJoin("proyecto", "proyecto.id", "proyecto_equipos.proyecto_id")
-      .innerJoin("proyecto_tarifas", "proyecto_tarifas.id", "proyecto_equipos.proyecto_tarifa_id")
-      .select([
-         "proyecto.id as proyecto_id",
-         "proyecto.nombre as proyecto_nombre",
-         "proyecto.fecha_inicio",
-         "proyecto_equipos.cantidad",
-         "proyecto_equipos.es_cobrable",
-         "proyecto_tarifas.precio_acordado",
-      ])
-      .where("proyecto_equipos.equipo_id", "=", c.req.param("id"))
-      .orderBy("proyecto.fecha_inicio", "desc")
-      .execute();
-
-   return c.json(rows.map(r => ({
-      ...r,
-      subtotal: Number(r.cantidad) * Number(r.precio_acordado),
-   })));
-});
 
 export default equiposRoute;

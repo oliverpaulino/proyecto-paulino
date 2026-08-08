@@ -188,9 +188,14 @@ function DetalleEmpleado({ e }: { e: NominaEmpleado }) {
                {deducciones.map((d, i) => (
                   <View key={d.id} style={[s.tableRow, i % 2 !== 0 ? s.tableRowAlt : {}]}>
                      <Text style={[s.tableCell, { width: 70 }]}>{fmtDate(d.fecha)}</Text>
-                     <Text style={[s.tableCell, { flex: 1 }]}>{d.concepto}</Text>
+                     <Text style={[s.tableCell, { flex: 1 }]}>
+                        {d.concepto}
+                        {d.cuotas_sugeridas > 1
+                           ? ` · pendiente por pagar ${fmt(d.monto_pendiente)}`
+                           : ""}
+                     </Text>
                      <Text style={[s.tableCell, s.colSub, { color: "#DC2626" }]}>
-                        - {fmt(d.monto_total)}
+                        - {fmt(d.monto_periodo)}
                      </Text>
                   </View>
                ))}
@@ -208,6 +213,11 @@ function DetalleEmpleado({ e }: { e: NominaEmpleado }) {
                   <Text style={[s.resumenValue, { color: "#DC2626" }]}>- {fmt(e.seguro)}</Text>
                </View>
             )}
+            {/*
+               Las deducciones se muestran como un solo total aquí y detalladas
+               línea por línea arriba: el volante es el comprobante que recibe
+               el empleado y debe poder cuadrar cada descuento.
+            */}
             {e.deducciones > 0 && (
                <View style={s.resumenRow}>
                   <Text style={s.resumenLabel}>Deducciones</Text>
@@ -320,10 +330,10 @@ export function NominaDocument({
                         <View style={s.tableHead}>
                            <Text style={[s.tableHeadCell, s.colNombre]}>Empleado</Text>
                            <Text style={[s.tableHeadCell, s.colModalidad]}>Modalidad</Text>
-                           <Text style={[s.tableHeadCell, s.colMonto]}>Bruto</Text>
-                           <Text style={[s.tableHeadCell, s.colMonto]}>Seguro</Text>
-                           <Text style={[s.tableHeadCell, s.colMonto]}>Deducc.</Text>
-                           <Text style={[s.tableHeadCell, s.colNeto]}>Neto</Text>
+                            <Text style={[s.tableHeadCell, s.colMonto]}>Bruto</Text>
+                            <Text style={[s.tableHeadCell, s.colMonto]}>Seguro</Text>
+                            <Text style={[s.tableHeadCell, s.colMonto]}>Deducc.</Text>
+                            <Text style={[s.tableHeadCell, s.colNeto]}>Neto</Text>
                         </View>
 
                         {empleados.map((e, i) => (
@@ -352,12 +362,12 @@ export function NominaDocument({
                         <View style={s.tableFoot}>
                            <Text style={[s.tableFootCell, s.colNombre]}>Totales</Text>
                            <Text style={[s.tableFootCell, s.colModalidad]} />
-                           <Text style={[s.tableFootCell, s.colMonto]}>{fmt(totales.bruto)}</Text>
-                           <Text style={[s.tableFootCell, s.colMonto]}>{fmt(totales.seguro)}</Text>
-                           <Text style={[s.tableFootCell, s.colMonto]}>
-                              {fmt(totales.deducciones)}
-                           </Text>
-                           <Text style={[s.tableFootCell, s.colNeto]}>{fmt(totales.neto)}</Text>
+                            <Text style={[s.tableFootCell, s.colMonto]}>{fmt(totales.bruto)}</Text>
+                            <Text style={[s.tableFootCell, s.colMonto]}>{fmt(totales.seguro)}</Text>
+                            <Text style={[s.tableFootCell, s.colMonto]}>
+                               {fmt(totales.deducciones)}
+                            </Text>
+                            <Text style={[s.tableFootCell, s.colNeto]}>{fmt(totales.neto)}</Text>
                         </View>
                      </View>
                   </>

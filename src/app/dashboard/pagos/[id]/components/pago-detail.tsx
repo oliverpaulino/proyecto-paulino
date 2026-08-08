@@ -83,6 +83,25 @@ export function PagoDetail({ pago, onRefresh }: { pago: Pago; onRefresh: () => v
       }
    };
 
+   const referencias = [
+   {
+      label: "Gasto de Empresa",
+      value: pago.gasto_codigo_referencia,
+   },
+   {
+      label: "Deducción de Empleado",
+      value: pago.deduccion_codigo_referencia,
+   },
+   {
+      label: "Proyecto",
+      value: pago.proyecto_codigo_referencia,
+   },
+   {
+      label: "Orden de Compra",
+      value: pago.orden_compra_codigo_referencia,
+   },
+   ].filter((item) => item.value);
+
    return (
       <div className="flex flex-col gap-6">
          
@@ -199,22 +218,17 @@ export function PagoDetail({ pago, onRefresh }: { pago: Pago; onRefresh: () => v
                      </CardTitle>
                      <CardDescription>Entidad financiera asociada a la transacción actual.</CardDescription>
                   </CardHeader>
-                  <CardContent>
-                     <div className="grid gap-4 sm:grid-cols-3">
-                        <InfoField 
-                           label="Gasto de Empresa" 
-                           value={pago.gasto_codigo_referencia || "No aplica"} 
+                   <CardContent>
+                     <div className="w-full">
+                     {referencias.map(({ label, value }) => (
+                        <InfoField
+                           key={label}
+                           label={label}
+                           value={value!}
                         />
-                        <InfoField 
-                           label="Costo de Cliente" 
-                           value={pago.costo_codigo_referencia || "No aplica"} 
-                        />
-                        <InfoField 
-                           label="Deducción de Empleado" 
-                           value={pago.deduccion_codigo_referencia || "No aplica"} 
-                        />
+                     ))}
                      </div>
-                  </CardContent>
+                   </CardContent>
                </Card>
 
                {/* Concepto */}

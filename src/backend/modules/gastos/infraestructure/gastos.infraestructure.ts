@@ -30,6 +30,7 @@ export class KyselyGastoRepository implements IGastoRepository {
             ? this.buildCodigoReferencia("EQU", row.equipo_codigo_referencia) 
             : null,
          monto_total: Number(row.monto_total),
+         cobrable_monto: row.cobrable_monto != null ? Number(row.cobrable_monto) : null,
          fecha: new Date(row.fecha),
          created_at: new Date(row.created_at),
          updated_at: new Date(row.updated_at),
@@ -172,22 +173,65 @@ export class KyselyGastoRepository implements IGastoRepository {
    async create(data: CreateGastoDTO): Promise<Gasto> {
       const row = await this.db
          .insertInto("gasto")
-         .values({
-            monto_total: data.monto_total,
-            concepto: data.concepto,
-            ncf: data.ncf,
-            categoria_gasto_id: data.categoria_gasto_id,
-            orden_compra_id: data.orden_compra_id ?? null,
-            proyecto_id: data.proyecto_id ?? null,
-            equipo_id: data.equipo_id ?? null,
-            fecha: data.fecha ?? new Date(),
-            created_at: new Date(),
-            updated_at: new Date(),
-         })
+         .values(this.buildGastoInsertValues(data))
          .returningAll()
          .executeTakeFirstOrThrow();
 
       return this.findById(row.id) as Promise<Gasto>;
+   }
+
+   async createWithDeduccion(data: CreateGastoDTO): Promise<Gasto> {
+      const deduccion = data.deduccion;
+
+      if (!deduccion) {
+         throw new Error("La deducción asociada es requerida");
+      }
+
+      const row = await this.db.transaction().execute(async (trx) => {
+         const gastoRow = await trx
+            .insertInto("gasto")
+            .values(this.buildGastoInsertValues(data))
+            .returningAll()
+            .executeTakeFirstOrThrow();
+
+         await trx
+            .insertInto("deduccion")
+            .values({
+               empleado_id: deduccion.empleado_id,
+               equipo_id: deduccion.equipo_id ?? null,
+               gasto_id: gastoRow.id,
+               monto_total: deduccion.monto_total,
+               balance_pendiente: deduccion.balance_pendiente ?? null,
+               cuotas_sugeridas: deduccion.cuotas_sugeridas ?? 1,
+               monto_cuota: deduccion.monto_cuota ?? deduccion.monto_total / (deduccion.cuotas_sugeridas ?? 1),
+               concepto: deduccion.concepto,
+               fecha: deduccion.fecha ?? gastoRow.fecha,
+               created_at: new Date(),
+               updated_at: new Date(),
+            })
+            .execute();
+
+         return gastoRow;
+      });
+
+      return this.findById(row.id) as Promise<Gasto>;
+   }
+
+   private buildGastoInsertValues(data: CreateGastoDTO) {
+      return {
+         monto_total: data.monto_total,
+         concepto: data.concepto,
+         ncf: data.ncf,
+         categoria_gasto_id: data.categoria_gasto_id,
+         orden_compra_id: data.orden_compra_id ?? null,
+         proyecto_id: data.proyecto_id ?? null,
+         equipo_id: data.equipo_id ?? null,
+         cobrable_proyecto: data.cobrable_proyecto ?? false,
+         cobrable_monto: data.cobrable_monto ?? null,
+         fecha: data.fecha ?? new Date(),
+         created_at: new Date(),
+         updated_at: new Date(),
+      };
    }
 
    async update(id: string, data: UpdateGastoDTO): Promise<Gasto | null> {

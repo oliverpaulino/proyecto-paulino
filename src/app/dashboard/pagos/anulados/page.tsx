@@ -8,6 +8,7 @@ import { ArrowLeft, Trash2, Eye, RotateCcw } from "lucide-react";
 import { usePagoStore } from "@/stores/usePagoStore";
 import type { Pago } from "@/dtos/pagos.dto";
 import { RestorePagoDialog } from "../components/restore-pago-dialog";
+import { toast } from "sonner";
 
 function formatMoney(value: number): string {
    return new Intl.NumberFormat("es-DO", {
@@ -48,9 +49,9 @@ export default function PagosEliminadosPage() {
       setFormLoading(true);
       try {
          const result = await RestorePago(restoreTarget.id);
-         if (result instanceof Error) {
-            alert(result.message);
-         } else {
+          if (result instanceof Error) {
+             toast.error(result.message);
+          } else {
             setRestoreTarget(null);
          }
       } finally {
@@ -117,7 +118,7 @@ export default function PagosEliminadosPage() {
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                      {filtered.map((pago) => {
-                        const destinoNombre = pago.gasto_codigo_referencia || pago.costo_codigo_referencia || pago.deduccion_codigo_referencia || "N/A";
+                        const destinoNombre = pago.gasto_codigo_referencia || pago.deduccion_codigo_referencia || "N/A";
                         return (
                         <tr key={pago.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
                            <td className="px-4 py-3">

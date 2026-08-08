@@ -5,6 +5,7 @@ import {
    EstadoOrdenCompra,
    IPurchaseOrderRepository,
    isEditable,
+   PurchaseOrderFilters,
    PurchaseOrderItemInput,
    PurchaseOrderPaginatedResult,
    PurchaseOrderProps,
@@ -14,19 +15,23 @@ import {
 export class PurchaseOrderService {
    constructor(private readonly repo: IPurchaseOrderRepository) { }
 
-   async getAll(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<PurchaseOrderPaginatedResult> {
-      const { supplierId = "", search, page, limit } = params;
-      const orders = await this.repo.findAll({ supplierId, search, page, limit });
+   async getAll(params: PurchaseOrderFilters): Promise<PurchaseOrderPaginatedResult> {
+      const orders = await this.repo.findAll(params);
       return orders
    }
 
-   async getAllDeleted(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<PurchaseOrderPaginatedResult> {
+   async getAllDeleted(params: PurchaseOrderFilters): Promise<PurchaseOrderPaginatedResult> {
       const orders = await this.repo.findAllDeleted(params);
       return orders;
    }
 
    async getById(id: string): Promise<PurchaseOrderProps | null> {
       const order = await this.repo.findById(id);
+      return order ? order.toJSON() : null;
+   }
+
+   async getDeletedById(id: string): Promise<PurchaseOrderProps | null> {
+      const order = await this.repo.findDeletedById(id);
       return order ? order.toJSON() : null;
    }
 
@@ -116,8 +121,11 @@ export class PurchaseOrderService {
       return this.repo.removeApprover(userId);
    }
 
-   async delete(userId: string, id: string): Promise<boolean> {
-      return this.repo.delete(userId, id);
+   async delete(userId: string, id: string, deleted_reason?: string | null): Promise<boolean> {
+      if (!deleted_reason?.trim()) {
+         throw new Error("Debe especificar el motivo de la anulación");
+      }
+      return this.repo.delete(userId, id, deleted_reason);
    }
 
    private validateItems(items: PurchaseOrderItemInput[]): void {

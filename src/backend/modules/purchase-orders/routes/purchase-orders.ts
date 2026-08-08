@@ -5,7 +5,7 @@ import { KyselyPurchaseOrderRepository } from "../infraestructure/purchase-order
 import { PurchaseOrderService } from "../service/purchase-order.service";
 import { KyselyNotificationRepository } from "../../notifications/infrastructure/notification.infrastructure";
 import { NotificationService } from "../../notifications/service/notification.service";
-import type { EstadoOrdenCompra } from "../domain/purchase-order.domain";
+import type { EstadoOrdenCompra, EstadoPagoOrden } from "../domain/purchase-order.domain";
 
 const purchaseOrdersRoute = new Hono();
 const repo = new KyselyPurchaseOrderRepository(db);
@@ -18,10 +18,13 @@ purchaseOrdersRoute.get("/", async (c) => {
    try {
       const supplierId = c.req.query("supplierId") as string | undefined;
       const search = c.req.query("search") as string | undefined;
+      const estado = c.req.query("estado") as EstadoOrdenCompra | undefined;
+      const estadoPago = c.req.query("estadoPago") as EstadoPagoOrden | undefined;
+      const equipoId = c.req.query("equipoId") as string | undefined;
       const page = parseInt(c.req.query("page") as string) || 1;
       const limit = parseInt(c.req.query("limit") as string) || 0;
 
-      const orders = await service.getAll({ supplierId, search, page, limit });
+      const orders = await service.getAll({ supplierId, search, estado, estadoPago, equipoId, page, limit });
       return c.json(orders);
    } catch (err: unknown) {
       return c.json(
@@ -36,9 +39,12 @@ purchaseOrdersRoute.get("/deleted", async (c) => {
    try {
       const supplierId = c.req.query("supplierId") as string | undefined;
       const search = c.req.query("search") as string | undefined;
+      const estado = c.req.query("estado") as EstadoOrdenCompra | undefined;
+      const estadoPago = c.req.query("estadoPago") as EstadoPagoOrden | undefined;
+      const equipoId = c.req.query("equipoId") as string | undefined;
       const page = parseInt(c.req.query("page") as string) || 1;
       const limit = parseInt(c.req.query("limit") as string) || 0;
-      const orders = await service.getAllDeleted({ supplierId, search, page, limit });
+      const orders = await service.getAllDeleted({ supplierId, search, estado, estadoPago, equipoId, page, limit });
       return c.json(orders);
    } catch (err: unknown) {
       return c.json(
@@ -123,8 +129,12 @@ purchaseOrdersRoute.get("/approvers/me", async (c) => {
 // GET /api/purchase-orders/:id
 purchaseOrdersRoute.get("/:id", async (c) => {
    try {
-      const order = await service.getById(c.req.param("id"));
-      if (!order) return c.json({ error: "Orden no encontrada" }, 404);
+      const id = c.req.param("id");
+      let order = await service.getById(id);
+      if (!order) {
+         order = await service.getDeletedById(id);
+         if (!order) return c.json({ error: "Órden no encontrado" }, 404);
+      }
       return c.json(order);
    } catch (err: unknown) {
       return c.json(
@@ -238,6 +248,26 @@ purchaseOrdersRoute.patch("/:id/restore", async (c) => {
          return c.json({ error: "Orden no encontrada" }, 404);
       }
 
+      // Avisar a los firmantes: la orden vuelve a estar viva y puede
+      // necesitar revisión de nuevo.
+      try {
+         const approvers = await service.listApprovers();
+         if (approvers.length > 0) {
+            await notifService.notifyMany(
+               approvers.map((a) => ({
+                  user_id: a.user_id,
+                  title: "Orden de compra restaurada",
+                  message: `La orden #${order.codigoReferencia} ha sido restaurada y vuelve a estar disponible.`,
+                  type: "PURCHASE_ORDER_RESTORED",
+                  reference_id: order.id,
+                  reference_type: "purchase_order",
+               }))
+            );
+         }
+      } catch {
+         // Don't fail the restore if notifications fail
+      }
+
       return c.json(order);
    } catch (err: unknown) {
       return c.json(
@@ -253,10 +283,17 @@ purchaseOrdersRoute.delete("/:id", async (c) => {
       const session = await auth.api.getSession({ headers: c.req.raw.headers });
       if (!session?.user) return c.json({ error: "No autenticado" }, 401);
 
+      let body: { deleted_reason?: string } = {};
+      try {
+         body = await c.req.json();
+      } catch {
+         // Sin cuerpo: el motivo quedará como null y el service lo validará
+      }
+
       const order = await service.getById(c.req.param("id"));
       if (!order) return c.json({ error: "Orden no encontrada" }, 404);
 
-      const deleted = await service.delete(session.user.id, c.req.param("id"));
+      const deleted = await service.delete(session.user.id, c.req.param("id"), body.deleted_reason);
       if (!deleted) return c.json({ error: "Orden no encontrada" }, 404);
 
       try {

@@ -1,8 +1,15 @@
 import { create } from "zustand";
 import type {
    Proyecto,
+   CreateProyectoForm,
+   LiquidacionExpress,
+   EstadoProyecto, // Asumiendo que esto también está en proyecto.dto.ts
+   UpdateProyectoForm
 } from "@/dtos/proyecto.dto";
-import { CreateProyectoDTO, LiquidacionFacade } from "@/backend/modules/proyectos/domain/proyecto.domain";
+
+// Creamos un tipo que refleja UpdateProyectoDTO del backend, 
+// pero adaptado para el frontend (ej. las fechas son strings que se envían al backend)
+
 
 type ProyectoStore = {
    proyectos: Proyecto[];
@@ -13,8 +20,13 @@ type ProyectoStore = {
    GetProyectos: (opts?: { force?: boolean, search?: string, page?: number, limit?: number }) => Promise<void>;
    GetProyectoById: (id: string) => Promise<Proyecto | null>;
    GetProyectosByClientId: (clienteId: string, opts?: { force?: boolean, search?: string, page?: number, limit?: number }) => Promise<void>;
-   CreateProyecto: (form: CreateProyectoDTO) => Promise<Proyecto | Error>;
-   GetLiquidacion: (id: string) => Promise<LiquidacionFacade | Error>;
+   CreateProyecto: (form: CreateProyectoForm) => Promise<Proyecto | Error>;
+   GetLiquidacion: (id: string) => Promise<LiquidacionExpress | Error>;
+
+   // AQUÍ ESTÁ EL CAMBIO: Reemplazamos Record<string, unknown> por UpdateProyectoForm
+   UpdateProyecto: (id: string, data: UpdateProyectoForm) => Promise<true | Error>;
+
+   ToggleDetalleCobrable: (ids: string[], es_cobrable: boolean) => Promise<true | Error>;
    invalidateCache: () => void;
 };
 
@@ -49,7 +61,7 @@ export const useProyectoStore = create<ProyectoStore>((set, get) => ({
       }
    },
 
-   GetProyectoById: async (id) => {
+   GetProyectoById: async (id: string) => {
       set({ loading: true });
       try {
          const res = await fetch(`/api/proyectos/${id}`);
@@ -65,7 +77,7 @@ export const useProyectoStore = create<ProyectoStore>((set, get) => ({
       }
    },
 
-   GetProyectosByClientId: async (clienteId, { force = false, search = "", page = 1, limit = 10 }: { force?: boolean, search?: string, page?: number, limit?: number } = {}) => {
+   GetProyectosByClientId: async (clienteId: string, { force = false, search = "", page = 1, limit = 10 }: { force?: boolean, search?: string, page?: number, limit?: number } = {}) => {
       const cacheKey = `client-${clienteId}`;
       if (!force && get()._fetchedLists.has(cacheKey)) return;
       set({ loading: true });
@@ -85,7 +97,7 @@ export const useProyectoStore = create<ProyectoStore>((set, get) => ({
       }
    },
 
-   CreateProyecto: async (form) => {
+   CreateProyecto: async (form: CreateProyectoForm) => {
       try {
          const res = await fetch("/api/proyectos/", {
             method: "POST",
@@ -107,11 +119,48 @@ export const useProyectoStore = create<ProyectoStore>((set, get) => ({
       }
    },
 
-   GetLiquidacion: async (id) => {
+   GetLiquidacion: async (id: string) => {
       try {
          const res = await fetch(`/api/proyectos/${id}/liquidacion`);
          if (!res.ok) throw new Error("Liquidación no disponible");
-         return await res.json() as LiquidacionFacade;
+         return await res.json() as LiquidacionExpress;
+      } catch (error) {
+         return error as Error;
+      }
+   },
+
+   // AQUÍ ESTÁ EL CAMBIO EN LA IMPLEMENTACIÓN
+   UpdateProyecto: async (id: string, data: UpdateProyectoForm) => {
+      try {
+         const res = await fetch(`/api/proyectos/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+         });
+         if (!res.ok) {
+            const errData = await res.json().catch(() => null);
+            throw new Error(errData?.error ?? "Error al actualizar el proyecto");
+         }
+         const updated = await res.json();
+         set({ proyecto: updated });
+         return true;
+      } catch (e) {
+         return e as Error;
+      }
+   },
+
+   ToggleDetalleCobrable: async (ids: string[], es_cobrable: boolean) => {
+      try {
+         const res = await fetch("/api/proyectos/detalle/cobrable", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids, es_cobrable }),
+         });
+         if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(`Error ${res.status}: ${errorText}`);
+         }
+         return true;
       } catch (error) {
          return error as Error;
       }

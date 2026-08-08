@@ -1,4 +1,5 @@
 import { IProyectoRepository } from "../../proyectos/domain/proyecto.domain";
+import { IEmployeeRepository } from "../../employees/domain/employees.domain";
 import type {
    IConduceRepository,
    CreateConduceDTO,
@@ -17,7 +18,8 @@ interface EliminarInfo {
 export class ConduceService {
    constructor(
       private readonly repo: IConduceRepository,
-      private readonly proyectoRepo: IProyectoRepository
+      private readonly proyectoRepo: IProyectoRepository,
+      private readonly employeeRepo: IEmployeeRepository
    ) { }
 
    async list(filtros: ConduceFiltros): Promise<ConduceListResult> {
@@ -28,8 +30,14 @@ export class ConduceService {
       return this.repo.findByProyectoId(proyectoId);
    }
 
+   async getCategoriasByProyecto(proyectoId: string): Promise<Array<{ nombre: string; count: number; subtotal: number; subtotalCobrable: number; cobrable_count: number }>> {
+      return this.repo.findCategoriasByProyecto(proyectoId);
+   }
+
    async create(data: CreateConduceDTO): Promise<ConduceProps> {
       this.#validate(data);
+      await this.#validarFolioUnico(data.numero_referencia);
+      await this.#validarOperadorActivo(data.operador_id);
       const conduce = await this.repo.create(data);
       // Solo recalcula el proyecto si el conduce quedó asignado a uno — en
       // el registro general se puede guardar "sin asignar" y vincularlo después.
@@ -41,6 +49,9 @@ export class ConduceService {
       if (data.numero_referencia !== undefined && !data.numero_referencia.trim()) {
          throw new Error("El número de referencia es requerido");
       }
+      if (data.numero_referencia !== undefined && data.numero_referencia.trim()) {
+         await this.#validarFolioUnico(data.numero_referencia.trim(), id);
+      }
       if (data.precio_unitario !== undefined && data.precio_unitario < 0) {
          throw new Error("El precio unitario debe ser mayor o igual a 0");
       }
@@ -49,6 +60,16 @@ export class ConduceService {
       }
       if (data.total_horas !== undefined && data.total_horas <= 0) {
          throw new Error("El total de horas trabajadas debe ser mayor a 0");
+      }
+
+      // Solo se valida cuando el operador cambia: un conduce que se creó con un
+      // operador activo y luego ese empleado quedó inactivo, se puede seguir
+      // editando (otros campos) sin reasignar. Asignarlo ahora a un inactivo, no.
+      if (data.operador_id !== undefined) {
+         const existing = await this.repo.findById(id);
+         if (existing && existing.operador_id !== data.operador_id) {
+            await this.#validarOperadorActivo(data.operador_id);
+         }
       }
 
       const conduce = await this.repo.update(id, data);
@@ -78,17 +99,32 @@ export class ConduceService {
       if (existing.proyecto_id) await this.proyectoRepo.recalcularTotales(existing.proyecto_id);
    }
 
-   /** Revierte una eliminación lógica y recalcula el proyecto si aplica. */
-   async restore(id: string): Promise<ConduceProps> {
-      const existing = await this.repo.findById(id);
-      if (!existing) throw new Error("Conduce no encontrado");
-      if (!existing.deleted_at) throw new Error("Este conduce no está eliminado");
+    /** Revierte una eliminación lógica y recalcula el proyecto si aplica. */
+    async restore(id: string): Promise<ConduceProps> {
+       const existing = await this.repo.findById(id);
+       if (!existing) throw new Error("Conduce no encontrado");
+       if (!existing.deleted_at) throw new Error("Este conduce no está eliminado");
 
-      await this.repo.restore(id);
-      const restored = await this.repo.findById(id);
-      if (restored?.proyecto_id) await this.proyectoRepo.recalcularTotales(restored.proyecto_id);
-      return restored!;
-   }
+       await this.repo.restore(id);
+       const restored = await this.repo.findById(id);
+       if (restored?.proyecto_id) await this.proyectoRepo.recalcularTotales(restored.proyecto_id);
+       return restored!;
+    }
+
+    async bulkToggleCobrable(ids: string[], es_cobrable: boolean): Promise<void> {
+       if (ids.length === 0) return;
+       await this.repo.bulkToggleCobrable(ids, es_cobrable);
+
+       // Recalcular totales de todos los proyectos afectados
+       const proyectosIds = new Set<string>();
+       for (const id of ids) {
+          const c = await this.repo.findById(id);
+          if (c?.proyecto_id) proyectosIds.add(c.proyecto_id);
+       }
+       await Promise.all(
+          [...proyectosIds].map((pid) => this.proyectoRepo.recalcularTotales(pid))
+       );
+    }
 
    #validate(data: CreateConduceDTO): void {
       if (!data.cliente_id) throw new Error("El cliente es requerido");
@@ -105,5 +141,25 @@ export class ConduceService {
       } else {
          if (data.total_horas <= 0) throw new Error("El total de horas trabajadas debe ser mayor a 0");
       }
+   }
+
+   /**
+    * Un empleado inactivo no puede quedar asignado en un conduce nuevo: se
+    * rechaza antes de guardar. `null` no es un operador, se deja pasar.
+    */
+   async #validarOperadorActivo(operadorId?: string | null): Promise<void> {
+      if (!operadorId) return;
+      const activo = await this.employeeRepo.isOperadorActivo(operadorId);
+      if (activo === null) throw new Error("El operador seleccionado no existe");
+      if (activo === false) throw new Error("No se puede registrar un conduce con un operador inactivo");
+   }
+
+   /**
+    * El folio físico que digita la oficina no puede repetirse entre conduces
+    * activos. `excludeId` evita el falso positivo al editar el mismo conduce.
+    */
+   async #validarFolioUnico(numeroReferencia: string, excludeId?: string): Promise<void> {
+      const existe = await this.repo.existsNumeroReferencia(numeroReferencia.trim(), excludeId);
+      if (existe) throw new Error(`El folio ${numeroReferencia.trim()} ya está registrado en otro conduce`);
    }
 }

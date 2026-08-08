@@ -82,7 +82,7 @@ export function GastoTable({ gastos }: { gastos: Gasto[] }) {
 
    return (
       <>
-         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+         <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-muted-foreground">
                {seleccionados.size > 0
                   ? `${seleccionados.size} seleccionado${seleccionados.size === 1 ? "" : "s"} · $${totalSeleccionado.toLocaleString("en-US", { minimumFractionDigits: 2 })}`

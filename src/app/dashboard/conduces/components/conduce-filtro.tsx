@@ -140,14 +140,16 @@ export function ConduceFiltrosBar({ filtros, onChange, debounceDelay = 350 }: Pr
                </SelectContent>
             </Select>
          </div>
+         <div className="flex w-full gap-3">
+            <div className="w-1/2 md:w-36 space-y-1">
+               <label className="text-xs font-medium text-muted-foreground">Desde</label>
+               <Input type="date" value={filtros.fecha_desde ?? ""} onChange={(e) => set("fecha_desde", e.target.value || undefined)} />
+            </div>
+            <div className="w-1/2 md:w-36 space-y-1">
+               <label className="text-xs font-medium text-muted-foreground">Hasta</label>
+               <Input type="date" value={filtros.fecha_hasta ?? ""} min={filtros.fecha_desde || undefined} onChange={(e) => set("fecha_hasta", e.target.value || undefined)} />
+            </div>
 
-         <div className="w-36 space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Desde</label>
-            <Input type="date" value={filtros.fecha_desde ?? ""} onChange={(e) => set("fecha_desde", e.target.value || undefined)} />
-         </div>
-         <div className="w-36 space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Hasta</label>
-            <Input type="date" value={filtros.fecha_hasta ?? ""} min={filtros.fecha_desde || undefined} onChange={(e) => set("fecha_hasta", e.target.value || undefined)} />
          </div>
 
          {hayFiltrosActivos && (

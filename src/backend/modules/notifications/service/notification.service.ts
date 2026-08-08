@@ -1,14 +1,16 @@
 import type {
    CreateNotificationDTO,
    INotificationRepository,
+   NotificationFilters,
+   NotificationPaginatedResult,
    NotificationProps,
 } from "../domain/notification.domain";
 
 export class NotificationService {
    constructor(private readonly repo: INotificationRepository) { }
 
-   async getForUser(userId: string): Promise<NotificationProps[]> {
-      return this.repo.findByUserId(userId);
+   async getForUser(userId: string, filters?: NotificationFilters): Promise<NotificationPaginatedResult> {
+      return this.repo.findByUserId(userId, filters);
    }
 
    async getUnreadCount(userId: string): Promise<number> {

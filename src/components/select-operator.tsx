@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Loader2, User, X } from "lucide-react";
+import { Loader2, TriangleAlert, User, X } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useEmployeeStore } from "@/stores/useEmployeeStore";
 import type { Employee, OperadorAsignable } from "@/dtos/employee.dto";
@@ -12,6 +12,51 @@ interface SelectBuscadorOperatorProps {
    onChange: (employeeId: string | null) => void;
    placeholder?: string;
    disabled?: boolean;
+}
+
+/** Días (en base al calendario local) entre hoy y la fecha dada. Negativo = vencida. */
+function diasHasta(fecha: Date): number {
+   const hoy = new Date();
+   const a = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate()).getTime();
+   const b = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
+   return Math.round((a - b) / 86400000);
+}
+
+/**
+ * Convierte a Date local un valor que puede venir como string "YYYY-MM-DD"
+ * (tipo `date` de Postgres) o como Date. Se parsea a mano para no meter el
+ * corrimiento de un día por timezone que causa `new Date("2027-05-14")`
+ * (UTC medianoche → se ve un día antes en República Dominicana).
+ */
+function parseFechaLocal(value: Date | string | null | undefined): Date | null {
+   if (!value) return null;
+   if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+   const m = String(value).slice(0, 10).split("-").map(Number);
+   if (m.length === 3 && !m.some(Number.isNaN)) return new Date(m[0], m[1] - 1, m[2]);
+   const d = new Date(value);
+   return Number.isNaN(d.getTime()) ? null : d;
+}
+
+const DIAS_AVISO_LICENCIA = 30;
+
+function estadoLicencia(value: Date | string | null | undefined): { texto: string; clase: string; enRiesgo: boolean } {
+   const fecha = parseFechaLocal(value);
+   if (!fecha) {
+      return { texto: "Sin licencia registrada", clase: "text-muted-foreground", enRiesgo: false };
+   }
+   const dias = diasHasta(fecha);
+   const fechaTxt = fecha.toLocaleDateString("es-DO");
+   if (dias < 0) {
+      return { texto: `Licencia vencida · ${fechaTxt}`, clase: "text-red-600", enRiesgo: true };
+   }
+   if (dias <= DIAS_AVISO_LICENCIA) {
+      return {
+         texto: dias === 0 ? `Licencia vence hoy · ${fechaTxt}` : `Licencia vence en ${dias} día${dias === 1 ? "" : "s"} · ${fechaTxt}`,
+         clase: "text-amber-600",
+         enRiesgo: true,
+      };
+   }
+   return { texto: `Licencia vence: ${fechaTxt}`, clase: "text-muted-foreground", enRiesgo: false };
 }
 
 export function SelectBuscadorOperator({
@@ -30,7 +75,13 @@ export function SelectBuscadorOperator({
    const debouncedSearch = useDebounce(inputValue, 500);
 
    let operators = Operators ?? [];
-   console.log("Operators in SelectBuscadorOperator:", operators);
+
+   // Un empleado inactivo no puede asignarse: solo se ofrece para seleccionar
+   // el que sigue activo. El ya asignado inactivo se sigue viendo (con aviso)
+   // para que quede claro por qué el equipo quedó sin operador.
+   const asignables = operators.filter((o) => o.activo !== false);
+   const valorAsignado = value ? operators.find((o) => o.id === value) : undefined;
+   const valorInactivo = valorAsignado && valorAsignado.activo === false;
 
    useEffect(() => {
       GetOperators({ search: "", limit: 20, force: true });
@@ -124,10 +175,10 @@ export function SelectBuscadorOperator({
 
          {isOpen && (
             <div className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-md p-1">
-               {loading && (operators?.length ?? 0) === 0 ? (
+               {loading && (asignables?.length ?? 0) === 0 ? (
                   <div className="p-4 text-center text-sm text-muted-foreground">Buscando operadores...</div>
-               ) : (operators?.length ?? 0) > 0 ? (
-                  operators
+               ) : (asignables?.length ?? 0) > 0 ? (
+                  asignables
                      .filter(o => o.id !== value) // Filtrar solo operadores activos y no seleccionados
                      .map((operator) => (
                         <div
@@ -137,12 +188,14 @@ export function SelectBuscadorOperator({
                         >
                            <div className="flex justify-between items-center">
                               <span className="font-medium truncate">{operator.nombre}</span>
-                              <span className="text-[10px] uppercase font-semibold bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">
-                                 {/* {operator.id} poner aqui el numero identificador/referencia */}
-                              </span>
+                              {estadoLicencia(operator.fecha_vencimiento).enRiesgo && (
+                                 <span className="text-[10px] uppercase font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 px-1.5 py-0.5 rounded">
+                                    Licencia por vencer
+                                 </span>
+                              )}
                            </div>
-                           <span className="text-xs text-muted-foreground truncate">
-                              Licencia: {operator.licencia || "No asignada"}
+                           <span className={`text-xs truncate ${estadoLicencia(operator.fecha_vencimiento).clase}`}>
+                              {estadoLicencia(operator.fecha_vencimiento).texto}
                            </span>
                         </div>
                      ))
@@ -150,6 +203,20 @@ export function SelectBuscadorOperator({
                   <div className="p-4 text-center text-sm text-muted-foreground">No se encontraron empleados.</div>
                )}
             </div>
+         )}
+
+         {valorInactivo && (
+            <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-amber-600">
+               <TriangleAlert className="size-3.5" />
+               {valorAsignado.nombre} está inactivo — no puede operar. Selecciona otro operador.
+            </p>
+         )}
+
+         {valorAsignado && !valorInactivo && estadoLicencia(valorAsignado.fecha_vencimiento).enRiesgo && (
+            <p className={`mt-1 flex items-center gap-1.5 text-xs font-medium ${estadoLicencia(valorAsignado.fecha_vencimiento).clase}`}>
+               <TriangleAlert className="size-3.5" />
+               {valorAsignado.nombre}: {estadoLicencia(valorAsignado.fecha_vencimiento).texto}
+            </p>
          )}
       </div>
    );

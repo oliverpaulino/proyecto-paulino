@@ -20,14 +20,7 @@ import { ArrowLeft, Loader2, Lock, Shield, ShieldAlert, Trash2, UserPlus } from 
 import { useRouter } from "next/navigation";
 import { authClient, useSession } from "@/lib/auth-client";
 import { PermissionGuard } from "@/components/permission-guard";
-
-interface Approver {
-   user_id: string;
-   user_name: string;
-   granted_by: string;
-   granted_at: string;
-   is_protected: boolean;
-}
+import { usePurchaseOrderStore, type PurchaseOrderApprover } from "@/stores/usePurchaseOrderStore";
 
 interface UserRecord {
    id: string;
@@ -39,10 +32,11 @@ interface UserRecord {
 export default function AprobadoresPage() {
    const router = useRouter();
    const { data: session } = useSession();
+   const { ListApprovers, AddApprover, RemoveApprover } = usePurchaseOrderStore();
    const currentUser = session?.user as ({ id: string; name: string; email: string; role?: string }) | undefined;
    const role = currentUser?.role;
 
-   const [approvers, setApprovers] = useState<Approver[]>([]);
+   const [approvers, setApprovers] = useState<PurchaseOrderApprover[]>([]);
    const [users, setUsers] = useState<UserRecord[]>([]);
    const [usersError, setUsersError] = useState<string | null>(null);
    const [loading, setLoading] = useState(true);
@@ -54,14 +48,13 @@ export default function AprobadoresPage() {
    const loadApprovers = useCallback(async () => {
       setLoading(true);
       try {
-         const res = await fetch("/api/purchase-orders/approvers");
-         if (res.ok) {
-            setApprovers(await res.json() as Approver[]);
-         }
+         const result = await ListApprovers();
+         if (result instanceof Error) throw result;
+         setApprovers(result);
       } finally {
          setLoading(false);
       }
-   }, []);
+   }, [ListApprovers]);
 
    const loadUsers = useCallback(async () => {
       setUsersError(null);
@@ -136,13 +129,8 @@ export default function AprobadoresPage() {
       setSaving(true);
       setError(null);
       try {
-         const res = await fetch("/api/purchase-orders/approvers", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user_id: user.id, user_name: user.name }),
-         });
-         const data = await res.json() as { error?: string };
-         if (!res.ok) throw new Error(data.error ?? "Error al agregar aprobador");
+         const result = await AddApprover(user.id, user.name);
+         if (result instanceof Error) throw result;
          setAddOpen(false);
          setSelectedUserId("");
          await loadApprovers();
@@ -158,16 +146,8 @@ export default function AprobadoresPage() {
       setSaving(true);
       setError(null);
       try {
-         const res = await fetch("/api/purchase-orders/approvers", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-               user_id: currentUser.id,
-               user_name: currentUser.name ?? currentUser.email,
-            }),
-         });
-         const data = await res.json() as { error?: string };
-         if (!res.ok) throw new Error(data.error ?? "Error");
+         const result = await AddApprover(currentUser.id, currentUser.name ?? currentUser.email);
+         if (result instanceof Error) throw result;
          await loadApprovers();
       } catch (err) {
          setError(err instanceof Error ? err.message : "Error desconocido");
@@ -177,12 +157,9 @@ export default function AprobadoresPage() {
    }
 
    async function handleRemove(userId: string) {
-      try {
-         await fetch(`/api/purchase-orders/approvers/${userId}`, { method: "DELETE" });
-         await loadApprovers();
-      } catch {
-         // ignore
-      }
+      const result = await RemoveApprover(userId);
+      if (result instanceof Error) return;
+      await loadApprovers();
    }
 
    const isSelfApprover = currentUser && approverIds.has(currentUser.id);

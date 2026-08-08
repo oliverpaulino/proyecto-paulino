@@ -55,7 +55,6 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
    }
 
    async findAllOperators(params?: { page?: number; limit?: number; search?: string }): Promise<OperadorProps[]> {
-      console.log("Fetching operators with params:", params);
       const { page = 1, limit = 10, search = "" } = params || {};
       let query = this.db
          .selectFrom("empleado")
@@ -138,7 +137,6 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
          .selectAll()
          .executeTakeFirst();
       if (!row) return null;
-
       const rowEmpleado = await this.db
          .selectFrom("empleado")
          .where("empleado.id", "=", row.empleado_id)
@@ -156,6 +154,17 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
          created_at: new Date(row.created_at),
          updated_at: new Date(row.updated_at),
       } as OperadorProps;
+   }
+
+   async isOperadorActivo(operadorId: string): Promise<boolean | null> {
+      if (!operadorId) return null;
+      const row = await this.db
+         .selectFrom("operador")
+         .innerJoin("empleado", "empleado.id", "operador.empleado_id")
+         .select("empleado.activo")
+         .where("operador.id", "=", operadorId)
+         .executeTakeFirst();
+      return row ? Boolean(row.activo) : null;
    }
 
    async existsByIdentificacion(identificacion: string, excludeId?: string): Promise<boolean> {
@@ -182,6 +191,7 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
             frecuencia_pago: data.frecuencia_pago,
             rol: data.rol,
             salario: data.salario,
+            aplica_retenciones: data.aplica_retenciones ?? false,
             activo: data.activo ?? true,
          })
          .returningAll()

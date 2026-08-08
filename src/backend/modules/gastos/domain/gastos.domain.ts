@@ -23,6 +23,9 @@ export interface GastoProps {
    //join equipo
    equipo_codigo_referencia: string | null;
 
+   cobrable_proyecto: boolean;
+   cobrable_monto: number | null;
+
    fecha: Date;
    created_at: Date;
    updated_at: Date;
@@ -54,6 +57,8 @@ export class Gasto {
    get proyecto_codigo_referencia() { return this.props.proyecto_codigo_referencia; }
    get equipo_id() { return this.props.equipo_id; }
    get equipo_codigo_referencia() { return this.props.equipo_codigo_referencia; }
+   get cobrable_proyecto() { return this.props.cobrable_proyecto; }
+   get cobrable_monto() { return this.props.cobrable_monto; }
    get fecha() { return this.props.fecha }
    get created_at() { return this.props.created_at; }
    get updated_at() { return this.props.updated_at; }
@@ -76,9 +81,24 @@ export interface CreateGastoDTO {
    orden_compra_id?: string | null;
    proyecto_id?: string | null;
    equipo_id?: string | null;
+   cobrable_proyecto?: boolean;
+   cobrable_monto?: number | null;
+   deduccion?: CreateGastoDeduccionDTO;
 }
 
-export type UpdateGastoDTO = Partial<CreateGastoDTO>;
+export interface CreateGastoDeduccionDTO {
+   empleado_id: string;
+   equipo_id?: string | null;
+   monto_total: number;
+   balance_pendiente?: number | null;
+   cuotas_sugeridas?: number;
+   /** Monto descontado por nómina. Default: monto_total ÷ cuotas_sugeridas. */
+   monto_cuota?: number;
+   concepto: string;
+   fecha: Date;
+}
+
+export type UpdateGastoDTO = Omit<Partial<CreateGastoDTO>, "deduccion">;
 
 export interface DeleteGastoDTO {
    deleted_by?: string;
@@ -112,6 +132,7 @@ export interface IGastoRepository {
    findById(id: string): Promise<Gasto | null>;
    findDeletedById(id: string): Promise<Gasto | null>;
    create(data: CreateGastoDTO): Promise<Gasto>;
+   createWithDeduccion(data: CreateGastoDTO): Promise<Gasto>;
    update(id: string, data: UpdateGastoDTO): Promise<Gasto | null>;
    delete(id: string, data: DeleteGastoDTO): Promise<boolean>;
    restore(id: string): Promise<Gasto | null>;

@@ -7,12 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Truck, Loader2 } from "lucide-react";
 import type { Employee, CreateEmployeeForm, Operator } from "@/dtos/employee.dto";
 
-import { 
+import {
    GeneralSchemasDTO
 } from "@/dtos/schema.dto";
 
-import { 
-   TipoIdentificacionEmpleado, 
+import {
+   TipoIdentificacionEmpleado,
    TipoRolEmpleado,
 } from "@/dtos/employee.dto";
 
@@ -29,6 +29,16 @@ const rolesOptions = Object.entries(TipoRolEmpleado).map(([key, value]) => ({
    value: key as keyof typeof TipoRolEmpleado,
    label: value,
 }));
+
+// Las mismas tres frecuencias que acepta `payroll_cycles.frecuencia` (migración
+// 007). El salario del empleado está expresado en SU frecuencia y la nómina lo
+// prorratea a la del ciclo, así que un valor equivocado aquí paga de más o de
+// menos.
+const frecuenciaPagoOptions = [
+   { value: "SEMANAL", label: "Semanal" },
+   { value: "QUINCENAL", label: "Quincenal" },
+   { value: "MENSUAL", label: "Mensual" },
+];
 
 export type OperadorFormData = {
    licencia: string;
@@ -57,8 +67,10 @@ export function EmployeeForm({
       identificacion: initialData?.identificacion ?? "",
       tipo_identificacion: initialData?.tipo_identificacion ?? "CEDULA",
       rol: initialData?.rol ?? "INGENIERO",
-      salario: initialData?.salario ?? 0,
-      activo: initialData?.activo ?? true,
+      frecuencia_pago: initialData?.frecuencia_pago ?? "QUINCENAL",
+       salario: initialData?.salario ?? 0,
+       aplica_retenciones: initialData?.aplica_retenciones ?? false,
+       activo: initialData?.activo ?? true,
    });
 
    const [operadorData, setOperadorData] = useState<OperadorFormData>({
@@ -91,7 +103,7 @@ export function EmployeeForm({
       if (isOperador && initialData?.id && !hasFetchedOp.current) {
          hasFetchedOp.current = true;
          setLoadingOp(true);
-         
+
          fetch(`/api/employees/${initialData.id}/operator`)
             .then((res) => (res.ok ? res.json() : null))
             .then((data) => {
@@ -213,10 +225,10 @@ export function EmployeeForm({
                <div className="flex items-center gap-2 text-sm font-medium text-brand-blue dark:text-blue-400">
                   <Truck className="size-4" />
                   Datos de operador
-                  
+
                   {loadingOp && <Loader2 className="size-3 animate-spin ml-2 text-muted-foreground" />}
                </div>
-               
+
                <div className="flex flex-col gap-1.5">
                   <Label htmlFor="ef-licencia">Número de licencia</Label>
                   <Input
@@ -240,19 +252,41 @@ export function EmployeeForm({
             </div>
          )}
 
-         <div className="flex flex-col gap-1.5">
-            <Label htmlFor="ef-salario">Salario (RD$) *</Label>
-            <Input
-               id="ef-salario"
-               type="number"
-               min={0}
-               step={0.01}
-               value={values.salario}
-               onChange={(e) => set("salario", Number(e.target.value))}
-               placeholder="0.00"
-               required
-            />
+         <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+               <Label htmlFor="ef-salario">Salario (RD$) *</Label>
+               <Input
+                  id="ef-salario"
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={values.salario}
+                  onChange={(e) => set("salario", Number(e.target.value))}
+                  placeholder="0.00"
+                  required
+               />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+               <Label htmlFor="ef-frecuencia">Frecuencia de pago *</Label>
+               <select
+                  id="ef-frecuencia"
+                  value={values.frecuencia_pago}
+                  onChange={(e) => set("frecuencia_pago", e.target.value)}
+                  className={SELECT_CLASS}
+                  required
+               >
+                  {frecuenciaPagoOptions.map((f) => (
+                     <option key={f.value} value={f.value}>{f.label}</option>
+                  ))}
+               </select>
+            </div>
          </div>
+
+         <p className="text-xs text-muted-foreground -mt-1">
+            El salario se interpreta según esta frecuencia y se prorratea al período
+            del ciclo de nómina.
+         </p>
 
          <div className="flex items-center gap-2">
             <input

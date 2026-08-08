@@ -10,7 +10,9 @@ import {
    DialogTitle,
    DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Tags } from "lucide-react";
+import { Plus, Tags, Shield, ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useSession } from "@/lib/auth-client";
 import { useCategoriaGastoStore } from "@/stores/useCategoriaGastoStore";
 import type { CategoriaGasto, CreateCategoriaGastoForm, UpdateCategoriaGastoForm } from "@/dtos/categoria-gasto.dto";
 import { CategoriaGastoForm } from "./components/categoria-gasto-form";
@@ -34,6 +36,10 @@ const STAT_STYLES = {
 } as const;
 
 export default function CategoriaGastosPage() {
+   const router = useRouter();
+   const session = useSession();
+   const role = session?.data?.user?.role;
+
    const { Categorias, loading, GetCategorias, CreateCategoria, UpdateCategoria, DeleteCategoria } = useCategoriaGastoStore();
 
    const [formLoading, setFormLoading] = useState(false);
@@ -44,9 +50,32 @@ export default function CategoriaGastosPage() {
    const [deleteTarget, setDeleteTarget] = useState<CategoriaGasto | null>(null);
 
    useEffect(() => {
-      // Obtenemos un límite alto para poder agruparlas y filtrarlas localmente de forma fluida
-      GetCategorias({ limit: 500 });
-   }, [GetCategorias]);
+      document.title = "Categorías de Gastos";
+      if (role === "administrador") {
+         // Obtenemos un límite alto para poder agruparlas y filtrarlas localmente de forma fluida
+         GetCategorias({ limit: 500 });
+      }
+   }, [role, GetCategorias]);
+
+   if (session?.isPending) {
+      return (
+         <div className="flex items-center justify-center p-12">
+            <div className="size-6 animate-spin rounded-full border-2 border-brand-blue/20 border-t-brand-blue" />
+         </div>
+      );
+   }
+
+   if (role !== "administrador") {
+      return (
+         <div className="flex flex-col items-center justify-center gap-3 p-12 text-muted-foreground">
+            <Shield className="size-12 opacity-30" />
+            <p>Solo los administradores pueden gestionar las categorías de gastos.</p>
+            <Button variant="outline" onClick={() => router.push("/dashboard/gastos")}>
+               <ArrowLeft className="mr-2 size-4" /> Volver
+            </Button>
+         </div>
+      );
+   }
 
    const filtered = Categorias.filter((c) => {
       const q = search.toLowerCase();

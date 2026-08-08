@@ -5,6 +5,21 @@ export type EstadoOrdenCompra =
    | "RECIBIDA"
    | "CANCELADA";
 
+/**
+ * PENDIENTE = sin un solo pago
+ * PARCIAL   = pagado en parte
+ * PAGADO    = saldado (o sobrepagado)
+ */
+export type EstadoPagoOrden = "PENDIENTE" | "PARCIAL" | "PAGADO";
+
+export function estadoPagoOrden(montoTotal: number, pagado: number): EstadoPagoOrden {
+   // Tolerancia de un centavo: los numeric de Postgres y las sumas de varios
+   // pagos parciales pueden dejar un residuo que no es una deuda real.
+   if (pagado >= montoTotal - 0.01) return "PAGADO";
+   if (pagado > 0.01) return "PARCIAL";
+   return "PENDIENTE";
+}
+
 export interface PurchaseOrderItemProps {
    id: string;
    orden_compra_id: string;
@@ -34,17 +49,22 @@ export interface PurchaseOrderProps {
    proveedor_nombre?: string;
    fecha: Date;
    estado: EstadoOrdenCompra;
+   estado_pago: EstadoPagoOrden;
    notas: string | null;
    total: number;
+   pagado: number;
+   pendiente: number;
    approved_by: string | null;
    approved_by_name: string | null;
    approved_at: Date | null;
    items: PurchaseOrderItemProps[];
-   created_at: Date;
-   updated_at: Date;
-   deleted_by: string | null;
-   deleted_at: Date | null;
-   deleted_reason: string | null;
+    created_at: Date;
+    updated_at: Date;
+    deleted_by: string | null;
+    /** Nombre del usuario que la eliminó (resuelto vía join a `user`). */
+    deleted_by_name?: string | null;
+    deleted_at: Date | null;
+    deleted_reason: string | null;
 }
 
 export interface PurchaseOrderPaginatedResult {
@@ -60,7 +80,9 @@ const TRANSITIONS: Record<EstadoOrdenCompra, EstadoOrdenCompra[]> = {
    PENDIENTE: ["APROBADA", "BORRADOR", "CANCELADA"],
    APROBADA: ["RECIBIDA", "CANCELADA"],
    RECIBIDA: [],
-   CANCELADA: [],
+   // Descancelar devuelve la orden a borrador: vuelve a estar editable y debe
+   // pasar de nuevo por el flujo (revisión → aprobación) antes de recibirse.
+   CANCELADA: ["BORRADOR"],
 };
 
 export function canTransition(
@@ -87,6 +109,7 @@ export class PurchaseOrder {
    get proveedor_nombre(): string | undefined { return this.props.proveedor_nombre; }
    get fecha(): Date { return this.props.fecha; }
    get estado(): EstadoOrdenCompra { return this.props.estado; }
+   get estado_pago(): EstadoPagoOrden { return this.props.estado_pago; }
    get notas(): string | null { return this.props.notas; }
    get total(): number { return this.props.total; }
    get approved_by(): string | null { return this.props.approved_by; }
@@ -106,6 +129,7 @@ export class PurchaseOrder {
       return `OC-${yy}${mm}${dd}-${ref}`;
    }
    get deleted_by(): string | null { return this.props.deleted_by; }
+   get deleted_by_name(): string | null { return this.props.deleted_by_name ?? null; }
    get deleted_at(): Date | null { return this.props.deleted_at; }
    get deleted_reason(): string | null { return this.props.deleted_reason; }
 
@@ -131,6 +155,16 @@ export interface UpdatePurchaseOrderDTO {
    items?: PurchaseOrderItemInput[];
 }
 
+export interface PurchaseOrderFilters {
+   supplierId?: string;
+   search?: string;
+   page?: number;
+   limit?: number;
+   estado?: EstadoOrdenCompra;
+   estadoPago?: EstadoPagoOrden;
+   equipoId?: string;
+}
+
 export interface ApproverRecord {
    user_id: string;
    user_name: string;
@@ -139,10 +173,10 @@ export interface ApproverRecord {
 }
 
 export interface IPurchaseOrderRepository {
-   findAll(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<PurchaseOrderPaginatedResult>;
-   findAllDeleted(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<PurchaseOrderPaginatedResult>
-   findAllDeleted(params: { supplierId?: string, search?: string, page?: number, limit?: number }): Promise<PurchaseOrderPaginatedResult>
+   findAll(params: PurchaseOrderFilters): Promise<PurchaseOrderPaginatedResult>;
+   findAllDeleted(params: PurchaseOrderFilters): Promise<PurchaseOrderPaginatedResult>
    findById(id: string): Promise<PurchaseOrder | null>;
+   findDeletedById(id: string): Promise<PurchaseOrder | null>;
    restore(id: string): Promise<PurchaseOrder | null>;
    create(data: CreatePurchaseOrderDTO): Promise<PurchaseOrder>;
    updateHeader(
@@ -159,7 +193,7 @@ export interface IPurchaseOrderRepository {
       approvedBy?: string,
       approvedByName?: string
    ): Promise<PurchaseOrder | null>;
-   delete(userId: string, id: string): Promise<boolean>;
+   delete(userId: string, id: string, deleted_reason?: string | null): Promise<boolean>;
    // Approver management
    isApprover(userId: string): Promise<boolean>;
    listApprovers(): Promise<ApproverRecord[]>;

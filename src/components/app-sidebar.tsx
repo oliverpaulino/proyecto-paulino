@@ -60,6 +60,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     resource: "payroll",
     action: "read",
   })
+  const { canPerform: puedeVerCxC } = usePermissions({
+    resource: "account_receivable",
+    action: "read",
+  })
 
   const contactos = [
     {
@@ -79,7 +83,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   ]
 
   const settingsItems = [
-    { id: "settings-general", title: "General", url: "/dashboard/settings" },
     { id: "settings-unidades", title: "Unidades", url: "/dashboard/unidades" },
     { id: "settings-vinculos", title: "Vínculos", url: "/dashboard/user-employee-link" },
     ...(isAdmin ? [{ id: "settings-usuarios", title: "Usuarios", url: "/dashboard/settings/users" }] : []),
@@ -111,6 +114,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       items: [
         { id: "op-proyectos", title: "Proyectos", url: "/dashboard/proyectos" },
         { id: "op-conduces", title: "Conduces", url: "/dashboard/conduces" },
+        { id: "op-citas", title: "Citas", url: "/dashboard/citas" },
         { id: "op-equipos", title: "Equipos", url: "/dashboard/equipos" },
         { id: "op-mantenimientos", title: "Mantenimientos", url: "/dashboard/mantenimientos" },
 
@@ -122,20 +126,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       url: "#",
       icon: Calculator,
       items: [
-        { id: "fin-cotizaciones", title: "Cotizaciones", url: "/dashboard/cotizaciones" },
         { id: "fin-compras", title: "Compras", url: "/dashboard/compras" },
-        ...(isAdmin ? [{ id: "fin-aprobadores", title: "Firmantes de Compras", url: "/dashboard/compras/aprobadores" }] : []),
-        ...(isAdmin ? [{ id: "fin-compras-eliminadas", title: "Compras eliminadas", url: "/dashboard/compras/eliminadas" }] : []),
         { id: "fin-cuentas-por-pagar", title: "Cuentas por Pagar", url: "/dashboard/cuentas-por-pagar" },
+        ...(puedeVerCxC
+          ? [{ id: "fin-cuentas-por-cobrar", title: "Cuentas por Cobrar", url: "/dashboard/cuentas-por-cobrar" }]
+          : []),
+        { id: "fin-subcontrataciones", title: "Subcontrataciones", url: "/dashboard/subcontrataciones" },
         { id: "fin-gastos", title: "Gastos", url: "/dashboard/gastos" },
-        { id: "fin-gastos-anulados", title: "Gastos anulados", url: "/dashboard/gastos/anulados" },
-        { id: "fin-categorias-gastos", title: "Categorías de Gastos", url: "/dashboard/categorias-gastos" },
-        { id: "fin-costos", title: "Costos", url: "/dashboard/costos" },
-        { id: "fin-costos-anulados", title: "Costos anulados", url: "/dashboard/costos/anulados" },
         { id: "fin-deducciones", title: "Deducciones", url: "/dashboard/deducciones" },
-        { id: "fin-deducciones-anuladas", title: "Deducciones anuladas", url: "/dashboard/deducciones/anuladas" },
         { id: "fin-pagos", title: "Pagos", url: "/dashboard/pagos" },
-        { id: "fin-pagos-anulados", title: "Pagos anulados", url: "/dashboard/pagos/anulados" },
 
       ],
     },

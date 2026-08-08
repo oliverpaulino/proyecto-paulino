@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +26,6 @@ import { AgregarDeduccionDialog } from "./agregar-deduccion-dialog";
 const money = (n: number) =>
    `RD$ ${n.toLocaleString("es-DO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-
 /**
  * "Precio por viaje u hora" no es un solo número: un chofer puede tener varias
  * tarifas en el mismo ciclo. Con una sola se muestra el precio; con varias se
@@ -39,9 +38,15 @@ function PrecioUnitario({
    empleado: NominaEmpleado;
    onVerTarifas: () => void;
 }) {
-   // Un asalariado no cobra por viaje ni por hora: cobra su sueldo.
+   // Un asalariado no cobra por viaje ni por hora: cobra su sueldo. Se muestra
+   // el monto entre paréntesis para no obligar a expandir la fila para verlo.
    if (empleado.modalidad === "FIJO") {
-      return <span className="text-muted-foreground">Sueldo fijo</span>;
+      return (
+         <span className="whitespace-nowrap text-muted-foreground">
+            Sueldo fijo{" "}
+            <span className="text-foreground">({money(empleado.complemento_minimo)})</span>
+         </span>
+      );
    }
    const tarifas = empleado.tarifas ?? [];
    if (tarifas.length === 0) return <span className="text-muted-foreground">—</span>;
@@ -69,7 +74,7 @@ function PrecioUnitario({
             <TriangleAlert className="size-3.5 shrink-0" />
             <span className="whitespace-nowrap">
                {precios.length === 1
-                  ? "sin tarifa"
+                  ? "sin tarifa · asignar"
                   : `${money(precios[0])} – ${money(precios[precios.length - 1])}`}
             </span>
             <Badge className="border-0 bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0">
@@ -133,7 +138,7 @@ function TarifasDialog({
    readOnly?: boolean;
    onClose: () => void;
 }) {
-   const { GuardarTarifasEmpleado, FijarPrecioManual, QuitarPrecioManual, error } =
+   const { GuardarTarifasEmpleado, GuardarTarifaProyecto, FijarPrecioManual, QuitarPrecioManual, error } =
       useNominaStore();
    const tarifas = empleado.tarifas ?? [];
 
@@ -165,13 +170,48 @@ function TarifasDialog({
         - Sin clave (categoría borrada, o nombre ambiguo) va como PRECIO MANUAL
           de este ciclo: no hay categoría a la cual atribuirlo, así que se
           guarda pegado al ciclo y no se propaga.
+        - De proyecto (tiene proyecto Y clave para atribuírsela): su precio lo
+          define `proyecto_empleado_tarifa`, que gana sobre la base. Se edita
+          aquí igual, pero el cambio va al PROYECTO, no al catálogo.
 
       La clave de edición existe siempre para poder escribir; lo que cambia es
       a dónde se guarda.
    */
    const esManual = (t: (typeof tarifas)[number]) => claveDe(t) === null;
-   const claveEdicion = (t: (typeof tarifas)[number]) =>
-      claveDe(t) ?? `manual:${t.categoria_equipo_tarifa_nombre.trim().toLowerCase()}`;
+   const esProyecto = (t: (typeof tarifas)[number]) =>
+      Boolean(t.proyecto_id) && claveDe(t) !== null;
+
+   /*
+      La clave de edición lleva el proyecto: la misma tarifa puede pagarse a un
+      precio por proyecto y a otro por base en el mismo ciclo, y el desglose las
+      muestra como filas separadas. Sin el proyecto en la clave, editar una
+      escribiría sobre la otra.
+   */
+   const claveEdicion = (t: (typeof tarifas)[number]) => {
+      const base = claveDe(t) ?? `manual:${t.categoria_equipo_tarifa_nombre.trim().toLowerCase()}`;
+      return `${base}::${t.proyecto_id ?? "sin"}`;
+   };
+
+   /*
+      El desglose agrupa por (categoría, tarifa), pero el precio del catálogo
+      se guarda por TARIFA. Así que si la misma tarifa aparece en dos filas
+      —dos categorías de equipo distintas— ambas comparten precio y editar una
+      mueve la otra. No es un error (el catálogo es así), pero hay que decirlo:
+      cambiar 300 en "Camión tipo 1 · Viaje" y ver moverse "Camión tipo 2 ·
+      Viaje" sin aviso parecería un bug.
+   */
+   const clavesRepetidas = useMemo(() => {
+      const cuenta = new Map<string, number>();
+      tarifas.forEach((t) => {
+         const k = claveEdicion(t);
+         cuenta.set(k, (cuenta.get(k) ?? 0) + 1);
+      });
+      return new Set([...cuenta].filter(([, n]) => n > 1).map(([k]) => k));
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, [tarifas]);
+
+   const compartePrecio = (t: (typeof tarifas)[number]) =>
+      clavesRepetidas.has(claveEdicion(t));
 
    /** El precio a usar ahora mismo: el editado si lo hay, si no el guardado. */
    function precioActual(t: (typeof tarifas)[number]): number {
@@ -190,10 +230,12 @@ function TarifasDialog({
       return Number.isFinite(n) && n >= 0 && n !== t.monto_pago;
    };
 
-   // Al catálogo (tienen a qué vincularse) y a mano (no lo tienen).
-   const cambiosCatalogo = tarifas.filter((t) => !esManual(t) && cambiada(t));
+   // Al catálogo (tienen a qué vincularse), al proyecto (gana sobre el
+   // catálogo) y a mano (no tienen clave).
+   const cambiosCatalogo = tarifas.filter((t) => !esProyecto(t) && !esManual(t) && cambiada(t));
    const cambiosManuales = tarifas.filter((t) => esManual(t) && cambiada(t));
-   const cambios = [...cambiosCatalogo, ...cambiosManuales];
+   const cambiosProyecto = tarifas.filter((t) => esProyecto(t) && cambiada(t));
+   const cambios = [...cambiosCatalogo, ...cambiosManuales, ...cambiosProyecto];
 
    // Ambiguas: el nombre coincide con varias categorías vivas. No se re-vincula
    // sola, pero sí se le puede poner precio a mano.
@@ -250,6 +292,20 @@ function TarifasDialog({
          });
       }
 
+      /*
+         Las de proyecto van una por una al proyecto mismo: cada llamada
+         recalcula el ciclo, y lanzarlas en paralelo sería pelearse por el
+         mismo cálculo.
+      */
+      for (const t of cambiosProyecto) {
+         if (!ok) break;
+         ok = await GuardarTarifaProyecto(empleado.cycle_id, empleado.empleado_id, {
+            proyecto_id: t.proyecto_id!,
+            categoria_equipo_tarifa_id: claveDe(t)!,
+            monto_pago: Number(editado[claveEdicion(t)]),
+         });
+      }
+
       setGuardando(false);
       // Solo se cierra si de verdad se guardó: si falló, el diálogo se queda
       // con lo escrito y el error a la vista, para no perder el trabajo.
@@ -270,7 +326,7 @@ function TarifasDialog({
 
    return (
       <Dialog open onOpenChange={(v) => !v && !guardando && onClose()}>
-         <DialogContent className="sm:max-w-2xl">
+         <DialogContent className="sm:max-w-4xl">
             <DialogHeader>
                <DialogTitle>Tarifas de {empleado.empleado_nombre ?? "el empleado"}</DialogTitle>
                <DialogDescription>
@@ -302,7 +358,9 @@ function TarifasDialog({
                   <table className="w-full text-sm">
                      <thead className="sticky top-0 bg-background">
                         <tr className="text-xs uppercase text-muted-foreground">
+                           <th className="pb-2 text-left font-semibold">Equipo</th>
                            <th className="pb-2 text-left font-semibold">Tarifa</th>
+                           <th className="pb-2 text-left font-semibold">Proyecto</th>
                            <th className="pb-2 text-left font-semibold">Medida</th>
                            <th className="pb-2 text-right font-semibold">Cantidad</th>
                            <th className="pb-2 text-right font-semibold">Precio unit.</th>
@@ -311,14 +369,39 @@ function TarifasDialog({
                      </thead>
                      <tbody>
                         {tarifas.map((t, i) => {
-                           // Toda tarifa se edita; `manual` solo dice a dónde
-                           // se guarda el precio (ciclo en vez de catálogo).
+                           // Toda tarifa se edita; el destino del precio
+                           // depende de a quién pertenece (catálogo, proyecto
+                           // o ciclo) — ver `esManual`/`esProyecto`.
                            const k = claveEdicion(t);
                            const manual = esManual(t);
                            const precio = precioActual(t);
                            const tocado = editado[k] !== undefined;
                            return (
                               <tr key={`${k}:${i}`} className="border-t border-border/50">
+                                 {/*
+                                     Snapshots anteriores a la migración 015 no
+                                     guardaron la categoría. Se dice explícito en
+                                     vez de dejar la celda vacía, que parecería
+                                     un dato faltante y no un ciclo viejo.
+                                  */}
+                                 <td className="py-2">
+                                    {t.categoria_equipo_nombre ?? (
+                                       <span
+                                          className="text-muted-foreground"
+                                          title="Este ciclo se calculó antes de que se guardara la categoría del equipo. Recalcúlalo para verla (los ciclos cerrados no se recalculan)."
+                                       >
+                                          —
+                                       </span>
+                                    )}
+                                    {compartePrecio(t) && !esProyecto(t) && (
+                                       <Badge
+                                          className="ml-2 border-0 bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0"
+                                          title="Esta tarifa se usa con más de una categoría de equipo y su precio es uno solo en el catálogo: al cambiarlo aquí cambia también en las otras filas de la misma tarifa."
+                                       >
+                                          precio compartido
+                                       </Badge>
+                                    )}
+                                 </td>
                                  <td className="py-2">
                                     {t.categoria_equipo_tarifa_nombre}
                                     {t.precio_manual && (
@@ -331,6 +414,24 @@ function TarifasDialog({
                                        >
                                           a mano
                                        </Badge>
+                                    )}
+                                    {esProyecto(t) && (
+                                       <Badge
+                                          className="ml-2 border-0 bg-blue-100 text-blue-800 text-[10px] px-1.5 py-0"
+                                          title="Este precio lo paga el proyecto y gana sobre la base del empleado. Cambiarlo aquí actualiza la tarifa del proyecto para este chofer (afecta a sus próximas nóminas), no solo a este ciclo."
+                                       >
+                                          del proyecto
+                                       </Badge>
+                                    )}
+                                 </td>
+                                 <td className="py-2">
+                                    {t.proyecto_nombre ?? (
+                                       <span
+                                          className="text-muted-foreground"
+                                          title="Conduce sin proyecto: se paga la tarifa general del empleado."
+                                       >
+                                          Sin proyecto
+                                       </span>
                                     )}
                                  </td>
                                  <td className="py-2 text-muted-foreground">
@@ -355,19 +456,20 @@ function TarifasDialog({
                                              disabled={guardando}
                                              placeholder={t.monto_pago === 0 ? "sin tarifa" : undefined}
                                              title={
-                                                manual
-                                                   ? t.rescate === "ambigua"
-                                                     ? `Hay ${t.rescate_candidatas} categorías llamadas "${t.categoria_equipo_tarifa_nombre}": el precio se guarda a mano solo para este ciclo.`
-                                                     : "Esta categoría ya no existe: el precio se guarda a mano solo para este ciclo."
-                                                   : "El precio se guarda en el empleado y aplica a todos sus conduces de esta categoría."
-                                             }
-                                             className={`h-8 w-32 text-right ${
-                                                t.monto_pago === 0 && !tocado
-                                                   ? "border-amber-400 placeholder:text-amber-600"
+                                                esProyecto(t)
+                                                   ? `El precio lo paga ${t.proyecto_nombre ?? "el proyecto"}: se guarda como tarifa del proyecto para este chofer y aplica a sus próximas nóminas.`
                                                    : manual
-                                                     ? "border-purple-300"
-                                                     : ""
-                                             }`}
+                                                      ? t.rescate === "ambigua"
+                                                         ? `Hay ${t.rescate_candidatas} categorías llamadas "${t.categoria_equipo_tarifa_nombre}": el precio se guarda a mano solo para este ciclo.`
+                                                         : "Esta categoría ya no existe: el precio se guarda a mano solo para este ciclo."
+                                                      : "El precio se guarda en el empleado y aplica a todos sus conduces de esta categoría."
+                                             }
+                                             className={`h-8 w-32 text-right ${t.monto_pago === 0 && !tocado
+                                                ? "border-amber-400 placeholder:text-amber-600"
+                                                : manual
+                                                   ? "border-purple-300"
+                                                   : ""
+                                                }`}
                                              value={editado[k] ?? String(t.monto_pago)}
                                              onChange={(ev) =>
                                                 setEditado((p) => ({ ...p, [k]: ev.target.value }))
@@ -376,7 +478,9 @@ function TarifasDialog({
                                           {tocado && Number(editado[k]) !== t.monto_pago && (
                                              <span className="text-[10px] text-muted-foreground">
                                                 antes {t.monto_pago === 0 ? "sin tarifa" : money(t.monto_pago)}
+                                                {t.monto_pago === 0 && !manual && !esProyecto(t) && " · se crea la tarifa del empleado"}
                                                 {manual && " · se guarda solo en este ciclo"}
+                                                {!manual && esProyecto(t) && " · se guarda como tarifa del proyecto"}
                                              </span>
                                           )}
                                           {!tocado && t.precio_manual && (
@@ -400,7 +504,7 @@ function TarifasDialog({
                            );
                         })}
                         <tr className="border-t border-border font-semibold">
-                           <td className="py-2" colSpan={4}>
+                           <td className="py-2" colSpan={6}>
                               Devengado por producción
                            </td>
                            <td className="py-2 text-right">
@@ -418,7 +522,7 @@ function TarifasDialog({
                         </tr>
                         {empleado.complemento_minimo > 0 && (
                            <tr className="text-blue-600">
-                              <td className="py-2" colSpan={4}>
+                              <td className="py-2" colSpan={6}>
                                  Complemento para alcanzar el mínimo de{" "}
                                  {money(empleado.minimo_garantizado)}
                               </td>
@@ -438,7 +542,7 @@ function TarifasDialog({
                            tarifa asignada a este empleado: esos conduces se cuentan en RD$ 0.
                            {readOnly
                               ? " Asígnele la tarifa y recalcule el ciclo."
-                              : " Escriba el precio aquí y guarde para corregirlo."}
+                              : " Escriba el precio aquí y guarde: se crea la tarifa de este empleado para ese tipo de cobro y el ciclo se recalcula."}
                         </span>
                      </p>
                   )}
@@ -497,6 +601,16 @@ function TarifasDialog({
                      </p>
                   )}
 
+                  {!readOnly && cambiosProyecto.length > 0 && (
+                     <p className="mt-3 rounded-md bg-blue-50 p-3 text-xs text-blue-900">
+                        {cambiosProyecto.map((t) => t.categoria_equipo_tarifa_nombre).join(", ")}:
+                        el precio lo paga{" "}
+                        {cambiosProyecto[0].proyecto_nombre ?? "el proyecto"} y se guarda como su
+                        tarifa para {empleado.empleado_nombre ?? "este chofer"} — aplica a sus
+                        próximas nóminas en ese proyecto, no solo a este ciclo.
+                     </p>
+                  )}
+
                   {error && (
                      <p className="mt-3 rounded-md bg-destructive/10 p-3 text-xs text-destructive">
                         {error}
@@ -515,8 +629,8 @@ function TarifasDialog({
                      {guardando
                         ? "Guardando y recalculando…"
                         : cambios.length === 0
-                          ? "Guardar y recalcular"
-                          : `Guardar ${cambios.length} tarifa${cambios.length === 1 ? "" : "s"} y recalcular`}
+                           ? "Guardar y recalcular"
+                           : `Guardar ${cambios.length} tarifa${cambios.length === 1 ? "" : "s"} y recalcular`}
                   </Button>
                </DialogFooter>
             )}
@@ -525,32 +639,187 @@ function TarifasDialog({
    );
 }
 
+/**
+ * Detalle de las deducciones del período, dentro del acordeón. Con cuotas, la
+ * "cuota por nómina" se edita AQUÍ (no en el diálogo de agregar): se escribe el
+ * nuevo monto, se le da a "Guardar cambios" y la nómina vuelve a aplicar el
+ * cobro — subirla acelera el saldo, bajarla lo frena.
+ */
 function DetalleDeducciones({
-   deducciones,
+   empleado,
+   readOnly = false,
 }: {
-   deducciones: DeduccionDelPeriodo[];
+   empleado: NominaEmpleado;
+   readOnly?: boolean;
 }) {
+   const { ActualizarCuotaDeduccion, error } = useNominaStore();
+   const deducciones = empleado.detalle_deducciones ?? [];
+   const [editado, setEditado] = useState<Record<string, string>>({});
+   const [guardando, setGuardando] = useState(false);
+
    if (deducciones.length === 0) return null;
+
+   // Solo las que tienen cuotas se editan: una de 1 cuota se cobra completa en
+   // su período y su monto por nómina ES el total.
+   const editables = deducciones.filter((d) => d.cuotas_sugeridas > 1);
+   const puedeEditar = !readOnly && editables.length > 0;
+
+   /*
+      Tope de la cuota: lo que todavía se puede cobrar de la deducción
+      (`monto_pendiente` es el saldo tras este período; `monto_periodo` ya se
+      cobró pero se puede reemplazar al refrescar). Fijar una cuota mayor
+      intentaría cobrar de más.
+   */
+   const topeDe = (d: DeduccionDelPeriodo) => d.monto_pendiente + d.monto_periodo;
+
+   const hayCambios = editables.some((d) => {
+      const v = editado[d.id];
+      if (v === undefined) return false;
+      const n = Number(v);
+      return Number.isFinite(n) && n > 0 && n <= topeDe(d) && n !== d.monto_cuota;
+   });
+   const invalidos = Object.entries(editado).some(([id, v]) => {
+      if (v.trim() === "") return true;
+      const n = Number(v);
+      if (!Number.isFinite(n) || n <= 0) return true;
+      const d = deducciones.find((x) => x.id === id);
+      return d ? n > topeDe(d) : false;
+   });
+
+   async function guardar() {
+      if (!hayCambios || invalidos) return;
+      setGuardando(true);
+      let ok = true;
+      for (const d of editables) {
+         const v = editado[d.id];
+         if (v === undefined) continue;
+         const n = Number(v);
+         if (!Number.isFinite(n) || n <= 0 || n > topeDe(d) || n === d.monto_cuota) continue;
+         ok = await ActualizarCuotaDeduccion(
+            empleado.cycle_id,
+            empleado.empleado_id,
+            d.id,
+            n
+         );
+         if (!ok) break;
+      }
+      setGuardando(false);
+      // Si todo salió bien, se deja de mostrar los valores viejos: la fila ya
+      // llegó actualizada con las cuotas nuevas.
+      if (ok) setEditado({});
+   }
+
    return (
       <div className="mt-4 border-t pt-3">
          <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
             Deducciones del período
          </p>
          <table className="w-full text-sm">
+            <thead>
+               <tr className="text-xs uppercase text-muted-foreground">
+                  <th className="pb-1 text-left font-semibold">Fecha</th>
+                  <th className="pb-1 text-left font-semibold">Concepto</th>
+                  <th className="pb-1 text-left font-semibold">Cuota por nómina</th>
+                  <th className="pb-1 text-right font-semibold">Se descuenta</th>
+               </tr>
+            </thead>
             <tbody>
-               {deducciones.map((d) => (
-                  <tr key={d.id} className="border-t border-border/50">
-                     <td className="py-2 text-muted-foreground">
-                        {new Date(`${String(d.fecha).slice(0, 10)}T12:00:00`).toLocaleDateString("es-DO")}
-                     </td>
-                     <td className="py-2">{d.concepto}</td>
-                     <td className="py-2 text-right font-medium text-destructive">
-                        − {money(d.monto_total)}
-                     </td>
-                  </tr>
-               ))}
+               {deducciones.map((d) => {
+                  const editable = !readOnly && d.cuotas_sugeridas > 1;
+                  const tocado = editado[d.id] !== undefined;
+                  const valor = tocado ? editado[d.id]! : String(d.monto_cuota);
+                  const valorNum = tocado ? Number(valor) : d.monto_cuota;
+                  // Escribió una cuota mayor que lo que falta por pagar: se avisa
+                  // que el máximo es el pendiente (no se bloquea la escritura).
+                  const excedeTope = tocado && Number.isFinite(valorNum) && valorNum > topeDe(d);
+                  return (
+                     <tr key={d.id} className="border-t border-border/50">
+                        <td className="py-2 text-muted-foreground">
+                           {new Date(`${String(d.fecha).slice(0, 10)}T12:00:00`).toLocaleDateString("es-DO")}
+                        </td>
+                        <td className="py-2">
+                           {d.concepto}
+                           {d.cuotas_sugeridas > 1 && (
+                              <span className="ml-2 text-xs text-muted-foreground">
+                                 · pendiente por pagar {money(d.monto_pendiente + d.monto_cuota)} de{" "}
+                                 {money(d.monto_total)}
+                              </span>
+                           )}
+                        </td>
+                        <td className="py-2 text-right">
+                           {editable ? (
+                              <div className="flex flex-col items-end gap-1">
+                                 <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0.01"
+                                    max={topeDe(d)}
+                                    disabled={guardando}
+                                    className={`h-8 w-28 text-right ${excedeTope
+                                       ? "border-destructive"
+                                       : tocado && Number(valor) !== d.monto_cuota
+                                          ? "border-blue-400"
+                                          : ""
+                                       }`}
+                                    title={`Cuota que se descuenta en cada nómina. Máximo: ${money(topeDe(d))} (lo que queda por pagar).`}
+                                    value={valor}
+                                    onChange={(ev) =>
+                                       setEditado((p) => ({ ...p, [d.id]: ev.target.value }))
+                                    }
+                                 />
+                                 {excedeTope && (
+                                    <span className="text-[11px] leading-tight text-destructive">
+                                       El máximo es {money(topeDe(d))} (lo que falta por pagar)
+                                    </span>
+                                 )}
+                              </div>
+                           ) : (
+                              <span className="text-muted-foreground">{money(d.monto_cuota)}</span>
+                           )}
+                        </td>
+                        <td className="py-2 text-right font-medium text-destructive">
+                           − {money(d.monto_periodo)}
+                        </td>
+                     </tr>
+                  );
+               })}
             </tbody>
          </table>
+
+         {puedeEditar && (
+            <p className="mt-2 text-xs text-muted-foreground">
+               La cuota por nómina es editable: subirla acelera el saldo, bajarla lo frena.
+            </p>
+         )}
+
+         {puedeEditar && (hayCambios || invalidos) && (
+            <div className="mt-3 flex items-center justify-end gap-2">
+               <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setEditado({})}
+                  disabled={guardando}
+               >
+                  Descartar
+               </Button>
+               <Button
+                  type="button"
+                  size="sm"
+                  onClick={guardar}
+                  disabled={!hayCambios || invalidos || guardando}
+               >
+                  {guardando && <Loader2 className="mr-2 size-3 animate-spin" />}
+                  {guardando ? "Guardando…" : "Guardar cambios"}
+               </Button>
+            </div>
+         )}
+
+         {error && (
+            <p className="mt-2 rounded-md bg-destructive/10 p-2 text-xs text-destructive">
+               {error}
+            </p>
+         )}
       </div>
    );
 }
@@ -560,18 +829,33 @@ function DetalleDeducciones({
  * ciclo trae solo el conteo (traer el detalle de todos costaba una query por
  * empleado), así que aquí se piden las del que se está mirando.
  */
-function DeduccionesExpandible({ empleado }: { empleado: NominaEmpleado }) {
+function DeduccionesExpandible({
+   empleado,
+   readOnly = false,
+}: {
+   empleado: NominaEmpleado;
+   readOnly?: boolean;
+}) {
    const { detalles, cargandoDetalle, GetDetalleEmpleado } = useNominaStore();
 
+   const cacheado = detalles[empleado.empleado_id];
+
    useEffect(() => {
-      if (empleado.deducciones_count > 0) {
-         GetDetalleEmpleado(empleado.cycle_id, empleado.empleado_id);
-      }
-   }, [empleado.cycle_id, empleado.empleado_id, empleado.deducciones_count, GetDetalleEmpleado]);
+      if (empleado.deducciones_count === 0) return;
+      // Ya hay caché (o una petición en vuelo): no se duplica.
+      if (detalles[empleado.empleado_id]) return;
+      if (cargandoDetalle.includes(empleado.empleado_id)) return;
+      GetDetalleEmpleado(empleado.cycle_id, empleado.empleado_id);
+   }, [
+      empleado.cycle_id,
+      empleado.empleado_id,
+      empleado.deducciones_count,
+      detalles,
+      cargandoDetalle,
+      GetDetalleEmpleado,
+   ]);
 
    if (empleado.deducciones_count === 0) return null;
-
-   const cacheado = detalles[empleado.empleado_id];
 
    if (!cacheado) {
       return (
@@ -585,7 +869,16 @@ function DeduccionesExpandible({ empleado }: { empleado: NominaEmpleado }) {
       );
    }
 
-   return <DetalleDeducciones deducciones={cacheado.detalle_deducciones} />;
+   // El listado del ciclo no trae `detalle_deducciones` (solo el conteo); las
+   // deducciones concretas viven en el caché del store, cargado recién. Sin
+   // este merge, DetalleDeducciones recibiría un arreglo vacío y no mostraría
+   // nada aunque sí haya deducciones.
+   return (
+      <DetalleDeducciones
+         empleado={{ ...empleado, detalle_deducciones: cacheado.detalle_deducciones }}
+         readOnly={readOnly}
+      />
+   );
 }
 
 function FilaDesglose({
@@ -617,18 +910,23 @@ function FilaDesglose({
                   </tr>
                </tbody>
             </table>
-            <DeduccionesExpandible empleado={empleado} />
+            <DeduccionesExpandible empleado={empleado} readOnly={readOnly} />
          </div>
       );
    }
 
    if (tarifas.length === 0) {
       return (
-         <div className="px-6 py-4 text-sm text-muted-foreground">
-            Sin conduces en este período.
-            {empleado.complemento_minimo > 0 && (
-               <> Se paga el mínimo garantizado completo.</>
-            )}
+         <div className="px-6 py-4">
+            <p className="text-sm text-muted-foreground">
+               Sin conduces en este período.
+               {empleado.complemento_minimo > 0 && (
+                  <> Se paga el mínimo garantizado completo.</>
+               )}
+            </p>
+            {/* Sin conduces no significa sin descuentos: un chofer con un
+                adelanto y cero viajes debe poder ver y editar su deducción. */}
+            <DeduccionesExpandible empleado={empleado} readOnly={readOnly} />
          </div>
       );
    }
@@ -664,7 +962,9 @@ function FilaDesglose({
          <table className="w-full text-sm">
             <thead>
                <tr className="text-xs uppercase text-muted-foreground">
+                  <th className="pb-2 text-left font-semibold">Equipo</th>
                   <th className="pb-2 text-left font-semibold">Tarifa</th>
+                  <th className="pb-2 text-left font-semibold">Proyecto</th>
                   <th className="pb-2 text-left font-semibold">Medida</th>
                   <th className="pb-2 text-right font-semibold">Cantidad</th>
                   <th className="pb-2 text-right font-semibold">Precio unit.</th>
@@ -674,7 +974,25 @@ function FilaDesglose({
             <tbody>
                {tarifas.map((t, i) => (
                   <tr key={i} className="border-t border-border/50">
+                     {/* NULL = ciclo calculado antes de la migración 015. */}
+                     <td className="py-2">
+                        {t.categoria_equipo_nombre ?? (
+                           <span
+                              className="text-muted-foreground"
+                              title="Este ciclo se calculó antes de que se guardara la categoría del equipo. Recalcúlalo para verla (los ciclos cerrados no se recalculan)."
+                           >
+                              —
+                           </span>
+                        )}
+                     </td>
                      <td className="py-2">{t.categoria_equipo_tarifa_nombre}</td>
+                     <td className="py-2">
+                        {t.proyecto_nombre ?? (
+                           <span className="text-muted-foreground" title="Conduce sin proyecto: se paga la tarifa general del empleado.">
+                              Sin proyecto
+                           </span>
+                        )}
+                     </td>
                      <td className="py-2 text-muted-foreground">{t.medida_cobro_nombre ?? "—"}</td>
                      <td className="py-2 text-right">{t.cantidad.toLocaleString("es-DO")}</td>
                      <td className="py-2 text-right">
@@ -690,14 +1008,14 @@ function FilaDesglose({
                   </tr>
                ))}
                <tr className="border-t border-border font-semibold">
-                  <td className="py-2" colSpan={4}>
+                  <td className="py-2" colSpan={6}>
                      Devengado por producción
                   </td>
                   <td className="py-2 text-right">{money(empleado.devengado_tarifas)}</td>
                </tr>
                {empleado.complemento_minimo > 0 && (
                   <tr className="text-blue-600">
-                     <td className="py-2" colSpan={4}>
+                     <td className="py-2" colSpan={6}>
                         Complemento para alcanzar el mínimo de{" "}
                         {money(empleado.minimo_garantizado)}
                      </td>
@@ -709,7 +1027,7 @@ function FilaDesglose({
             </tbody>
          </table>
 
-         <DeduccionesExpandible empleado={empleado} />
+         <DeduccionesExpandible empleado={empleado} readOnly={readOnly} />
       </div>
    );
 }
@@ -800,7 +1118,13 @@ export function NominaTable({
          deducciones: acc.deducciones + e.deducciones,
          neto: acc.neto + e.neto_pagar,
       }),
-      { devengado: 0, complemento: 0, seguro: 0, deducciones: 0, neto: 0 }
+      {
+         devengado: 0,
+         complemento: 0,
+         seguro: 0,
+         deducciones: 0,
+         neto: 0,
+      }
    );
 
    async function guardarSeguro(emp: NominaEmpleado) {
@@ -833,7 +1157,7 @@ export function NominaTable({
                   <th className="px-3 py-3 text-left font-semibold">Nombre</th>
                   <th className="px-3 py-3 text-right font-semibold">Precio viaje/hora</th>
                   <th className="px-3 py-3 text-right font-semibold">Seguro</th>
-                  <th className="px-3 py-3 text-right font-semibold">Deuda</th>
+                  <th className="px-3 py-3 text-right font-semibold" title="Suma de todas las deducciones del empleado, pagadas y pendientes">Total deducciones</th>
                   <th className="px-3 py-3 text-right font-semibold">Se cobra</th>
                   <th className="px-3 py-3 text-right font-semibold">Pendiente</th>
                   <th className="px-3 py-3 text-right font-semibold">Neto</th>
@@ -895,9 +1219,8 @@ export function NominaTable({
                                              rel="noopener noreferrer"
                                              onClick={(ev) => ev.stopPropagation()}
                                              className="inline-flex items-center gap-1 text-blue-600 hover:underline"
-                                             title={`Ver los ${e.total_conduces} conduces de ${
-                                                e.empleado_nombre ?? "este chofer"
-                                             } en este período`}
+                                             title={`Ver los ${e.total_conduces} conduces de ${e.empleado_nombre ?? "este chofer"
+                                                } en este período`}
                                           >
                                              {e.total_conduces} conduce
                                              {e.total_conduces === 1 ? "" : "s"}
@@ -909,10 +1232,22 @@ export function NominaTable({
                                              {e.total_conduces === 1 ? "" : "s"}
                                           </>
                                        )}
+                                       {/*
+                                          Lo que pide la revisión: cuánto generó
+                                          por conduces y cuál es el piso. Si no
+                                          llega, se le completa la diferencia — se
+                                          paga el mínimo, pero se ve que llegó a lo
+                                          que llegó.
+                                       */}
+                                       <span className="text-muted-foreground">
+                                          {" "}
+                                          · devengado {money(e.devengado_tarifas)} · mínimo{" "}
+                                          {money(e.minimo_garantizado)}
+                                       </span>
                                        {e.complemento_minimo > 0 && (
                                           <span className="text-blue-600">
                                              {" "}
-                                             · complementado al mínimo
+                                             · se completa {money(e.complemento_minimo)}
                                           </span>
                                        )}
                                     </>

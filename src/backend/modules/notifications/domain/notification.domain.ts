@@ -20,8 +20,25 @@ export interface CreateNotificationDTO {
    reference_type?: string | null;
 }
 
+export interface NotificationFilters {
+   page?: number;
+   pageSize?: number;
+   /** Filtra por tipo exacto de notificación (ej. "PURCHASE_ORDER_REVIEW"). */
+   tipo?: string;
+   /** "LEIDA" o "NO_LEIDA" — sin valor trae ambas. */
+   estado?: "LEIDA" | "NO_LEIDA";
+}
+
+export interface NotificationPaginatedResult {
+   data: NotificationProps[];
+   total: number;
+   page: number;
+   pageSize: number;
+   totalPages: number;
+}
+
 export interface INotificationRepository {
-   findByUserId(userId: string): Promise<NotificationProps[]>;
+   findByUserId(userId: string, filters?: NotificationFilters): Promise<NotificationPaginatedResult>;
    countUnread(userId: string): Promise<number>;
    markAsRead(id: string, userId: string): Promise<void>;
    markAllAsRead(userId: string): Promise<void>;

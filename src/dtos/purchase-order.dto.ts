@@ -8,6 +8,8 @@ export const EstadoOrdenCompraSchema = z.enum([
    "CANCELADA",
 ]);
 
+export const EstadoPagoOrdenSchema = z.enum(["PENDIENTE", "PARCIAL", "PAGADO"]);
+
 const PurchaseOrderItemSchema = z.object({
    id: z.string(),
    orden_compra_id: z.string(),
@@ -36,14 +38,18 @@ const PurchaseOrderDTO = z.object({
    codigoReferencia: z.string(),
    fecha: z.coerce.date(),
    estado: EstadoOrdenCompraSchema,
+   estado_pago: EstadoPagoOrdenSchema.default("PENDIENTE"),
    notas: z.string().nullable(),
    total: z.number(),
+   pagado: z.number(),
+   pendiente: z.number(),
    approved_by: z.string().nullable().optional(),
    approved_by_name: z.string().nullable().optional(),
    approved_at: z.coerce.date().nullable().optional(),
    items: z.array(PurchaseOrderItemSchema),
    created_at: z.coerce.date(),
    deleted_by: z.string().nullable().optional(),
+   deleted_by_name: z.string().nullable().optional(),
    deleted_reason: z.string().nullable().optional(),
    deleted_at: z.coerce.date().nullable().optional(),
    updated_at: z.coerce.date(),
@@ -52,6 +58,7 @@ const PurchaseOrderDTO = z.object({
 
 const PurchaseOrderDeletedDTO = PurchaseOrderDTO.extend({
    deleted_by: z.string().nullable().optional(),
+   deleted_by_name: z.string().nullable().optional(),
    deleted_at: z.coerce.date().nullable().optional(),
    deleted_reason: z.string().nullable().optional(),
 });
@@ -78,6 +85,7 @@ export type PurchaseOrderForm = z.infer<typeof CreatePurchaseOrderDTO>;
 export type UpdatePurchaseOrderForm = z.infer<typeof UpdatePurchaseOrderDTO>;
 export type PurchaseOrderItemForm = z.infer<typeof PurchaseOrderItemFormSchema>;
 export type EstadoOrdenCompra = z.infer<typeof EstadoOrdenCompraSchema>;
+export type EstadoPagoOrden = z.infer<typeof EstadoPagoOrdenSchema>;
 
 
 export interface PaginatedPurchaseOrders {

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCategoriaEquipoStore } from "@/stores/useCategoriaEquipoStore";
 import { useEmployeeStore } from "@/stores/useEmployeeStore";
+import { toast } from "sonner";
 
 interface Props {
    open: boolean;
@@ -78,8 +79,8 @@ export function TarifaEmpleadoDialog({ open, onClose, empleadoId, categoriaInici
             tarifas: tarifasArray
          });
          onClose();
-      } catch (error: any) {
-         alert(error.message || "Ocurrió un error al guardar las tarifas");
+       } catch (error: any) {
+         toast.error(error.message || "Ocurrió un error al guardar las tarifas");
       } finally {
          setLoading(false);
       }

@@ -1,7 +1,7 @@
 import { IConduceRepository } from "../../conduce/domain/conduce.domain";
 import type {
    IProyectoRepository, ProyectoProps, ProyectoTotales,
-   CreateProyectoDTO,
+   CreateProyectoDTO, UpdateProyectoDTO,
    LiquidacionFacade
 } from "../domain/proyecto.domain";
 
@@ -36,6 +36,13 @@ export class ProyectoService {
       );
    }
 
+   async update(id: string, data: UpdateProyectoDTO): Promise<ProyectoProps | null> {
+      const proyecto = await this.repo.update(id, data);
+      if (!proyecto) return null;
+      const conduces = await this.conduceRepo.findByProyectoId(id);
+      return { ...proyecto, conduces };
+   }
+
    async create(data: CreateProyectoDTO): Promise<ProyectoProps> {
       if (!data.cliente_id?.trim()) throw new Error("El cliente es requerido");
       if (!data.nombre?.trim()) throw new Error("El nombre es requerido");
@@ -57,9 +64,14 @@ export class ProyectoService {
       return { ...liquidacion, conduces };
    }
 
-   async recalcularTotales(id: string): Promise<ProyectoTotales> {
-      return this.repo.recalcularTotales(id);
-   }
+    async recalcularTotales(id: string): Promise<ProyectoTotales> {
+       return this.repo.recalcularTotales(id);
+    }
+
+    async toggleDetalleCobrable(ids: string[], es_cobrable: boolean): Promise<void> {
+       if (ids.length === 0) return;
+       return this.repo.toggleDetalleCobrable(ids, es_cobrable);
+    }
 
    #validateItems(
 

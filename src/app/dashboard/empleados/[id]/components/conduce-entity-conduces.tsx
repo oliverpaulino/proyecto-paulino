@@ -35,6 +35,7 @@ export function ConduceEntityConduces({ filtroKey, filtroValue, ocultarProyecto 
    const [proyectoNombre, setProyectoNombre] = useState("");
    const [tipoConduce, setTipoConduce] = useState<string>("all");
    const [esCobrable, setEsCobrable] = useState<string>("all");
+   const [categoriaEquipo, setCategoriaEquipo] = useState<string>("all");
 
    // Llamada a la API con los nuevos filtros incluidos
    useEffect(() => {
@@ -59,14 +60,47 @@ export function ConduceEntityConduces({ filtroKey, filtroValue, ocultarProyecto 
       return () => window.clearTimeout(timeoutId);
    }, [busquedaLocal]);
 
+   /*
+      Categorías de equipo que esta persona realmente manejó en el período.
+      Se derivan de los conduces ya cargados en vez de pedir el catálogo
+      completo: filtrar por una categoría que nunca condujo no sirve de nada.
+   */
+   const categoriasDisponibles = useMemo(() => {
+      const nombres = new Set<string>();
+      conduces.forEach((c: any) => {
+         if (c.categoria_equipo_nombre) nombres.add(c.categoria_equipo_nombre);
+      });
+      return [...nombres].sort((a, b) => a.localeCompare(b, "es"));
+   }, [conduces]);
+
+   /*
+      El select solo tiene sentido si hubo más de una categoría; con una sola
+      sería un control que nunca cambia nada.
+   */
+   const mostrarFiltroCategoria = categoriasDisponibles.length > 1;
+
+   // Si el filtro apunta a una categoría que ya no está en la lista (cambió el
+   // rango de fechas, el proyecto, etc.), se vuelve a "todas" para no dejar la
+   // tabla vacía sin explicación.
+   useEffect(() => {
+      if (categoriaEquipo !== "all" && !categoriasDisponibles.includes(categoriaEquipo)) {
+         setCategoriaEquipo("all");
+      }
+   }, [categoriasDisponibles, categoriaEquipo]);
+
    const conducesFiltradas = useMemo(() => {
       const terminoBusqueda = busquedaDebounce;
 
+      const porCategoria =
+         categoriaEquipo === "all"
+            ? conduces
+            : conduces.filter((c: any) => c.categoria_equipo_nombre === categoriaEquipo);
+
       if (!terminoBusqueda) {
-         return conduces;
+         return porCategoria;
       }
 
-      return conduces.filter((c: any) => {
+      return porCategoria.filter((c: any) => {
          const textoBusqueda = [
             c.codigo,
             c.referencia,
@@ -83,7 +117,7 @@ export function ConduceEntityConduces({ filtroKey, filtroValue, ocultarProyecto 
 
          return textoBusqueda.includes(terminoBusqueda);
       });
-   }, [conduces, busquedaDebounce, ocultarProyecto]);
+   }, [conduces, busquedaDebounce, ocultarProyecto, categoriaEquipo]);
 
    const resumen = useMemo(() => {
       let totalViajes = 0;
@@ -103,7 +137,7 @@ export function ConduceEntityConduces({ filtroKey, filtroValue, ocultarProyecto 
    }, [conducesFiltradas]);
 
    const hayFiltrosActivos =
-      proyectoId || tipoConduce !== "all" || esCobrable !== "all" || fechaDesde || fechaHasta || busquedaLocal;
+      proyectoId || tipoConduce !== "all" || esCobrable !== "all" || categoriaEquipo !== "all" || fechaDesde || fechaHasta || busquedaLocal;
 
    return (
       <div className="space-y-4">
@@ -147,6 +181,22 @@ export function ConduceEntityConduces({ filtroKey, filtroValue, ocultarProyecto 
                </Select>
             </div>
 
+            {/* Categoría de equipo — solo si manejó más de una */}
+            {mostrarFiltroCategoria && (
+               <div className="w-48 space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Categoría de equipo</label>
+                  <Select value={categoriaEquipo} onValueChange={setCategoriaEquipo}>
+                     <SelectTrigger><SelectValue placeholder="Todas" /></SelectTrigger>
+                     <SelectContent>
+                        <SelectItem value="all">Todas</SelectItem>
+                        {categoriasDisponibles.map((nombre) => (
+                           <SelectItem key={nombre} value={nombre}>{nombre}</SelectItem>
+                        ))}
+                     </SelectContent>
+                  </Select>
+               </div>
+            )}
+
             {/* Selector de Cobrable */}
             <div className="w-32 space-y-1">
                <label className="text-xs font-medium text-muted-foreground">Cobrable</label>
@@ -184,6 +234,7 @@ export function ConduceEntityConduces({ filtroKey, filtroValue, ocultarProyecto 
                      setProyectoNombre("");
                      setTipoConduce("all");
                      setEsCobrable("all");
+                     setCategoriaEquipo("all");
                   }}
                >
                   <X className="size-4 mr-1" /> Limpiar filtros

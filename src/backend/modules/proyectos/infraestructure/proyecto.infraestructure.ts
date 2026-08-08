@@ -7,6 +7,7 @@ import type {
    ProyectoTotales,
    LiquidacionFacade,
    CreateProyectoDTO,
+   UpdateProyectoDTO,
 } from "../domain/proyecto.domain";
 import { ConduceProps } from "../../conduce/domain/conduce.domain";
 
@@ -204,6 +205,30 @@ export class KyselyProyectoRepository implements IProyectoRepository {
       return proyecto!;
    }
 
+   async update(id: string, data: UpdateProyectoDTO): Promise<ProyectoProps | null> {
+      const safeData: Record<string, unknown> = {};
+      if (data.nombre !== undefined) safeData.nombre = data.nombre;
+      if (data.estado !== undefined) safeData.estado = data.estado;
+      if (data.tarifa_servicio !== undefined) safeData.tarifa_servicio = data.tarifa_servicio;
+      if (data.notas !== undefined) safeData.notas = data.notas;
+      if (data.fecha_fin !== undefined) safeData.fecha_fin = data.fecha_fin;
+      // fecha_inicio llega como "YYYY-MM-DD" (input date). Se guarda tal cual,
+      // sin pasar por new Date(), para que Postgres no convierta según la zona
+      // horaria del servidor y corra la fecha un día.
+      if (data.fecha_inicio !== undefined) safeData.fecha_inicio = data.fecha_inicio;
+      if (data.cliente_id !== undefined) safeData.cliente_id = data.cliente_id;
+      safeData.updated_at = new Date();
+
+      await this.db
+         .updateTable("proyecto")
+         .set(safeData)
+         .where("id", "=", id)
+         .execute();
+
+      await this.recalcularTotales(id);
+      return this.findById(id);
+   }
+
    async getLiquidacion(id: string): Promise<LiquidacionFacade | null> {
       const proyecto = await this.findById(id);
       if (!proyecto) return null;
@@ -281,6 +306,28 @@ export class KyselyProyectoRepository implements IProyectoRepository {
       return { total_cobrable, total_gasto_interno, total_equipos, rentabilidad };
    }
 
+   async toggleDetalleCobrable(ids: string[], es_cobrable: boolean): Promise<void> {
+      if (ids.length === 0) return;
+
+      await this.db
+         .updateTable("proyecto_detalle")
+         .set({ es_cobrable, updated_at: new Date() })
+         .where("id", "in", ids)
+         .execute();
+
+      // Recalcular totales del proyecto al que pertenece el primer ítem
+      const first = await this.db
+         .selectFrom("proyecto_detalle")
+         .select("proyecto_id")
+         .where("id", "=", ids[0])
+         .executeTakeFirst();
+
+      if (first) {
+         await this.recalcularTotales(first.proyecto_id);
+      }
+   }
+
+   // ─── Mapper privado ────────────────────────────────────────────────────────
    // ─── Búsqueda: por nombre o por código de referencia ───────────────────────
    // Sin esto, teclear "PRO-007" en el buscador no encontraba nada, que es
    // justo lo que la gente va a intentar ahora que el código se muestra.

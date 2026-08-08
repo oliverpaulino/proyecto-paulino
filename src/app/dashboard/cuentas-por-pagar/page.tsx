@@ -91,7 +91,7 @@ export default function CuentasPorPagarPage() {
                </h1>
             </div>
             <p className="mt-1 pl-[calc(0.375rem+0.75rem)] text-sm text-muted-foreground">
-               Gastos y costos que aún no se han saldado. El pendiente se calcula restando los
+               Gastos que aún no se han saldado. El pendiente se calcula restando los
                pagos registrados a cada documento.
             </p>
          </div>
@@ -110,7 +110,7 @@ export default function CuentasPorPagarPage() {
                detalle={`${resumen.parciales} con abono parcial`}
             />
             <Tarjeta label="En gastos" valor={money(resumen.gastos_pendiente)} />
-            <Tarjeta label="En costos" valor={money(resumen.costos_pendiente)} />
+            {/* <Tarjeta label="En costos" valor={money(resumen.costos_pendiente)} /> */}
          </div>
 
          {/* ── Antigüedad ── */}
@@ -157,14 +157,14 @@ export default function CuentasPorPagarPage() {
             <div>
                <label className="mb-1 block text-xs font-medium text-muted-foreground">Tipo</label>
                <div className="flex gap-1">
-                  {([undefined, "GASTO", "COSTO"] as (TipoCuenta | undefined)[]).map((t) => (
+                  {([undefined, "GASTO"] as (TipoCuenta | undefined)[]).map((t) => (
                      <Button
                         key={t ?? "todos"}
                         size="sm"
                         variant={filtros.tipo === t ? "default" : "outline"}
                         onClick={() => SetFiltros({ tipo: t })}
                      >
-                        {t === undefined ? "Todos" : t === "GASTO" ? "Gastos" : "Costos"}
+                        {t === undefined ? "Todos" : t === "GASTO" ? "Gastos" : ""}
                      </Button>
                   ))}
                </div>
@@ -306,9 +306,9 @@ export default function CuentasPorPagarPage() {
                            <td className="px-4 py-3 text-center">
                               <Link
                                  href={
-                                    c.tipo === "GASTO"
-                                       ? `/dashboard/gastos/${c.id}`
-                                       : `/dashboard/costos/${c.id}`
+                                    // c.tipo === "GASTO"
+                                    `/dashboard/gastos/${c.id}`
+                                    // : `/dashboard/costos/${c.id}`
                                  }
                               >
                                  <button

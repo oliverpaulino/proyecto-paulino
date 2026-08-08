@@ -18,6 +18,7 @@ const ROUTE_PERMISSIONS: [prefix: string, resource: string, action: string][] = 
   ["/dashboard/limites", "organization", "update"],
   ["/dashboard/contabilidad", "account_payable", "read"],
   ["/dashboard/cuentas-por-pagar", "account_payable", "read"],
+  ["/dashboard/cuentas-por-cobrar", "account_receivable", "read"],
   ["/dashboard/nomina", "payroll", "read"],
   ["/dashboard/proyectos", "project", "read"],
 ];

@@ -1,170 +1,201 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
-   Select,
-   SelectContent,
-   SelectItem,
-   SelectTrigger,
-   SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus } from "lucide-react";
-import { useCategoriaEquipoStore } from "@/stores/useCategoriaEquipoStore";
-import { useMedidaCobroStore } from "@/stores/useMedidaCobroStore";
+   Table,
+   TableBody,
+   TableCell,
+   TableHead,
+   TableHeader,
+   TableRow,
+} from "@/components/ui/table";
+import { Loader2, Search, Save } from "lucide-react";
 import { useProyectoTarifaStore } from "@/stores/useProyectoTarifaStore";
+import { useDebounce } from "@/hooks/use-debounce";
+import type { TarifaGlobalRowDTO } from "@/dtos/proyecto-tarifa.dto";
 
 interface Props {
    proyectoId: string;
 }
 
-// Deja negociar, para ESTE proyecto en particular, un precio distinto al
-// global de categoria_equipo_tarifa. Esa tarifa se precarga sola en el
-// conduce-form cuando el conduce se registra para este proyecto.
 export function ProyectoTarifasCard({ proyectoId }: Props) {
-   const { CategoriaEquipos, GetCategoriaEquipos } = useCategoriaEquipoStore();
-   const { GetMedidaCobros, getNombre: getNombreMedidaCobro } = useMedidaCobroStore();
-   const { tarifasPorProyecto, GetTarifas, UpsertTarifa, DeleteTarifa } = useProyectoTarifaStore();
+   const { tarifasGlobales, tarifasGlobalesTotal, loading, GetTarifasGlobales, BulkUpsertTarifas } = useProyectoTarifaStore();
+
+   const [search, setSearch] = useState("");
+   const [page, setPage] = useState(1);
+   const [guardando, setGuardando] = useState(false);
+   const [editando, setEditando] = useState<Record<string, string>>({});
+   const limit = 20;
+
+   const debouncedSearch = useDebounce(search, 400);
+
+   const loadData = useCallback(() => {
+      GetTarifasGlobales(proyectoId, debouncedSearch, page, limit);
+   }, [GetTarifasGlobales, proyectoId, debouncedSearch, page]);
 
    useEffect(() => {
-      GetCategoriaEquipos();
-      GetMedidaCobros();
-      GetTarifas(proyectoId);
-   }, [GetCategoriaEquipos, GetMedidaCobros, GetTarifas, proyectoId]);
+      loadData();
+   }, [loadData]);
 
-   const tarifasProyecto = tarifasPorProyecto[proyectoId] ?? [];
+   useEffect(() => {
+      setPage(1);
+   }, [debouncedSearch]);
 
-   const [categoriaId, setCategoriaId] = useState("");
-   const [tarifaId, setTarifaId] = useState("");
-   const [precio, setPrecio] = useState(0);
-   const [guardando, setGuardando] = useState(false);
-   const [eliminandoId, setEliminandoId] = useState<string | null>(null);
-   const [error, setError] = useState<string | null>(null);
+   const totalPages = Math.max(1, Math.ceil(tarifasGlobalesTotal / limit));
 
-   const categoriaSeleccionada = CategoriaEquipos.find((c) => c.id === categoriaId);
-   const opcionesTarifa = useMemo(
-      () =>
-         (categoriaSeleccionada?.tarifas ?? [])
-            .filter((t) => !!t.id)
-            .map((t) => ({ ...t, medida_cobro_nombre: getNombreMedidaCobro(t.medida_cobro_id) ?? "unidad" })),
-      [categoriaSeleccionada, getNombreMedidaCobro]
-   );
-
-   function handleCategoriaChange(id: string) {
-      setCategoriaId(id);
-      setTarifaId("");
+   function handleEdit(row: TarifaGlobalRowDTO, value: string) {
+      setEditando((prev) => ({ ...prev, [row.categoria_equipo_tarifa_id]: value }));
    }
 
-   function handleTarifaChange(id: string) {
-      setTarifaId(id);
-      const t = opcionesTarifa.find((o) => o.id === id);
-      setPrecio(t?.precio_unitario ?? 0);
+   function getDisplay(row: TarifaGlobalRowDTO): string {
+      const id = row.categoria_equipo_tarifa_id;
+      if (id in editando) return editando[id];
+      return row.precio_proyecto != null ? String(row.precio_proyecto) : "";
    }
 
-   async function handleAgregar() {
-      if (!tarifaId) {
-         setError("Seleccione una tarifa");
-         return;
-      }
-      setError(null);
+   function getValue(row: TarifaGlobalRowDTO): number {
+      const val = getDisplay(row);
+      return val === "" ? 0 : Number(val);
+   }
+
+   function tieneCambio(row: TarifaGlobalRowDTO): boolean {
+      const id = row.categoria_equipo_tarifa_id;
+      if (!(id in editando)) return false;
+      const editVal = editando[id];
+      const origVal = row.precio_proyecto != null ? String(row.precio_proyecto) : "";
+      return editVal !== origVal;
+   }
+
+   const hayCambios = tarifasGlobales.some(tieneCambio);
+
+   async function handleGuardar() {
+      const tarifas = tarifasGlobales
+         .filter(tieneCambio)
+         .map((row) => ({
+            categoria_equipo_tarifa_id: row.categoria_equipo_tarifa_id,
+            precio_unitario: getValue(row),
+         }));
+
+      if (tarifas.length === 0) return;
+
       setGuardando(true);
       try {
-         const result = await UpsertTarifa({
-            proyecto_id: proyectoId,
-            categoria_equipo_tarifa_id: tarifaId,
-            precio_unitario: precio,
-         });
+         const result = await BulkUpsertTarifas({ proyecto_id: proyectoId, tarifas });
          if (result instanceof Error) throw result;
-         setCategoriaId("");
-         setTarifaId("");
-         setPrecio(0);
+         setEditando({});
+         await GetTarifasGlobales(proyectoId, debouncedSearch, page, limit);
       } catch (e) {
-         setError(e instanceof Error ? e.message : "Error al guardar la tarifa");
+         console.error(e);
       } finally {
          setGuardando(false);
       }
    }
 
-   async function handleEliminar(id: string) {
-      setEliminandoId(id);
-      try {
-         await DeleteTarifa(id, proyectoId);
-      } finally {
-         setEliminandoId(null);
-      }
-   }
-
    return (
       <div className="space-y-4">
-         {tarifasProyecto.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-               Este proyecto usa los precios globales por defecto de cada tarifa. Agrega una tarifa propia si
-               negociaste un precio distinto con el cliente.
-            </p>
-         ) : (
-            <div className="flex flex-wrap gap-2">
-               {tarifasProyecto.map((t) => (
-                  <Badge
-                     key={t.id}
-                     variant="outline"
-                     className="flex items-center gap-2 py-1.5 pl-3 pr-1.5 text-sm font-normal"
-                  >
-                     {t.categoria_equipo_nombre} · {t.categoria_equipo_tarifa_nombre}
-                     <span className="font-semibold">RD$ {t.precio_unitario.toLocaleString("es-DO")}</span>
-                     <button
-                        type="button"
-                        onClick={() => handleEliminar(t.id)}
-                        disabled={eliminandoId === t.id}
-                        className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-destructive"
-                     >
-                        <Trash2 className="size-3.5" />
-                     </button>
-                  </Badge>
-               ))}
-            </div>
-         )}
-
-         <div className="grid grid-cols-[1fr_1fr_120px_auto] gap-2 items-end">
-            <div className="space-y-1.5">
-               <Label className="text-xs">Categoría de Equipo</Label>
-               <Select value={categoriaId} onValueChange={handleCategoriaChange}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar…" /></SelectTrigger>
-                  <SelectContent>
-                     {CategoriaEquipos.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>
-                     ))}
-                  </SelectContent>
-               </Select>
-            </div>
-
-            <div className="space-y-1.5">
-               <Label className="text-xs">Tarifa</Label>
-               <Select value={tarifaId} onValueChange={handleTarifaChange} disabled={!categoriaId}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar…" /></SelectTrigger>
-                  <SelectContent>
-                     {opcionesTarifa.map((t) => (
-                        <SelectItem key={t.id} value={t.id as string}>
-                           {t.nombre} ({t.medida_cobro_nombre})
-                        </SelectItem>
-                     ))}
-                  </SelectContent>
-               </Select>
-            </div>
-
-            <div className="space-y-1.5">
-               <Label className="text-xs">Precio RD$</Label>
-               <Input type="number" min={0} step="0.01" value={precio} onChange={(e) => setPrecio(Number(e.target.value))} />
-            </div>
-
-            <Button type="button" size="icon" onClick={handleAgregar} disabled={guardando}>
-               <Plus className="size-4" />
-            </Button>
+         <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+               placeholder="Buscar categoría o tarifa..."
+               value={search}
+               onChange={(e) => setSearch(e.target.value)}
+               className="pl-9"
+            />
          </div>
 
-         {error && <p className="text-sm text-destructive">{error}</p>}
+         {loading && tarifasGlobales.length === 0 ? (
+            <div className="flex items-center justify-center py-12">
+               <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            </div>
+         ) : tarifasGlobales.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+               No hay tarifas de categorías disponibles.
+            </p>
+         ) : (
+            <>
+               <div className="rounded-md border">
+                  <Table>
+                     <TableHeader>
+                        <TableRow>
+                           <TableHead className="w-[160px]">Categoría</TableHead>
+                           <TableHead className="w-[140px]">Tarifa</TableHead>
+                           <TableHead className="w-[100px]">Medida</TableHead>
+                           <TableHead className="w-[120px] text-right">Precio Global</TableHead>
+                           <TableHead className="w-[140px] text-right">Precio Proyecto (RD$)</TableHead>
+                        </TableRow>
+                     </TableHeader>
+                     <TableBody>
+                        {tarifasGlobales.map((row) => (
+                           <TableRow key={row.categoria_equipo_tarifa_id}>
+                              <TableCell className="font-medium">{row.categoria_equipo_nombre}</TableCell>
+                              <TableCell>{row.categoria_equipo_tarifa_nombre}</TableCell>
+                              <TableCell>{row.medida_cobro_nombre}</TableCell>
+                              <TableCell className="text-right">
+                                 RD$ {row.precio_global.toLocaleString("es-DO")}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                 <Input
+                                    type="number"
+                                    min={0}
+                                    step="0.01"
+                                    placeholder={row.precio_global.toLocaleString("es-DO")}
+                                    value={getDisplay(row)}
+                                    onChange={(e) => handleEdit(row, e.target.value)}
+                                    className={`h-8 w-28 text-right ml-auto ${tieneCambio(row) ? "border-amber-400" : ""}`}
+                                 />
+                              </TableCell>
+                           </TableRow>
+                        ))}
+                     </TableBody>
+                  </Table>
+               </div>
+
+               <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <span>
+                     {tarifasGlobalesTotal} tarifa{tarifasGlobalesTotal !== 1 ? "s" : ""} en total
+                  </span>
+                  <div className="flex items-center gap-2">
+                     <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={page <= 1}
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                     >
+                        Anterior
+                     </Button>
+                     <span className="min-w-[80px] text-center">
+                        Pág. {page} de {totalPages}
+                     </span>
+                     <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={page >= totalPages}
+                        onClick={() => setPage((p) => p + 1)}
+                     >
+                        Siguiente
+                     </Button>
+                  </div>
+               </div>
+            </>
+         )}
+
+         {hayCambios && (
+            <div className="sticky bottom-0 flex justify-end border-t bg-background pt-4">
+               <Button
+                  type="button"
+                  onClick={handleGuardar}
+                  disabled={guardando}
+                  className="gap-2"
+               >
+                  <Save className="size-4" />
+                  {guardando ? "Guardando..." : `Guardar Cambios (${tarifasGlobales.filter(tieneCambio).length})`}
+               </Button>
+            </div>
+         )}
       </div>
    );
 }
