@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Eye, ReceiptText, Edit2, Trash2, Pencil, FileDown, Loader2 } from "lucide-react";
+import { Eye, ReceiptText, Edit2, Trash2, Pencil, FileDown, Loader2, ArrowLeftRight } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { generateGastosReportePDF } from "@/lib/pdf/gastos-reporte-pdf";
@@ -14,7 +14,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { GastoForm } from "./gasto-form";
 import { DeleteGastoDialog } from "./delete-gasto-dialog";
 
-export function GastoTable({ gastos }: { gastos: Gasto[] }) {
+export function GastoTable({ gastos, onMoveGasto, moveTargetLabel, onDataChanged }: {
+   gastos: Gasto[];
+   onMoveGasto?: (gasto: Gasto) => void;
+   moveTargetLabel?: string;
+   onDataChanged?: () => void;
+}) {
    const { UpdateGasto, DeleteGasto } = useGastoStore();
    
    const [editingGasto, setEditingGasto] = useState<Gasto | null>(null);
@@ -55,6 +60,7 @@ export function GastoTable({ gastos }: { gastos: Gasto[] }) {
       try {
          await UpdateGasto(editingGasto.id, data);
          setEditingGasto(null);
+         onDataChanged?.();
       } finally {
          setActionLoading(false);
       }
@@ -66,6 +72,7 @@ export function GastoTable({ gastos }: { gastos: Gasto[] }) {
       try {
          await DeleteGasto(deletingGasto.id, { deleted_reason: reason });
          setDeletingGasto(null);
+         onDataChanged?.();
       } finally {
          setActionLoading(false);
       }
@@ -186,6 +193,15 @@ export function GastoTable({ gastos }: { gastos: Gasto[] }) {
                               >
                                  <Trash2 className="size-4" />
                               </button>
+                              {onMoveGasto && (
+                                 <button
+                                    onClick={() => onMoveGasto(g)}
+                                    className="rounded-md p-1.5 text-amber-600 hover:bg-amber-500/10 transition-colors"
+                                    title={moveTargetLabel ?? "Mover"}
+                                 >
+                                    <ArrowLeftRight className="size-4" />
+                                 </button>
+                              )}
                            </div>
                         </td>
                      </tr>

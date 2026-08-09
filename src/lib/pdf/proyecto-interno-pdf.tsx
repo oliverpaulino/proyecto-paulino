@@ -54,8 +54,8 @@ function ProyectoInternoDocument({
    proyecto: Proyecto;
    conduces: ConduceDTO[];
 }) {
-   const cargosCobrables = proyecto.detalle.filter((d) => d.es_cobrable);
-   const gastosInternos = proyecto.detalle.filter((d) => !d.es_cobrable);
+   const cargosCobrables = (proyecto.gastos ?? []).filter((g) => g.cobrable_proyecto);
+   const gastosInternos = (proyecto.gastos ?? []).filter((g) => !g.cobrable_proyecto);
 
    const conducesCobrables = conduces.filter((cc) => cc.es_cobrable);
    const conducesNoCobrables = conduces.filter((cc) => !cc.es_cobrable);
@@ -190,14 +190,18 @@ function ProyectoInternoDocument({
                            <Text style={[s.tableHeadCell, c.colPrice]}>P. Unit.</Text>
                            <Text style={[s.tableHeadCell, c.colSub]}>Subtotal</Text>
                         </View>
-                        {cargosCobrables.map((cargo, i) => (
-                           <View key={cargo.id} style={[s.tableRow, i % 2 !== 0 ? s.tableRowAlt : {}]}>
-                              <Text style={[s.tableCell, c.colDesc]}>{cargo.descripcion}</Text>
-                              <Text style={[s.tableCell, c.colQty]}>{fmtNum(cargo.cantidad)}</Text>
-                              <Text style={[s.tableCell, c.colPrice]}>{fmt(cargo.precio_unitario)}</Text>
-                              <Text style={[s.tableCell, c.colSub]}>{fmt(cargo.subtotal)}</Text>
-                           </View>
-                        ))}
+                         {cargosCobrables.map((cargo, i) => (
+                            <View key={cargo.id} style={[s.tableRow, i % 2 !== 0 ? s.tableRowAlt : {}]}>
+                               <Text style={[s.tableCell, c.colDesc]}>{cargo.concepto}</Text>
+                               <Text style={[s.tableCell, c.colQty]}>{fmtNum(cargo.cantidad ?? 1)}</Text>
+                               <Text style={[s.tableCell, c.colPrice]}>
+                                  {fmt(cargo.monto_unitario ?? cargo.cobrable_monto ?? cargo.monto_total)}
+                               </Text>
+                               <Text style={[s.tableCell, c.colSub]}>
+                                  {fmt(Number(cargo.cobrable_monto ?? cargo.monto_total))}
+                               </Text>
+                            </View>
+                         ))}
                      </View>
                   </>
                )}
@@ -213,14 +217,16 @@ function ProyectoInternoDocument({
                            <Text style={[s.tableHeadCell, c.colPrice]}>P. Unit.</Text>
                            <Text style={[s.tableHeadCell, c.colSub]}>Subtotal</Text>
                         </View>
-                        {gastosInternos.map((g, i) => (
-                           <View key={g.id} style={[s.tableRow, i % 2 !== 0 ? s.tableRowAlt : {}]}>
-                              <Text style={[s.tableCell, c.colDesc]}>{g.descripcion}</Text>
-                              <Text style={[s.tableCell, c.colQty]}>{fmtNum(g.cantidad)}</Text>
-                              <Text style={[s.tableCell, c.colPrice]}>{fmt(g.precio_unitario)}</Text>
-                              <Text style={[s.tableCell, c.colSub]}>{fmt(g.subtotal)}</Text>
-                           </View>
-                        ))}
+                         {gastosInternos.map((g, i) => (
+                            <View key={g.id} style={[s.tableRow, i % 2 !== 0 ? s.tableRowAlt : {}]}>
+                               <Text style={[s.tableCell, c.colDesc]}>{g.concepto}</Text>
+                               <Text style={[s.tableCell, c.colQty]}>{fmtNum(g.cantidad ?? 1)}</Text>
+                               <Text style={[s.tableCell, c.colPrice]}>
+                                  {fmt(g.monto_unitario ?? g.monto_total)}
+                               </Text>
+                               <Text style={[s.tableCell, c.colSub]}>{fmt(Number(g.monto_total))}</Text>
+                            </View>
+                         ))}
                      </View>
                   </>
                )}

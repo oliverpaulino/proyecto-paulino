@@ -864,8 +864,6 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId, fixe
                            cliente_id: clienteId || data.cliente_id,
                            fecha_inicio: data.fecha_inicio ? new Date(data.fecha_inicio).toISOString() : undefined,
                            fecha_fin: data.fecha_fin ? new Date(data.fecha_fin).toISOString() : undefined,
-                           cargos_cobrables: data.cargos_cobrables ?? [],
-                           gastos_internos: data.gastos_internos ?? [],
                         });
 
                         if (result instanceof Error) throw result;

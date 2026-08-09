@@ -1,26 +1,15 @@
 import { ConduceProps } from "../../conduce/domain/conduce.domain";
+import { GastoProps } from "../../gastos/domain/gastos.domain";
 
 export type EstadoProyecto = "BORRADOR" | "COMPLETADO" | "EN PROGRESO" | "CANCELADO";
-
-
-
-// ─── Ítem de detalle (cargos/gastos manuales, no ligados a equipos) ─────────
-export interface ProyectoDetalleProps {
-   id: string;
-   proyecto_id: string;
-   descripcion: string;
-   cantidad: number;
-   precio_unitario: number;
-   subtotal: number;
-   es_cobrable: boolean;
-   created_at: Date;
-   updated_at: Date;
-}
 
 // ─── Proyecto (cabecera) ─────────────────────────────────────────────────────
 // NOTA: `asignaciones` (proyecto_asignacion) se removió de aquí — esa tabla
 // nunca se llenaba en el flujo actual (createExpress no la insertaba), así
 // que era código muerto. Si la necesitas para otra cosa, dímelo y la regreso.
+// NOTA 2: `proyecto_detalle` (cargos/gastos manuales) se desactivó — los
+// cobrables/incobrables del proyecto ahora viven en la tabla `gasto`, con
+// cobrable_proyecto. Los gastos del proyecto se exponen aquí en `gastos`.
 export type ProyectoProps = {
    id: string;
    /** Código legible tipo `PRO-001`, derivado de `proyecto.referencia`. */
@@ -37,7 +26,7 @@ export type ProyectoProps = {
    notas: string | null;
    fecha_inicio: Date;
    fecha_fin: Date | null;
-   detalle: ProyectoDetalleProps[];
+   gastos: GastoProps[]; // ← reemplaza a proyecto.detalle
    conduces: ConduceProps[]; // ← reemplaza a equiposDetalle
    created_at: Date;
    updated_at: Date;
@@ -50,17 +39,6 @@ export interface CreateProyectoDTO {
    fecha_inicio?: Date;
    fecha_fin?: Date;
    tarifa_servicio?: number;
-
-   cargos_cobrables: Array<{
-      descripcion: string;
-      cantidad: number;
-      precio_unitario: number;
-   }>;
-   gastos_internos: Array<{
-      descripcion: string;
-      cantidad: number;
-      precio_unitario: number;
-   }>;
 }
 
 // ─── Totales recalculados (usado por ConduceService tras cada mutación) ─────
@@ -74,13 +52,15 @@ export interface ProyectoTotales {
 // ─── Facade de liquidación (para el PDF) ─────────────────────────────────────
 // Antes tenía operador_nombre/equipo_nombre/horas_trabajadas (un solo equipo
 // asumido). Ahora puede haber muchos conduces, así que se expone la lista.
+// Los cargos cobrables/incobrables ahora salen de la tabla `gasto` filtrada
+// por cobrable_proyecto (reemplaza a proyecto_detalle).
 export interface LiquidacionFacade {
    proyecto_id: string;
    nombre: string;
    cliente_nombre: string;
    tarifa_servicio: number;
-   cargos_cobrables: ProyectoDetalleProps[];
-   gastos_internos: ProyectoDetalleProps[];
+   gastos_cobrables: GastoProps[];
+   gastos_incobrables: GastoProps[];
    conduces: ConduceProps[];
    total_cobrable: number;
    total_gasto_interno: number;
@@ -107,5 +87,4 @@ export interface IProyectoRepository {
    update(id: string, data: UpdateProyectoDTO): Promise<ProyectoProps | null>;
    getLiquidacion(id: string): Promise<LiquidacionFacade | null>;
    recalcularTotales(proyectoId: string): Promise<ProyectoTotales>;
-   toggleDetalleCobrable(ids: string[], es_cobrable: boolean): Promise<void>;
 }
