@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Eye, ReceiptText, Edit2, Trash2, Pencil, FileDown, Loader2, ArrowLeftRight } from "lucide-react";
+import { Eye, ReceiptText, Edit2, Trash2, Pencil, FileDown, Loader2, ArrowLeftRight, Banknote } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { generateGastosReportePDF } from "@/lib/pdf/gastos-reporte-pdf";
@@ -10,8 +10,11 @@ import type { Gasto, UpdateGastoForm } from "@/dtos/gastos.dto";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useGastoStore } from "@/stores/useGastoStore";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { usePagoStore } from "@/stores/usePagoStore";
+import type { CreatePagoForm } from "@/dtos/pagos.dto";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { GastoForm } from "./gasto-form";
+import { PagoForm } from "../../pagos/components/pago-form";
 import { DeleteGastoDialog } from "./delete-gasto-dialog";
 
 export function GastoTable({ gastos, onMoveGasto, moveTargetLabel, onDataChanged }: {
@@ -21,9 +24,11 @@ export function GastoTable({ gastos, onMoveGasto, moveTargetLabel, onDataChanged
    onDataChanged?: () => void;
 }) {
    const { UpdateGasto, DeleteGasto } = useGastoStore();
+   const { CreatePago } = usePagoStore();
    
    const [editingGasto, setEditingGasto] = useState<Gasto | null>(null);
    const [deletingGasto, setDeletingGasto] = useState<Gasto | null>(null);
+   const [pagandoGasto, setPagandoGasto] = useState<Gasto | null>(null);
    const [actionLoading, setActionLoading] = useState(false);
    const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
    const [generandoPdf, setGenerandoPdf] = useState(false);
@@ -61,6 +66,18 @@ export function GastoTable({ gastos, onMoveGasto, moveTargetLabel, onDataChanged
          await UpdateGasto(editingGasto.id, data);
          setEditingGasto(null);
          onDataChanged?.();
+      } finally {
+         setActionLoading(false);
+      }
+   };
+
+   const handleCreatePago = async (data: CreatePagoForm) => {
+      setActionLoading(true);
+      try {
+         const result = await CreatePago(data);
+         if (result instanceof Error) throw result;
+         setPagandoGasto(null);
+         await GetGastos({ force: true });
       } finally {
          setActionLoading(false);
       }
@@ -179,6 +196,13 @@ export function GastoTable({ gastos, onMoveGasto, moveTargetLabel, onDataChanged
                                     <Eye className="size-4" />
                                  </button>
                               </Link>
+                              <button
+                                 onClick={() => setPagandoGasto(g)}
+                                 className="rounded-md p-1.5 text-emerald-600 hover:bg-emerald-600/10 transition-colors"
+                                 title="Registrar pago"
+                              >
+                                 <Banknote className="size-4" />
+                              </button>
                               <button 
                                  onClick={() => setEditingGasto(g)}
                                  className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10 transition-colors" 
@@ -222,6 +246,29 @@ export function GastoTable({ gastos, onMoveGasto, moveTargetLabel, onDataChanged
                      onSubmit={handleEdit} 
                      onCancel={() => setEditingGasto(null)} 
                      loading={actionLoading} 
+                  />
+               )}
+            </DialogContent>
+         </Dialog>
+
+         <Dialog open={!!pagandoGasto} onOpenChange={(open) => !open && setPagandoGasto(null)}>
+            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+               <DialogHeader>
+                  <DialogTitle>Registrar Pago</DialogTitle>
+                  <DialogDescription>
+                     Pago aplicado al gasto {pagandoGasto?.codigoReferencia}.
+                  </DialogDescription>
+               </DialogHeader>
+               {pagandoGasto && (
+                  <PagoForm
+                     predefinedValues={{
+                        gasto_empresa_id: pagandoGasto.id,
+                        tipo_movimiento: "SALIDA",
+                     }}
+                     predefinedGastoLabel={pagandoGasto.codigoReferencia}
+                     onSubmit={handleCreatePago}
+                     onCancel={() => setPagandoGasto(null)}
+                     loading={actionLoading}
                   />
                )}
             </DialogContent>
