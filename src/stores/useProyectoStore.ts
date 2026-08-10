@@ -26,7 +26,6 @@ type ProyectoStore = {
    // AQUÍ ESTÁ EL CAMBIO: Reemplazamos Record<string, unknown> por UpdateProyectoForm
    UpdateProyecto: (id: string, data: UpdateProyectoForm) => Promise<true | Error>;
 
-   ToggleDetalleCobrable: (ids: string[], es_cobrable: boolean) => Promise<true | Error>;
    invalidateCache: () => void;
 };
 
@@ -146,23 +145,6 @@ export const useProyectoStore = create<ProyectoStore>((set, get) => ({
          return true;
       } catch (e) {
          return e as Error;
-      }
-   },
-
-   ToggleDetalleCobrable: async (ids: string[], es_cobrable: boolean) => {
-      try {
-         const res = await fetch("/api/proyectos/detalle/cobrable", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ids, es_cobrable }),
-         });
-         if (!res.ok) {
-            const errorText = await res.text();
-            throw new Error(`Error ${res.status}: ${errorText}`);
-         }
-         return true;
-      } catch (error) {
-         return error as Error;
       }
    },
 }));

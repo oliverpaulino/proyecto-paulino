@@ -27,6 +27,10 @@ export const GastoDTO = z.object({
 
    cobrable_proyecto: z.boolean(),
    cobrable_monto: z.number().nullable(),
+
+   // Ítem facturable (para la factura del proyecto).
+   cantidad: z.number(),
+   monto_unitario: z.number().nullable(),
    
    fecha: z.coerce.date(),
    created_at: z.coerce.date(),
@@ -57,10 +61,17 @@ export const CreateGastoSchema = z.object({
    equipo_id: z.uuid().optional().nullable(),
    cobrable_proyecto: z.boolean().default(false),
    cobrable_monto: z.coerce.number().min(0, "El monto a cobrar al cliente no puede ser menor a 0").optional().nullable(),
+   cantidad: z.coerce.number().int().min(1, "La cantidad debe ser al menos 1").optional(),
+   monto_unitario: z.coerce.number().min(0, "El precio unitario no puede ser menor a 0").optional().nullable(),
    deduccion: CreateGastoDeduccionSchema.optional(),
 });
 
 export const UpdateGastoSchema = CreateGastoSchema.omit({ deduccion: true }).partial();
+
+export const MoveCobrableSchema = z.object({
+   cobrable_proyecto: z.boolean(),
+   cobrable_monto: z.coerce.number().min(0, "El monto a cobrar al cliente no puede ser menor a 0").nullable().optional(),
+});
 
 export const DeleteGastoSchema = z.object({
    deleted_by: z.uuid().optional(),
@@ -71,3 +82,4 @@ export type Gasto = z.infer<typeof GastoDTO>;
 export type CreateGastoForm = z.infer<typeof CreateGastoSchema>;
 export type UpdateGastoForm = z.infer<typeof UpdateGastoSchema>;
 export type DeleteGastoForm = z.infer<typeof DeleteGastoSchema>;
+export type MoveCobrableForm = z.infer<typeof MoveCobrableSchema>;

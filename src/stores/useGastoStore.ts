@@ -4,6 +4,7 @@ import type {
    CreateGastoForm,
    UpdateGastoForm,
    DeleteGastoForm,
+   MoveCobrableForm,
 } from "@/dtos/gastos.dto";
 
 type GastosFilters = {
@@ -15,6 +16,7 @@ type GastosFilters = {
    orden_compra_id?: string;
    proyecto_id?: string;
    equipo_id?: string;
+   cobrable_proyecto?: boolean;
 };
 
 type GastoStore = {
@@ -43,6 +45,7 @@ type GastoStore = {
    UpdateGasto: (id: string, data: UpdateGastoForm) => Promise<void | Error>;
    DeleteGasto: (id: string, data: DeleteGastoForm) => Promise<void | Error>;
    RestoreGasto: (id: string) => Promise<void | Error>;
+   MoveCobrable: (id: string, data: MoveCobrableForm) => Promise<void | Error>;
 
    NextPage: () => Promise<void>;
    PrevPage: () => Promise<void>;
@@ -83,7 +86,7 @@ export const useGastoStore = create<GastoStore>((set, get) => ({
 
       const query = new URLSearchParams({ page: String(page), limit: String(limit) });
       Object.entries(appliedFilters).forEach(([key, val]) => {
-         if (val) query.append(key, val);
+         if (val !== undefined && val !== null && val !== "") query.append(key, String(val));
       });
 
       const cacheKey = query.toString();
@@ -120,7 +123,7 @@ export const useGastoStore = create<GastoStore>((set, get) => ({
 
       const query = new URLSearchParams({ page: String(page), limit: String(limit) });
       Object.entries(appliedFilters).forEach(([key, val]) => {
-         if (val) query.append(key, val);
+         if (val !== undefined && val !== null && val !== "") query.append(key, String(val));
       });
 
       const cacheKey = query.toString();
@@ -205,6 +208,22 @@ export const useGastoStore = create<GastoStore>((set, get) => ({
          // Refrescamos ambas listas por si el usuario está en la vista de eliminados o en la normal
          await get().GetGastos({ force: true });
          await get().GetDeletedGastos({ force: true });
+      } catch (error) {
+         return error as Error;
+      }
+   },
+
+   MoveCobrable: async (id, data) => {
+      try {
+         const res = await fetch(`${BASE_URL}/${id}/cobrable`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+         });
+         if (!res.ok) throw new Error((await res.json()).error || "Error al actualizar cobrabilidad");
+
+         get().invalidateCache();
+         await get().GetGastos({ force: true });
       } catch (error) {
          return error as Error;
       }

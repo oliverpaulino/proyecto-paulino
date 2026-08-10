@@ -46,11 +46,9 @@ export class ProyectoService {
    async create(data: CreateProyectoDTO): Promise<ProyectoProps> {
       if (!data.cliente_id?.trim()) throw new Error("El cliente es requerido");
       if (!data.nombre?.trim()) throw new Error("El nombre es requerido");
-      this.#validateItems(data.cargos_cobrables || [], "cargo cobrable");
-      this.#validateItems(data.gastos_internos || [], "gasto interno");
 
       const proyecto = await this.repo.create(data);
-      return { ...proyecto, conduces: [] }; // recién creado, aún no tiene conduces
+      return { ...proyecto, conduces: [], gastos: [] }; // recién creado, aún no tiene conduces ni gastos
    }
 
    async getLiquidacion(id: string): Promise<LiquidacionFacade | null> {
@@ -67,25 +65,4 @@ export class ProyectoService {
     async recalcularTotales(id: string): Promise<ProyectoTotales> {
        return this.repo.recalcularTotales(id);
     }
-
-    async toggleDetalleCobrable(ids: string[], es_cobrable: boolean): Promise<void> {
-       if (ids.length === 0) return;
-       return this.repo.toggleDetalleCobrable(ids, es_cobrable);
-    }
-
-   #validateItems(
-
-      items: Array<{ descripcion: string; cantidad: number; precio_unitario: number }>,
-      tipo: string
-   ): void {
-      for (let i = 0; i < items.length; i++) {
-         const item = items[i];
-         if (!item.descripcion?.trim())
-            throw new Error(`${tipo} ${i + 1}: la descripción es requerida`);
-         if (item.cantidad <= 0)
-            throw new Error(`${tipo} ${i + 1}: la cantidad debe ser mayor a 0`);
-         if (item.precio_unitario < 0)
-            throw new Error(`${tipo} ${i + 1}: el precio unitario debe ser mayor o igual a 0`);
-      }
-   }
 }

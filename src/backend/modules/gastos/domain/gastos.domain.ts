@@ -26,6 +26,11 @@ export interface GastoProps {
    cobrable_proyecto: boolean;
    cobrable_monto: number | null;
 
+   // Ítem facturable: cantidad (default 1) y precio unitario (null = se cae al
+   // monto a cobrar en la factura). Si cantidad > 1, monto_total = cantidad × monto_unitario.
+   cantidad: number;
+   monto_unitario: number | null;
+
    fecha: Date;
    created_at: Date;
    updated_at: Date;
@@ -57,9 +62,11 @@ export class Gasto {
    get proyecto_codigo_referencia() { return this.props.proyecto_codigo_referencia; }
    get equipo_id() { return this.props.equipo_id; }
    get equipo_codigo_referencia() { return this.props.equipo_codigo_referencia; }
-   get cobrable_proyecto() { return this.props.cobrable_proyecto; }
-   get cobrable_monto() { return this.props.cobrable_monto; }
-   get fecha() { return this.props.fecha }
+    get cobrable_proyecto() { return this.props.cobrable_proyecto; }
+    get cobrable_monto() { return this.props.cobrable_monto; }
+    get cantidad() { return this.props.cantidad; }
+    get monto_unitario() { return this.props.monto_unitario; }
+    get fecha() { return this.props.fecha }
    get created_at() { return this.props.created_at; }
    get updated_at() { return this.props.updated_at; }
    get deleted_by() { return this.props.deleted_by; }
@@ -83,6 +90,9 @@ export interface CreateGastoDTO {
    equipo_id?: string | null;
    cobrable_proyecto?: boolean;
    cobrable_monto?: number | null;
+   /** Cantidad de ítems facturables (default 1). Si > 1, monto_total se deriva como cantidad × monto_unitario. */
+   cantidad?: number;
+   monto_unitario?: number | null;
    deduccion?: CreateGastoDeduccionDTO;
 }
 
@@ -96,6 +106,11 @@ export interface CreateGastoDeduccionDTO {
    monto_cuota?: number;
    concepto: string;
    fecha: Date;
+}
+
+export interface MoveCobrableDTO {
+   cobrable_proyecto: boolean;
+   cobrable_monto?: number | null;
 }
 
 export type UpdateGastoDTO = Omit<Partial<CreateGastoDTO>, "deduccion">;
@@ -116,7 +131,8 @@ export interface IGastoRepository {
                      grupo?: string;
                      orden_compra_id?: string | null;
                      proyecto_id?: string | null;
-                     equipo_id?: string | null; }): Promise<Gasto[]>;
+                     equipo_id?: string | null;
+                     cobrable_proyecto?: boolean; }): Promise<Gasto[]>;
 
    findAllDeleted( params?: { page?: number; 
                      limit?: number; 
@@ -127,7 +143,8 @@ export interface IGastoRepository {
                      grupo?: string;
                      orden_compra_id?: string | null;
                      proyecto_id?: string | null;
-                     equipo_id?: string | null; }): Promise<Gasto[]>;
+                     equipo_id?: string | null;
+                     cobrable_proyecto?: boolean; }): Promise<Gasto[]>;
 
    findById(id: string): Promise<Gasto | null>;
    findDeletedById(id: string): Promise<Gasto | null>;
