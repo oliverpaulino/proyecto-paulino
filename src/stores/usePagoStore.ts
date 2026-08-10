@@ -4,6 +4,7 @@ import type {
    CreatePagoForm,
    UpdatePagoForm,
    DeletePagoForm,
+   InfoDestinoPago,
 } from "@/dtos/pagos.dto";
 
 type PagosFilters = {
@@ -12,9 +13,17 @@ type PagosFilters = {
    end?: string;
    gasto_empresa_id?: string;
    deduccion_empleado_id?: string;
+   proyecto_id?: string;
    orden_compra_id?: string;
    equipo_id?: string;
    proveedor_id?: string;
+};
+
+type DestinoParams = {
+   gasto_empresa_id?: string;
+   deduccion_empleado_id?: string;
+   proyecto_id?: string;
+   orden_compra_id?: string;
 };
 
 type PagoStore = {
@@ -40,6 +49,12 @@ type PagoStore = {
    GetPagosByOrdenCompra: (ordenCompraId: string, params?: { limit?: number; force?: boolean }) => Promise<void>;
    GetDeletedPagos: (params?: PagosFilters & { page?: number; limit?: number; force?: boolean }) => Promise<void>;
 
+   /** Balance polimórfico del destino seleccionado en el form de pago. */
+   destinoInfo: InfoDestinoPago | null;
+   destinoInfoLoading: boolean;
+   GetDestinoInfo: (params: DestinoParams) => Promise<void>;
+   clearDestinoInfo: () => void;
+
    CreatePago: (form: CreatePagoForm) => Promise<Pago | Error>;
    UpdatePago: (id: string, data: UpdatePagoForm) => Promise<void | Error>;
    DeletePago: (id: string, data: DeletePagoForm) => Promise<void | Error>;
@@ -62,6 +77,8 @@ export const usePagoStore = create<PagoStore>((set, get) => ({
    DeletedPagos: [],
    selectedPago: null,
    loading: false,
+   destinoInfo: null,
+   destinoInfoLoading: false,
    pagination: {
       page: 1, limit: 20, total: 0, totalPages: 0, hasNext: false, hasPrev: false,
    },
@@ -170,6 +187,29 @@ export const usePagoStore = create<PagoStore>((set, get) => ({
          set({ loading: false });
       }
    },
+
+   GetDestinoInfo: async (params) => {
+      set({ destinoInfoLoading: true });
+      try {
+         const query = new URLSearchParams();
+         Object.entries(params).forEach(([key, val]) => {
+            if (val) query.append(key, val);
+         });
+
+         const res = await fetch(`${BASE_URL}/destino-info?${query.toString()}`);
+         if (!res.ok) throw new Error("Error al obtener la información del destino");
+
+         const info: InfoDestinoPago = await res.json();
+         set({ destinoInfo: info });
+      } catch (error) {
+         set({ destinoInfo: null });
+         console.error(error);
+      } finally {
+         set({ destinoInfoLoading: false });
+      }
+   },
+
+   clearDestinoInfo: () => set({ destinoInfo: null }),
 
    CreatePago: async (form) => {
       try {
