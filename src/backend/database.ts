@@ -1,4 +1,4 @@
-import { Kysely, PostgresDialect, Generated } from "kysely";
+import { Kysely, PostgresDialect, Generated, ColumnType } from "kysely";
 import { Pool } from "pg";
 
 export interface ServicioTable {
@@ -632,6 +632,10 @@ export interface DB {
       // nace de una subcontratación, subcontratacion_id apunta a ella.
       proveedor_id: string | null;
       subcontratacion_id: string | null;
+      // Parte del gasto que se traslada al cliente (se cobra). Si es false,
+      // todo el monto lo cubre la empresa. Default DB: false / null.
+      cobrable_proyecto: ColumnType<boolean, boolean | undefined, boolean>;
+      cobrable_monto: ColumnType<number | null, number | null | undefined, number | null>;
       fecha: Date;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
