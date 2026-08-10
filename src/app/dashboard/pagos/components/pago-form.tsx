@@ -1,18 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ArrowDownRight, ArrowUpRight, Info, Loader2 } from "lucide-react";
 import { SelectBuscadorGasto } from "@/components/shared/SelectBuscadorGasto";
 import { SelectBuscadorDeduccion } from "@/components/shared/SelectBuscadorDeduccion";
 import { SelectBuscadorProyecto } from "@/components/shared/selectBuscadorProyecto";
 import { SelectBuscadorOrdenCompra } from "@/components/shared/selectBuscadorOrdenCompra";
 import { 
    CreatePagoForm, 
-   MetodoPago, 
-   TipoMovimiento 
+   InfoDestinoPago,
+   ConfigPagoPorDestino,
+   TipoDestinoPago,
 } from "@/dtos/pagos.dto";
+import { usePagoStore } from "@/stores/usePagoStore";
 
 interface PagoFormProps {
    initialData?: any;
@@ -28,15 +31,15 @@ interface PagoFormProps {
 const INPUT_CLASS = "h-9 w-full rounded-md border border-input bg-input/30 px-3 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] disabled:opacity-60 disabled:bg-muted";
 const TEXTAREA_CLASS = "min-h-[80px] w-full rounded-md border border-input bg-input/30 px-3 py-2 text-sm outline-none disabled:opacity-60 disabled:bg-muted resize-none";
 
-const metodoPagoOptions = Object.entries(MetodoPago).map(([key, value]) => ({
-   value: key as keyof typeof MetodoPago,
-   label: value,
-}));
+const formatMoney = (value: number): string =>
+   value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const tipoMovimientoOptions = Object.entries(TipoMovimiento).map(([key, value]) => ({
-   value: key as keyof typeof TipoMovimiento,
-   label: value,
-}));
+const TIPO_DESTINO_LABEL: Record<TipoDestinoPago, string> = {
+   GASTO: "Gasto",
+   DEDUCCION: "Deducción",
+   PROYECTO: "Proyecto",
+   ORDEN_COMPRA: "Orden de Compra",
+};
 
 export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraLabel, onSubmit, onCancel, loading }: PagoFormProps) {
    // Determinar estado inicial del tipo de destino basado en la data inicial
@@ -48,7 +51,14 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
       return '';
    };
 
-   const [destinoTipo, setDestinoTipo] = useState<string>(getInitialDestino());
+   const [destinoTipo, setDestinoTipo] = useState<TipoDestinoPago | "">(getInitialDestino());
+
+   // Config funcional del destino elegido: los enums de método de pago y tipo
+   // de movimiento varían según el destino (ver ConfigPagoPorDestino en el DTO).
+   const config = destinoTipo ? ConfigPagoPorDestino[destinoTipo] : null;
+   const metodoPagoOptions = config?.tipoMetodoPagoPosible ?? [];
+   const tipoMovimientoOptions = config?.tipoMovimientoPosibles ?? [];
+   const soloUnMovimiento = tipoMovimientoOptions.length === 1;
 
    const [values, setValues] = useState({
       metodo_pago: initialData?.metodo_pago ?? predefinedValues?.metodo_pago ?? "TRANSFERENCIA",
@@ -67,16 +77,57 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
 
    const [error, setError] = useState<string | null>(null);
 
+   const destinoInfo = usePagoStore((s) => s.destinoInfo);
+   const destinoInfoLoading = usePagoStore((s) => s.destinoInfoLoading);
+   const GetDestinoInfo = usePagoStore((s) => s.GetDestinoInfo);
+   const clearDestinoInfo = usePagoStore((s) => s.clearDestinoInfo);
+
+   // Carga el balance polimórfico del destino seleccionado (Gasto, Deducción,
+   // Proyecto u Orden de Compra) para mostrarlo en la sección informativa.
+   useEffect(() => {
+      const params: Record<string, string> = {};
+      if (values.gasto_empresa_id) params.gasto_empresa_id = values.gasto_empresa_id;
+      if (values.deduccion_empleado_id) params.deduccion_empleado_id = values.deduccion_empleado_id;
+      if (values.proyecto_id) params.proyecto_id = values.proyecto_id;
+      if (values.orden_compra_id) params.orden_compra_id = values.orden_compra_id;
+
+      if (Object.keys(params).length === 1) {
+         clearDestinoInfo();
+         GetDestinoInfo(params);
+      } else {
+         clearDestinoInfo();
+      }
+   }, [
+      values.gasto_empresa_id,
+      values.deduccion_empleado_id,
+      values.proyecto_id,
+      values.orden_compra_id,
+      GetDestinoInfo,
+      clearDestinoInfo,
+   ]);
+
+   // Al editar, el saldo del destino ya incluye el propio pago: se devuelve
+   // para mostrar el balance real antes de aplicar el nuevo monto.
+   const editingAdjustment = useMemo(() => {
+      if (!initialData) return 0;
+      const mismoMov = initialData.tipo_movimiento === values.tipo_movimiento;
+      return mismoMov ? Number(initialData.monto_pagado) : 0;
+   }, [initialData, values.tipo_movimiento]);
+
    function set<K extends keyof typeof values>(field: K, value: typeof values[K]) {
       setValues((prev) => ({ ...prev, [field]: value }));
    }
 
    const handleDestinoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const type = e.target.value;
+      const type = e.target.value as TipoDestinoPago | "";
       setDestinoTipo(type);
-      // Limpiar los IDs cuando cambie el destino para mantener la exclusividad
+      const nextConfig = type ? ConfigPagoPorDestino[type] : null;
+      // Limpiar los IDs cuando cambie el destino para mantener la exclusividad,
+      // y ajustar método/movimiento a los primeros permitidos por el destino.
       setValues((prev) => ({
          ...prev,
+         metodo_pago: nextConfig?.tipoMetodoPagoPosible[0]?.value ?? prev.metodo_pago,
+         tipo_movimiento: nextConfig?.tipoMovimientoPosibles[0]?.value ?? prev.tipo_movimiento,
          gasto_empresa_id: null,
          deduccion_empleado_id: null,
          proyecto_id: null,
@@ -117,6 +168,34 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
          return setError("Debe proveer exactamente una referencia de destino válida (Gasto, Deducción, Proyecto u Orden de Compra).");
       }
 
+      if (destinoInfo) {
+         const monto = Number(values.monto_pagado);
+         const esEntrada = values.tipo_movimiento === 'ENTRADA';
+
+         if (destinoInfo.tipo === 'DEDUCCION' && !esEntrada) {
+            return setError("Las deducciones solo aceptan pagos de entrada (el empleado amortiza su deuda).");
+         }
+         if (destinoInfo.tipo === 'ORDEN_COMPRA' && !esEntrada) {
+            return setError("Las órdenes de compra solo aceptan pagos de salida (la empresa paga al proveedor).");
+         }
+         if (destinoInfo.tipo === 'ORDEN_COMPRA' && destinoInfo.estado && !['APROBADA', 'RECIBIDA'].includes(destinoInfo.estado)) {
+            return setError(`No se pueden realizar pagos a órdenes de compra en estado ${destinoInfo.estado}; solo aprobadas o recibidas.`);
+         }
+         if (destinoInfo.tipo === 'GASTO' && esEntrada && !destinoInfo.cobrableProyecto) {
+            return setError("Este gasto no es cobrable al cliente: solo se permiten pagos de salida.");
+         }
+         if (destinoInfo.tipo === 'GASTO' && !esEntrada && destinoInfo.aceptaPagoSalida === 0) {
+            return setError("Este gasto está asociado a una orden de compra: los pagos se registran contra la orden, no contra el gasto.");
+         }
+
+         // El tope lo define el destino (null = sin tope, p.ej. entradas a proyecto).
+         const tope = esEntrada ? destinoInfo.aceptaPagoEntrada : destinoInfo.aceptaPagoSalida;
+         const topeAjustado = tope === null ? null : tope + editingAdjustment;
+         if (topeAjustado !== null && monto > topeAjustado + 0.01) {
+            return setError(`El monto excede el saldo disponible del destino (disponible: RD$ ${Math.max(0, topeAjustado).toFixed(2)}).`);
+         }
+      }
+
       try {
          await onSubmit({
             metodo_pago: values.metodo_pago,
@@ -143,9 +222,10 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
                     <select 
                         value={values.metodo_pago} 
                         onChange={(e) => set("metodo_pago", e.target.value)}
-                        disabled={isDisabled("metodo_pago")}
+                        disabled={isDisabled("metodo_pago") || !config}
                         className={INPUT_CLASS}
                     >
+                        {!config && <option value="">Seleccione un destino primero...</option>}
                         {metodoPagoOptions.map((m) => (
                            <option key={m.value} value={m.value}>{m.label}</option>
                         ))}
@@ -156,9 +236,10 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
                     <select 
                         value={values.tipo_movimiento} 
                         onChange={(e) => set("tipo_movimiento", e.target.value)}
-                        disabled={isDisabled("tipo_movimiento")}
+                        disabled={isDisabled("tipo_movimiento") || !config || soloUnMovimiento}
                         className={INPUT_CLASS}
                     >
+                        {!config && <option value="">Seleccione un destino primero...</option>}
                         {tipoMovimientoOptions.map((t) => (
                            <option key={t.value} value={t.value}>{t.label}</option>
                         ))}
@@ -197,10 +278,9 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
                         required
                     >
                         <option value="" disabled>Seleccione el tipo...</option>
-                        <option value="GASTO">Gasto</option>
-                        <option value="DEDUCCION">Deducción</option>
-                        <option value="PROYECTO">Proyecto</option>
-                        <option value="ORDEN_COMPRA">Orden de Compra</option>
+                        {(Object.keys(ConfigPagoPorDestino) as TipoDestinoPago[]).map((t) => (
+                           <option key={t} value={t}>{TIPO_DESTINO_LABEL[t]}</option>
+                        ))}
                     </select>
                 </div>
                 
@@ -246,6 +326,17 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
                 </div>
             </div>
 
+            {/* ── Sección informativa del destino (balance polimórfico) ── */}
+            {(destinoTipo && (values.gasto_empresa_id || values.deduccion_empleado_id || values.proyecto_id || values.orden_compra_id)) && (
+               <DestinoInfoCard
+                  info={destinoInfo}
+                  loading={destinoInfoLoading}
+                  tipoMovimiento={values.tipo_movimiento}
+                  monto={Number(values.monto_pagado) || 0}
+                  adjustment={editingAdjustment}
+               />
+            )}
+
             <div className="flex flex-col gap-1.5">
                 <Label>Concepto del Pago *</Label>
                 <textarea 
@@ -265,5 +356,144 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
             <Button type="submit" disabled={loading}>{loading ? "Guardando..." : "Guardar Pago"}</Button>
          </div>
       </form>
+   );
+}
+
+function Stat({ label, value, tone = "default" }: { label: string; value: string; tone?: "default" | "good" | "warn" | "muted" }) {
+   const toneClass =
+      tone === "good" ? "text-emerald-600 dark:text-emerald-400"
+      : tone === "warn" ? "text-amber-600 dark:text-amber-400"
+      : tone === "muted" ? "text-muted-foreground"
+      : "text-foreground";
+   return (
+      <div className="rounded-lg border border-border bg-muted/20 p-3">
+         <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
+         <p className={`mt-1 text-lg font-semibold tabular-nums ${toneClass}`}>{value}</p>
+      </div>
+   );
+}
+
+/**
+ * Sección informativa del destino de un pago. Muestra el desglose según el
+ * tipo (gasto/deducción/proyecto/OC) y el saldo disponible para el
+ * movimiento seleccionado, con sus topes `aceptaPagoEntrada`/`aceptaPagoSalida`.
+ */
+function DestinoInfoCard({ info, loading, tipoMovimiento, monto, adjustment }: {
+   info: InfoDestinoPago | null;
+   loading: boolean;
+   tipoMovimiento: string;
+   monto: number;
+   adjustment: number;
+}) {
+   const esEntrada = tipoMovimiento === "ENTRADA";
+
+   if (loading && !info) {
+      return (
+         <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/10 p-4 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin text-brand-blue" />
+            Consultando el balance del destino…
+         </div>
+      );
+   }
+
+   if (!info) {
+      return (
+         <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/10 p-4 text-sm text-muted-foreground">
+            <Info className="size-4 text-brand-blue" />
+            No se pudo obtener la información del destino seleccionado.
+         </div>
+      );
+   }
+
+   // Tope del movimiento seleccionado (null = sin tope, p.ej. entradas a proyecto).
+   const tope = esEntrada ? info.aceptaPagoEntrada : info.aceptaPagoSalida;
+   const topeBase = tope === null ? null : tope + adjustment;
+   const sinTope = tope === null;
+   const excede = !sinTope && monto > (topeBase ?? 0) + 0.01;
+
+   return (
+      <div className="rounded-xl border border-brand-blue/20 bg-brand-blue/5 p-4 space-y-3">
+         <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+               <Info className="size-4 text-brand-blue shrink-0" />
+               <p className="text-sm font-semibold text-foreground truncate">
+                  {TIPO_DESTINO_LABEL[info.tipo]}: {info.referencia}
+               </p>
+            </div>
+            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${esEntrada ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300" : "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300"}`}>
+               {esEntrada ? <ArrowUpRight className="size-3.5 inline mr-1" /> : <ArrowDownRight className="size-3.5 inline mr-1" />}
+               {esEntrada ? "Entrada" : "Salida"}
+            </span>
+         </div>
+
+         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <Stat
+               label={esEntrada ? "Disponible (Entrada)" : "Disponible (Salida)"}
+               value={sinTope ? "Sin límite" : `$${formatMoney(Math.max(0, topeBase ?? 0))}`}
+               tone={excede ? "warn" : "good"}
+            />
+            {!sinTope && (
+               <Stat
+                  label="Nuevo Saldo"
+                  value={`$${formatMoney(Math.max(0, esEntrada ? (topeBase ?? 0) + monto : (topeBase ?? 0) - monto))}`}
+               />
+            )}
+            {info.tipo === "PROYECTO" && <Stat label="Capital Actual" value={`$${formatMoney(info.capital)}`} />}
+            {info.tipo !== "PROYECTO" && <Stat label="Monto Total" value={`$${formatMoney(info.montoTotal)}`} />}
+            {info.tipo === "ORDEN_COMPRA" && <Stat label="Estado" value={info.estado ?? "-"} tone="muted" />}
+         </div>
+
+         {info.tipo === "GASTO" && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+               <Stat label="Cobrable al Cliente" value={`$${formatMoney(info.cobrableCliente)}`} />
+               <Stat label="Cobrable Empresa" value={`$${formatMoney(info.cobrableEmpresa)}`} />
+               <Stat label="Pagado Cliente" value={`$${formatMoney(info.pagadoCliente)}`} />
+               <Stat label="Pagado Empresa" value={`$${formatMoney(info.pagadoEmpresa)}`} />
+               <Stat label="Acepta Entrada" value={`$${formatMoney(info.aceptaPagoEntrada ?? 0)}`} />
+               <Stat label="Acepta Salida" value={`$${formatMoney(info.aceptaPagoSalida)}`} />
+            </div>
+         )}
+
+         {info.tipo === "DEDUCCION" && (
+            <div className="grid grid-cols-2 gap-2">
+               <Stat label="Amortizado" value={`$${formatMoney(info.totalPagado)}`} />
+               <Stat label="Pendiente" value={`$${formatMoney(info.aceptaPagoEntrada ?? 0)}`} tone="good" />
+            </div>
+         )}
+
+         {info.tipo === "ORDEN_COMPRA" && (
+            <div className="grid grid-cols-2 gap-2">
+               <Stat label="Monto Total" value={`$${formatMoney(info.montoTotal)}`} />
+               <Stat label="Pagado a Proveedor" value={`$${formatMoney(info.montoPagado)}`} />
+               <Stat label="Pendiente" value={`$${formatMoney(info.aceptaPagoSalida)}`} />
+            </div>
+         )}
+
+         {info.tipo === "PROYECTO" && (
+            <div className="grid grid-cols-2 gap-2">
+               <Stat label="Abonado (Entradas)" value={`$${formatMoney(info.totalAbonado)}`} />
+               <Stat label="Utilizado (Salidas)" value={`$${formatMoney(info.totalUtilizado)}`} />
+               <Stat label="Disponible para Usos" value={`$${formatMoney(info.aceptaPagoSalida)}`} />
+            </div>
+         )}
+
+         {info.tipo === "GASTO" && esEntrada && !info.cobrableProyecto && (
+            <p className="text-xs text-muted-foreground">
+               Este gasto no es cobrable al cliente: solo se permiten pagos de salida (lo cubre la empresa).
+            </p>
+         )}
+
+         {info.tipo === "GASTO" && !esEntrada && info.aceptaPagoSalida === 0 && (
+            <p className="text-xs text-muted-foreground">
+               Este gasto está asociado a una orden de compra: los pagos se registran contra la orden, no contra el gasto.
+            </p>
+         )}
+
+         {excede && (
+            <p className="text-xs font-medium text-destructive bg-destructive/10 p-2 rounded-md">
+               El monto supera el saldo disponible del destino (RD$ {formatMoney(Math.max(0, topeBase ?? 0))}).
+            </p>
+         )}
+      </div>
    );
 }
