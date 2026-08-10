@@ -19,6 +19,7 @@ function extractParams(c: any) {
       gasto_empresa_id: c.req.query("gasto_empresa_id"),
       deduccion_empleado_id: c.req.query("deduccion_empleado_id"),
       orden_compra_id: c.req.query("orden_compra_id"),
+      proyecto_id: c.req.query("proyecto_id"),
       // Pagos vinculados a un equipo (vía gasto / deducción / orden de compra).
       equipo_id: c.req.query("equipo_id"),
       proveedor_id: c.req.query("proveedor_id"),
@@ -40,6 +41,36 @@ pagosRoute.get("/deleted", async (c) => {
       return c.json(pagos);
    } catch (err: unknown) {
       return c.json({ error: err instanceof Error ? err.message : "Error al obtener pagos anulados" }, 400);
+   }
+});
+
+/**
+ * Información polimórfica del destino de un pago (Gasto, Deducción, Proyecto
+ * u Orden de Compra): monto total, balance pendiente, cobrable, etc.
+ * GET /api/pagos/destino-info?gasto_empresa_id=&proyecto_id=&...
+ */
+pagosRoute.get("/destino-info", async (c) => {
+   try {
+      const params = {
+         gasto_empresa_id: c.req.query("gasto_empresa_id") ?? null,
+         deduccion_empleado_id: c.req.query("deduccion_empleado_id") ?? null,
+         proyecto_id: c.req.query("proyecto_id") ?? null,
+         orden_compra_id: c.req.query("orden_compra_id") ?? null,
+      };
+
+      const count = Object.values(params).filter(Boolean).length;
+      if (count !== 1) {
+         return c.json(
+            { error: "Debe proporcionar exactamente un destino (gasto_empresa_id, deduccion_empleado_id, proyecto_id u orden_compra_id)." },
+            400
+         );
+      }
+
+      const info = await service.getInfoDestino(params);
+      if (!info) return c.json({ error: "Destino no encontrado" }, 404);
+      return c.json(info);
+   } catch (err: unknown) {
+      return c.json({ error: err instanceof Error ? err.message : "Error al obtener la información del destino" }, 400);
    }
 });
 

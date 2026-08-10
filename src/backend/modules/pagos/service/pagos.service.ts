@@ -1,6 +1,7 @@
 import {
    CreatePagoDTO,
    DeletePagoDTO,
+   InfoDestinoPago,
    Pago,
    PagoProps,
    IPagoRepository,
@@ -19,26 +20,72 @@ export class PagoService {
 
    private readonly ESTADOS_PAGABLES = ["APROBADA", "RECIBIDA"];
 
-   private async validarCapOrdenCompra(ordenCompraId: string, monto: number, current?: Pago | null) {
-      const saldo = await this.repo.getSaldoPendienteOrdenCompra(ordenCompraId);
-      if (!saldo) throw new Error("Orden de Compra no encontrada o anulada");
+   private mismoDestino(
+      a: Partial<CreatePagoDTO>,
+      b: Partial<CreatePagoDTO>
+   ): boolean {
+      const idA = a.gasto_empresa_id ?? a.deduccion_empleado_id ?? a.proyecto_id ?? a.orden_compra_id;
+      const idB = b.gasto_empresa_id ?? b.deduccion_empleado_id ?? b.proyecto_id ?? b.orden_compra_id;
+      return !!idA && idA === idB;
+   }
 
-      if (!this.ESTADOS_PAGABLES.includes(saldo.estado)) {
+   /**
+    * Validación polimórfica del destino: según el tipo decide qué reglas
+    * aplicar (tipo de movimiento permitido, cobrabilidad, tope de saldo).
+    * Los topes vienen de `InfoDestinoPago.aceptaPago*` (null = sin tope).
+    */
+   private async validarPolimorfico(
+      data: { destino: Partial<CreatePagoDTO>; tipo_movimiento: string; monto_pagado: number },
+      current?: Pago | null
+   ) {
+      const info = await this.repo.getInfoDestino(data.destino);
+      if (!info) throw new Error("El destino del pago no existe o está anulado.");
+
+      const esEntrada = data.tipo_movimiento === "ENTRADA";
+
+      // Reglas de tipo de movimiento por destino
+      if (info.tipo === "ORDEN_COMPRA" && !esEntrada) {
+         throw new Error("Las órdenes de compra solo aceptan pagos de salida (la empresa paga al proveedor).");
+      }
+      if (info.tipo === "DEDUCCION" && !esEntrada) {
+         throw new Error("Las deducciones solo aceptan pagos de entrada (el empleado amortiza su deuda).");
+      }
+      if (info.tipo === "ORDEN_COMPRA" && !this.ESTADOS_PAGABLES.includes(info.estado ?? "")) {
          throw new Error(
-            `No se pueden realizar pagos a órdenes de compra en estado ${saldo.estado}; solo aprobadas o recibidas.`
+            `No se pueden realizar pagos a órdenes de compra en estado ${info.estado}; solo aprobadas o recibidas.`
          );
       }
-
-      let disponible = saldo.total - saldo.pagado;
-      // Al editar un pago ya aplicado a la OC, su monto ya está dentro de
-      // `saldo.pagado`: se devuelve para permitir ajustarlo sin penalizar.
-      if (current && current.orden_compra_id === ordenCompraId) {
-         disponible += current.monto_pagado;
+      if (info.tipo === "GASTO" && esEntrada && !info.cobrableProyecto) {
+         throw new Error("No se pueden registrar pagos de entrada a un gasto que no es cobrable al cliente.");
+      }
+      if (info.tipo === "GASTO" && !esEntrada && info.aceptaPagoSalida === 0) {
+         throw new Error("Este gasto está asociado a una orden de compra: los pagos se registran contra la orden, no contra el gasto.");
       }
 
-      if (monto > disponible + 0.01) {
-         throw new Error(`El monto excede el saldo pendiente de la orden (pendiente: RD$ ${disponible.toFixed(2)}).`);
+      // El tope lo define el destino: null = sin tope (entradas a proyecto).
+      let tope = esEntrada ? info.aceptaPagoEntrada : info.aceptaPagoSalida;
+
+      // Al editar, el saldo calculado ya incluye el propio pago: se devuelve
+      // para permitir ajustarlo sin penalizar.
+      if (current && this.mismoDestino(data.destino, current)) {
+         tope = tope === null ? null : tope + current.monto_pagado;
       }
+
+      if (tope !== null && data.monto_pagado > tope + 0.01) {
+         throw new Error(
+            `El monto excede el saldo disponible del destino (disponible: RD$ ${Math.max(0, tope).toFixed(2)}).`
+         );
+      }
+   }
+
+   /** Balance polimórfico del destino de un pago (sección informativa del form). */
+   async getInfoDestino(params: {
+      gasto_empresa_id?: string | null;
+      deduccion_empleado_id?: string | null;
+      proyecto_id?: string | null;
+      orden_compra_id?: string | null;
+   }): Promise<InfoDestinoPago | null> {
+      return this.repo.getInfoDestino(params);
    }
 
    async getAll(params?: any): Promise<PagoProps[]> {
@@ -65,9 +112,11 @@ export class PagoService {
       if (data.monto_pagado <= 0) throw new Error("El monto pagado debe ser mayor a 0");
       this.validarExclusividad(data);
 
-      if (data.orden_compra_id) {
-         await this.validarCapOrdenCompra(data.orden_compra_id, data.monto_pagado);
-      }
+      await this.validarPolimorfico({
+         destino: data,
+         tipo_movimiento: data.tipo_movimiento,
+         monto_pagado: data.monto_pagado,
+      });
 
       const item = await this.repo.create(data);
       return item.toJSON();
@@ -90,13 +139,14 @@ export class PagoService {
 
       this.validarExclusividad(mergeData);
 
-      if (mergeData.orden_compra_id) {
-         await this.validarCapOrdenCompra(
-            mergeData.orden_compra_id,
-            data.monto_pagado ?? current.monto_pagado,
-            current
-         );
-      }
+      await this.validarPolimorfico(
+         {
+            destino: mergeData,
+            tipo_movimiento: data.tipo_movimiento ?? current.tipo_movimiento,
+            monto_pagado: data.monto_pagado ?? current.monto_pagado,
+         },
+         current
+      );
 
       const item = await this.repo.update(id, data);
       return item ? item.toJSON() : null;

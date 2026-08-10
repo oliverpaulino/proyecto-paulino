@@ -3,9 +3,9 @@ import { DB } from "@/backend/database";
 import {
    CreatePagoDTO,
    DeletePagoDTO,
+   InfoDestinoPago,
    Pago,
    IPagoRepository,
-   SaldoPendienteOrdenCompra,
    UpdatePagoDTO,
 } from "../domain/pagos.domain";
 
@@ -276,27 +276,167 @@ export class KyselyPagoRepository implements IPagoRepository {
       return this.findById(id);
    }
 
-   async getSaldoPendienteOrdenCompra(ordenCompraId: string): Promise<SaldoPendienteOrdenCompra | null> {
-      const oc = await this.db
-         .selectFrom("orden_compra")
-         .select(["id", "total", "estado"])
-         .where("id", "=", ordenCompraId)
-         .where("deleted_at", "is", null)
-         .executeTakeFirst();
-
-      if (!oc) return null;
-
-      const pagadoRow = await this.db
+   /**
+    * Función polimórfica: según cuál id de destino llegue, calcula el balance
+    * con la fórmula correspondiente. Solo suma pagos no anulados.
+    */
+   private async sumPagosPorDestino(
+      columna: "gasto_empresa_id" | "deduccion_empleado_id" | "proyecto_id" | "orden_compra_id",
+      id: string,
+      tipo: "ENTRADA" | "SALIDA"
+   ): Promise<number> {
+      const row = await this.db
          .selectFrom("pago")
-         .select(({ fn }) => fn.sum("pago.monto_pagado").as("pagado"))
-         .where("pago.orden_compra_id", "=", ordenCompraId)
+         .select(({ fn }) => fn.sum("pago.monto_pagado").as("total"))
+         .where(sql.ref(`pago.${columna}`), "=", id)
+         .where("pago.tipo_movimiento", "=", tipo)
          .where("pago.deleted_at", "is", null)
          .executeTakeFirst();
 
-      return {
-         total: Number(oc.total),
-         pagado: Number(pagadoRow?.pagado ?? 0),
-         estado: oc.estado,
+      return Number(row?.total ?? 0);
+   }
+
+   async getInfoDestino(params: {
+      gasto_empresa_id?: string | null;
+      deduccion_empleado_id?: string | null;
+      proyecto_id?: string | null;
+      orden_compra_id?: string | null;
+   }): Promise<InfoDestinoPago | null> {
+      const { gasto_empresa_id, deduccion_empleado_id, proyecto_id, orden_compra_id } = params;
+
+      const base = {
+         estado: null,
+         capital: 0,
+         cobrableProyecto: false,
+         cobrableCliente: 0,
+         cobrableEmpresa: 0,
+         pagadoCliente: 0,
+         pagadoEmpresa: 0,
+         totalPagado: 0,
+         totalAbonado: 0,
+         totalUtilizado: 0,
+         montoPagado: 0,
       };
+
+      if (gasto_empresa_id) {
+         const gasto = await this.db
+            .selectFrom("gasto")
+            .select(["id", "referencia", "concepto", "monto_total", "cobrable_proyecto", "cobrable_monto", "orden_compra_id"])
+            .where("id", "=", gasto_empresa_id)
+            .where("deleted_at", "is", null)
+            .executeTakeFirst();
+
+         if (!gasto) return null;
+
+         const pagadoEmpresa = await this.sumPagosPorDestino("gasto_empresa_id", gasto_empresa_id, "SALIDA");
+         const pagadoCliente = await this.sumPagosPorDestino("gasto_empresa_id", gasto_empresa_id, "ENTRADA");
+         const montoTotal = Number(gasto.monto_total);
+         const cobrableProyecto = !!gasto.cobrable_proyecto;
+         const cobrableCliente = gasto.cobrable_monto != null ? Number(gasto.cobrable_monto) : 0;
+         const cobrableEmpresa = Math.max(0, montoTotal - cobrableCliente);
+
+         return {
+            ...base,
+            tipo: "GASTO",
+            referencia: this.buildCodigoReferencia("GAS", gasto.referencia),
+            concepto: gasto.concepto,
+            montoTotal,
+            cobrableProyecto,
+            cobrableCliente,
+            cobrableEmpresa,
+            pagadoCliente,
+            pagadoEmpresa,
+            // Un gasto nacido de una orden de compra se paga contra la OC,
+            // nunca contra el gasto: no acepta pagos de salida.
+            aceptaPagoSalida: gasto.orden_compra_id ? 0 : Math.max(0, montoTotal - pagadoEmpresa),
+            aceptaPagoEntrada: cobrableProyecto ? Math.max(0, cobrableCliente - pagadoCliente) : 0,
+         };
+      }
+
+      if (deduccion_empleado_id) {
+         const deduccion = await this.db
+            .selectFrom("deduccion")
+            .select(["id", "referencia", "concepto", "monto_total"])
+            .where("id", "=", deduccion_empleado_id)
+            .where("deleted_at", "is", null)
+            .executeTakeFirst();
+
+         if (!deduccion) return null;
+
+         const totalPagado = await this.sumPagosPorDestino("deduccion_empleado_id", deduccion_empleado_id, "ENTRADA");
+         const montoTotal = Number(deduccion.monto_total);
+
+         return {
+            ...base,
+            tipo: "DEDUCCION",
+            referencia: this.buildCodigoReferencia("DED", deduccion.referencia),
+            concepto: deduccion.concepto,
+            montoTotal,
+            pagadoCliente: totalPagado,
+            totalPagado,
+            aceptaPagoEntrada: Math.max(0, montoTotal - totalPagado),
+            aceptaPagoSalida: 0,
+         };
+      }
+
+      if (proyecto_id) {
+         const proyecto = await this.db
+            .selectFrom("proyecto")
+            .select(["id", "referencia", "nombre", "estado"])
+            .where("id", "=", proyecto_id)
+            .executeTakeFirst();
+
+         if (!proyecto) return null;
+
+         const entradas = await this.sumPagosPorDestino("proyecto_id", proyecto_id, "ENTRADA");
+         const salidas = await this.sumPagosPorDestino("proyecto_id", proyecto_id, "SALIDA");
+         const capital = entradas - salidas;
+
+         return {
+            ...base,
+            tipo: "PROYECTO",
+            referencia: this.buildCodigoReferencia("PRO", proyecto.referencia),
+            concepto: proyecto.nombre,
+            estado: proyecto.estado,
+            montoTotal: capital,
+            capital,
+            pagadoCliente: entradas,
+            pagadoEmpresa: salidas,
+            totalAbonado: entradas,
+            totalUtilizado: salidas,
+            // Las entradas aumentan el capital: siempre se aceptan.
+            aceptaPagoEntrada: null,
+            aceptaPagoSalida: Math.max(0, capital),
+         };
+      }
+
+      if (orden_compra_id) {
+         const oc = await this.db
+            .selectFrom("orden_compra")
+            .select(["id", "referencia", "fecha", "total", "estado", "notas"])
+            .where("id", "=", orden_compra_id)
+            .where("deleted_at", "is", null)
+            .executeTakeFirst();
+
+         if (!oc) return null;
+
+         const pagado = await this.sumPagosPorDestino("orden_compra_id", orden_compra_id, "SALIDA");
+         const total = Number(oc.total);
+
+         return {
+            ...base,
+            tipo: "ORDEN_COMPRA",
+            referencia: this.buildCodigoOrdenCompra(oc.referencia, new Date(oc.fecha)),
+            concepto: oc.notas,
+            estado: oc.estado,
+            montoTotal: total,
+            pagadoEmpresa: pagado,
+            montoPagado: pagado,
+            aceptaPagoEntrada: 0,
+            aceptaPagoSalida: Math.max(0, total - pagado),
+         };
+      }
+
+      return null;
    }
 }
