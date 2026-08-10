@@ -15,8 +15,13 @@ interface LineChartProps {
    /** Etiquetas del eje X, una por punto. */
    etiquetas: string[];
    series: SerieLinea[];
-   /** Formateo del valor en el tooltip y en el eje Y. */
+   /** Formato del tooltip: el monto completo, sin abreviar. */
    formato: (v: number) => string;
+   /**
+    * Formato del eje Y. Debe ser CORTO: el canal mide 52px y un
+    * "RD$3,000,000" (12 caracteres) se encima con el área de trazado.
+    */
+   formatoEje?: (v: number) => string;
    alto?: number;
    className?: string;
 }
@@ -50,23 +55,21 @@ export const COLOR_GASTADO = "#ef4444";
  * seis puntos, y `recharts` pesa más que todo el panel.
  */
 export function LineChart({
-   etiquetas, series, formato, alto = 160, className,
+   etiquetas, series, formato, formatoEje = compacto, alto = 160, className,
 }: LineChartProps) {
    const id = useId();
    const [activo, setActivo] = useState<number | null>(null);
 
    // Coordenadas en un viewBox fijo; el SVG escala solo con el contenedor.
    const ANCHO = 600;
-   const PAD = { arriba: 12, derecha: 8, abajo: 22, izquierda: 52 };
+   const PAD = { arriba: 12, derecha: 8, abajo: 22, izquierda: 34 };
 
    const { maximo, puntos } = useMemo(() => {
       const todos = series.flatMap((s) => s.valores);
       // El eje SIEMPRE arranca en 0: recortarlo exageraría cambios chicos y es
       // la forma más fácil de mentir con un gráfico de líneas.
       const max = Math.max(...todos, 1);
-      // Techo "redondo" para que la etiqueta superior no sea un número raro.
-      const magnitud = 10 ** Math.floor(Math.log10(max));
-      const techo = Math.ceil(max / magnitud) * magnitud;
+      const techo = techoRedondo(max);
 
       const n = etiquetas.length;
       const anchoUtil = ANCHO - PAD.izquierda - PAD.derecha;
@@ -119,7 +122,7 @@ export function LineChart({
                            x={PAD.izquierda - 8} y={y + 3} textAnchor="end"
                            className="fill-muted-foreground text-[9px]"
                         >
-                           {formato(m)}
+                           {formatoEje(m)}
                         </text>
                      </g>
                   );
@@ -228,4 +231,27 @@ export function LineChart({
          </figcaption>
       </figure>
    );
+}
+
+/**
+ * Techo del eje en pasos de 1, 2 o 5 por magnitud.
+ *
+ * Redondear a la potencia de 10 más cercana desperdicia altura: un máximo de
+ * 2.1M saltaba a 3M y dejaba las líneas aplastadas en el tercio inferior. Con
+ * pasos de 1/2/5 el mismo caso cierra en 2.5M.
+ */
+function techoRedondo(max: number): number {
+   const magnitud = 10 ** Math.floor(Math.log10(max));
+   const norm = max / magnitud;
+   const paso = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 2.5 ? 2.5 : norm <= 5 ? 5 : 10;
+   return paso * magnitud;
+}
+
+/** "RD$2.5M", "RD$820k" — corto para que quepa en el canal del eje. */
+function compacto(v: number): string {
+   if (v === 0) return "0";
+   const abs = Math.abs(v);
+   if (abs >= 1_000_000) return `${(v / 1_000_000).toFixed(abs >= 10_000_000 ? 0 : 1)}M`;
+   if (abs >= 1_000) return `${Math.round(v / 1_000)}k`;
+   return String(Math.round(v));
 }

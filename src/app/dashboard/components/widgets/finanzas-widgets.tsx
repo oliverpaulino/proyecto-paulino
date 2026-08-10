@@ -12,6 +12,16 @@ import { cn } from "@/lib/utils";
 import {
    BigStat, WidgetEstado, WidgetShell, fechaCorta, money, numero,
 } from "./widget-shell";
+import { COLOR_COBRADO, COLOR_GASTADO, LineChart } from "./line-chart";
+
+/** "2026-08" → "ago 26". El eje necesita algo corto y legible. */
+function etiquetaMes(mes: string): string {
+   const [anio, m] = mes.split("-").map(Number);
+   const d = new Date(anio, (m ?? 1) - 1, 1);
+   if (Number.isNaN(d.getTime())) return mes;
+   const nombre = new Intl.DateTimeFormat("es-DO", { month: "short" }).format(d);
+   return `${nombre} ${String(anio).slice(2)}`;
+}
 
 // ── Facturación de la semana ───────────────────────────────────────────────
 export function FacturacionSemanalWidget() {
@@ -87,7 +97,6 @@ export function FlujoMensualWidget() {
       <WidgetShell title="Cobros vs. gastos (6 meses)" icon={Banknote} href="/dashboard/pagos">
          <WidgetEstado recurso={flujo} vacioTexto="Sin movimientos en el período">
             {(serie) => {
-               const maximo = Math.max(...serie.flatMap((m) => [m.cobrado, m.gastado]), 1);
                const totalCobrado = serie.reduce((s, m) => s + m.cobrado, 0);
                const totalGastado = serie.reduce((s, m) => s + m.gastado, 0);
                const neto = totalCobrado - totalGastado;
@@ -101,38 +110,29 @@ export function FlujoMensualWidget() {
                            hint="Neto del período"
                         />
                         <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                           <span className="flex items-center gap-1.5">
-                              <span className="size-2 rounded-full bg-emerald-500" aria-hidden />
-                              Cobrado {money(totalCobrado)}
-                           </span>
-                           <span className="flex items-center gap-1.5">
-                              <span className="size-2 rounded-full bg-destructive" aria-hidden />
-                              Gastado {money(totalGastado)}
-                           </span>
+                           <span>Cobrado {money(totalCobrado)}</span>
+                           <span>Gastado {money(totalGastado)}</span>
                         </div>
                      </div>
 
-                     <div className="flex flex-1 items-end gap-2">
-                        {serie.map((m) => (
-                           <div key={m.mes} className="flex flex-1 flex-col items-center gap-1">
-                              <div className="flex h-20 w-full items-end justify-center gap-0.5">
-                                 <div
-                                    className="w-1/2 rounded-t-sm bg-emerald-500/70"
-                                    style={{ height: `${Math.max((m.cobrado / maximo) * 100, 2)}%` }}
-                                    title={`Cobrado: ${money(m.cobrado)}`}
-                                 />
-                                 <div
-                                    className="w-1/2 rounded-t-sm bg-destructive/70"
-                                    style={{ height: `${Math.max((m.gastado / maximo) * 100, 2)}%` }}
-                                    title={`Gastado: ${money(m.gastado)}`}
-                                 />
-                              </div>
-                              <span className="text-[10px] text-muted-foreground">
-                                 {m.mes.slice(5)}/{m.mes.slice(2, 4)}
-                              </span>
-                           </div>
-                        ))}
-                     </div>
+                     <LineChart
+                        etiquetas={serie.map((m) => etiquetaMes(m.mes))}
+                        series={[
+                           {
+                              key: "cobrado",
+                              label: "Cobrado",
+                              color: COLOR_COBRADO,
+                              valores: serie.map((m) => m.cobrado),
+                           },
+                           {
+                              key: "gastado",
+                              label: "Gastado",
+                              color: COLOR_GASTADO,
+                              valores: serie.map((m) => m.gastado),
+                           },
+                        ]}
+                        formato={money}
+                     />
                   </div>
                );
             }}
