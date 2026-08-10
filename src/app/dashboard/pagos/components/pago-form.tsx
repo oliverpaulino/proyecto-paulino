@@ -135,7 +135,20 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
       }));
    };
 
+   // Hay que guardar una referencia de destino concreta (gasto, deducción,
+   // proyecto u orden de compra); elegir solo el tipo no desbloquea el resto.
+   const destinoReferenciaSeleccionada = Boolean(
+      values.gasto_empresa_id || values.deduccion_empleado_id || values.proyecto_id || values.orden_compra_id
+   );
+
    const isDisabled = (field: keyof CreatePagoForm) => {
+      // Nada es editable hasta guardar una referencia de destino concreta.
+      return loading || !destinoReferenciaSeleccionada || (predefinedValues?.[field] !== undefined);
+   };
+
+   // Los buscadores de referencia se desbloquean con solo elegir el tipo (para
+   // poder buscar y guardar la referencia); el resto del form exige la referencia.
+   const isDestinoBuscadorDisabled = (field: keyof CreatePagoForm) => {
       return loading || (predefinedValues?.[field] !== undefined);
    };
 
@@ -216,57 +229,7 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
    return (
       <form onSubmit={handleSubmit} className="flex flex-col gap-5 py-2 px-3 overflow-y-auto">
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                    <Label>Método de Pago *</Label>
-                    <select 
-                        value={values.metodo_pago} 
-                        onChange={(e) => set("metodo_pago", e.target.value)}
-                        disabled={isDisabled("metodo_pago") || !config}
-                        className={INPUT_CLASS}
-                    >
-                        {!config && <option value="">Seleccione un destino primero...</option>}
-                        {metodoPagoOptions.map((m) => (
-                           <option key={m.value} value={m.value}>{m.label}</option>
-                        ))}
-                    </select>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                    <Label>Tipo de Movimiento *</Label>
-                    <select 
-                        value={values.tipo_movimiento} 
-                        onChange={(e) => set("tipo_movimiento", e.target.value)}
-                        disabled={isDisabled("tipo_movimiento") || !config || soloUnMovimiento}
-                        className={INPUT_CLASS}
-                    >
-                        {!config && <option value="">Seleccione un destino primero...</option>}
-                        {tipoMovimientoOptions.map((t) => (
-                           <option key={t.value} value={t.value}>{t.label}</option>
-                        ))}
-                    </select>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                    <Label>Monto (RD$) *</Label>
-                    <Input type="number" step="0.01" min="0.01" value={values.monto_pagado} onChange={(e) => set("monto_pagado", e.target.value)} required disabled={isDisabled("monto_pagado")} className={INPUT_CLASS} />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                    <Label>Fecha del Pago *</Label>
-                    <Input 
-                        type="date" 
-                        value={formatDateForInput(values.fecha)} 
-                        onChange={handleDateChange} 
-                        required 
-                        disabled={isDisabled("fecha")} 
-                        className={INPUT_CLASS} 
-                    />
-                </div>
-            </div>
-
-            <div className="mt-2 h-px bg-border" />
-
+            {/* ── Destino: lo primero. Sin él nada más es editable. ── */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                     <Label>Destino *</Label>
@@ -296,7 +259,7 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
                            value={values.gasto_empresa_id}
                            initialLabel={initialData?.gasto_codigo_referencia ?? ""} 
                            onChange={(id) => set("gasto_empresa_id", id)} 
-                           disabled={isDisabled("gasto_empresa_id")} 
+                           disabled={isDestinoBuscadorDisabled("gasto_empresa_id")} 
                         />
                     )}
                     {destinoTipo === 'DEDUCCION' && (
@@ -304,7 +267,7 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
                            value={values.deduccion_empleado_id}
                            initialLabel={initialData?.deduccion_codigo_referencia ?? ""} 
                            onChange={(id) => set("deduccion_empleado_id", id)} 
-                           disabled={isDisabled("deduccion_empleado_id")} 
+                           disabled={isDestinoBuscadorDisabled("deduccion_empleado_id")} 
                         />
                     )}
                     {destinoTipo === 'PROYECTO' && (
@@ -312,7 +275,7 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
                            value={values.proyecto_id}
                            initialLabel={initialData?.proyecto_codigo_referencia ?? ""} 
                            onChange={(id) => set("proyecto_id", id)} 
-                           disabled={isDisabled("proyecto_id")} 
+                           disabled={isDestinoBuscadorDisabled("proyecto_id")} 
                         />
                     )}
                     {destinoTipo === 'ORDEN_COMPRA' && (
@@ -320,7 +283,7 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
                            value={values.orden_compra_id}
                            initialLabel={initialData?.orden_compra_codigo_referencia ?? predefinedOrdenCompraLabel ?? ""} 
                            onChange={(id) => set("orden_compra_id", id)} 
-                           disabled={isDisabled("orden_compra_id")} 
+                           disabled={isDestinoBuscadorDisabled("orden_compra_id")} 
                         />
                     )}
                 </div>
@@ -336,6 +299,57 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
                   adjustment={editingAdjustment}
                />
             )}
+
+            <div className="mt-2 h-px bg-border" />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                    <Label>Método de Pago *</Label>
+                    <select 
+                        value={values.metodo_pago} 
+                        onChange={(e) => set("metodo_pago", e.target.value)}
+                        disabled={isDisabled("metodo_pago") || !config}
+                        className={INPUT_CLASS}
+                    >
+                        {!config && <option value="">Seleccione un destino primero...</option>}
+                        {metodoPagoOptions.map((m) => (
+                           <option key={m.value} value={m.value}>{m.label}</option>
+                        ))}
+                    </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                    <Label>Tipo de Movimiento *</Label>
+                    <select 
+                        value={values.tipo_movimiento} 
+                        onChange={(e) => set("tipo_movimiento", e.target.value)}
+                        disabled={isDisabled("tipo_movimiento") || soloUnMovimiento}
+                        className={INPUT_CLASS}
+                    >
+                        {!config && <option value="">Seleccione un destino primero...</option>}
+                        {tipoMovimientoOptions.map((t) => (
+                           <option key={t.value} value={t.value}>{t.label}</option>
+                        ))}
+                    </select>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                    <Label>Monto (RD$) *</Label>
+                    <Input type="number" step="0.01" min="0.01" value={values.monto_pagado} onChange={(e) => set("monto_pagado", e.target.value)} required disabled={isDisabled("monto_pagado")} className={INPUT_CLASS} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                    <Label>Fecha del Pago *</Label>
+                    <Input 
+                        type="date" 
+                        value={formatDateForInput(values.fecha)} 
+                        onChange={handleDateChange} 
+                        required 
+                        disabled={isDisabled("fecha")} 
+                        className={INPUT_CLASS} 
+                    />
+                </div>
+            </div>
 
             <div className="flex flex-col gap-1.5">
                 <Label>Concepto del Pago *</Label>

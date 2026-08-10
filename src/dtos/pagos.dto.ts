@@ -7,7 +7,6 @@ export const MetodoPago = {
    TARJETA: "Tarjeta",
    DESCUENTO_NOMINA: "Descuento de Nómina",
    CAPITAL_PROYECTO: "Capital del Proyecto",
-   ABONO_PROYECTO: "Abono al Proyecto",
 } as const;
 
 export const TipoMovimiento = {
@@ -62,6 +61,7 @@ export const ConfigPagoPorDestino: Record<TipoDestinoPago, ConfigPagoDestino> = 
          { value: "TRANSFERENCIA", label: MetodoPago.TRANSFERENCIA },
          { value: "EFECTIVO", label: MetodoPago.EFECTIVO },
          { value: "TARJETA", label: MetodoPago.TARJETA },
+         { value: "CHEQUE", label: MetodoPago.CHEQUE },
       ],
       tipoMovimientoPosibles: [{ value: "ENTRADA", label: TipoMovimiento.ENTRADA }],
    },
@@ -69,11 +69,10 @@ export const ConfigPagoPorDestino: Record<TipoDestinoPago, ConfigPagoDestino> = 
       recibePago: true,
       destino: "PROYECTO",
       tipoMetodoPagoPosible: [
-         { value: "ABONO_PROYECTO", label: MetodoPago.ABONO_PROYECTO },
-         { value: "CAPITAL_PROYECTO", label: MetodoPago.CAPITAL_PROYECTO },
          { value: "TRANSFERENCIA", label: MetodoPago.TRANSFERENCIA },
          { value: "EFECTIVO", label: MetodoPago.EFECTIVO },
          { value: "TARJETA", label: MetodoPago.TARJETA },
+         { value: "CHEQUE", label: MetodoPago.CHEQUE },
       ],
       tipoMovimientoPosibles: [
          { value: "ENTRADA", label: TipoMovimiento.ENTRADA },
