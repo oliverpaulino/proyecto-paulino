@@ -65,8 +65,17 @@ proyectosRoute.get("/:id/liquidacion", async (c) => {
 // PATCH /api/proyectos/:id — actualizar proyecto (tarifa_servicio, etc.)
 proyectosRoute.patch("/:id", async (c) => {
    try {
+      const session = await auth.api.getSession({ headers: c.req.raw.headers });
+      if (!session?.user) return c.json({ error: "No autenticado" }, 401);
+
       const body = await c.req.json();
-      const proyecto = await service.update(c.req.param("id"), body);
+      const proyecto = await service.update(c.req.param("id"), {
+         ...body,
+         // Quién hizo el cambio de estado: se guarda en el historial. La sesión
+         // vive en la ruta, el repo no la conoce.
+         changed_by: session.user.id,
+         changed_by_name: session.user.name,
+      });
       if (!proyecto) return c.json({ error: "Proyecto no encontrado" }, 404);
       return c.json(proyecto);
    } catch (err: unknown) {
