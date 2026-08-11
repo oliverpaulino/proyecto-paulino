@@ -39,6 +39,7 @@ type PagoStore = {
    GetPagos: (params?: PagosFilters & { page?: number; limit?: number; force?: boolean }) => Promise<void>;
    GetPagosByOrdenCompra: (ordenCompraId: string, params?: { limit?: number; force?: boolean }) => Promise<void>;
    GetDeletedPagos: (params?: PagosFilters & { page?: number; limit?: number; force?: boolean }) => Promise<void>;
+   GetPagoById: (id: string) => Promise<Pago | null>;
 
    CreatePago: (form: CreatePagoForm) => Promise<Pago | Error>;
    UpdatePago: (id: string, data: UpdatePagoForm) => Promise<void | Error>;
@@ -166,6 +167,22 @@ export const usePagoStore = create<PagoStore>((set, get) => ({
          }));
       } catch (error) {
          console.error(error);
+      } finally {
+         set({ loading: false });
+      }
+   },
+
+   GetPagoById: async (id) => {
+      set({ loading: true });
+      try {
+         const res = await fetch(`${BASE_URL}/${id}`);
+         if (!res.ok) throw new Error("Error al cargar pago");
+         const data: Pago = await res.json();
+         set({ selectedPago: data });
+         return data;
+      } catch (error) {
+         console.error(error);
+         return null;
       } finally {
          set({ loading: false });
       }

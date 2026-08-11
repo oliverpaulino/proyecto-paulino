@@ -10,6 +10,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 // Importamos los schemas, el enum y validaciones generales
 import { GeneralSchemasDTO } from "@/dtos/schema.dto";
 import { TipoProveedor } from "@/dtos/supplier.dto";
+import { useDGIIStore } from "@/stores/useDGIIStore";
 
 const tipoProveedorOptions = Object.entries(TipoProveedor).map(([key, value]) => ({
    value: key as keyof typeof TipoProveedor,
@@ -66,6 +67,8 @@ export function SupplierForm({
    const debouncedRnc = useDebounce(values.rnc, 800);
    const isRncLengthValid = debouncedRnc.length === 9 || debouncedRnc.length === 11;
 
+   const { ConsultarDGII } = useDGIIStore();
+
    function set<K extends keyof FormValues>(field: K, value: FormValues[K]) {
       setValues((prev) => ({ ...prev, [field]: value }));
    }
@@ -82,22 +85,14 @@ export function SupplierForm({
          setIsManualEntryAllowed(false);
 
          try {
-            const url = `/api/dgii/${debouncedRnc.toString()}`;
-            const response = await fetch(url);
+            const data = await ConsultarDGII(debouncedRnc.toString());
 
-            if (response.ok) {
-               const data = await response.json();
+            if (data && data.error === false && data.nombre_razon_social) {
+               set("nombre", data.nombre_razon_social);
 
-               if (data.error === false && data.nombre_razon_social) {
-                  set("nombre", data.nombre_razon_social);
-
-                  setApiDataFound({ nombre: true });
-                  setIsManualEntryAllowed(true);
-                  setError(null);
-               } else {
-                  setIsManualEntryAllowed(true);
-                  setApiDataFound({ nombre: false });
-               }
+               setApiDataFound({ nombre: true });
+               setIsManualEntryAllowed(true);
+               setError(null);
             } else {
                setIsManualEntryAllowed(true);
                setApiDataFound({ nombre: false });

@@ -28,7 +28,7 @@ export default function ProyectoDetailPage() {
    const searchParams = useSearchParams();
    const proyectoId = params.id as string;
 
-   const { proyecto: proyectoStore } = useProyectoStore();
+   const { proyecto: proyectoStore, GetProyectoById } = useProyectoStore();
 
    const [proyecto, setProyecto] = useState<Proyecto | null>(null);
    const [loading, setLoading] = useState(true);
@@ -43,11 +43,8 @@ export default function ProyectoDetailPage() {
    }, [proyectoId, router]);
 
    async function loadProyecto() {
-      const res = await fetch(`/api/proyectos/${proyectoId}`);
-      if (res.ok) {
-         const data: Proyecto = await res.json();
-         setProyecto(data);
-      }
+      const data = await GetProyectoById(proyectoId);
+      if (data) setProyecto(data);
    }
 
    useEffect(() => {

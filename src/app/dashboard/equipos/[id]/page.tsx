@@ -102,7 +102,7 @@ function EquipoDetailContent() {
    const currentTab = searchParams.get("tab") || "rentabilidad";
    const equipoId = params.id as string;
 
-   const { ChangeEstado, UpdateEquipo, GetCategoriasEquipoByEquipoId, GetOperadorByEquipoId } = useEquipoStore();
+   const { ChangeEstado, UpdateEquipo, GetEquipoById, GetCategoriasEquipoByEquipoId, GetOperadorByEquipoId } = useEquipoStore();
    const { CreateMantenimiento, CloseMantenimiento, GetMantenimientosByEquipo } = useMantenimientoStore();
 
    const [equipo, setEquipo] = useState<Equipo | null>(null);
@@ -132,9 +132,8 @@ function EquipoDetailContent() {
       try {
          // Solo la data base del encabezado. Compras, historial, gastos, pagos
          // y rentabilidad se piden cuando el usuario entra a cada tab.
-         const equipoRes = await fetch(`/api/equipos/${equipoId}`);
-         if (!equipoRes.ok) throw new Error("Not found");
-         const equipoData: Equipo = await equipoRes.json();
+         const equipoData = await GetEquipoById(equipoId);
+         if (!equipoData) throw new Error("Not found");
 
          const [mantData, categoria, operadorData] = await Promise.all([
             GetMantenimientosByEquipo(equipoId),

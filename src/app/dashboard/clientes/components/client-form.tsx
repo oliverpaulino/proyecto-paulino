@@ -14,6 +14,7 @@ import {
 
 import { TipoCliente } from "@/dtos/client.dto";
 import { useClientStore } from "@/stores/useClientStore";
+import { useDGIIStore } from "@/stores/useDGIIStore";
 
 const tipoIdentificacionOptions = Object.entries(TipoIdentificacion).map(([key, value]) => ({
    value: key as keyof typeof TipoIdentificacion,
@@ -66,6 +67,7 @@ export function ClientForm({
    });
 
    const { Clients } = useClientStore()
+   const { ConsultarDGII } = useDGIIStore();
 
    const [error, setError] = useState<string | null>(null);
    const [isSearching, setIsSearching] = useState(false);
@@ -102,37 +104,28 @@ export function ClientForm({
 
          try {
 
-            const url = `/api/dgii/${debouncedIdentificacion.toString()}`;
-            const response = await fetch(url);
-            console.log(response)
+            const data = await ConsultarDGII(debouncedIdentificacion.toString());
 
-            if (response.ok) {
-               const data = await response.json();
+            if (data && data.error === false && data.nombre_razon_social) {
+               let tipoC: keyof typeof TipoCliente = "FISICA";
+               let tipoI: keyof typeof TipoIdentificacion = "CEDULA";
 
-               if (data.error === false && data.nombre_razon_social) {
-                  let tipoC: keyof typeof TipoCliente = "FISICA";
-                  let tipoI: keyof typeof TipoIdentificacion = "CEDULA";
-
-                  if (debouncedIdentificacion.length === 9) {
-                     tipoC = debouncedIdentificacion.startsWith("4") ? "GUBERNAMENTAL" : "JURIDICA";
-                     tipoI = "RNC";
-                  }
-
-                  set("nombre", data.nombre_razon_social);
-                  set("tipo_cliente", tipoC);
-                  set("tipo_identificacion", tipoI);
-
-                  setApiDataFound({
-                     nombre: true,
-                     perfil: true
-                  });
-
-                  setIsManualEntryAllowed(true);
-                  setError(null);
-               } else {
-                  setIsManualEntryAllowed(true);
-                  setApiDataFound({ nombre: false, perfil: false });
+               if (debouncedIdentificacion.length === 9) {
+                  tipoC = debouncedIdentificacion.startsWith("4") ? "GUBERNAMENTAL" : "JURIDICA";
+                  tipoI = "RNC";
                }
+
+               set("nombre", data.nombre_razon_social);
+               set("tipo_cliente", tipoC);
+               set("tipo_identificacion", tipoI);
+
+               setApiDataFound({
+                  nombre: true,
+                  perfil: true
+               });
+
+               setIsManualEntryAllowed(true);
+               setError(null);
             } else {
                setIsManualEntryAllowed(true);
                setApiDataFound({ nombre: false, perfil: false });

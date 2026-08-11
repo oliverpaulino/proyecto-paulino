@@ -33,7 +33,7 @@ export function AsociarGastoDialog({
    cobrable: boolean;
    onAsociado: () => Promise<void>;
 }) {
-   const { UpdateGasto } = useGastoStore();
+   const { UpdateGasto, GetGastosSinProyecto } = useGastoStore();
    const [search, setSearch] = useState("");
    const [gastos, setGastos] = useState<Gasto[]>([]);
    const [loading, setLoading] = useState(false);
@@ -44,17 +44,14 @@ export function AsociarGastoDialog({
       setLoading(true);
       setError(null);
       try {
-         const res = await fetch(
-            `/api/gastos?proyecto_id=null&limit=50&search=${encodeURIComponent(query)}`
-         );
-         if (!res.ok) throw new Error("Error al cargar gastos sin proyecto");
-         setGastos(await res.json());
+         const data = await GetGastosSinProyecto(query);
+         setGastos(data);
       } catch (err) {
          setError(err instanceof Error ? err.message : "Error al cargar gastos");
       } finally {
          setLoading(false);
       }
-   }, []);
+   }, [GetGastosSinProyecto]);
 
    useEffect(() => {
       if (open) {
