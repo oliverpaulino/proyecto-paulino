@@ -361,6 +361,7 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
    async deleteTarifa(id: string) {
       return await this.db.deleteFrom("empleado_categoria_tarifa")
          .where("id", "=", id)
+         .returningAll()
          .executeTakeFirst();
    }
 

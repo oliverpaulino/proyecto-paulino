@@ -158,9 +158,9 @@ export class EmployeeService {
             throw new Error("El ID de la tarifa es requerido.");
          }
 
-         await this.repo.deleteTarifa(tarifaId);
-
-         return { success: true };
+         // Devuelve la fila eliminada: la ruta necesita empleado_id para saber
+         // qué proyectos recalcular (cambiaron los totales de nómina/rentabilidad).
+         return await this.repo.deleteTarifa(tarifaId);
       } catch (error: any) {
          console.error("Error en deleteTarifa:", error);
          throw new Error("Error al eliminar la tarifa de operación.");

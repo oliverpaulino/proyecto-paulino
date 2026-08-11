@@ -134,9 +134,9 @@ export interface SaveTarifasBulkPayload {
 export interface IEmployeeRepository {
    getEmployeeDetails: (empleadoId: string) => Promise<any>;
    upsertTarifasCategoria: (empleado_id: string, tarifas: TarifaBulkInput[]) => Promise<any>;
-   deleteTarifa: (tarifaId: string) => Promise<any>;
+   deleteTarifa: (tarifaId: string) => Promise<{ id: string; empleado_id: string; monto_pago: number } | undefined>;
    createTarifa(data: { empleado_id: string; categoria_equipo_tarifa_id: string; monto_pago: number; }): unknown;
-   updateTarifa(tarifaId: string, monto_pago: number, frecuencia_pago: string): unknown;
+   updateTarifa(tarifaId: string, monto_pago: number, frecuencia_pago: string): Promise<{ id: string; empleado_id: string; monto_pago: number } | null>;
    findAll(params?: { page?: number; limit?: number; search?: string }): Promise<Employee[]>;
    findAllOperators(params?: { page?: number; limit?: number; search?: string }): Promise<OperadorProps[]>;
    findById(id: string): Promise<Employee | null>;
