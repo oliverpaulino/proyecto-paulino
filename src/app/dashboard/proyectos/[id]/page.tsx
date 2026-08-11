@@ -8,7 +8,7 @@ import {
    Tabs, TabsContent, TabsList, TabsTrigger,
 } from "@/components/ui/tabs";
 import {
-   ArrowLeft, Loader2,
+   ArrowLeft, Loader2, Lock,
 } from "lucide-react";
 import type { Proyecto } from "@/dtos/proyecto.dto";
 import { generateProyectoInternoPDF } from "@/lib/pdf/proyecto-interno-pdf";
@@ -44,10 +44,6 @@ export default function ProyectoDetailPage() {
       setActiveTab(value);
       router.replace(`/dashboard/proyectos/${proyectoId}?tab=${value}`, { scroll: false });
    }, [proyectoId, router]);
-   const [pdfError, setPdfError] = useState<string | null>(null);
-   const [conduceDialogOpen, setConduceDialogOpen] = useState(false);
-   const [conduceLoading, setConduceLoading] = useState(false);
-   const [deletingConduceId, setDeletingConduceId] = useState<string | null>(null);
 
    async function loadProyecto() {
       const res = await fetch(`/api/proyectos/${proyectoId}`);
@@ -138,10 +134,22 @@ export default function ProyectoDetailPage() {
 
    const cargosCobrables = proyecto.detalle.filter((d) => d.es_cobrable);
    const gastosInternos = proyecto.detalle.filter((d) => !d.es_cobrable);
+   const locked = proyecto.estado === "COMPLETADO";
 
    return (
       <div className="flex flex-col gap-6 p-6">
          <ProyectoHeader proyecto={proyecto} pdfLoading={pdfLoading} onPDF={handleGenerarPDF} onBack={() => router.push("/dashboard/proyectos")} />
+
+         {locked && (
+            <div className="flex items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+               <Lock className="size-4 shrink-0" />
+               <span>
+                  Este proyecto está <strong>COMPLETADO</strong> y bloqueado. Para agregar o editar
+                  conduces, gastos, archivos o tarifas, primero cámbialo a otro estado desde la
+                  pestaña <strong>Configuración</strong>.
+               </span>
+            </div>
+         )}
 
          <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
             <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-6 xl:w-auto">
@@ -154,15 +162,15 @@ export default function ProyectoDetailPage() {
             </TabsList>
 
             <TabsContent value="general" className="space-y-6">
-               <GeneralTab proyecto={proyecto} />
+               <GeneralTab proyecto={proyecto} locked={locked} onProyectoChange={loadProyecto} />
             </TabsContent>
 
             <TabsContent value="configuracion" className="space-y-4">
-               <ConfiguracionTab proyectoId={proyectoId} onProyectoChange={loadProyecto} />
+               <ConfiguracionTab proyectoId={proyectoId} onProyectoChange={loadProyecto} locked={locked} />
             </TabsContent>
 
             <TabsContent value="conduces" className="space-y-4">
-               <ConducesTab proyecto={proyecto} onProyectoChange={loadProyecto} />
+               <ConducesTab proyecto={proyecto} onProyectoChange={loadProyecto} locked={locked} />
             </TabsContent>
 
             <TabsContent value="cobrables" className="space-y-4">
@@ -188,7 +196,7 @@ export default function ProyectoDetailPage() {
             </TabsContent>
 
             <TabsContent value="archivos" className="space-y-4">
-               <ArchivosTab proyectoId={proyectoId} />
+               <ArchivosTab proyectoId={proyectoId} locked={locked} />
             </TabsContent>
          </Tabs>
       </div>

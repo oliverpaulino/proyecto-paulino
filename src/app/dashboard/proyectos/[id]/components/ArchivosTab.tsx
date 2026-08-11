@@ -39,6 +39,7 @@ import {
    FileSpreadsheet,
    FileText,
    Loader2,
+   Lock,
    Pencil,
    Trash2,
    UploadCloud,
@@ -114,7 +115,7 @@ async function getSignedUrl(archivo: ProyectoArchivo, download = false): Promise
    }
 }
 
-export function ArchivosTab({ proyectoId }: { proyectoId: string }) {
+export function ArchivosTab({ proyectoId, locked = false }: { proyectoId: string; locked?: boolean }) {
    const [archivos, setArchivos] = useState<ProyectoArchivo[]>([]);
    const [loading, setLoading] = useState(true);
    const [uploading, setUploading] = useState(false);
@@ -250,49 +251,58 @@ export function ArchivosTab({ proyectoId }: { proyectoId: string }) {
             </CardHeader>
             <CardContent className="space-y-4">
                <PermissionGuard resource="project" action="create">
-                  <div
-                     role="button"
-                     tabIndex={0}
-                     aria-label="Subir archivos"
-                     onClick={() => inputRef.current?.click()}
-                     onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") inputRef.current?.click();
-                     }}
-                     onDragOver={(e) => {
-                        e.preventDefault();
-                        setDragging(true);
-                     }}
-                     onDragLeave={() => setDragging(false)}
-                     onDrop={(e) => {
-                        e.preventDefault();
-                        setDragging(false);
-                        handleFiles(e.dataTransfer.files);
-                     }}
-                     className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
-                        dragging
-                           ? "border-brand-blue bg-brand-blue/10"
-                           : "border-border bg-muted/30 hover:border-brand-blue/50 hover:bg-brand-blue/5"
-                     }`}
-                  >
-                     <UploadCloud
-                        className={`size-8 ${dragging ? "text-brand-blue" : "text-muted-foreground"}`}
-                     />
-                     <div className="text-sm font-medium">
-                        {uploading ? "Subiendo archivos…" : "Arrastra archivos aquí o haz clic para seleccionar"}
+                  {locked ? (
+                     <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/20 p-8 text-center">
+                        <Lock className="size-6 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground">
+                           Bloqueado: el proyecto está COMPLETADO. No se pueden subir archivos.
+                        </p>
                      </div>
-                     <p className="text-xs text-muted-foreground">
-                        PDF, imágenes, Word, Excel, PowerPoint y ZIP. Hasta 15 MB por archivo.
-                     </p>
-                     <input
-                        ref={inputRef}
-                        type="file"
-                        multiple
-                        accept={ACCEPT}
-                        className="hidden"
-                        disabled={uploading}
-                        onChange={(e) => e.target.files && handleFiles(e.target.files)}
-                     />
-                  </div>
+                  ) : (
+                     <div
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Subir archivos"
+                        onClick={() => inputRef.current?.click()}
+                        onKeyDown={(e) => {
+                           if (e.key === "Enter" || e.key === " ") inputRef.current?.click();
+                        }}
+                        onDragOver={(e) => {
+                           e.preventDefault();
+                           setDragging(true);
+                        }}
+                        onDragLeave={() => setDragging(false)}
+                        onDrop={(e) => {
+                           e.preventDefault();
+                           setDragging(false);
+                           handleFiles(e.dataTransfer.files);
+                        }}
+                        className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
+                           dragging
+                              ? "border-brand-blue bg-brand-blue/10"
+                              : "border-border bg-muted/30 hover:border-brand-blue/50 hover:bg-brand-blue/5"
+                        }`}
+                     >
+                        <UploadCloud
+                           className={`size-8 ${dragging ? "text-brand-blue" : "text-muted-foreground"}`}
+                        />
+                        <div className="text-sm font-medium">
+                           {uploading ? "Subiendo archivos…" : "Arrastra archivos aquí o haz clic para seleccionar"}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                           PDF, imágenes, Word, Excel, PowerPoint y ZIP. Hasta 15 MB por archivo.
+                        </p>
+                        <input
+                           ref={inputRef}
+                           type="file"
+                           multiple
+                           accept={ACCEPT}
+                           className="hidden"
+                           disabled={uploading}
+                           onChange={(e) => e.target.files && handleFiles(e.target.files)}
+                        />
+                     </div>
+                  )}
                </PermissionGuard>
 
                {loading ? (
@@ -345,6 +355,7 @@ export function ArchivosTab({ proyectoId }: { proyectoId: string }) {
                                     <Button
                                        variant="ghost"
                                        size="sm"
+                                       disabled={locked}
                                        onClick={() => {
                                           setRenaming(archivo);
                                           setRenameValue(archivo.nombre_archivo);
@@ -359,6 +370,7 @@ export function ArchivosTab({ proyectoId }: { proyectoId: string }) {
                                        variant="ghost"
                                        size="sm"
                                        className="text-brand-red hover:text-brand-red"
+                                       disabled={locked}
                                        onClick={() => setDeleting(archivo)}
                                        title="Eliminar"
                                     >
