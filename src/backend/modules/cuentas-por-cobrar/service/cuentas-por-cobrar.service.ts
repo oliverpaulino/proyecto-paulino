@@ -3,6 +3,7 @@ import type {
    CuentasPorCobrarFiltros,
    CuentasPorCobrarResult,
    DetalleClienteCuentasPorCobrar,
+   FolioProyectoCxc,
    RegistrarPagoCxcDTO,
    PagoCxc,
    TipoCuentaCxc,
@@ -26,6 +27,11 @@ export class CuentasPorCobrarService {
    async detalleCliente(clienteId: string, filtros: CuentasPorCobrarFiltros): Promise<DetalleClienteCuentasPorCobrar> {
       if (!clienteId) throw new Error("cliente_id es requerido");
       return this.repo.detalleCliente(clienteId, filtros);
+   }
+
+   async proyectoDetalle(proyectoId: string): Promise<FolioProyectoCxc> {
+      if (!proyectoId) throw new Error("proyecto_id es requerido");
+      return this.repo.folioProyecto(proyectoId);
    }
 
    /**

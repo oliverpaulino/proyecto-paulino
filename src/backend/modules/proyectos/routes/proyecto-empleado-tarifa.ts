@@ -2,11 +2,29 @@ import { Hono } from "hono";
 import db from "@/backend/database";
 import { KyselyProyectoEmpleadoTarifaRepository } from "../infraestructure/proyecto-empleado-tarifa.infraestructure";
 import { ProyectoEmpleadoTarifaService } from "../service/proyecto-empleado-tarifa.service";
+import { KyselyProyectoRepository } from "../infraestructure/proyecto.infraestructure";
 import { UpsertProyectoEmpleadoTarifaDTOSchema } from "@/dtos/proyecto-empleado-tarifa.dto";
+import { auth } from "@/lib/auth";
+import { assertProyectoEditable } from "../guards/proyecto-editable.guard";
 
 const proyectoTarifasEmpleadoRoute = new Hono();
 const repo = new KyselyProyectoEmpleadoTarifaRepository(db);
 const service = new ProyectoEmpleadoTarifaService(repo);
+const proyectoRepo = new KyselyProyectoRepository(db);
+
+// El monto_pago alimenta el total_costo_operador/rentabilidad del proyecto, así
+// que cada mutación de tarifa recalcula los totales del proyecto afectado.
+async function recalcular(proyectoId: string): Promise<void> {
+   await proyectoRepo.recalcularTotales(proyectoId);
+}
+
+// Los writes (upsert/bulk/delete) quedan bloqueados si el proyecto está
+// COMPLETADO. El GET no — solo se está leyendo.
+async function sessionOK(c: { req: { raw: Request } }): Promise<boolean> {
+   const session = await auth.api.getSession({ headers: c.req.raw.headers });
+   if (!session?.user) return false;
+   return true;
+}
 
 // GET /api/proyecto-empleado-tarifas?proyecto_id=xxx
 proyectoTarifasEmpleadoRoute.get("/", async (c) => {
@@ -41,14 +59,19 @@ proyectoTarifasEmpleadoRoute.get("/operadores", async (c) => {
 // POST /api/proyecto-empleado-tarifas (upsert single)
 proyectoTarifasEmpleadoRoute.post("/", async (c) => {
    try {
+      if (!(await sessionOK(c))) return c.json({ error: "No autenticado" }, 401);
+
       const rawBody = await c.req.json();
       const validation = UpsertProyectoEmpleadoTarifaDTOSchema.safeParse(rawBody);
       if (!validation.success) {
          return c.json({ error: "Datos incompletos o incorrectos", detalles: validation.error.format() }, 400);
       }
 
-      const tarifa = await service.upsert(validation.data);
-      return c.json(tarifa, 201);
+      await assertProyectoEditable(validation.data.proyecto_id);
+
+       const tarifa = await service.upsert(validation.data);
+       await recalcular(validation.data.proyecto_id);
+       return c.json(tarifa, 201);
    } catch (err: unknown) {
       return c.json({ error: err instanceof Error ? err.message : "Error al guardar la tarifa" }, 400);
    }
@@ -57,13 +80,18 @@ proyectoTarifasEmpleadoRoute.post("/", async (c) => {
 // POST /api/proyecto-empleado-tarifas/bulk
 proyectoTarifasEmpleadoRoute.post("/bulk", async (c) => {
    try {
+      if (!(await sessionOK(c))) return c.json({ error: "No autenticado" }, 401);
+
       const rawBody = await c.req.json();
       const { proyecto_id, tarifas } = rawBody as { proyecto_id: string; tarifas: Array<{ empleado_id: string; categoria_equipo_tarifa_id: string; monto_pago: number }> };
 
       if (!proyecto_id) return c.json({ error: "proyecto_id es requerido" }, 400);
       if (!Array.isArray(tarifas)) return c.json({ error: "tarifas debe ser un array" }, 400);
 
+      await assertProyectoEditable(proyecto_id);
+
       await service.bulkUpsert(proyecto_id, tarifas);
+      await recalcular(proyecto_id);
       return c.json({ success: true }, 200);
    } catch (err: unknown) {
       return c.json({ error: err instanceof Error ? err.message : "Error al guardar tarifas" }, 400);
@@ -73,7 +101,14 @@ proyectoTarifasEmpleadoRoute.post("/bulk", async (c) => {
 // DELETE /api/proyecto-empleado-tarifas/:id
 proyectoTarifasEmpleadoRoute.delete("/:id", async (c) => {
    try {
+      if (!(await sessionOK(c))) return c.json({ error: "No autenticado" }, 401);
+
+      const tarifa = await service.getById(c.req.param("id"));
+      if (!tarifa) return c.json({ error: "Tarifa no encontrada" }, 404);
+      await assertProyectoEditable(tarifa.proyecto_id);
+
       await service.remove(c.req.param("id"));
+      await recalcular(tarifa.proyecto_id);
       return c.json({ success: true });
    } catch (err: unknown) {
       return c.json({ error: err instanceof Error ? err.message : "Error al eliminar la tarifa" }, 400);

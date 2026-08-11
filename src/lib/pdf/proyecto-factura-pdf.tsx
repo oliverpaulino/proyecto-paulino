@@ -38,13 +38,16 @@ const c = StyleSheet.create({
 
 function ProyectoFacturaDocument({
    proyecto,
-   conduces = [],
+   conduces,
    incluirAnexo = true,
 }: {
    proyecto: Proyecto;
-   conduces: ConduceDTO[];
+   conduces?: ConduceDTO[];
    incluirAnexo?: boolean;
 }) {
+   const lista = conduces ?? proyecto.conduces ?? [];
+   conduces = [],
+      incluirAnexo = true
    // Los renglones facturables del proyecto ahora viven en la tabla `gasto`
    // (cobrable_proyecto = true), no en proyecto_detalle. La tarifa se suma como
    // renglón fijo aparte.
@@ -101,6 +104,16 @@ function ProyectoFacturaDocument({
                      </View>
                   )}
 
+                  {grupos.map((g, i) => (
+                     <View key={g.clave} style={[s.tableRow, i % 2 !== 0 ? s.tableRowAlt : {}]}>
+                        <Text style={[s.tableCell, c.colDesc]}>
+                           {g.equipo_nombre} ({g.tarifa_nombre || g.unidad})
+                        </Text>
+                        <Text style={[s.tableCell, c.colQty]}>{fmtNum(g.cantidad)}</Text>
+                        <Text style={[s.tableCell, c.colPrice]}>{fmt(g.precio_unitario)}</Text>
+                        <Text style={[s.tableCell, c.colSub]}>{fmt(g.subtotal)}</Text>
+                     </View>
+                  ))}
                   {conducesCobrables.map((e, i) => (
                      <View key={e.id} style={[s.tableRow, i % 2 !== 0 ? s.tableRowAlt : {}]}>
                         <Text style={[s.tableCell, c.colDesc]}>
@@ -241,14 +254,14 @@ export async function generateProyectoFacturaPDF(
 ): Promise<void> {
    // Los conduces pueden venir del store de la pantalla; si no, se usan los que
    // trae el propio proyecto.
-    const lista = conduces ?? proyecto.conduces ?? [];
-    const blob = await pdf(
-       <ProyectoFacturaDocument
-          proyecto={proyecto}
-          conduces={lista}
-          incluirAnexo={opciones?.incluirAnexo ?? true}
-       />
-    ).toBlob();
+   const lista = conduces ?? proyecto.conduces ?? [];
+   const blob = await pdf(
+      <ProyectoFacturaDocument
+         proyecto={proyecto}
+         conduces={lista}
+         incluirAnexo={opciones?.incluirAnexo ?? true}
+      />
+   ).toBlob();
 
    const nombre = proyecto.nombre || proyecto.cliente_nombre || proyecto.id.slice(0, 8);
    descargar(blob, `factura-${nombre.replace(/[^\w\-]+/g, "-").toLowerCase()}.pdf`);

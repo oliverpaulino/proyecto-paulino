@@ -54,15 +54,19 @@ function ProyectoInternoDocument({
    proyecto: Proyecto;
    conduces: ConduceDTO[];
 }) {
+   const totalGastosModulo = (proyecto.gastos ?? []).reduce((acc, g) => acc + Number(g.monto_total), 0);
    const cargosCobrables = (proyecto.gastos ?? []).filter((g) => g.cobrable_proyecto);
    const gastosInternos = (proyecto.gastos ?? []).filter((g) => !g.cobrable_proyecto);
 
    const conducesCobrables = conduces.filter((cc) => cc.es_cobrable);
    const conducesNoCobrables = conduces.filter((cc) => !cc.es_cobrable);
-   const grupos = agruparConduces(conduces);
 
    const totalConducesCobrables = sumaSubtotal(conducesCobrables);
    const totalConducesNoCobrables = sumaSubtotal(conducesNoCobrables);
+
+   // El resumen por equipo solo agrupa lo cobrable; los no cobrables quedan en
+   // el detalle y en el conteo de la sección de indicadores, no en los montos.
+   const grupos = agruparConduces(conducesCobrables);
 
    // Métricas operativas: viajes/metros de camión y horas de equipo pesado no
    // son la misma unidad, así que se cuentan por separado.
@@ -97,6 +101,10 @@ function ProyectoInternoDocument({
                   <View style={s.metaCell}>
                      <Text style={s.metaLabel}>Estado:</Text>
                      <Text style={s.metaValue}>{proyecto.estado}</Text>
+                  </View>
+                  <View style={s.metaCell}>
+                     <Text style={s.metaLabel}>Avance:</Text>
+                     <Text style={s.metaValue}>{proyecto.porcentaje_avance}%</Text>
                   </View>
                   <View style={s.metaCell}>
                      <Text style={s.metaLabel}>Tarifa servicio:</Text>
@@ -168,12 +176,17 @@ function ProyectoInternoDocument({
                         <Text style={[s.tableCell, c.grpSub]}>{fmt(g.subtotal)}</Text>
                      </View>
                   ))}
-                  {grupos.length === 0 && <Text style={s.emptyNote}>Sin conduces registrados.</Text>}
+                  {grupos.length === 0 &&
+                     (conduces.length > 0 ? (
+                        <Text style={s.emptyNote}>No hay conduces cobrables en este proyecto.</Text>
+                     ) : (
+                        <Text style={s.emptyNote}>Sin conduces registrados.</Text>
+                     ))}
                   {grupos.length > 0 && (
                      <View style={s.tableFoot}>
-                        <Text style={[s.tableFootCell, { flex: 1 }]}>Total</Text>
+                        <Text style={[s.tableFootCell, { flex: 1 }]}>Total cobrable</Text>
                         <Text style={[s.tableFootCell, c.grpSub]}>
-                           {fmt(totalConducesCobrables + totalConducesNoCobrables)}
+                           {fmt(totalConducesCobrables)}
                         </Text>
                      </View>
                   )}
@@ -190,18 +203,18 @@ function ProyectoInternoDocument({
                            <Text style={[s.tableHeadCell, c.colPrice]}>P. Unit.</Text>
                            <Text style={[s.tableHeadCell, c.colSub]}>Subtotal</Text>
                         </View>
-                         {cargosCobrables.map((cargo, i) => (
-                            <View key={cargo.id} style={[s.tableRow, i % 2 !== 0 ? s.tableRowAlt : {}]}>
-                               <Text style={[s.tableCell, c.colDesc]}>{cargo.concepto}</Text>
-                               <Text style={[s.tableCell, c.colQty]}>{fmtNum(cargo.cantidad ?? 1)}</Text>
-                               <Text style={[s.tableCell, c.colPrice]}>
-                                  {fmt(cargo.monto_unitario ?? cargo.cobrable_monto ?? cargo.monto_total)}
-                               </Text>
-                               <Text style={[s.tableCell, c.colSub]}>
-                                  {fmt(Number(cargo.cobrable_monto ?? cargo.monto_total))}
-                               </Text>
-                            </View>
-                         ))}
+                        {cargosCobrables.map((cargo, i) => (
+                           <View key={cargo.id} style={[s.tableRow, i % 2 !== 0 ? s.tableRowAlt : {}]}>
+                              <Text style={[s.tableCell, c.colDesc]}>{cargo.concepto}</Text>
+                              <Text style={[s.tableCell, c.colQty]}>{fmtNum(cargo.cantidad ?? 1)}</Text>
+                              <Text style={[s.tableCell, c.colPrice]}>
+                                 {fmt(cargo.monto_unitario ?? cargo.cobrable_monto ?? cargo.monto_total)}
+                              </Text>
+                              <Text style={[s.tableCell, c.colSub]}>
+                                 {fmt(Number(cargo.cobrable_monto ?? cargo.monto_total))}
+                              </Text>
+                           </View>
+                        ))}
                      </View>
                   </>
                )}
@@ -217,16 +230,16 @@ function ProyectoInternoDocument({
                            <Text style={[s.tableHeadCell, c.colPrice]}>P. Unit.</Text>
                            <Text style={[s.tableHeadCell, c.colSub]}>Subtotal</Text>
                         </View>
-                         {gastosInternos.map((g, i) => (
-                            <View key={g.id} style={[s.tableRow, i % 2 !== 0 ? s.tableRowAlt : {}]}>
-                               <Text style={[s.tableCell, c.colDesc]}>{g.concepto}</Text>
-                               <Text style={[s.tableCell, c.colQty]}>{fmtNum(g.cantidad ?? 1)}</Text>
-                               <Text style={[s.tableCell, c.colPrice]}>
-                                  {fmt(g.monto_unitario ?? g.monto_total)}
-                               </Text>
-                               <Text style={[s.tableCell, c.colSub]}>{fmt(Number(g.monto_total))}</Text>
-                            </View>
-                         ))}
+                        {gastosInternos.map((g, i) => (
+                           <View key={g.id} style={[s.tableRow, i % 2 !== 0 ? s.tableRowAlt : {}]}>
+                              <Text style={[s.tableCell, c.colDesc]}>{g.concepto}</Text>
+                              <Text style={[s.tableCell, c.colQty]}>{fmtNum(g.cantidad ?? 1)}</Text>
+                              <Text style={[s.tableCell, c.colPrice]}>
+                                 {fmt(g.monto_unitario ?? g.monto_total)}
+                              </Text>
+                              <Text style={[s.tableCell, c.colSub]}>{fmt(Number(g.monto_total))}</Text>
+                           </View>
+                        ))}
                      </View>
                   </>
                )}
@@ -242,10 +255,6 @@ function ProyectoInternoDocument({
                      <Text style={s.resumenValue}>{fmt(totalConducesCobrables)}</Text>
                   </View>
                   <View style={s.resumenRow}>
-                     <Text style={s.resumenLabel}>Conduces no cobrables (solo historial)</Text>
-                     <Text style={s.resumenValue}>{fmt(totalConducesNoCobrables)}</Text>
-                  </View>
-                  <View style={s.resumenRow}>
                      <Text style={s.resumenLabel}>Total cobrable</Text>
                      <Text style={s.resumenValue}>{fmt(proyecto.total_cobrable)}</Text>
                   </View>
@@ -253,6 +262,16 @@ function ProyectoInternoDocument({
                      <Text style={s.resumenLabel}>Total gasto interno</Text>
                      <Text style={s.resumenValue}>{fmt(proyecto.total_gasto_interno)}</Text>
                   </View>
+                  <View style={s.resumenRow}>
+                     <Text style={s.resumenLabel}>Costo de operadores</Text>
+                     <Text style={s.resumenValue}>{fmt(proyecto.total_costo_operador ?? 0)}</Text>
+                  </View>
+                  {totalGastosModulo > 0 && (
+                     <View style={s.resumenRow}>
+                        <Text style={s.resumenLabel}>Gastos vinculados (módulo Gastos)</Text>
+                        <Text style={s.resumenValue}>{fmt(totalGastosModulo)}</Text>
+                     </View>
+                  )}
                   <View style={[s.resumenRow, s.resumenTotal]}>
                      <Text style={[s.resumenLabel, { fontFamily: "Helvetica-Bold" }]}>Rentabilidad</Text>
                      <Text

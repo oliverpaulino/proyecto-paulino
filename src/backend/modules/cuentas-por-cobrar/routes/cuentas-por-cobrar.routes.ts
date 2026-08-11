@@ -64,6 +64,21 @@ cuentasPorCobrarRoute.get("/cliente/:clienteId", async (c) => {
    }
 });
 
+// GET /api/cuentas-por-cobrar/proyecto/:proyectoId
+// Cobranza de UN proyecto: su folio (tarifa + cargos + conduces) y los pagos
+// que tocan ese folio. La usa la pestaña de cobranza del detalle de proyecto.
+cuentasPorCobrarRoute.get("/proyecto/:proyectoId", async (c) => {
+   try {
+      const resultado = await service.proyectoDetalle(c.req.param("proyectoId"));
+      return c.json(resultado);
+   } catch (err: unknown) {
+      return c.json(
+         { error: err instanceof Error ? err.message : "Error al obtener la cobranza del proyecto" },
+         400
+      );
+   }
+});
+
 // POST /api/cuentas-por-cobrar/pagos
 // Pago rápido: monto + cliente, se reparte FIFO entre los conduces pendientes
 // (o solo los indicados en `conduce_ids` / con la distribución explícita de `pagos`).

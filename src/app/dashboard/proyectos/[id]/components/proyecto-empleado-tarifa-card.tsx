@@ -19,9 +19,10 @@ import type { OperadorTarifaRowDTO } from "@/dtos/proyecto-empleado-tarifa.dto";
 
 interface Props {
    proyectoId: string;
+   locked?: boolean;
 }
 
-export function ProyectoEmpleadoTarifasCard({ proyectoId }: Props) {
+export function ProyectoEmpleadoTarifasCard({ proyectoId, locked = false }: Props) {
    const { operadoresRows, operadoresTotal, loading, GetOperadoresConTarifas, BulkUpsertTarifas } = useProyectoEmpleadoTarifaStore();
 
    const [search, setSearch] = useState("");
@@ -102,6 +103,11 @@ export function ProyectoEmpleadoTarifasCard({ proyectoId }: Props) {
 
    return (
       <div className="space-y-4">
+         {locked && (
+            <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+               Proyecto <strong>COMPLETADO</strong>: los pagos de operadores están bloqueados.
+            </p>
+         )}
          {/* Buscador */}
          <div className="relative max-w-sm">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -110,6 +116,7 @@ export function ProyectoEmpleadoTarifasCard({ proyectoId }: Props) {
                value={search}
                onChange={(e) => setSearch(e.target.value)}
                className="pl-9"
+               disabled={locked}
             />
          </div>
 
@@ -156,6 +163,7 @@ export function ProyectoEmpleadoTarifasCard({ proyectoId }: Props) {
                                        placeholder={row.monto_pago_global?.toLocaleString("es-DO") ?? "0"}
                                        value={getMontoDisplay(row)}
                                        onChange={(e) => handleMontoChange(row, e.target.value)}
+                                       disabled={locked}
                                        className={`h-8 w-28 text-right ml-auto ${tieneCambios(row) ? "border-amber-400" : ""}`}
                                     />
                                  </TableCell>

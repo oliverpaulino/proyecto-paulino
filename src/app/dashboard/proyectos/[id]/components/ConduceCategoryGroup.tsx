@@ -30,6 +30,7 @@ export function ConduceCategoryGroup({
    onDetail,
    onEdit,
    onDelete,
+   locked,
 }: {
    categoria: string;
    items: ConduceDTO[];
@@ -38,12 +39,14 @@ export function ConduceCategoryGroup({
    selectedIds: Set<string>;
    onSelectIds: (ids: Set<string>) => void;
    onToggleCategory: (categoria: string, checked: boolean) => void;
-   onToggleOne: (id: string, esCobrable: boolean) => void;
+   onToggleOne: (id: string, esCobrable: boolean) => Promise<any> | void;
    toggleLoading: boolean;
    onDetail: (c: ConduceDTO) => void;
    onEdit: (c: ConduceDTO) => void;
    onDelete: (c: ConduceDTO) => void;
+   locked: boolean;
 }) {
+   const [loadingId, setLoadingId] = useState<string | null>(null);
    const [page, setPage] = useState(1);
    const totalPages = Math.ceil(items.length / CAT_PAGE_SIZE);
    const paginatedItems = items.slice((page - 1) * CAT_PAGE_SIZE, page * CAT_PAGE_SIZE);
@@ -58,6 +61,7 @@ export function ConduceCategoryGroup({
                <Checkbox
                   checked={allSelected ? true : someSelected ? "indeterminate" : false}
                   onCheckedChange={(checked) => onToggleCategory(categoria, checked === true)}
+                  disabled={locked}
                />
             </div>
             <AccordionTrigger className="flex-1 hover:no-underline [&[data-state=open]]:border-b px-2 py-3 pr-4  hover:bg-black/5 transition-colors">
@@ -114,6 +118,7 @@ export function ConduceCategoryGroup({
                                           else next.add(c.id);
                                           onSelectIds(next);
                                        }}
+                                       disabled={locked}
                                     />
                                  </td>
                                  <td className="px-4 py-2">
@@ -150,15 +155,22 @@ export function ConduceCategoryGroup({
                                     RD$ {c.subtotal.toLocaleString("es-DO")}
                                  </td>
                                  <td className="px-4 py-2 text-center">
-                                    {toggleLoading ? (
+                                    {(loadingId === c.id) || (toggleLoading === true && loadingId === null) ? (
                                        <Loader2 className="size-4 animate-spin text-muted-foreground m-auto" />
                                     ) : (
                                        <Switch
                                           size="sm"
                                           className="cursor-pointer"
                                           checked={c.es_cobrable}
-                                          disabled={toggleLoading}
-                                          onCheckedChange={(checked) => onToggleOne(c.id, checked)}
+                                          disabled={!!loadingId || toggleLoading || locked}
+                                          onCheckedChange={async (checked) => {
+                                             setLoadingId(c.id);
+                                             try {
+                                                await onToggleOne(c.id, checked);
+                                             } finally {
+                                                setLoadingId(null);
+                                             }
+                                          }}
                                        />
                                     )}
                                  </td>
@@ -179,6 +191,7 @@ export function ConduceCategoryGroup({
                                           size="icon"
                                           className="size-7 text-muted-foreground hover:text-foreground"
                                           onClick={() => onEdit(c)}
+                                          disabled={locked}
                                        >
                                           <Pencil className="h-4 w-4" />
                                        </Button>
@@ -188,6 +201,7 @@ export function ConduceCategoryGroup({
                                           size="icon"
                                           className="size-7 text-muted-foreground hover:text-destructive"
                                           onClick={() => onDelete(c)}
+                                          disabled={locked}
                                        >
                                           <Trash2 className="h-4 w-4" />
                                        </Button>
