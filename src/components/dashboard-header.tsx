@@ -18,27 +18,10 @@ export function DashboardHeader() {
       // Fetch initial count
       fetchUnreadCount();
 
-      // SSE for real-time updates
-      const es = new EventSource("/api/notifications/stream");
+      // Poll for updates every 15 seconds
+      const interval = setInterval(fetchUnreadCount, 15000);
 
-      es.onmessage = (e) => {
-         if (!e.data?.trim()) return; // keep-alive empty frame
-         try {
-            const payload = JSON.parse(e.data) as { count?: number };
-            if (typeof payload.count === "number") {
-               useNotificationStore.setState({ unreadCount: payload.count });
-            }
-         } catch {
-            // malformed frame, ignore
-         }
-      };
-
-      es.onerror = () => {
-         // Browser will auto-reconnect; close on persistent failure
-         if (es.readyState === EventSource.CLOSED) es.close();
-      };
-
-      return () => es.close();
+      return () => clearInterval(interval);
    // eslint-disable-next-line react-hooks/exhaustive-deps
    }, [session?.user]);
 
