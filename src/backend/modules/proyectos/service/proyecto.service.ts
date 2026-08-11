@@ -85,11 +85,6 @@ export class ProyectoService {
       await Promise.all(ids.map((pid) => this.repo.recalcularTotales(pid)));
    }
 
-   async toggleDetalleCobrable(ids: string[], es_cobrable: boolean): Promise<void> {
-      if (ids.length === 0) return;
-      return this.repo.toggleDetalleCobrable(ids, es_cobrable);
-   }
-
    #validateItems(
 
       items: Array<{ descripcion: string; cantidad: number; precio_unitario: number }>,

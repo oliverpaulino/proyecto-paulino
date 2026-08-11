@@ -23,9 +23,9 @@ export function GastoTable({ gastos, onMoveGasto, moveTargetLabel, onDataChanged
    moveTargetLabel?: string;
    onDataChanged?: () => void;
 }) {
-   const { UpdateGasto, DeleteGasto } = useGastoStore();
+   const { UpdateGasto, DeleteGasto, GetGastos } = useGastoStore();
    const { CreatePago } = usePagoStore();
-   
+
    const [editingGasto, setEditingGasto] = useState<Gasto | null>(null);
    const [deletingGasto, setDeletingGasto] = useState<Gasto | null>(null);
    const [pagandoGasto, setPagandoGasto] = useState<Gasto | null>(null);
@@ -161,9 +161,8 @@ export function GastoTable({ gastos, onMoveGasto, moveTargetLabel, onDataChanged
                   {gastos.map((g) => (
                      <tr
                         key={g.id}
-                        className={`border-b border-border/50 transition-colors ${
-                           seleccionados.has(g.id) ? "bg-brand-blue/5" : "hover:bg-brand-blue/5"
-                        }`}
+                        className={`border-b border-border/50 transition-colors ${seleccionados.has(g.id) ? "bg-brand-blue/5" : "hover:bg-brand-blue/5"
+                           }`}
                      >
                         <td className="px-4 py-3">
                            <Checkbox
@@ -203,16 +202,16 @@ export function GastoTable({ gastos, onMoveGasto, moveTargetLabel, onDataChanged
                               >
                                  <Banknote className="size-4" />
                               </button>
-                              <button 
+                              <button
                                  onClick={() => setEditingGasto(g)}
-                                 className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10 transition-colors" 
+                                 className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10 transition-colors"
                                  title="Editar"
                               >
                                  <Pencil className="size-4" />
                               </button>
-                              <button 
+                              <button
                                  onClick={() => setDeletingGasto(g)}
-                                 className="rounded-md p-1.5 text-destructive hover:bg-destructive/10 transition-colors" 
+                                 className="rounded-md p-1.5 text-destructive hover:bg-destructive/10 transition-colors"
                                  title="Anular"
                               >
                                  <Trash2 className="size-4" />
@@ -241,11 +240,11 @@ export function GastoTable({ gastos, onMoveGasto, moveTargetLabel, onDataChanged
                   <DialogTitle>Editar Gasto</DialogTitle>
                </DialogHeader>
                {editingGasto && (
-                  <GastoForm 
-                     initialData={editingGasto} 
-                     onSubmit={handleEdit} 
-                     onCancel={() => setEditingGasto(null)} 
-                     loading={actionLoading} 
+                  <GastoForm
+                     initialData={editingGasto}
+                     onSubmit={handleEdit}
+                     onCancel={() => setEditingGasto(null)}
+                     loading={actionLoading}
                   />
                )}
             </DialogContent>
@@ -274,11 +273,11 @@ export function GastoTable({ gastos, onMoveGasto, moveTargetLabel, onDataChanged
             </DialogContent>
          </Dialog>
 
-         <DeleteGastoDialog 
-            gasto={deletingGasto} 
-            onConfirm={handleDelete} 
-            onClose={() => setDeletingGasto(null)} 
-            loading={actionLoading} 
+         <DeleteGastoDialog
+            gasto={deletingGasto}
+            onConfirm={handleDelete}
+            onClose={() => setDeletingGasto(null)}
+            loading={actionLoading}
          />
       </>
    );
