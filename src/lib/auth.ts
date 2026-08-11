@@ -4,22 +4,34 @@ import { admin, jwt, customSession } from "better-auth/plugins";
 import { Resend } from "resend";
 import { ac, roles } from "./permission";
 import { getPermissionsForRole } from "./permissions/resolve";
+
 // const resend = new Resend(process.env.RESEND_API_KEY);
+
+// 1. Instancia del Pool con SSL obligatorio en producción para Supabase
+const pool = new Pool({
+  connectionString: process.env.DB_CONNECTION_STRING || process.env.DATABASE_URL,
+  max: 10,
+  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+});
 
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
-  database: new Pool({
-    connectionString: process.env.DB_CONNECTION_STRING,
-  }),
+  database: pool,
+
+  // 2. Manejo de orígenes mediante arreglo seguro para evitar errores de tipos y CORS
   trustedOrigins: [
     process.env.BETTER_AUTH_URL || "",
-    "https://*.vercel.app", // Permite subdominios de Vercel si usas previews
-  ],
+    process.env.NEXT_PUBLIC_APP_URL || "",
+    "https://*.vercel.app", // Soporte nativo de comodines si tu versión de better-auth lo permite
+    "http://localhost:3000"
+  ].filter(Boolean),
+
   user: {
     additionalFields: {
       role: { type: "string", input: false },
     },
   },
+
   plugins: [
     jwt(),
     admin({
@@ -42,12 +54,14 @@ export const auth = betterAuth({
       };
     }),
   ],
+
   session: {
     cookieCache: {
       enabled: true,
       maxAge: 60 * 5, // 5 minutes, refreshed on each request
     },
   },
+
   emailAndPassword: {
     enabled: true,
     // sendResetPassword: async ({ user, url }) => {
