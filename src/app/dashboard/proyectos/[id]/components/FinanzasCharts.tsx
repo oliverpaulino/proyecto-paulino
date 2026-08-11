@@ -129,7 +129,6 @@ export function FinanzasCharts({ proyecto }: { proyecto: Proyecto }) {
    const totalGastosInternos = gastosModulo
       .filter((g) => !g.cobrable_proyecto)
       .reduce((s, g) => s + Number(g.monto_total), 0);
-   const totalGastosCobrablesMonto = gastosCobrables.reduce((s, g) => s + Number(g.monto_total), 0);
 
    const conduces = proyecto.conduces ?? [];
 
@@ -143,10 +142,13 @@ export function FinanzasCharts({ proyecto }: { proyecto: Proyecto }) {
       { name: "Gastos cobrables", value: totalGastosCobrables, color: PURPLE },
    ].filter((d) => d.value > 0);
 
+   // Lo que cuesta el proyecto de verdad. Los conduces NO cobrables son solo
+   // historial (no se facturan y no cuentan como gasto), así que NO entran
+   // aquí. Los gastos cobrables tampoco: se le facturan al cliente y ya están
+   // en el donut de ingresos.
    const gastos = [
       { name: "Costo de operadores", value: Number(proyecto.total_costo_operador ?? 0), color: ORANGE },
-      { name: "Gastos internos", value: totalGastosInternos, color: RED },
-      { name: "Gastos cobrables", value: totalGastosCobrablesMonto, color: PURPLE },
+      { name: "Gastos incobrables", value: totalGastosInternos, color: RED },
    ].filter((d) => d.value > 0);
 
    // Ingresos cobrables por fecha (serie temporal).
@@ -174,9 +176,12 @@ export function FinanzasCharts({ proyecto }: { proyecto: Proyecto }) {
       .map(([nombre, total]) => ({ nombre: nombre.length > 18 ? `${nombre.slice(0, 18)}…` : nombre, total }));
 
    const totalCobrable = Number(proyecto.total_cobrable ?? 0);
-   const totalGastoInterno = Number(proyecto.total_gasto_interno ?? 0);
+   const totalCostoOperador = Number(proyecto.total_costo_operador ?? 0);
+   // Costo total = gastos internos del módulo + pago a los operadores por TODO
+   // su trabajo. Los conduces no cobrables no son gasto (solo historial).
+   const costosTotales = totalCostoOperador + totalGastosInternos;
    const rentabilidad = Number(proyecto.rentabilidad ?? 0);
-   const pctGastos = totalCobrable > 0 ? Math.min(100, (totalGastoInterno / totalCobrable) * 100) : 0;
+   const pctGastos = totalCobrable > 0 ? Math.min(100, (costosTotales / totalCobrable) * 100) : 0;
 
    return (
       <div className="space-y-6">
@@ -185,8 +190,8 @@ export function FinanzasCharts({ proyecto }: { proyecto: Proyecto }) {
             <CardHeader>
                <CardTitle className="text-base">Balance del proyecto</CardTitle>
                <CardDescription>
-                  Cuánto se factura (cobrables) frente a cuánto cuesta (costo de operadores + cargos
-                  no cobrables + gastos del módulo Gastos). El resto es la rentabilidad.
+                  Cuánto se factura (cobrables) frente a cuánto cuesta (costo de operadores + gastos
+                  incobrables del módulo Gastos). El resto es la rentabilidad.
                </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -197,7 +202,7 @@ export function FinanzasCharts({ proyecto }: { proyecto: Proyecto }) {
                   </div>
                   <div className="rounded-lg border border-border p-3">
                      <p className="text-xs uppercase tracking-wide text-red-500">Gastos</p>
-                     <p className="mt-1 text-lg font-bold text-foreground">{formatMoney(totalGastoInterno)}</p>
+                     <p className="mt-1 text-lg font-bold text-foreground">{formatMoney(costosTotales)}</p>
                   </div>
                   <div className="rounded-lg border p-3" style={{ borderColor: rentabilidad >= 0 ? GREEN : RED, backgroundColor: rentabilidad >= 0 ? "rgba(22,163,74,0.06)" : "rgba(220,38,38,0.06)" }}>
                      <p className="text-xs uppercase tracking-wide" style={{ color: rentabilidad >= 0 ? GREEN : RED }}>
@@ -225,7 +230,7 @@ export function FinanzasCharts({ proyecto }: { proyecto: Proyecto }) {
                         </span>
                         <span className="flex items-center gap-1">
                            <span className="inline-block size-2.5 rounded-full" style={{ backgroundColor: RED }} />
-                           Gastos {formatMoney(totalGastoInterno)} ({Math.round(pctGastos)}% de los ingresos)
+                           Gastos {formatMoney(costosTotales)} ({Math.round(pctGastos)}% de los ingresos)
                         </span>
                         <span className="flex items-center gap-1 font-semibold" style={{ color: rentabilidad >= 0 ? GREEN : RED }}>
                            {rentabilidad >= 0 ? "Ganancia" : "Pérdida"} {formatMoney(Math.abs(rentabilidad))}
@@ -245,9 +250,9 @@ export function FinanzasCharts({ proyecto }: { proyecto: Proyecto }) {
             />
             <Donut
                title="Composición de gastos"
-               description="Costo de operadores y gastos del módulo Gastos (cobrables e internos)."
+               description="Costo de operadores y gastos incobrables (corren por cuenta de la empresa)."
                data={gastos}
-               centro={Number(proyecto.total_gasto_interno ?? 0)}
+               centro={costosTotales}
             />
          </div>
 

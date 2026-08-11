@@ -126,6 +126,21 @@ export interface PagoCxc {
    deleted_at: string | null;
 }
 
+export interface FolioProyectoCxc {
+   proyecto: {
+      id: string;
+      nombre: string;
+      codigoReferencia: string;
+   };
+   folio: CuentaPorCobrar | null;
+   historial_pagos: PagoCxc[];
+   resumen: {
+      facturado: number;
+      pagado: number;
+      pendiente: number;
+   };
+}
+
 export interface DetalleClienteCxc {
    cliente: {
       id: string;
@@ -184,6 +199,7 @@ interface State {
    RegistrarPago: (pago: RegistrarPagoCxc) => Promise<PagoCxc[]>;
    GetDetalleCliente: (clienteId: string) => Promise<DetalleClienteCxc>;
    GetPendientesCliente: (clienteId: string) => Promise<CuentaPorCobrar[]>;
+   GetProyectoCxc: (proyectoId: string) => Promise<FolioProyectoCxc>;
 }
 
 export const useCuentasPorCobrarStore = create<State>((set, get) => ({
@@ -283,5 +299,12 @@ export const useCuentasPorCobrarStore = create<State>((set, get) => ({
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? "No se pudieron cargar los folios pendientes");
       return (data.cuentas ?? []) as CuentaPorCobrar[];
+   },
+
+   GetProyectoCxc: async (proyectoId) => {
+      const res = await fetch(`/api/cuentas-por-cobrar/proyecto/${proyectoId}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "No se pudo cargar la cobranza del proyecto");
+      return data as FolioProyectoCxc;
    },
 }));

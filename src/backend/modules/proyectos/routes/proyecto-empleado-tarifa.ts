@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import db from "@/backend/database";
 import { KyselyProyectoEmpleadoTarifaRepository } from "../infraestructure/proyecto-empleado-tarifa.infraestructure";
 import { ProyectoEmpleadoTarifaService } from "../service/proyecto-empleado-tarifa.service";
+import { KyselyProyectoRepository } from "../infraestructure/proyecto.infraestructure";
 import { UpsertProyectoEmpleadoTarifaDTOSchema } from "@/dtos/proyecto-empleado-tarifa.dto";
 import { auth } from "@/lib/auth";
 import { assertProyectoEditable } from "../guards/proyecto-editable.guard";
@@ -9,6 +10,13 @@ import { assertProyectoEditable } from "../guards/proyecto-editable.guard";
 const proyectoTarifasEmpleadoRoute = new Hono();
 const repo = new KyselyProyectoEmpleadoTarifaRepository(db);
 const service = new ProyectoEmpleadoTarifaService(repo);
+const proyectoRepo = new KyselyProyectoRepository(db);
+
+// El monto_pago alimenta el total_costo_operador/rentabilidad del proyecto, así
+// que cada mutación de tarifa recalcula los totales del proyecto afectado.
+async function recalcular(proyectoId: string): Promise<void> {
+   await proyectoRepo.recalcularTotales(proyectoId);
+}
 
 // Los writes (upsert/bulk/delete) quedan bloqueados si el proyecto está
 // COMPLETADO. El GET no — solo se está leyendo.
@@ -61,8 +69,9 @@ proyectoTarifasEmpleadoRoute.post("/", async (c) => {
 
       await assertProyectoEditable(validation.data.proyecto_id);
 
-      const tarifa = await service.upsert(validation.data);
-      return c.json(tarifa, 201);
+       const tarifa = await service.upsert(validation.data);
+       await recalcular(validation.data.proyecto_id);
+       return c.json(tarifa, 201);
    } catch (err: unknown) {
       return c.json({ error: err instanceof Error ? err.message : "Error al guardar la tarifa" }, 400);
    }
@@ -82,6 +91,7 @@ proyectoTarifasEmpleadoRoute.post("/bulk", async (c) => {
       await assertProyectoEditable(proyecto_id);
 
       await service.bulkUpsert(proyecto_id, tarifas);
+      await recalcular(proyecto_id);
       return c.json({ success: true }, 200);
    } catch (err: unknown) {
       return c.json({ error: err instanceof Error ? err.message : "Error al guardar tarifas" }, 400);
@@ -98,6 +108,7 @@ proyectoTarifasEmpleadoRoute.delete("/:id", async (c) => {
       await assertProyectoEditable(tarifa.proyecto_id);
 
       await service.remove(c.req.param("id"));
+      await recalcular(tarifa.proyecto_id);
       return c.json({ success: true });
    } catch (err: unknown) {
       return c.json({ error: err instanceof Error ? err.message : "Error al eliminar la tarifa" }, 400);

@@ -17,6 +17,7 @@ import { useProyectoStore } from "@/stores/useProyectoStore";
 import { ProyectoHeader } from "./components/ProyectoHeader";
 import { GeneralTab } from "./components/GeneralTab";
 import { ConducesTab } from "./components/ConducesTab";
+import { CobranzaTab } from "./components/CobranzaTab";
 import { GastosProyectoTab } from "./components/GastosProyectoTab";
 import ConfiguracionTab from "./components/Configuracion-tab";
 import { ArchivosTab } from "./components/ArchivosTab";
@@ -115,8 +116,6 @@ export default function ProyectoDetailPage() {
       );
    }
 
-   const cargosCobrables = proyecto.detalle.filter((d: { es_cobrable: any; }) => d.es_cobrable);
-   const gastosInternos = proyecto.detalle.filter((d: { es_cobrable: any; }) => !d.es_cobrable);
    const locked = proyecto.estado === "COMPLETADO";
 
    return (
@@ -135,7 +134,7 @@ export default function ProyectoDetailPage() {
          )}
 
          <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-            <TabsList className="w-full flex flex-nowrap overflow-x-auto justify-start gap-1 bg-transparent">
+            <TabsList className="flex w-full flex-wrap justify-start gap-1 bg-transparent">
                <TabsTrigger value="general" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
                   General
                </TabsTrigger>
@@ -144,6 +143,9 @@ export default function ProyectoDetailPage() {
                </TabsTrigger>
                <TabsTrigger value="conduces" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
                   Conduces
+               </TabsTrigger>
+               <TabsTrigger value="cobranza" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                  Cobranza
                </TabsTrigger>
                <TabsTrigger value="cobrables" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
                   Cobrables
@@ -166,6 +168,10 @@ export default function ProyectoDetailPage() {
 
             <TabsContent value="conduces" className="space-y-4">
                <ConducesTab proyecto={proyecto} onProyectoChange={loadProyecto} locked={locked} />
+            </TabsContent>
+
+            <TabsContent value="cobranza" className="space-y-4">
+               <CobranzaTab proyecto={proyecto} />
             </TabsContent>
 
             <TabsContent value="cobrables" className="space-y-4">

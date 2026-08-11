@@ -47,10 +47,31 @@ export function GeneralTab({
       } catch (err) {
          setAvanceError(err instanceof Error ? err.message : "No se pudo guardar el avance");
          setPorcentaje(proyecto.porcentaje_avance ?? 0);
-      } finally {
+      }       finally {
          setAvanceGuardando(false);
       }
    }
+
+   // Gastos del módulo Gastos: cobrables (se facturan al cliente) e
+   // incobrables (corren por cuenta de la empresa). Se calculan en vivo desde
+   // proyecto.gastos para no depender del valor persistido.
+   const gastosModulo = proyecto.gastos ?? [];
+   const gastosCobrables = gastosModulo
+      .filter((g) => g.cobrable_proyecto)
+      .reduce((s, g) => s + Number(g.cobrable_monto ?? g.monto_total), 0);
+   const gastosIncobrables = gastosModulo
+      .filter((g) => !g.cobrable_proyecto)
+      .reduce((s, g) => s + Number(g.monto_total), 0);
+
+   // Conduces: cobrables (se facturan) y no cobrables (solo historial, no son
+   // gasto y no tocan la rentabilidad).
+   const conduces = proyecto.conduces ?? [];
+   const conducesCobrables = conduces
+      .filter((c) => c.es_cobrable)
+      .reduce((s, c) => s + Number(c.subtotal), 0);
+   const conducesNoCobrables = conduces
+      .filter((c) => !c.es_cobrable)
+      .reduce((s, c) => s + Number(c.subtotal), 0);
 
    return (
       <div className="space-y-6">
@@ -58,7 +79,10 @@ export function GeneralTab({
          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <StatBox label="Tarifa del servicio" value={formatMoney(proyecto.tarifa_servicio)} />
             <StatBox label="Total cobrable" value={formatMoney(proyecto.total_cobrable)} accent="text-green-600" />
-            <StatBox label="Gastos internos" value={formatMoney(proyecto.total_gasto_interno)} accent="text-red-500" />
+            <StatBox label="Gastos cobrables" value={formatMoney(gastosCobrables)} accent="text-purple-600" />
+            <StatBox label="Gastos incobrables" value={formatMoney(gastosIncobrables)} accent="text-red-500" />
+            <StatBox label="Conduces cobrables" value={formatMoney(conducesCobrables)} accent="text-brand-blue" />
+            <StatBox label="Conduces no cobrables" value={formatMoney(conducesNoCobrables)} accent="text-gray-500" />
             <StatBox
                label="Costo de operadores"
                value={formatMoney(proyecto.total_costo_operador ?? 0)}
