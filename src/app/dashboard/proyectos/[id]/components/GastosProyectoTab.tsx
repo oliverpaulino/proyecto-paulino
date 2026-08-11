@@ -24,7 +24,7 @@ export function GastosProyectoTab({
    cobrable: boolean;
    onProyectoChange?: () => void;
 }) {
-   const { CreateGasto, MoveCobrable } = useGastoStore();
+   const { CreateGasto, MoveCobrable, GetGastosByProyecto } = useGastoStore();
    const proyectoId = proyecto.id;
 
    const [gastos, setGastos] = useState<Gasto[]>([]);
@@ -40,18 +40,14 @@ export function GastosProyectoTab({
       setLoading(true);
       setLoadError(null);
       try {
-         const res = await fetch(
-            `/api/gastos?proyecto_id=${proyectoId}&cobrable_proyecto=${cobrable}&limit=500`
-         );
-         if (!res.ok) throw new Error("Error al cargar los gastos del proyecto");
-         const items: Gasto[] = await res.json();
-         setGastos(items);
+         const data = await GetGastosByProyecto(proyectoId, cobrable);
+         setGastos(data);
       } catch (err) {
          setLoadError(err instanceof Error ? err.message : "Error al cargar los gastos");
       } finally {
          setLoading(false);
       }
-   }, [proyectoId, cobrable]);
+   }, [proyectoId, cobrable, GetGastosByProyecto]);
 
    useEffect(() => {
       loadGastos();

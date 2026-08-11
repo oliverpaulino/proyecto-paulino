@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -40,6 +40,7 @@ import {
 } from "@/lib/permission-catalog";
 import { PermissionGuard } from "@/components/permission-guard";
 import { RolePermissionsPdfButton } from "./components/role-permissions-pdf";
+import { useRoleStore } from "@/stores/useRoleStore";
 import {
   RoleEditorDialog,
   type PermissionMap,
@@ -75,46 +76,20 @@ function buildBreakdown(permission: PermissionMap) {
 }
 
 export default function RolesSettingsPage() {
-  const [roles, setRoles] = useState<RoleRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { roles, loading, error, GetRoles, DeleteRole } = useRoleStore();
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<RoleRow | null>(null);
   const [deleting, setDeleting] = useState<RoleRow | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/roles", { credentials: "include" });
-      if (!res.ok) throw new Error("No se pudieron cargar los roles");
-      setRoles(await res.json());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error desconocido");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    void load();
-  }, [load]);
+    void GetRoles();
+  }, [GetRoles]);
 
   const confirmDelete = async () => {
     if (!deleting) return;
     try {
-      const res = await fetch(`/api/roles/${deleting.key}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? "No se pudo eliminar el rol");
-      }
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error desconocido");
+      await DeleteRole(deleting.key);
     } finally {
       setDeleting(null);
     }
@@ -300,7 +275,7 @@ export default function RolesSettingsPage() {
         open={editorOpen}
         onOpenChange={setEditorOpen}
         role={editing}
-        onSaved={load}
+        onSaved={GetRoles}
       />
 
       <AlertDialog
