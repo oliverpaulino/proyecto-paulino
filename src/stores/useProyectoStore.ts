@@ -39,7 +39,10 @@ export const useProyectoStore = create<ProyectoStore>((set, get) => ({
    invalidateCache: () => set({ _fetchedLists: new Set<string>() }),
 
    GetProyectos: async ({ force = false, search = "", page = 1, limit = 10 }: { force?: boolean, search?: string, page?: number, limit?: number } = {}) => {
-      const cacheKey = "all";
+      // La clave incluye search/page/limit: sin esto, buscar "PRO-007" con la
+      // clave fija "all" ya cacheado no volvía a consultar y los resultados
+      // quedaban desactualizados al paginar o filtrar.
+      const cacheKey = `all:${search}:${page}:${limit}`;
       if (!force && get()._fetchedLists.has(cacheKey)) return;
 
       set({ loading: true });

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { ConduceDTO } from "./conduce.dto";
+import type { Gasto } from "./gastos.dto";
 
 // ─── Creación (formulario simplificado: ya NO incluye tarifas ni equipos) ───
 export const CreateProyectoDTOSchema = z.object({
@@ -37,6 +38,7 @@ export interface UpdateProyectoForm {
    fecha_inicio?: string;
    cliente_id?: string;
    cliente_nombre?: string;
+   porcentaje_avance?: number;
 }
 export type CreateProyectoForm = z.infer<typeof CreateProyectoDTOSchema>;
 export type LineItemForm = { descripcion: string; cantidad: number; precio_unitario: number };
@@ -57,6 +59,16 @@ export interface ProyectoDetalle {
    updated_at: string;
 }
 
+export interface ProyectoEstadoHistorial {
+   id: string;
+   proyecto_id: string;
+   estado_anterior: EstadoProyecto | null;
+   estado_nuevo: EstadoProyecto;
+   changed_by: string | null;
+   changed_by_name: string | null;
+   created_at: string;
+}
+
 interface ProyectoBase {
    id: string;
    codigoReferencia: string; // PRO-001
@@ -68,12 +80,16 @@ interface ProyectoBase {
    total_cobrable: number;
    total_gasto_interno: number;
    total_equipos: number; // ← NUEVO, para la columna "Total en Camiones" del historial
+   total_costo_operador: number; // Σ cantidad × monto_pago (lo que se paga a los choferes)
    rentabilidad: number;
+   porcentaje_avance: number; // 0-100, ajustable con el slider de la vista general
    notas: string | null;
    fecha_inicio: string;
    fecha_fin: string | null;
    detalle: ProyectoDetalle[];
    conduces: ConduceDTO[]; // ← reemplaza a equiposDetalle
+   gastos?: Gasto[]; // ← gastos del módulo Gastos vinculados a este proyecto
+   historial_estados?: ProyectoEstadoHistorial[];
    created_at: string;
    updated_at: string;
 }
@@ -94,6 +110,7 @@ export interface LiquidacionExpress {
    conduces: ConduceDTO[];
    total_cobrable: number;
    total_gasto_interno: number;
+   total_costo_operador: number;
    rentabilidad: number;
    fecha: string;
 }
