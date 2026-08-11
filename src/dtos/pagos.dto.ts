@@ -166,6 +166,10 @@ export const InfoDestinoPagoSchema = z.object({
    concepto: z.string().nullable(),
    estado: z.string().nullable(),
 
+   // GASTO nacido de una orden de compra: referencia de la OC a la que
+   // deben ir los pagos de salida en su lugar (null si no aplica).
+   ordenCompraReferencia: z.string().nullable(),
+
    montoTotal: z.number(),
    capital: z.number(),
 

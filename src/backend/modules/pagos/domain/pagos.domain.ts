@@ -111,6 +111,10 @@ export interface InfoDestinoPago {
    concepto: string | null;
    estado: string | null;
 
+   /** GASTO nacido de una orden de compra: referencia de la OC a la que deben
+    * ir los pagos de salida en su lugar (null si no aplica). */
+   ordenCompraReferencia: string | null;
+
    montoTotal: number;
    capital: number;
 

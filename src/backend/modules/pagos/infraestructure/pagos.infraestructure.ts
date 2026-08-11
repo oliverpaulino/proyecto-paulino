@@ -306,6 +306,7 @@ export class KyselyPagoRepository implements IPagoRepository {
 
       const base = {
          estado: null,
+         ordenCompraReferencia: null,
          capital: 0,
          cobrableProyecto: false,
          cobrableCliente: 0,
@@ -321,9 +322,20 @@ export class KyselyPagoRepository implements IPagoRepository {
       if (gasto_empresa_id) {
          const gasto = await this.db
             .selectFrom("gasto")
-            .select(["id", "referencia", "concepto", "monto_total", "cobrable_proyecto", "cobrable_monto", "orden_compra_id"])
-            .where("id", "=", gasto_empresa_id)
-            .where("deleted_at", "is", null)
+            .leftJoin("orden_compra", "orden_compra.id", "gasto.orden_compra_id")
+            .select([
+               "gasto.id",
+               "gasto.referencia",
+               "gasto.concepto",
+               "gasto.monto_total",
+               "gasto.cobrable_proyecto",
+               "gasto.cobrable_monto",
+               "gasto.orden_compra_id",
+               "orden_compra.referencia as orden_compra_referencia",
+               "orden_compra.fecha as orden_compra_fecha",
+            ])
+            .where("gasto.id", "=", gasto_empresa_id)
+            .where("gasto.deleted_at", "is", null)
             .executeTakeFirst();
 
          if (!gasto) return null;
@@ -340,6 +352,10 @@ export class KyselyPagoRepository implements IPagoRepository {
             tipo: "GASTO",
             referencia: this.buildCodigoReferencia("GAS", gasto.referencia),
             concepto: gasto.concepto,
+            ordenCompraReferencia:
+               gasto.orden_compra_referencia != null && gasto.orden_compra_fecha
+                  ? this.buildCodigoOrdenCompra(gasto.orden_compra_referencia, new Date(gasto.orden_compra_fecha))
+                  : null,
             montoTotal,
             cobrableProyecto,
             cobrableCliente,
