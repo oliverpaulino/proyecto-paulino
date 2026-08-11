@@ -51,6 +51,7 @@ export interface ProyectoEstadoHistorial {
 }
 
 interface ProyectoBase {
+   detalle: any;
    id: string;
    codigoReferencia: string; // PRO-001
    estado: EstadoProyecto;
