@@ -6,11 +6,13 @@ import type { EquipoRentabilidad } from "@/dtos/rentabilidad.dto";
 
 type EquipoStore = {
    Equipos: Equipo[];
+   selectedEquipo: Equipo | null;
    loading: boolean;
    _fetchedLists: Set<string>;
 
 
    GetEquipos: (params?: { page?: number; limit?: number; search?: string; force?: boolean }) => Promise<void>;
+   GetEquipoById: (id: string) => Promise<Equipo | null>;
    CreateEquipo: (form: EquipoForm) => Promise<Equipo | Error>;
    UpdateEquipo: (id: string, data: Partial<UpdateEquipoForm>) => Promise<void | Error>;
    DeleteEquipo: (id: string) => Promise<void | Error>;
@@ -44,6 +46,7 @@ type EquipoStore = {
 
 export const useEquipoStore = create<EquipoStore>((set, get) => ({
    Equipos: [],
+   selectedEquipo: null,
    loading: false,
    _fetchedLists: new Set<string>(),
    rentabilidadData: null,
@@ -85,6 +88,22 @@ export const useEquipoStore = create<EquipoStore>((set, get) => ({
       } catch (error) {
          console.error("Error fetching equipos:", error);
          throw error;
+      } finally {
+         set({ loading: false });
+      }
+   },
+
+   GetEquipoById: async (id) => {
+      set({ loading: true });
+      try {
+         const res = await fetch(`/api/equipos/${id}`);
+         if (!res.ok) throw new Error("Error al cargar equipo");
+         const data: Equipo = await res.json();
+         set({ selectedEquipo: data });
+         return data;
+      } catch (error) {
+         console.error("Error fetching equipo by id:", error);
+         return null;
       } finally {
          set({ loading: false });
       }
