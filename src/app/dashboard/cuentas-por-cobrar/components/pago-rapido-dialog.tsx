@@ -234,18 +234,58 @@ export function PagoRapidoDialog({
       return [...map.entries()];
    }, [itemsFiltrados]);
 
-   const toggleItem = useCallback((item: ItemCobrable, checked: boolean) => {
-      setSeleccion((prev) => ({ ...prev, [item.key]: checked }));
-      setAsignaciones((prev) => {
-         const next = { ...prev };
-         if (checked) {
-            next[item.key] = item.pendiente.toFixed(2);
-         } else {
-            delete next[item.key];
+   const toggleItem = useCallback(
+      (item: ItemCobrable, checked: boolean) => {
+         const next = { ...seleccion, [item.key]: checked };
+         setSeleccion(next);
+         setAsignaciones((prev) => {
+            const copy = { ...prev };
+            if (checked) {
+               copy[item.key] = item.pendiente.toFixed(2);
+            } else {
+               delete copy[item.key];
+            }
+            return copy;
+         });
+         // En "Monto automático" el monto sigue a la selección: suma el pendiente
+         // de lo marcado y, si no hay nada seleccionado, vuelve al total del
+         // cliente (se repartirá FIFO contra todo).
+         if (!manual) {
+            const sumaSel = items
+               .filter((i) => next[i.key])
+               .reduce((acc, i) => acc + i.pendiente, 0);
+            setMonto((sumaSel > 0 ? sumaSel : totalPendiente).toFixed(2));
          }
-         return next;
-      });
-   }, []);
+      },
+      [seleccion, items, manual, totalPendiente]
+   );
+
+   const todasSeleccionadas =
+      itemsFiltrados.length > 0 && itemsFiltrados.every((i) => seleccion[i.key]);
+   const algunasSeleccionadas = itemsFiltrados.some((i) => seleccion[i.key]);
+
+   const toggleTodos = useCallback(
+      (checked: boolean) => {
+         const next = { ...seleccion };
+         const asig = { ...asignaciones };
+         let sumaSel = 0;
+         for (const i of itemsFiltrados) {
+            next[i.key] = checked;
+            if (checked) {
+               asig[i.key] = i.pendiente.toFixed(2);
+               sumaSel += i.pendiente;
+            } else {
+               delete asig[i.key];
+            }
+         }
+         setSeleccion(next);
+         setAsignaciones(asig);
+         if (!manual) {
+            setMonto((checked ? sumaSel : totalPendiente).toFixed(2));
+         }
+      },
+      [seleccion, asignaciones, itemsFiltrados, manual, totalPendiente]
+   );
 
    const handleConfirm = async () => {
       setError(null);
@@ -389,6 +429,19 @@ export function PagoRapidoDialog({
                               disabled={loading}
                               className="h-9 w-full rounded-md border border-input bg-background pl-8 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50"
                            />
+                        </div>
+
+                        <div className="flex items-center gap-2 border-b border-border pb-2">
+                           <Checkbox
+                              checked={todasSeleccionadas ? true : algunasSeleccionadas ? "indeterminate" : false}
+                              onCheckedChange={(v) => toggleTodos(v === true)}
+                              disabled={loading}
+                              aria-label="Seleccionar todos los folios"
+                           />
+                           <span className="text-sm font-medium">Seleccionar todos</span>
+                           <span className="text-xs text-muted-foreground">
+                              ({itemsFiltrados.length} ítem{itemsFiltrados.length === 1 ? "" : "s"})
+                           </span>
                         </div>
 
                         {grupos.length === 0 ? (
