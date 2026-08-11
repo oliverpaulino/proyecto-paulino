@@ -36,10 +36,18 @@ const c = StyleSheet.create({
    anexoSub: { width: 68, textAlign: "right" },
 });
 
-function ProyectoFacturaDocument({ proyecto }: { proyecto: Proyecto }) {
-   const equiposCobrables = proyecto?.conduces?.filter((e) => e.es_cobrable);
+function ProyectoFacturaDocument({
+   proyecto,
+   conduces,
+   incluirAnexo = true,
+}: {
+   proyecto: Proyecto;
+   conduces?: ConduceDTO[];
+   incluirAnexo?: boolean;
+}) {
+   const lista = conduces ?? proyecto.conduces ?? [];
+   const conducesCobrables = lista.filter((cc) => cc.es_cobrable);
    const cargosCobrables = proyecto.detalle.filter((d) => d.es_cobrable);
-   const conducesCobrables = conduces.filter((cc) => cc.es_cobrable);
    const grupos = agruparConduces(conducesCobrables);
 
    const totalConduces = grupos.reduce((acc, g) => acc + g.subtotal, 0);
@@ -91,14 +99,14 @@ function ProyectoFacturaDocument({ proyecto }: { proyecto: Proyecto }) {
                      </View>
                   )}
 
-                  {equiposCobrables?.map((e, i) => (
-                     <View key={e.id} style={[s.tableRow, i % 2 !== 0 ? s.tableRowAlt : {}]}>
-                        <Text style={[s.tableCell, s.colDesc]}>
-                           {e.equipo_nombre ?? "Equipo"} ({e.medida_cobro_nombre ?? "unidad"})
+                  {grupos.map((g, i) => (
+                     <View key={g.clave} style={[s.tableRow, i % 2 !== 0 ? s.tableRowAlt : {}]}>
+                        <Text style={[s.tableCell, c.colDesc]}>
+                           {g.equipo_nombre} ({g.tarifa_nombre || g.unidad})
                         </Text>
-                        <Text style={[s.tableCell, s.colQty]}>{e.tipo_conduce === "CAMION" ? e.cantidad : e.total_horas}</Text>
-                        <Text style={[s.tableCell, s.colPrice]}>{fmt(e.precio_unitario)}</Text>
-                        <Text style={[s.tableCell, s.colSub]}>{fmt(e.subtotal)}</Text>
+                        <Text style={[s.tableCell, c.colQty]}>{fmtNum(g.cantidad)}</Text>
+                        <Text style={[s.tableCell, c.colPrice]}>{fmt(g.precio_unitario)}</Text>
+                        <Text style={[s.tableCell, c.colSub]}>{fmt(g.subtotal)}</Text>
                      </View>
                   ))}
 
