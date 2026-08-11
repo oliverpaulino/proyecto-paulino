@@ -11,6 +11,10 @@ export const auth = betterAuth({
   database: new Pool({
     connectionString: process.env.DB_CONNECTION_STRING,
   }),
+  trustedOrigins: [
+    process.env.BETTER_AUTH_URL || "",
+    "https://*.vercel.app", // Permite subdominios de Vercel si usas previews
+  ],
   user: {
     additionalFields: {
       role: { type: "string", input: false },
