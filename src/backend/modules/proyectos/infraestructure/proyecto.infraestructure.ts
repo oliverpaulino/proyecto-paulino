@@ -12,6 +12,7 @@ import type {
    EstadoProyecto,
 } from "../domain/proyecto.domain";
 import { ConduceProps } from "../../conduce/domain/conduce.domain";
+import { GastoProps } from "../../gastos/domain/gastos.domain";
 
 const num = (v: unknown): number => Number(v ?? 0) || 0;
 
@@ -80,9 +81,9 @@ export class KyselyProyectoRepository implements IProyectoRepository {
 
       const rows = await query.execute();
       // El historial no necesita el detalle línea por línea, solo los totales
-       // ya cacheados en la fila (incluyendo total_equipos, que antes NUNCA se
-       // llenaba porque acá se pasaba `[]` fijo — ese era el bug de la tabla).
-       return rows.map((r) => this.#mapRow(r, [], []));
+      // ya cacheados en la fila (incluyendo total_equipos, que antes NUNCA se
+      // llenaba porque acá se pasaba `[]` fijo — ese era el bug de la tabla).
+      return rows.map((r) => this.#mapRow(r, [], []));
    }
 
    async findById(id: string): Promise<ProyectoProps | null> {
@@ -129,10 +130,32 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          .where("proyecto_id", "=", id)
          .execute();
 
+      const gastos = await this.db
+         .selectFrom("gasto")
+         .innerJoin("categoria_gasto", "categoria_gasto.id", "gasto.categoria_gasto_id")
+         .leftJoin("proyecto", "proyecto.id", "gasto.proyecto_id")
+         .leftJoin("equipo", "equipo.id", "gasto.equipo_id")
+         .leftJoin("orden_compra", "orden_compra.id", "gasto.orden_compra_id")
+         .selectAll("gasto")
+         .select([
+            "categoria_gasto.nombre as categoria_gasto_nombre",
+            "categoria_gasto.grupo as categoria_gasto_grupo",
+            "proyecto.referencia as proyecto_codigo_referencia",
+            "equipo.referencia as equipo_codigo_referencia",
+            "orden_compra.referencia as orden_compra_codigo_referencia",
+         ])
+         .where("gasto.proyecto_id", "=", id)
+         .where("gasto.deleted_at", "is", null)
+         .orderBy("gasto.fecha", "desc")
+         .execute();
+
       // conduces se deja en [] aquí a propósito: ProyectoService.getById()
       // lo combina llamando a ConduceRepository.findByProyectoId(), para no
       // duplicar el mapeo de dos subtipos (CAMION/EQUIPO_PESADO) en dos sitios.
-      return this.#mapRow(row, detalle, [], historial);
+      return {
+         ...this.#mapRow(row, detalle, [], historial),
+         gastos: gastos.map((g) => this.#mapGasto(g)),
+      };
    }
 
    async findByClientId(clienteId: string, search?: string, pagination?: { page: number, limit: number }): Promise<ProyectoProps[]> {
@@ -174,55 +197,28 @@ export class KyselyProyectoRepository implements IProyectoRepository {
       return rows.map((r) => this.#mapRow(r, [], []));
    }
 
-   // ── Creación: SOLO cabecera + cargos/gastos manuales. El equipo ya no se ──
-   // ── registra aquí: se agrega después vía conduces (ver conduce.service). ──
+   // ── Creación: SOLO cabecera. El equipo y los cargos/cobrables se agregan ──
+   // ── después vía conduces y gastos (ver conduce.service / gastos.service). ──
    async create(data: CreateProyectoDTO): Promise<ProyectoProps> {
-      const header = await this.db.transaction().execute(async (trx) => {
-         const inserted = await trx
-            .insertInto("proyecto")
-            .values({
-               nombre: data.nombre,
-               estado: "BORRADOR", // antes era COMPLETADO fijo; ahora el proyecto vive en el tiempo mientras se agregan conduces
-               cliente_id: data.cliente_id,
-               tarifa_servicio: data.tarifa_servicio ?? 0,
-               notas: data.notas ?? null,
-               fecha_inicio: data.fecha_inicio ?? new Date(),
-               fecha_fin: null,
+      const inserted = await this.db
+         .insertInto("proyecto")
+         .values({
+            nombre: data.nombre,
+            estado: "BORRADOR", // antes era COMPLETADO fijo; ahora el proyecto vive en el tiempo mientras se agregan conduces
+            cliente_id: data.cliente_id,
+            tarifa_servicio: data.tarifa_servicio ?? 0,
+            notas: data.notas ?? null,
+            fecha_inicio: data.fecha_inicio ?? new Date(),
+            fecha_fin: null,
+         })
+         .returningAll()
+         .executeTakeFirstOrThrow();
 
-            })
-            .returningAll()
-            .executeTakeFirstOrThrow();
-
-         const itemsCobrables = data.cargos_cobrables.map((c) => ({
-            proyecto_id: inserted.id,
-            descripcion: c.descripcion,
-            cantidad: c.cantidad,
-            precio_unitario: c.precio_unitario,
-            subtotal: c.cantidad * c.precio_unitario,
-            es_cobrable: true,
-         }));
-         const itemsInternos = data.gastos_internos.map((g) => ({
-            proyecto_id: inserted.id,
-            descripcion: g.descripcion,
-            cantidad: g.cantidad,
-            precio_unitario: g.precio_unitario,
-            subtotal: g.cantidad * g.precio_unitario,
-            es_cobrable: false,
-         }));
-         const allItems = [...itemsCobrables, ...itemsInternos];
-
-         if (allItems.length > 0) {
-            await trx.insertInto("proyecto_detalle").values(allItems).execute();
-         }
-
-         return inserted;
-      });
-
-      // Los totales (tarifa_servicio + cargos - gastos) se calculan con la
+      // Los totales (tarifa_servicio + cobrables - gastos) se calculan con la
       // misma rutina que usan los conduces, para no duplicar la fórmula.
-      await this.recalcularTotales(header.id);
+      await this.recalcularTotales(inserted.id);
 
-      const proyecto = await this.findById(header.id);
+      const proyecto = await this.findById(inserted.id);
       return proyecto!;
    }
 
@@ -316,8 +312,8 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          proyecto_id: id,
          cliente_nombre: proyecto.cliente_nombre ?? "",
          tarifa_servicio: proyecto.tarifa_servicio,
-         cargos_cobrables: proyecto.detalle.filter((d) => d.es_cobrable),
-         gastos_internos: proyecto.detalle.filter((d) => !d.es_cobrable),
+         gastos_cobrables: proyecto.gastos.filter((g) => g.cobrable_proyecto),
+         gastos_incobrables: proyecto.gastos.filter((g) => !g.cobrable_proyecto),
          conduces: proyecto.conduces,
          total_cobrable: Number(proyecto.total_cobrable),
          total_gasto_interno: Number(proyecto.total_gasto_interno),
@@ -338,35 +334,23 @@ export class KyselyProyectoRepository implements IProyectoRepository {
    // ──                     + Σ subtotal detalle (gastos internos)           ──
    // ──   total_equipos = Σ subtotal (TODOS los conduces, para el historial) ──
    // ──   rentabilidad = total_cobrable − total_gasto_interno                ──
+
+   // ── Recalcula total_cobrable / total_gasto_interno / total_equipos / ─────
+   // ── rentabilidad a partir de tarifa + conduces + gastos, y los persiste. ──
+   // ── Lo llama ConduceService y GastoService tras cada mutación.            ──
    async recalcularTotales(proyectoId: string): Promise<ProyectoTotales> {
-      const [proyecto, detalle, conduces] = await Promise.all([
+      const [proyecto, conduces, gastos] = await Promise.all([
          this.db
             .selectFrom("proyecto")
             .select(["tarifa_servicio"])
             .where("id", "=", proyectoId)
             .executeTakeFirst(),
+         this.db.selectFrom("conduce").leftJoin("operador", "operador.id", "conduce.operador_id").leftJoin("equipo", "equipo.id", "conduce.equipo_id").leftJoin("operador as eq_op", "eq_op.id", "equipo.operador_id").select(["conduce.subtotal", "conduce.es_cobrable", "conduce.cantidad", "conduce.total_horas", "conduce.categoria_equipo_tarifa_id", "conduce.categoria_equipo_tarifa_nombre", "conduce.empleado_id", sql<string>` coalesce( conduce.empleado_id, operador.empleado_id, eq_op.empleado_id ) `.as("empleado_id_efectivo"),]).where("conduce.proyecto_id", "=", proyectoId).where("conduce.deleted_at", "is", null).execute(),
          this.db
-            .selectFrom("proyecto_detalle")
-            .select(["subtotal", "es_cobrable"])
+            .selectFrom("gasto")
+            .select(["monto_total", "cobrable_proyecto", "cobrable_monto"])
             .where("proyecto_id", "=", proyectoId)
-            .execute(),
-         this.db
-            .selectFrom("conduce")
-            .leftJoin("operador", "operador.id", "conduce.operador_id")
-            .leftJoin("equipo", "equipo.id", "conduce.equipo_id")
-            .leftJoin("operador as eq_op", "eq_op.id", "equipo.operador_id")
-            .select([
-               "conduce.subtotal",
-               "conduce.es_cobrable",
-               "conduce.cantidad",
-               "conduce.total_horas",
-               "conduce.categoria_equipo_tarifa_id",
-               "conduce.categoria_equipo_tarifa_nombre",
-               "conduce.empleado_id",
-               sql<string>`coalesce(conduce.empleado_id, operador.empleado_id, eq_op.empleado_id)`.as("empleado_id_efectivo"),
-            ])
-            .where("conduce.proyecto_id", "=", proyectoId)
-            .where("conduce.deleted_at", "is", null)
+            .where("deleted_at", "is", null)
             .execute(),
       ]);
 
@@ -380,18 +364,18 @@ export class KyselyProyectoRepository implements IProyectoRepository {
       const [tarifasEmpleadoRows, tarifasProyectoRows, catalogoTarifasRows] = await Promise.all([
          empleados.length > 0
             ? this.db
-                 .selectFrom("empleado_categoria_tarifa")
-                 .select(["empleado_id", "categoria_equipo_tarifa_id", "monto_pago"])
-                 .where("empleado_id", "in", empleados)
-                 .execute()
+               .selectFrom("empleado_categoria_tarifa")
+               .select(["empleado_id", "categoria_equipo_tarifa_id", "monto_pago"])
+               .where("empleado_id", "in", empleados)
+               .execute()
             : Promise.resolve([]),
          empleados.length > 0
             ? this.db
-                 .selectFrom("proyecto_empleado_tarifa")
-                 .select(["proyecto_id", "empleado_id", "categoria_equipo_tarifa_id", "monto_pago"])
-                 .where("proyecto_id", "=", proyectoId)
-                 .where("empleado_id", "in", empleados)
-                 .execute()
+               .selectFrom("proyecto_empleado_tarifa")
+               .select(["proyecto_id", "empleado_id", "categoria_equipo_tarifa_id", "monto_pago"])
+               .where("proyecto_id", "=", proyectoId)
+               .where("empleado_id", "in", empleados)
+               .execute()
             : Promise.resolve([]),
          this.db.selectFrom("categoria_equipo_tarifa").select(["id", "nombre"]).execute(),
       ]);
@@ -432,8 +416,8 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          const montoPago =
             c.empleado_id_efectivo && tarifaId
                ? montoPorProyectoEmpleadoTarifa.get(`${proyectoId}::${c.empleado_id_efectivo}::${tarifaId}`) ??
-                 montoPorEmpleadoTarifa.get(`${c.empleado_id_efectivo}::${tarifaId}`) ??
-                 0
+               montoPorEmpleadoTarifa.get(`${c.empleado_id_efectivo}::${tarifaId}`) ??
+               0
                : 0;
 
          const cantidad = num(c.cantidad) || num(c.total_horas);
@@ -447,19 +431,24 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          .filter((c) => !c.es_cobrable)
          .reduce((sum, c) => sum + Number(c.subtotal), 0);
 
-      const totalCargosCobrables = detalle
-         .filter((d) => d.es_cobrable)
-         .reduce((sum, d) => sum + Number(d.subtotal), 0);
-      const totalGastosInternosDetalle = detalle
-         .filter((d) => !d.es_cobrable)
-         .reduce((sum, d) => sum + Number(d.subtotal), 0);
+      // Gastos asociados al proyecto: los cobrables suman su monto a cobrar al
+      // cliente (cobrable_monto, o el total del gasto si no hay monto definido),
+      // los incobrables corren por cuenta de la empresa.
+      const totalGastosCobrables = gastos
+         .filter((g) => g.cobrable_proyecto)
+         .reduce((sum, g) => sum + Number(g.cobrable_monto || g.monto_total), 0);
+      const totalGastosInternos = gastos
+         .filter((g) => !g.cobrable_proyecto)
+         .reduce((sum, g) => sum + Number(g.monto_total), 0);
 
       const tarifaServicio = Number(proyecto?.tarifa_servicio ?? 0);
 
       const total_equipos = totalEquiposCobrables + totalEquiposInternos;
-      const total_cobrable = tarifaServicio + totalEquiposCobrables + totalCargosCobrables;
       const total_costo_operador = totalCostoOperador;
-      const total_gasto_interno = totalEquiposInternos + totalGastosInternosDetalle;
+      const total_cobrable =
+         tarifaServicio + totalEquiposCobrables + totalGastosCobrables;
+      const total_gasto_interno =
+         totalEquiposInternos + totalGastosInternos;
       const rentabilidad = total_cobrable - total_gasto_interno;
 
       await this.db
@@ -476,27 +465,6 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          .execute();
 
       return { total_cobrable, total_gasto_interno, total_equipos, total_costo_operador, rentabilidad };
-   }
-
-   async toggleDetalleCobrable(ids: string[], es_cobrable: boolean): Promise<void> {
-      if (ids.length === 0) return;
-
-      await this.db
-         .updateTable("proyecto_detalle")
-         .set({ es_cobrable, updated_at: new Date() })
-         .where("id", "in", ids)
-         .execute();
-
-      // Recalcular totales del proyecto al que pertenece el primer ítem
-      const first = await this.db
-         .selectFrom("proyecto_detalle")
-         .select("proyecto_id")
-         .where("id", "=", ids[0])
-         .executeTakeFirst();
-
-      if (first) {
-         await this.recalcularTotales(first.proyecto_id);
-      }
    }
 
    // ─── Mapper privado ────────────────────────────────────────────────────────
@@ -521,11 +489,14 @@ export class KyselyProyectoRepository implements IProyectoRepository {
    }
 
    // ─── Mapper privado ────────────────────────────────────────────────────────
+   // El historial (findAll/findByClientId) no necesita los gastos línea por
+   // línea, solo los totales ya cacheados en la fila. findById sí los carga.
    #mapRow(
       row: Record<string, unknown>,
       detalle: Array<Record<string, unknown>> = [],
       conduces: ConduceProps[] = [],
-      historial: Array<Record<string, unknown>> = []
+      historial: Array<Record<string, unknown>> = [],
+      gastos: GastoProps[] = [],
    ): ProyectoProps {
 
       const mappedDetalle: ProyectoDetalleProps[] = detalle.map((d) => ({
@@ -550,6 +521,7 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          created_at: new Date(h.created_at as string),
       }));
 
+
       const base = {
          id: row.id as string,
          codigoReferencia: this.buildCodigoReferencia(Number(row.referencia)),
@@ -569,12 +541,49 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          fecha_fin: row.fecha_fin ? new Date(row.fecha_fin as string) : null,
          created_at: new Date(row.created_at as string),
          updated_at: new Date(row.updated_at as string),
-         detalle: mappedDetalle,
+         gastos,
          conduces,
          historial_estados: mappedHistorial,
       };
 
-
       return { ...base };
+   }
+
+   // ─── Mapper de gasto → GastoProps (para findById/getLiquidacion) ──────────
+   // No duplica el de gastos.infraestructure: acá solo se usan los campos que
+   // el detalle del proyecto necesita (concepto, montos, categoría, cantidad).
+   #mapGasto(row: Record<string, unknown>): GastoProps {
+      const referencia = Number(row.referencia);
+      const codigoReferencia = `GAS-${String(referencia).padStart(3, "0")}`;
+      const codigo = (prefix: string, ref: unknown) =>
+         ref != null ? `${prefix}-${String(ref).padStart(3, "0")}` : null;
+
+      return {
+         id: row.id as string,
+         referencia,
+         codigoReferencia,
+         monto_total: Number(row.monto_total),
+         concepto: row.concepto as string,
+         ncf: (row.ncf as string) ?? null,
+         categoria_gasto_id: row.categoria_gasto_id as string,
+         categoria_gasto_nombre: row.categoria_gasto_nombre as string,
+         categoria_gasto_grupo: row.categoria_gasto_grupo as string,
+         orden_compra_id: (row.orden_compra_id as string) ?? null,
+         orden_compra_codigo_referencia: codigo("OC", row.orden_compra_codigo_referencia),
+         proyecto_id: (row.proyecto_id as string) ?? null,
+         proyecto_codigo_referencia: codigo("PRO", row.proyecto_codigo_referencia),
+         equipo_id: (row.equipo_id as string) ?? null,
+         equipo_codigo_referencia: codigo("EQU", row.equipo_codigo_referencia),
+         cobrable_proyecto: row.cobrable_proyecto as boolean,
+         cobrable_monto: row.cobrable_monto != null ? Number(row.cobrable_monto) : null,
+         cantidad: row.cantidad != null ? Number(row.cantidad) : 1,
+         monto_unitario: row.monto_unitario != null ? Number(row.monto_unitario) : null,
+         fecha: new Date(row.fecha as string),
+         created_at: new Date(row.created_at as string),
+         updated_at: new Date(row.updated_at as string),
+         deleted_by: (row.deleted_by as string) ?? null,
+         deleted_at: row.deleted_at ? new Date(row.deleted_at as string) : null,
+         deleted_reason: (row.deleted_reason as string) ?? null,
+      };
    }
 }

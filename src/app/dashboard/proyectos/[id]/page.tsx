@@ -17,8 +17,7 @@ import { useProyectoStore } from "@/stores/useProyectoStore";
 import { ProyectoHeader } from "./components/ProyectoHeader";
 import { GeneralTab } from "./components/GeneralTab";
 import { ConducesTab } from "./components/ConducesTab";
-import { CobrablesTab } from "./components/CobrablesTab";
-import { IncobrablesTab } from "./components/IncobrablesTab";
+import { GastosProyectoTab } from "./components/GastosProyectoTab";
 import ConfiguracionTab from "./components/Configuracion-tab";
 import { ArchivosTab } from "./components/ArchivosTab";
 
@@ -28,14 +27,11 @@ export default function ProyectoDetailPage() {
    const searchParams = useSearchParams();
    const proyectoId = params.id as string;
 
-   const { ToggleDetalleCobrable, proyecto: proyectoStore } = useProyectoStore();
+   const { proyecto: proyectoStore } = useProyectoStore();
 
    const [proyecto, setProyecto] = useState<Proyecto | null>(null);
    const [loading, setLoading] = useState(true);
    const [pdfLoading, setPdfLoading] = useState<"interno" | "factura" | null>(null);
-
-   const [selectedDetalleIds, setSelectedDetalleIds] = useState<Set<string>>(new Set());
-   const [toggleDetalleLoading, setToggleDetalleLoading] = useState(false);
 
    // Tab sincronizado con URL (?tab=)
    const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "general");
@@ -100,19 +96,6 @@ export default function ProyectoDetailPage() {
       }
    }
 
-   const handleToggleDetalle = useCallback(async (esCobrable: boolean) => {
-      if (selectedDetalleIds.size === 0) return;
-      setToggleDetalleLoading(true);
-      try {
-         const result = await ToggleDetalleCobrable([...selectedDetalleIds], esCobrable);
-         if (result instanceof Error) throw result;
-         setSelectedDetalleIds(new Set());
-         await loadProyecto();
-      } finally {
-         setToggleDetalleLoading(false);
-      }
-   }, [selectedDetalleIds, ToggleDetalleCobrable, proyectoId]);
-
    if (loading) {
       return (
          <div className="flex items-center justify-center p-12">
@@ -132,8 +115,8 @@ export default function ProyectoDetailPage() {
       );
    }
 
-   const cargosCobrables = proyecto.detalle.filter((d) => d.es_cobrable);
-   const gastosInternos = proyecto.detalle.filter((d) => !d.es_cobrable);
+   const cargosCobrables = proyecto.detalle.filter((d: { es_cobrable: any; }) => d.es_cobrable);
+   const gastosInternos = proyecto.detalle.filter((d: { es_cobrable: any; }) => !d.es_cobrable);
    const locked = proyecto.estado === "COMPLETADO";
 
    return (
@@ -152,13 +135,25 @@ export default function ProyectoDetailPage() {
          )}
 
          <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-6 xl:w-auto">
-               <TabsTrigger value="general">General</TabsTrigger>
-               <TabsTrigger value="configuracion">Configuracion</TabsTrigger>
-               <TabsTrigger value="conduces">Conduces</TabsTrigger>
-               <TabsTrigger value="cobrables">Cobrables</TabsTrigger>
-               <TabsTrigger value="incobrables">Incobrables</TabsTrigger>
-               <TabsTrigger value="archivos">Archivos</TabsTrigger>
+            <TabsList className="w-full flex flex-nowrap overflow-x-auto justify-start gap-1 bg-transparent">
+               <TabsTrigger value="general" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                  General
+               </TabsTrigger>
+               <TabsTrigger value="configuracion" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                  Configuración
+               </TabsTrigger>
+               <TabsTrigger value="conduces" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                  Conduces
+               </TabsTrigger>
+               <TabsTrigger value="cobrables" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                  Cobrables
+               </TabsTrigger>
+               <TabsTrigger value="incobrables" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                  Incobrables
+               </TabsTrigger>
+               <TabsTrigger value="archivos" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                  Archivos
+               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="general" className="space-y-6">
@@ -174,25 +169,11 @@ export default function ProyectoDetailPage() {
             </TabsContent>
 
             <TabsContent value="cobrables" className="space-y-4">
-               <CobrablesTab
-                  rows={cargosCobrables}
-                  selectedIds={selectedDetalleIds}
-                  onSelectIds={setSelectedDetalleIds}
-                  onMove={() => handleToggleDetalle(false)}
-                  moveLoading={toggleDetalleLoading}
-                  canMove={selectedDetalleIds.size > 0}
-               />
+               <GastosProyectoTab proyecto={proyecto} cobrable onProyectoChange={loadProyecto} />
             </TabsContent>
 
             <TabsContent value="incobrables" className="space-y-4">
-               <IncobrablesTab
-                  rows={gastosInternos}
-                  selectedIds={selectedDetalleIds}
-                  onSelectIds={setSelectedDetalleIds}
-                  onMove={() => handleToggleDetalle(true)}
-                  moveLoading={toggleDetalleLoading}
-                  canMove={selectedDetalleIds.size > 0}
-               />
+               <GastosProyectoTab proyecto={proyecto} cobrable={false} onProyectoChange={loadProyecto} />
             </TabsContent>
 
             <TabsContent value="archivos" className="space-y-4">

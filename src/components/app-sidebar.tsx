@@ -24,9 +24,11 @@ import {
   Bell,
 } from "lucide-react"
 
-import { NavMain } from "@/components/nav-main"
+import { NavMain, type NavItem } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
 import { NameIcon } from "@/components/name-icon"
+import { NAV_SHORTCUTS } from "@/lib/nav-shortcuts"
+import { useNavShortcuts } from "@/hooks/useNavShortcuts"
 import {
   Sidebar,
   SidebarContent,
@@ -173,13 +175,29 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     },
   ]
 
+  // Cuelga de cada item su atajo (si tiene) para que el sidebar pinte las
+  // teclas. Sale de la misma tabla que usa `useNavShortcuts` para registrarlos,
+  // así lo que se muestra y lo que funciona no pueden divergir.
+  const withShortcuts = React.useMemo(() => {
+    const decorate = (list: NavItem[]): NavItem[] =>
+      list.map((item) => ({
+        ...item,
+        shortcut: NAV_SHORTCUTS[item.id],
+        items: item.items?.length ? decorate(item.items) : item.items,
+      }))
+    return decorate(navMain)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, puedeVerNomina, unreadCount])
+
+  useNavShortcuts(withShortcuts)
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <NameIcon />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navMain} />
+        <NavMain items={withShortcuts} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

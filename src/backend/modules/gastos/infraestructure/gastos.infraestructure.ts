@@ -31,6 +31,8 @@ export class KyselyGastoRepository implements IGastoRepository {
             : null,
          monto_total: Number(row.monto_total),
          cobrable_monto: row.cobrable_monto != null ? Number(row.cobrable_monto) : null,
+         cantidad: row.cantidad != null ? Number(row.cantidad) : 1,
+         monto_unitario: row.monto_unitario != null ? Number(row.monto_unitario) : null,
          fecha: new Date(row.fecha),
          created_at: new Date(row.created_at),
          updated_at: new Date(row.updated_at),
@@ -95,8 +97,16 @@ export class KyselyGastoRepository implements IGastoRepository {
       if (params?.categoria) query = query.where("gasto.categoria_gasto_id", "=", params.categoria);
       if (params?.grupo) query = query.where("categoria_gasto.grupo", "=", params.grupo);
       if (params?.orden_compra_id) query = query.where("gasto.orden_compra_id", "=", params.orden_compra_id);
-      if (params?.proyecto_id) query = query.where("gasto.proyecto_id", "=", params.proyecto_id);
+      if (params?.proyecto_id === "null") {
+         // "null" (string) = gastos aún no vinculados a ningún proyecto
+         query = query.where("gasto.proyecto_id", "is", null);
+      } else if (params?.proyecto_id) {
+         query = query.where("gasto.proyecto_id", "=", params.proyecto_id);
+      }
       if (params?.equipo_id) query = query.where("gasto.equipo_id", "=", params.equipo_id);
+      if (params?.cobrable_proyecto !== undefined) {
+         query = query.where("gasto.cobrable_proyecto", "=", params.cobrable_proyecto);
+      }
 
       return query;
    }
@@ -228,6 +238,8 @@ export class KyselyGastoRepository implements IGastoRepository {
          equipo_id: data.equipo_id ?? null,
          cobrable_proyecto: data.cobrable_proyecto ?? false,
          cobrable_monto: data.cobrable_monto ?? null,
+         cantidad: data.cantidad ?? 1,
+         monto_unitario: data.monto_unitario ?? null,
          fecha: data.fecha ?? new Date(),
          created_at: new Date(),
          updated_at: new Date(),

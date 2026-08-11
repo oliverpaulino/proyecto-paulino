@@ -54,9 +54,9 @@ function ProyectoInternoDocument({
    proyecto: Proyecto;
    conduces: ConduceDTO[];
 }) {
-   const cargosCobrables = proyecto.detalle.filter((d) => d.es_cobrable);
-   const gastosInternos = proyecto.detalle.filter((d) => !d.es_cobrable);
    const totalGastosModulo = (proyecto.gastos ?? []).reduce((acc, g) => acc + Number(g.monto_total), 0);
+   const cargosCobrables = (proyecto.gastos ?? []).filter((g) => g.cobrable_proyecto);
+   const gastosInternos = (proyecto.gastos ?? []).filter((g) => !g.cobrable_proyecto);
 
    const conducesCobrables = conduces.filter((cc) => cc.es_cobrable);
    const conducesNoCobrables = conduces.filter((cc) => !cc.es_cobrable);
@@ -95,14 +95,14 @@ function ProyectoInternoDocument({
                      <Text style={s.metaLabel}>Cliente:</Text>
                      <Text style={s.metaValue}>{proyecto.cliente_nombre ?? proyecto.cliente_id}</Text>
                   </View>
-                   <View style={s.metaCell}>
-                      <Text style={s.metaLabel}>Estado:</Text>
-                      <Text style={s.metaValue}>{proyecto.estado}</Text>
-                   </View>
-                   <View style={s.metaCell}>
-                      <Text style={s.metaLabel}>Avance:</Text>
-                      <Text style={s.metaValue}>{proyecto.porcentaje_avance}%</Text>
-                   </View>
+                  <View style={s.metaCell}>
+                     <Text style={s.metaLabel}>Estado:</Text>
+                     <Text style={s.metaValue}>{proyecto.estado}</Text>
+                  </View>
+                  <View style={s.metaCell}>
+                     <Text style={s.metaLabel}>Avance:</Text>
+                     <Text style={s.metaValue}>{proyecto.porcentaje_avance}%</Text>
+                  </View>
                   <View style={s.metaCell}>
                      <Text style={s.metaLabel}>Tarifa servicio:</Text>
                      <Text style={s.metaValue}>{fmt(proyecto.tarifa_servicio)}</Text>
@@ -197,10 +197,14 @@ function ProyectoInternoDocument({
                         </View>
                         {cargosCobrables.map((cargo, i) => (
                            <View key={cargo.id} style={[s.tableRow, i % 2 !== 0 ? s.tableRowAlt : {}]}>
-                              <Text style={[s.tableCell, c.colDesc]}>{cargo.descripcion}</Text>
-                              <Text style={[s.tableCell, c.colQty]}>{fmtNum(cargo.cantidad)}</Text>
-                              <Text style={[s.tableCell, c.colPrice]}>{fmt(cargo.precio_unitario)}</Text>
-                              <Text style={[s.tableCell, c.colSub]}>{fmt(cargo.subtotal)}</Text>
+                              <Text style={[s.tableCell, c.colDesc]}>{cargo.concepto}</Text>
+                              <Text style={[s.tableCell, c.colQty]}>{fmtNum(cargo.cantidad ?? 1)}</Text>
+                              <Text style={[s.tableCell, c.colPrice]}>
+                                 {fmt(cargo.monto_unitario ?? cargo.cobrable_monto ?? cargo.monto_total)}
+                              </Text>
+                              <Text style={[s.tableCell, c.colSub]}>
+                                 {fmt(Number(cargo.cobrable_monto ?? cargo.monto_total))}
+                              </Text>
                            </View>
                         ))}
                      </View>
@@ -220,10 +224,12 @@ function ProyectoInternoDocument({
                         </View>
                         {gastosInternos.map((g, i) => (
                            <View key={g.id} style={[s.tableRow, i % 2 !== 0 ? s.tableRowAlt : {}]}>
-                              <Text style={[s.tableCell, c.colDesc]}>{g.descripcion}</Text>
-                              <Text style={[s.tableCell, c.colQty]}>{fmtNum(g.cantidad)}</Text>
-                              <Text style={[s.tableCell, c.colPrice]}>{fmt(g.precio_unitario)}</Text>
-                              <Text style={[s.tableCell, c.colSub]}>{fmt(g.subtotal)}</Text>
+                              <Text style={[s.tableCell, c.colDesc]}>{g.concepto}</Text>
+                              <Text style={[s.tableCell, c.colQty]}>{fmtNum(g.cantidad ?? 1)}</Text>
+                              <Text style={[s.tableCell, c.colPrice]}>
+                                 {fmt(g.monto_unitario ?? g.monto_total)}
+                              </Text>
+                              <Text style={[s.tableCell, c.colSub]}>{fmt(Number(g.monto_total))}</Text>
                            </View>
                         ))}
                      </View>
@@ -248,21 +254,21 @@ function ProyectoInternoDocument({
                      <Text style={s.resumenLabel}>Total cobrable</Text>
                      <Text style={s.resumenValue}>{fmt(proyecto.total_cobrable)}</Text>
                   </View>
-                   <View style={s.resumenRow}>
-                      <Text style={s.resumenLabel}>Total gasto interno</Text>
-                      <Text style={s.resumenValue}>{fmt(proyecto.total_gasto_interno)}</Text>
-                   </View>
-                   <View style={s.resumenRow}>
-                      <Text style={s.resumenLabel}>Costo de operadores</Text>
-                      <Text style={s.resumenValue}>{fmt(proyecto.total_costo_operador ?? 0)}</Text>
-                   </View>
-                   {totalGastosModulo > 0 && (
-                      <View style={s.resumenRow}>
-                         <Text style={s.resumenLabel}>Gastos vinculados (módulo Gastos)</Text>
-                         <Text style={s.resumenValue}>{fmt(totalGastosModulo)}</Text>
-                      </View>
-                   )}
-                   <View style={[s.resumenRow, s.resumenTotal]}>
+                  <View style={s.resumenRow}>
+                     <Text style={s.resumenLabel}>Total gasto interno</Text>
+                     <Text style={s.resumenValue}>{fmt(proyecto.total_gasto_interno)}</Text>
+                  </View>
+                  <View style={s.resumenRow}>
+                     <Text style={s.resumenLabel}>Costo de operadores</Text>
+                     <Text style={s.resumenValue}>{fmt(proyecto.total_costo_operador ?? 0)}</Text>
+                  </View>
+                  {totalGastosModulo > 0 && (
+                     <View style={s.resumenRow}>
+                        <Text style={s.resumenLabel}>Gastos vinculados (módulo Gastos)</Text>
+                        <Text style={s.resumenValue}>{fmt(totalGastosModulo)}</Text>
+                     </View>
+                  )}
+                  <View style={[s.resumenRow, s.resumenTotal]}>
                      <Text style={[s.resumenLabel, { fontFamily: "Helvetica-Bold" }]}>Rentabilidad</Text>
                      <Text
                         style={[

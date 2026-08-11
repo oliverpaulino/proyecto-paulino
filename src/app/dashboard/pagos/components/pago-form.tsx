@@ -20,6 +20,9 @@ interface PagoFormProps {
    /** Código visible de la OC cuando viene predefinida (pago rápido), para que
     * el selector muestre la referencia aunque esté bloqueado. */
    predefinedOrdenCompraLabel?: string;
+   /** Código visible del gasto cuando viene predefinido (pago rápido desde
+    * gastos), para que el selector muestre la referencia aunque esté bloqueado. */
+   predefinedGastoLabel?: string;
    onSubmit: (data: any) => Promise<void>;
    onCancel?: () => void;
    loading?: boolean;
@@ -38,7 +41,7 @@ const tipoMovimientoOptions = Object.entries(TipoMovimiento).map(([key, value]) 
    label: value,
 }));
 
-export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraLabel, onSubmit, onCancel, loading }: PagoFormProps) {
+export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraLabel, predefinedGastoLabel, onSubmit, onCancel, loading }: PagoFormProps) {
    // Determinar estado inicial del tipo de destino basado en la data inicial
    const getInitialDestino = () => {
       if (initialData?.gasto_empresa_id || predefinedValues?.gasto_empresa_id) return 'GASTO';
@@ -192,7 +195,7 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
                     <select 
                         value={destinoTipo} 
                         onChange={handleDestinoChange}
-                        disabled={loading || !!initialData || (!!predefinedValues?.orden_compra_id)} 
+                        disabled={loading || !!initialData || (!!predefinedValues?.orden_compra_id) || (!!predefinedValues?.gasto_empresa_id)} 
                         className={INPUT_CLASS}
                         required
                     >
@@ -214,7 +217,7 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
                     {destinoTipo === 'GASTO' && (
                         <SelectBuscadorGasto 
                            value={values.gasto_empresa_id}
-                           initialLabel={initialData?.gasto_codigo_referencia ?? ""} 
+                           initialLabel={initialData?.gasto_codigo_referencia ?? predefinedGastoLabel ?? ""} 
                            onChange={(id) => set("gasto_empresa_id", id)} 
                            disabled={isDisabled("gasto_empresa_id")} 
                         />

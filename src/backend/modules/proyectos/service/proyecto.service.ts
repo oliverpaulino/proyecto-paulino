@@ -60,11 +60,9 @@ export class ProyectoService {
    async create(data: CreateProyectoDTO): Promise<ProyectoProps> {
       if (!data.cliente_id?.trim()) throw new Error("El cliente es requerido");
       if (!data.nombre?.trim()) throw new Error("El nombre es requerido");
-      this.#validateItems(data.cargos_cobrables || [], "cargo cobrable");
-      this.#validateItems(data.gastos_internos || [], "gasto interno");
 
       const proyecto = await this.repo.create(data);
-      return { ...proyecto, conduces: [] }; // recién creado, aún no tiene conduces
+      return { ...proyecto, conduces: [], gastos: [] }; // recién creado, aún no tiene conduces ni gastos
    }
 
    async getLiquidacion(id: string): Promise<LiquidacionFacade | null> {
@@ -78,14 +76,14 @@ export class ProyectoService {
       return { ...liquidacion, conduces };
    }
 
-    async recalcularTotales(id: string): Promise<ProyectoTotales> {
-       return this.repo.recalcularTotales(id);
-    }
+   async recalcularTotales(id: string): Promise<ProyectoTotales> {
+      return this.repo.recalcularTotales(id);
+   }
 
-    async toggleDetalleCobrable(ids: string[], es_cobrable: boolean): Promise<void> {
-       if (ids.length === 0) return;
-       return this.repo.toggleDetalleCobrable(ids, es_cobrable);
-    }
+   async toggleDetalleCobrable(ids: string[], es_cobrable: boolean): Promise<void> {
+      if (ids.length === 0) return;
+      return this.repo.toggleDetalleCobrable(ids, es_cobrable);
+   }
 
    #validateItems(
 
@@ -103,17 +101,17 @@ export class ProyectoService {
       }
    }
 
-    // Guard compartido con las rutas: rechaza mutaciones cuando el proyecto
-    // está COMPLETADO. Las rutas de archivos/tarifas/conduces lo llaman con
-    // el proyecto que vienen tocando.
-    async assertEditable(proyectoId: string): Promise<void> {
-       await this.#assertEditable(proyectoId);
-    }
+   // Guard compartido con las rutas: rechaza mutaciones cuando el proyecto
+   // está COMPLETADO. Las rutas de archivos/tarifas/conduces lo llaman con
+   // el proyecto que vienen tocando.
+   async assertEditable(proyectoId: string): Promise<void> {
+      await this.#assertEditable(proyectoId);
+   }
 
-    async #assertEditable(proyectoId: string): Promise<void> {
-       const estado = await this.repo.getEstado(proyectoId);
-       if (estado === "COMPLETADO") {
-          throw new Error("El proyecto está COMPLETADO y no puede editarse. Cámbialo a otro estado para continuar.");
-       }
-    }
+   async #assertEditable(proyectoId: string): Promise<void> {
+      const estado = await this.repo.getEstado(proyectoId);
+      if (estado === "COMPLETADO") {
+         throw new Error("El proyecto está COMPLETADO y no puede editarse. Cámbialo a otro estado para continuar.");
+      }
+   }
 }

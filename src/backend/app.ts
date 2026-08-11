@@ -31,6 +31,7 @@ import nominaRoute from "./modules/nomina/routes/nomina.routes";
 import cuentasPorPagarRoute from "./modules/cuentas-por-pagar/routes/cuentas-por-pagar.routes";
 import cuentasPorCobrarRoute from "./modules/cuentas-por-cobrar/routes/cuentas-por-cobrar.routes";
 import subcontratacionesRoute from "./modules/subcontrataciones/routes/subcontrataciones";
+import dashboardRoute from "./modules/dashboard/routes/dashboard.routes";
 
 const app = new Hono().basePath("/api");
 
@@ -105,6 +106,9 @@ app.route("/nomina", nominaRoute);
 app.route("/cuentas-por-pagar", cuentasPorPagarRoute);
 app.route("/cuentas-por-cobrar", cuentasPorCobrarRoute);
 app.route("/subcontrataciones", subcontratacionesRoute);
+// El panel principal NO lleva guard por path: cada ruta declara su permiso,
+// porque los widgets leen recursos distintos (ver dashboard.routes.ts).
+app.route("/dashboard", dashboardRoute);
 
 app.get("/dgii/:rnc", async (c) => {
    const rnc = c.req.param("rnc");

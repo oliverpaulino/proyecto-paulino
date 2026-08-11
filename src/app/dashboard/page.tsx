@@ -1,59 +1,82 @@
-"use client"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { Separator } from "@/components/ui/separator"
-import {
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
-import { Metadata } from "next"
-import { useEffect } from "react"
+"use client";
 
+import { useEffect, useState } from "react";
+import { Check, RotateCcw, Settings2 } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+import { useSession } from "@/lib/auth-client";
+import { useWidgetLayoutStore } from "@/stores/useWidgetLayoutStore";
+import { useDashboardStore } from "@/stores/useDashboardStore";
+import { DashboardGrid } from "./components/dashboard-grid";
+import { PresetPicker } from "./components/preset-picker";
 
 export default function Page() {
+   const [editando, setEditando] = useState(false);
+   const { data: session } = useSession();
+   const resetUserLayout = useWidgetLayoutStore((s) => s.resetUserLayout);
+   const invalidar = useDashboardStore((s) => s.invalidar);
 
-  useEffect(() => {
-    document.title = "Panel Principal"
-  }, [])
+   useEffect(() => {
+      document.title = "Panel Principal";
+   }, []);
 
-  return (
-    <>
-      <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-        <div className="flex items-center gap-2 px-4">
-          {/* <SidebarTrigger className="-ml-1" /> */}
-          <Separator
-            orientation="vertical"
-            className="mr-2 data-[orientation=vertical]:h-4"
-          />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href="#">
-                  Building Your Application
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator className="hidden md:block" />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Data Fetching</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-      </header>
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-        <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-          <div className="bg-muted/50 aspect-video rounded-xl" />
-          <div className="bg-muted/50 aspect-video rounded-xl" />
-          <div className="bg-muted/50 aspect-video rounded-xl" />
-        </div>
-        <div className="bg-muted/50 min-h-[100vh] flex-1 rounded-xl md:min-h-min" />
+   // Al salir de edición se refrescan los datos: el usuario pudo haber agregado
+   // tarjetas cuyo recurso nunca se pidió en esta sesión.
+   useEffect(() => {
+      if (!editando) return;
+      return () => { void invalidar(); };
+   }, [editando, invalidar]);
+
+   const userId = session?.user?.id ?? null;
+   const nombre = session?.user?.name?.split(" ")[0] ?? null;
+
+   return (
+      <div className="flex flex-col gap-6 p-4 md:p-6">
+         <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-col gap-0.5">
+               <h1 className="text-xl font-semibold tracking-tight">
+                  {nombre ? `Hola, ${nombre}` : "Panel principal"}
+               </h1>
+               <p className="text-sm text-muted-foreground">
+                  {editando
+                     ? "Arrastra para reordenar, cambia el tamaño u oculta tarjetas."
+                     : "Resumen de la operación."}
+               </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+               {editando ? (
+                  <>
+                     <PresetPicker />
+                     <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-2"
+                        onClick={() => userId && resetUserLayout(userId)}
+                     >
+                        <RotateCcw className="size-4" />
+                        <span className="hidden sm:inline">Restablecer</span>
+                     </Button>
+                     <Button size="sm" className="gap-2" onClick={() => setEditando(false)}>
+                        <Check className="size-4" />
+                        Listo
+                     </Button>
+                  </>
+               ) : (
+                  <Button
+                     variant="outline"
+                     size="sm"
+                     className="gap-2"
+                     onClick={() => setEditando(true)}
+                  >
+                     <Settings2 className="size-4" />
+                     <span className="hidden sm:inline">Personalizar</span>
+                  </Button>
+               )}
+            </div>
+         </div>
+
+         <DashboardGrid editando={editando} />
       </div>
-    </>
-  )
+   );
 }

@@ -10,24 +10,6 @@ export const CreateProyectoDTOSchema = z.object({
    fecha_inicio: z.string().optional(),
    fecha_fin: z.string().nullable().optional(),
    tarifa_servicio: z.number().min(0).optional(),
-   cargos_cobrables: z
-      .array(
-         z.object({
-            descripcion: z.string().min(1, "La descripción es requerida"),
-            cantidad: z.number().positive("La cantidad debe ser mayor a 0"),
-            precio_unitario: z.number().min(0),
-         })
-      )
-      .optional(),
-   gastos_internos: z
-      .array(
-         z.object({
-            descripcion: z.string().min(1, "La descripción es requerida"),
-            cantidad: z.number().positive("La cantidad debe ser mayor a 0"),
-            precio_unitario: z.number().min(0),
-         })
-      )
-      .optional(),
 });
 export interface UpdateProyectoForm {
    nombre?: string;
@@ -41,7 +23,6 @@ export interface UpdateProyectoForm {
    porcentaje_avance?: number;
 }
 export type CreateProyectoForm = z.infer<typeof CreateProyectoDTOSchema>;
-export type LineItemForm = { descripcion: string; cantidad: number; precio_unitario: number };
 
 // ─── Lectura ─────────────────────────────────────────────────────────────
 export type EstadoProyecto = "BORRADOR" | "COMPLETADO" | "EN PROGRESO" | "CANCELADO";
@@ -86,16 +67,12 @@ interface ProyectoBase {
    notas: string | null;
    fecha_inicio: string;
    fecha_fin: string | null;
-   detalle: ProyectoDetalle[];
    conduces: ConduceDTO[]; // ← reemplaza a equiposDetalle
    gastos?: Gasto[]; // ← gastos del módulo Gastos vinculados a este proyecto
    historial_estados?: ProyectoEstadoHistorial[];
    created_at: string;
    updated_at: string;
 }
-
-
-
 
 export type Proyecto = ProyectoBase;
 
@@ -105,8 +82,8 @@ export interface LiquidacionExpress {
    proyecto_id: string;
    cliente_nombre: string;
    tarifa_servicio: number;
-   cargos_cobrables: ProyectoDetalle[];
-   gastos_internos: ProyectoDetalle[];
+   gastos_cobrables: Gasto[];
+   gastos_incobrables: Gasto[];
    conduces: ConduceDTO[];
    total_cobrable: number;
    total_gasto_interno: number;
