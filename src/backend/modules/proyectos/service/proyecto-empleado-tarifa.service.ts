@@ -13,6 +13,10 @@ export class ProyectoEmpleadoTarifaService {
       return this.repo.findByProyectoId(proyectoId);
    }
 
+   async getById(id: string): Promise<ProyectoEmpleadoTarifaProps | null> {
+      return this.repo.findById(id);
+   }
+
    async getOperadoresConTarifas(
       proyectoId: string,
       search?: string,
