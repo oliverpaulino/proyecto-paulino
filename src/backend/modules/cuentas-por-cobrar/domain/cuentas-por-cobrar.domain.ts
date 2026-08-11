@@ -7,7 +7,7 @@
 // Un folio de proyecto agrupa TRES fuentes de deuda:
 //
 //   monto_total = tarifa_servicio      (proyecto.tarifa_servicio)
-//               + cargos_cobrables     (Σ proyecto_detalle.subtotal, es_cobrable)
+//               + cargos_cobrables     (Σ gasto.cobrable_monto | monto_total, cobrable_proyecto)
 //               + conduces_cobrables   (Σ conduce.subtotal, es_cobrable)
 //
 // Lo cobrado se DERIVA de los pagos (ni `conduce` ni `proyecto` tienen estado
@@ -93,7 +93,7 @@ export interface CuentaPorCobrar {
    cliente_email: string | null;
    /** `proyecto.tarifa_servicio` (0 en conduces sueltos). */
    tarifa_servicio: number;
-   /** Σ proyecto_detalle.subtotal con es_cobrable = true (0 en sueltos). */
+   /** Σ gasto.cobrable_monto (o monto_total si no hay monto) con cobrable_proyecto = true (0 en sueltos). */
    cargos_cobrables: number;
    /** Σ conduce.subtotal con es_cobrable = true del proyecto. */
    conduces_cobrables: number;
@@ -217,6 +217,25 @@ export interface PagoCxcInput {
 }
 
 /**
+ * Cobranza de UN proyecto: su folio (tarifa + cargos + conduces) y solo los
+ * pagos que tocan ese folio (ligados al proyecto o a sus conduces).
+ */
+export interface FolioProyectoCxc {
+   proyecto: {
+      id: string;
+      nombre: string;
+      codigoReferencia: string;
+   };
+   folio: CuentaPorCobrar | null;
+   historial_pagos: PagoCxc[];
+   resumen: {
+      facturado: number;
+      pagado: number;
+      pendiente: number;
+   };
+}
+
+/**
  * Pago rápido de cuentas por cobrar.
  *
  * `pagos` (distribución explícita), `conduce_ids` y `proyecto_ids` (acotar la
@@ -241,6 +260,8 @@ export interface ICuentasPorCobrarRepository {
    detalleCliente(clienteId: string, filtros: CuentasPorCobrarFiltros): Promise<DetalleClienteCuentasPorCobrar>;
    /** Folios del cliente con saldo pendiente, más viejos primero. */
    listarPendientesCliente(clienteId: string): Promise<CuentaPorCobrar[]>;
+   /** Folio + pagos de un proyecto concreto (para la pestaña de cobranza). */
+   folioProyecto(proyectoId: string): Promise<FolioProyectoCxc>;
    /** Inserta los pagos en una transacción (cada uno a su conduce o a su proyecto). */
    crearPagos(pagos: Array<{
       destino_id: string;

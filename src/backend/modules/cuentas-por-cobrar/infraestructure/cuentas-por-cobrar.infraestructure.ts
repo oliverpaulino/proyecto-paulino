@@ -5,6 +5,7 @@ import type {
    CuentasPorCobrarFiltros,
    CuentasPorCobrarResult,
    DetalleClienteCuentasPorCobrar,
+   FolioProyectoCxc,
    CuentaPorCobrar,
    ConduceDetalleCxc,
    ClienteCuentaPorCobrar,
@@ -248,6 +249,72 @@ export class KyselyCuentasPorCobrarRepository implements ICuentasPorCobrarReposi
          .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
    }
 
+   async folioProyecto(proyectoId: string): Promise<FolioProyectoCxc> {
+      const proyecto = await this.db
+         .selectFrom("proyecto")
+         .select(["id", "nombre", "referencia"])
+         .where("id", "=", proyectoId)
+         .executeTakeFirst();
+      if (!proyecto) throw new Error("Proyecto no encontrado");
+
+      const folios = await this.#listarFoliosCobrables({
+         proyecto_id: proyectoId,
+         incluir_pagadas: true,
+      });
+      const folio = folios.find((f) => f.id === proyectoId) ?? null;
+
+      // Solo los pagos que tocan este folio: los ligados a su tarifa/cargos
+      // (pago.proyecto_id) o a sus conduces (pago.conduce_id).
+      const historial = await this.db
+         .selectFrom("pago")
+         .leftJoin("conduce", "conduce.id", "pago.conduce_id")
+         .leftJoin("proyecto", "proyecto.id", "pago.proyecto_id")
+         .select([
+            "pago.id",
+            "pago.referencia",
+            "pago.monto_pagado",
+            "pago.metodo_pago",
+            "pago.fecha",
+            "pago.concepto",
+            "pago.created_at",
+            "pago.deleted_at",
+            "pago.conduce_id",
+            "pago.proyecto_id",
+            "conduce.numero_referencia as conduce_numero_referencia",
+            "proyecto.referencia as proyecto_referencia",
+         ])
+         .where((eb) =>
+            eb.or([
+               eb("pago.proyecto_id", "=", proyectoId),
+               eb(
+                  "pago.conduce_id",
+                  "in",
+                  eb.selectFrom("conduce").select("id").where("conduce.proyecto_id", "=", proyectoId)
+               ),
+            ])
+         )
+         .where("pago.deleted_at", "is", null)
+         .orderBy("pago.fecha", "desc")
+         .orderBy("pago.created_at", "desc")
+         .limit(200)
+         .execute();
+
+      return {
+         proyecto: {
+            id: proyecto.id,
+            nombre: proyecto.nombre,
+            codigoReferencia: codigoProyecto(Number(proyecto.referencia)),
+         },
+         folio,
+         historial_pagos: historial.map((p) => this.#mapPago(p)),
+         resumen: {
+            facturado: folio?.monto_total ?? 0,
+            pagado: folio?.pagado ?? 0,
+            pendiente: folio?.pendiente ?? 0,
+         },
+      };
+   }
+
    async crearPagos(pagos: Array<{
       destino_id: string;
       tipo: TipoCuentaCxc;
@@ -354,8 +421,11 @@ export class KyselyCuentasPorCobrarRepository implements ICuentasPorCobrarReposi
            and p.deleted_at is null
       )`;
 
-      // ── A) Folios de proyecto ─────────────────────────────────────────────
-      const subCargos = sql<number>`(select coalesce(sum(pd.subtotal), 0) from proyecto_detalle pd where pd.proyecto_id = "proyecto".id and pd.es_cobrable)`;
+       // ── A) Folios de proyecto ─────────────────────────────────────────────
+       // "Cargos cobrables" = gastos del módulo Gastos facturables al cliente:
+       // cobrable_monto, o el total del gasto si no trae monto propio (mismo
+       // criterio que recalcularTotales). proyecto_detalle se desactivó.
+       const subCargos = sql<number>`(select coalesce(sum(coalesce(g.cobrable_monto, g.monto_total)), 0) from gasto g where g.proyecto_id = "proyecto".id and g.cobrable_proyecto and g.deleted_at is null)`;
       const subConducesSum = sql<number>`(select coalesce(sum(cc.subtotal), 0) from conduce cc where cc.proyecto_id = "proyecto".id and cc.es_cobrable and cc.deleted_at is null)`;
       const subConducesCount = sql<number>`(select count(*)::int from conduce cc where cc.proyecto_id = "proyecto".id and cc.es_cobrable and cc.deleted_at is null)`;
       const subPagadoProyecto = sql<number>`(select coalesce(sum(p.monto_pagado), 0) from pago p where p.proyecto_id = "proyecto".id and p.deleted_at is null)`;
@@ -387,7 +457,7 @@ export class KyselyCuentasPorCobrarRepository implements ICuentasPorCobrarReposi
          .where((eb) =>
             eb.or([
                eb(sql`coalesce("proyecto".tarifa_servicio, 0)`, ">", 0),
-               eb(sql`(select coalesce(sum(pd.subtotal), 0) from proyecto_detalle pd where pd.proyecto_id = "proyecto".id and pd.es_cobrable)`, ">", 0),
+               eb(sql`(select coalesce(sum(coalesce(g.cobrable_monto, g.monto_total)), 0) from gasto g where g.proyecto_id = "proyecto".id and g.cobrable_proyecto and g.deleted_at is null)`, ">", 0),
                eb(sql`(select count(*) from conduce cc where cc.proyecto_id = "proyecto".id and cc.es_cobrable and cc.deleted_at is null)`, ">", 0),
             ])
          )
