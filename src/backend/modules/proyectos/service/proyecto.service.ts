@@ -80,6 +80,11 @@ export class ProyectoService {
       return this.repo.recalcularTotales(id);
    }
 
+   async recalcularProyectosDelEmpleado(empleadoId: string): Promise<void> {
+      const ids = await this.repo.findProyectoIdsByEmpleado(empleadoId);
+      await Promise.all(ids.map((pid) => this.repo.recalcularTotales(pid)));
+   }
+
    async toggleDetalleCobrable(ids: string[], es_cobrable: boolean): Promise<void> {
       if (ids.length === 0) return;
       return this.repo.toggleDetalleCobrable(ids, es_cobrable);

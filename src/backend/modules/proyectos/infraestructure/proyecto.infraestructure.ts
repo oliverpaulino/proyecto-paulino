@@ -3,7 +3,6 @@ import type { DB } from "@/backend/database";
 import type {
    IProyectoRepository,
    ProyectoProps,
-   ProyectoDetalleProps,
    ProyectoEstadoHistorialProps,
    ProyectoTotales,
    LiquidacionFacade,
@@ -124,12 +123,6 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          .orderBy("created_at", "desc")
          .execute();
 
-      const detalle = await this.db
-         .selectFrom("proyecto_detalle")
-         .selectAll()
-         .where("proyecto_id", "=", id)
-         .execute();
-
       const gastos = await this.db
          .selectFrom("gasto")
          .innerJoin("categoria_gasto", "categoria_gasto.id", "gasto.categoria_gasto_id")
@@ -153,7 +146,7 @@ export class KyselyProyectoRepository implements IProyectoRepository {
       // lo combina llamando a ConduceRepository.findByProyectoId(), para no
       // duplicar el mapeo de dos subtipos (CAMION/EQUIPO_PESADO) en dos sitios.
       return {
-         ...this.#mapRow(row, detalle, [], historial),
+         ...this.#mapRow(row, [], historial),
          gastos: gastos.map((g) => this.#mapGasto(g)),
       };
    }
@@ -303,6 +296,37 @@ export class KyselyProyectoRepository implements IProyectoRepository {
       return (row?.estado as EstadoProyecto) ?? null;
    }
 
+   /**
+    * Proyectos cuyos conduces se resuelven a este empleado como operador
+    * (mismos tres niveles que la nómina y recalcularTotales). Lo usan las
+    * rutas de empleados: al cambiar `empleado_categoria_tarifa.monto_pago`
+    * hay que recalcular la rentabilidad de todos los proyectos afectados.
+    */
+   async findProyectoIdsByEmpleado(empleadoId: string): Promise<string[]> {
+      const rows = await this.db
+         .selectFrom("conduce")
+         .leftJoin("operador", "operador.id", "conduce.operador_id")
+         .leftJoin("equipo", "equipo.id", "conduce.equipo_id")
+         .leftJoin("operador as eq_op", "eq_op.id", "equipo.operador_id")
+         .select("conduce.proyecto_id")
+         .where("conduce.proyecto_id", "is not", null)
+         .where("conduce.deleted_at", "is", null)
+         .where((eb) =>
+            eb.or([
+               eb("conduce.empleado_id", "=", empleadoId),
+               eb("operador.empleado_id", "=", empleadoId),
+               eb.and([
+                  eb("conduce.empleado_id", "is", null),
+                  eb("operador.empleado_id", "is", null),
+                  eb("eq_op.empleado_id", "=", empleadoId),
+               ]),
+            ])
+         )
+         .execute();
+
+      return [...new Set(rows.map((r) => r.proyecto_id as string).filter(Boolean))];
+   }
+
    async getLiquidacion(id: string): Promise<LiquidacionFacade | null> {
       const proyecto = await this.findById(id);
       if (!proyecto) return null;
@@ -323,17 +347,6 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          fecha: proyecto.fecha_inicio,
       };
    }
-
-   // ── Recalcula los totales cacheados a partir de proyecto_detalle + ────────
-   // ── conduce, y los persiste. Lo llama ConduceService después de crear/  ────
-   // ── editar/borrar. Las fórmulas (consensuadas con el cliente):           ──
-   // ──   total_cobrable = tarifaServicio + Σ subtotal conduces cobrables    ──
-   // ──                     + Σ subtotal detalle (cargos cobrables)          ──
-   // ──   total_costo_operador = Σ cantidad × monto_pago (TODOS los conduces)──
-   // ──   total_gasto_interno = Σ subtotal conduces no cobrables             ──
-   // ──                     + Σ subtotal detalle (gastos internos)           ──
-   // ──   total_equipos = Σ subtotal (TODOS los conduces, para el historial) ──
-   // ──   rentabilidad = total_cobrable − total_gasto_interno                ──
 
    // ── Recalcula total_cobrable / total_gasto_interno / total_equipos / ─────
    // ── rentabilidad a partir de tarifa + conduces + gastos, y los persiste. ──
@@ -447,9 +460,12 @@ export class KyselyProyectoRepository implements IProyectoRepository {
       const total_costo_operador = totalCostoOperador;
       const total_cobrable =
          tarifaServicio + totalEquiposCobrables + totalGastosCobrables;
-      const total_gasto_interno =
-         totalEquiposInternos + totalGastosInternos;
-      const rentabilidad = total_cobrable - total_gasto_interno;
+      // Los conduces NO cobrables son "solo historial": se hizo el trabajo pero
+      // no se facturó, así que su valor NO es un gasto ni toca la rentabilidad.
+      // Lo que sí se pagó de verdad es el operador (total_costo_operador), que
+      // se cobra SIEMPRE — también por conduces no cobrables.
+      const total_gasto_interno = totalGastosInternos;
+      const rentabilidad = total_cobrable - total_gasto_interno - total_costo_operador;
 
       await this.db
          .updateTable("proyecto")
@@ -493,23 +509,10 @@ export class KyselyProyectoRepository implements IProyectoRepository {
    // línea, solo los totales ya cacheados en la fila. findById sí los carga.
    #mapRow(
       row: Record<string, unknown>,
-      detalle: Array<Record<string, unknown>> = [],
       conduces: ConduceProps[] = [],
       historial: Array<Record<string, unknown>> = [],
       gastos: GastoProps[] = [],
    ): ProyectoProps {
-
-      const mappedDetalle: ProyectoDetalleProps[] = detalle.map((d) => ({
-         id: d.id as string,
-         proyecto_id: d.proyecto_id as string,
-         descripcion: d.descripcion as string,
-         cantidad: Number(d.cantidad),
-         precio_unitario: Number(d.precio_unitario),
-         subtotal: Number(d.subtotal),
-         es_cobrable: d.es_cobrable as boolean,
-         created_at: new Date(d.created_at as string),
-         updated_at: new Date(d.updated_at as string),
-      }));
 
       const mappedHistorial: ProyectoEstadoHistorialProps[] = historial.map((h) => ({
          id: h.id as string,

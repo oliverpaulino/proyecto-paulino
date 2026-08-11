@@ -16,19 +16,6 @@ export interface ProyectoEstadoHistorialProps {
    created_at: Date;
 }
 
-// ─── Ítem de detalle (cargos/gastos manuales, no ligados a equipos) ─────────
-export interface ProyectoDetalleProps {
-   id: string;
-   proyecto_id: string;
-   descripcion: string;
-   cantidad: number;
-   precio_unitario: number;
-   subtotal: number;
-   es_cobrable: boolean;
-   created_at: Date;
-   updated_at: Date;
-}
-
 // ─── Proyecto (cabecera) ─────────────────────────────────────────────────────
 // NOTA: `asignaciones` (proyecto_asignacion) se removió de aquí — esa tabla
 // nunca se llenaba en el flujo actual (createExpress no la insertaba), así
@@ -124,6 +111,8 @@ export interface IProyectoRepository {
    update(id: string, data: UpdateProyectoDTO): Promise<ProyectoProps | null>;
    /** Estado actual (ligero, para los guards de "proyecto COMPLETADO"). */
    getEstado(id: string): Promise<EstadoProyecto | null>;
+   /** Proyectos con conduces operados por este empleado (para recalcular al cambiar su tarifa). */
+   findProyectoIdsByEmpleado(empleadoId: string): Promise<string[]>;
    getLiquidacion(id: string): Promise<LiquidacionFacade | null>;
    recalcularTotales(proyectoId: string): Promise<ProyectoTotales>;
 }

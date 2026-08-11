@@ -28,18 +28,6 @@ export type CreateProyectoForm = z.infer<typeof CreateProyectoDTOSchema>;
 export type EstadoProyecto = "BORRADOR" | "COMPLETADO" | "EN PROGRESO" | "CANCELADO";
 export const EstadoProyectoArray: EstadoProyecto[] = ["BORRADOR", "COMPLETADO", "EN PROGRESO", "CANCELADO"];
 
-export interface ProyectoDetalle {
-   id: string;
-   proyecto_id: string;
-   descripcion: string;
-   cantidad: number;
-   precio_unitario: number;
-   subtotal: number;
-   es_cobrable: boolean;
-   created_at: string;
-   updated_at: string;
-}
-
 export interface ProyectoEstadoHistorial {
    id: string;
    proyecto_id: string;
@@ -51,7 +39,6 @@ export interface ProyectoEstadoHistorial {
 }
 
 interface ProyectoBase {
-   detalle: any;
    id: string;
    codigoReferencia: string; // PRO-001
    estado: EstadoProyecto;
