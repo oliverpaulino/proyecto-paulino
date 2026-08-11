@@ -519,13 +519,32 @@ export interface DB {
       total_cobrable: Generated<number>;
       total_gasto_interno: Generated<number>;
       total_equipos: Generated<number>; // suma cacheada de conduces (arregla el bug del historial)
+      total_costo_operador: Generated<number>; // Σ cantidad × monto_pago de los conduces (lo que se paga a los choferes)
       rentabilidad: Generated<number>;
+
+      // Avance de obra 0-100 ajustado por el usuario (slider de la vista
+      // general). Se fuerza a 100 cuando el proyecto pasa a COMPLETADO.
+      porcentaje_avance: Generated<number>;
 
       notas: string | null;
       fecha_inicio: Date;
       fecha_fin: Date | null;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
+   };
+
+   // Bitácora de cambios de estado del proyecto (COMPLETADO ↔ EN PROGRESO,
+   // etc.). estado_* son TEXT a propósito, mismo criterio que
+   // equipo_estado_historial: el historial sobrevive aunque cambie la lista
+   // de estados permitidos.
+   proyecto_estado_historial: {
+      id: Generated<string>;
+      proyecto_id: string;
+      estado_anterior: string | null;
+      estado_nuevo: string;
+      changed_by: string | null;
+      changed_by_name: string | null;
+      created_at: Generated<Date>;
    };
 
    proyecto_detalle: {
@@ -632,6 +651,10 @@ export interface DB {
       // nace de una subcontratación, subcontratacion_id apunta a ella.
       proveedor_id: string | null;
       subcontratacion_id: string | null;
+      // Cobrable al proyecto: si cobrable_proyecto es true, cobrable_monto se
+      // le factura al cliente (entra a total_cobrable del proyecto).
+      cobrable_proyecto: Generated<boolean>;
+      cobrable_monto: number | null;
       fecha: Date;
       created_at: Generated<Date>;
       updated_at: Generated<Date>;
