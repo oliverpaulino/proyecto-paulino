@@ -4,18 +4,22 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowDownRight, ArrowUpRight, Info, Loader2 } from "lucide-react";
 import { SelectBuscadorGasto } from "@/components/shared/SelectBuscadorGasto";
 import { SelectBuscadorDeduccion } from "@/components/shared/SelectBuscadorDeduccion";
 import { SelectBuscadorProyecto } from "@/components/shared/selectBuscadorProyecto";
 import { SelectBuscadorOrdenCompra } from "@/components/shared/selectBuscadorOrdenCompra";
-import { 
-   CreatePagoForm, 
+import {
+   CreatePagoForm,
    InfoDestinoPago,
    ConfigPagoPorDestino,
    TipoDestinoPago,
 } from "@/dtos/pagos.dto";
 import { usePagoStore } from "@/stores/usePagoStore";
+import { GastoInfoCard } from "./info-cards/gasto-info-card";
+import { DeduccionInfoCard } from "./info-cards/deduccion-info-card";
+import { ProyectoInfoCard } from "./info-cards/proyecto-info-card";
+import { OrdenCompraInfoCard } from "./info-cards/orden-compra-info-card";
+import { TIPO_DESTINO_LABEL } from "./info-cards/info-card-shell";
 
 interface PagoFormProps {
    initialData?: any;
@@ -30,16 +34,6 @@ interface PagoFormProps {
 
 const INPUT_CLASS = "h-9 w-full rounded-md border border-input bg-input/30 px-3 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] disabled:opacity-60 disabled:bg-muted";
 const TEXTAREA_CLASS = "min-h-[80px] w-full rounded-md border border-input bg-input/30 px-3 py-2 text-sm outline-none disabled:opacity-60 disabled:bg-muted resize-none";
-
-const formatMoney = (value: number): string =>
-   value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-const TIPO_DESTINO_LABEL: Record<TipoDestinoPago, string> = {
-   GASTO: "Gasto",
-   DEDUCCION: "Deducción",
-   PROYECTO: "Proyecto",
-   ORDEN_COMPRA: "Orden de Compra",
-};
 
 export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraLabel, onSubmit, onCancel, loading }: PagoFormProps) {
    // Determinar estado inicial del tipo de destino basado en la data inicial
@@ -141,9 +135,29 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
       values.gasto_empresa_id || values.deduccion_empleado_id || values.proyecto_id || values.orden_compra_id
    );
 
+   const esEntrada = values.tipo_movimiento === "ENTRADA";
+
+   // Gasto nacido de una orden de compra + movimiento SALIDA: no acepta pagos.
+   // Todo se desactiva salvo destino, referencia y tipo de movimiento.
+   const gastoBloqueadoPorOC =
+      destinoInfo?.tipo === "GASTO" && !esEntrada && destinoInfo.aceptaPagoSalida === 0;
+
+   // El tipo de movimiento se libera con solo elegir un destino (no exige
+   // haber guardado la referencia): sus opciones derivan del destino elegido.
+   const isTipoMovimientoDisabled =
+      loading || !config || soloUnMovimiento || predefinedValues?.tipo_movimiento !== undefined;
+
+   // "Nada se puede pasar del monto pendiente o disponible": el tope del
+   // movimiento activo también limita el campo de monto.
+   const topeActivo = destinoInfo
+      ? (esEntrada ? destinoInfo.aceptaPagoEntrada : destinoInfo.aceptaPagoSalida)
+      : null;
+   const montoMaximo = topeActivo === null ? undefined : Math.max(0, topeActivo + editingAdjustment);
+
    const isDisabled = (field: keyof CreatePagoForm) => {
-      // Nada es editable hasta guardar una referencia de destino concreta.
-      return loading || !destinoReferenciaSeleccionada || (predefinedValues?.[field] !== undefined);
+      // Nada es editable hasta guardar una referencia de destino concreta, y
+      // un gasto asociado a una OC bloquea todo cuando el movimiento es salida.
+      return loading || !destinoReferenciaSeleccionada || gastoBloqueadoPorOC || (predefinedValues?.[field] !== undefined);
    };
 
    // Los buscadores de referencia se desbloquean con solo elegir el tipo (para
@@ -248,53 +262,69 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
                 </div>
                 
                 <div className="flex flex-col gap-1.5">
-                    <Label>Referencia de Destino *</Label>
-                    {!destinoTipo && (
-                        <div className="h-9 flex items-center text-sm text-muted-foreground italic px-3 rounded-md bg-muted/30 border border-input/30">
-                            Seleccione un tipo primero...
-                        </div>
-                    )}
-                    {destinoTipo === 'GASTO' && (
-                        <SelectBuscadorGasto 
-                           value={values.gasto_empresa_id}
-                           initialLabel={initialData?.gasto_codigo_referencia ?? ""} 
-                           onChange={(id) => set("gasto_empresa_id", id)} 
-                           disabled={isDestinoBuscadorDisabled("gasto_empresa_id")} 
-                        />
-                    )}
-                    {destinoTipo === 'DEDUCCION' && (
-                        <SelectBuscadorDeduccion 
-                           value={values.deduccion_empleado_id}
-                           initialLabel={initialData?.deduccion_codigo_referencia ?? ""} 
-                           onChange={(id) => set("deduccion_empleado_id", id)} 
-                           disabled={isDestinoBuscadorDisabled("deduccion_empleado_id")} 
-                        />
-                    )}
-                    {destinoTipo === 'PROYECTO' && (
-                        <SelectBuscadorProyecto 
-                           value={values.proyecto_id}
-                           initialLabel={initialData?.proyecto_codigo_referencia ?? ""} 
-                           onChange={(id) => set("proyecto_id", id)} 
-                           disabled={isDestinoBuscadorDisabled("proyecto_id")} 
-                        />
-                    )}
-                    {destinoTipo === 'ORDEN_COMPRA' && (
-                        <SelectBuscadorOrdenCompra 
-                           value={values.orden_compra_id}
-                           initialLabel={initialData?.orden_compra_codigo_referencia ?? predefinedOrdenCompraLabel ?? ""} 
-                           onChange={(id) => set("orden_compra_id", id)} 
-                           disabled={isDestinoBuscadorDisabled("orden_compra_id")} 
-                        />
-                    )}
-                </div>
+                  <Label>Tipo de Movimiento *</Label>
+                  <select 
+                        value={values.tipo_movimiento} 
+                        onChange={(e) => set("tipo_movimiento", e.target.value)}
+                        disabled={isTipoMovimientoDisabled}
+                        className={INPUT_CLASS}
+                  >
+                        {!config && <option value="">Seleccione un destino primero...</option>}
+                        {tipoMovimientoOptions.map((t) => (
+                           <option key={t.value} value={t.value}>{t.label}</option>
+                        ))}
+                  </select>
+               </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+               <Label>Referencia de Destino *</Label>
+               {!destinoTipo && (
+                  <div className="h-9 flex items-center text-sm text-muted-foreground italic px-3 rounded-md bg-muted/30 border border-input/30">
+                        Seleccione un tipo primero...
+                  </div>
+               )}
+               {destinoTipo === 'GASTO' && (
+                  <SelectBuscadorGasto 
+                     value={values.gasto_empresa_id}
+                     initialLabel={initialData?.gasto_codigo_referencia ?? ""} 
+                     onChange={(id) => set("gasto_empresa_id", id)} 
+                     disabled={isDestinoBuscadorDisabled("gasto_empresa_id")} 
+                  />
+               )}
+               {destinoTipo === 'DEDUCCION' && (
+                  <SelectBuscadorDeduccion 
+                     value={values.deduccion_empleado_id}
+                     initialLabel={initialData?.deduccion_codigo_referencia ?? ""} 
+                     onChange={(id) => set("deduccion_empleado_id", id)} 
+                     disabled={isDestinoBuscadorDisabled("deduccion_empleado_id")} 
+                  />
+               )}
+               {destinoTipo === 'PROYECTO' && (
+                  <SelectBuscadorProyecto 
+                     value={values.proyecto_id}
+                     initialLabel={initialData?.proyecto_codigo_referencia ?? ""} 
+                     onChange={(id) => set("proyecto_id", id)} 
+                     disabled={isDestinoBuscadorDisabled("proyecto_id")} 
+                  />
+               )}
+               {destinoTipo === 'ORDEN_COMPRA' && (
+                  <SelectBuscadorOrdenCompra 
+                     value={values.orden_compra_id}
+                     initialLabel={initialData?.orden_compra_codigo_referencia ?? predefinedOrdenCompraLabel ?? ""} 
+                     onChange={(id) => set("orden_compra_id", id)} 
+                     disabled={isDestinoBuscadorDisabled("orden_compra_id")} 
+                  />
+               )}
             </div>
 
             {/* ── Sección informativa del destino (balance polimórfico) ── */}
             {(destinoTipo && (values.gasto_empresa_id || values.deduccion_empleado_id || values.proyecto_id || values.orden_compra_id)) && (
-               <DestinoInfoCard
+               <DestinoInfoCards
+                  destinoTipo={destinoTipo}
                   info={destinoInfo}
                   loading={destinoInfoLoading}
-                  tipoMovimiento={values.tipo_movimiento}
+                  esEntrada={esEntrada}
                   monto={Number(values.monto_pagado) || 0}
                   adjustment={editingAdjustment}
                />
@@ -302,41 +332,25 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
 
             <div className="mt-2 h-px bg-border" />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                    <Label>Método de Pago *</Label>
-                    <select 
-                        value={values.metodo_pago} 
-                        onChange={(e) => set("metodo_pago", e.target.value)}
-                        disabled={isDisabled("metodo_pago") || !config}
-                        className={INPUT_CLASS}
-                    >
-                        {!config && <option value="">Seleccione un destino primero...</option>}
-                        {metodoPagoOptions.map((m) => (
-                           <option key={m.value} value={m.value}>{m.label}</option>
-                        ))}
-                    </select>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                    <Label>Tipo de Movimiento *</Label>
-                    <select 
-                        value={values.tipo_movimiento} 
-                        onChange={(e) => set("tipo_movimiento", e.target.value)}
-                        disabled={isDisabled("tipo_movimiento") || soloUnMovimiento}
-                        className={INPUT_CLASS}
-                    >
-                        {!config && <option value="">Seleccione un destino primero...</option>}
-                        {tipoMovimientoOptions.map((t) => (
-                           <option key={t.value} value={t.value}>{t.label}</option>
-                        ))}
-                    </select>
-                </div>
+            <div className="flex flex-col gap-1.5">
+               <Label>Método de Pago *</Label>
+               <select 
+                  value={values.metodo_pago} 
+                  onChange={(e) => set("metodo_pago", e.target.value)}
+                  disabled={isDisabled("metodo_pago") || !config}
+                  className={INPUT_CLASS}
+               >
+                  {!config && <option value="">Seleccione un destino primero...</option>}
+                  {metodoPagoOptions.map((m) => (
+                     <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
+               </select>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                     <Label>Monto (RD$) *</Label>
-                    <Input type="number" step="0.01" min="0.01" value={values.monto_pagado} onChange={(e) => set("monto_pagado", e.target.value)} required disabled={isDisabled("monto_pagado")} className={INPUT_CLASS} />
+                    <Input type="number" step="0.01" min="0.01" max={montoMaximo} value={values.monto_pagado} onChange={(e) => set("monto_pagado", e.target.value)} required disabled={isDisabled("monto_pagado")} className={INPUT_CLASS} />
                 </div>
                 <div className="flex flex-col gap-1.5">
                     <Label>Fecha del Pago *</Label>
@@ -367,147 +381,35 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
 
          <div className="flex gap-2 justify-end pt-4 border-t border-border mt-2">
             {onCancel && <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>Cancelar</Button>}
-            <Button type="submit" disabled={loading}>{loading ? "Guardando..." : "Guardar Pago"}</Button>
+            <Button type="submit" disabled={loading || gastoBloqueadoPorOC}>{loading ? "Guardando..." : "Guardar Pago"}</Button>
          </div>
       </form>
    );
 }
 
-function Stat({ label, value, tone = "default" }: { label: string; value: string; tone?: "default" | "good" | "warn" | "muted" }) {
-   const toneClass =
-      tone === "good" ? "text-emerald-600 dark:text-emerald-400"
-      : tone === "warn" ? "text-amber-600 dark:text-amber-400"
-      : tone === "muted" ? "text-muted-foreground"
-      : "text-foreground";
-   return (
-      <div className="rounded-lg border border-border bg-muted/20 p-3">
-         <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
-         <p className={`mt-1 text-lg font-semibold tabular-nums ${toneClass}`}>{value}</p>
-      </div>
-   );
-}
-
 /**
- * Sección informativa del destino de un pago. Muestra el desglose según el
- * tipo (gasto/deducción/proyecto/OC) y el saldo disponible para el
- * movimiento seleccionado, con sus topes `aceptaPagoEntrada`/`aceptaPagoSalida`.
+ * Despacha el card informativo según el tipo de destino elegido. Cada card
+ * renderiza su propia vista según el movimiento (ENTRADA/SALIDA) con los
+ * campos simplificados (monto total, pendiente y nuevo saldo).
  */
-function DestinoInfoCard({ info, loading, tipoMovimiento, monto, adjustment }: {
+function DestinoInfoCards({ destinoTipo, info, loading, esEntrada, monto, adjustment }: {
+   destinoTipo: TipoDestinoPago;
    info: InfoDestinoPago | null;
    loading: boolean;
-   tipoMovimiento: string;
+   esEntrada: boolean;
    monto: number;
    adjustment: number;
 }) {
-   const esEntrada = tipoMovimiento === "ENTRADA";
+   const common = { info, loading, esEntrada, monto, adjustment };
 
-   if (loading && !info) {
-      return (
-         <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/10 p-4 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin text-brand-blue" />
-            Consultando el balance del destino…
-         </div>
-      );
+   switch (destinoTipo) {
+      case "GASTO":
+         return <GastoInfoCard {...common} />;
+      case "DEDUCCION":
+         return <DeduccionInfoCard {...common} />;
+      case "PROYECTO":
+         return <ProyectoInfoCard {...common} />;
+      case "ORDEN_COMPRA":
+         return <OrdenCompraInfoCard {...common} />;
    }
-
-   if (!info) {
-      return (
-         <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/10 p-4 text-sm text-muted-foreground">
-            <Info className="size-4 text-brand-blue" />
-            No se pudo obtener la información del destino seleccionado.
-         </div>
-      );
-   }
-
-   // Tope del movimiento seleccionado (null = sin tope, p.ej. entradas a proyecto).
-   const tope = esEntrada ? info.aceptaPagoEntrada : info.aceptaPagoSalida;
-   const topeBase = tope === null ? null : tope + adjustment;
-   const sinTope = tope === null;
-   const excede = !sinTope && monto > (topeBase ?? 0) + 0.01;
-
-   return (
-      <div className="rounded-xl border border-brand-blue/20 bg-brand-blue/5 p-4 space-y-3">
-         <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-               <Info className="size-4 text-brand-blue shrink-0" />
-               <p className="text-sm font-semibold text-foreground truncate">
-                  {TIPO_DESTINO_LABEL[info.tipo]}: {info.referencia}
-               </p>
-            </div>
-            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${esEntrada ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300" : "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300"}`}>
-               {esEntrada ? <ArrowUpRight className="size-3.5 inline mr-1" /> : <ArrowDownRight className="size-3.5 inline mr-1" />}
-               {esEntrada ? "Entrada" : "Salida"}
-            </span>
-         </div>
-
-         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            <Stat
-               label={esEntrada ? "Disponible (Entrada)" : "Disponible (Salida)"}
-               value={sinTope ? "Sin límite" : `$${formatMoney(Math.max(0, topeBase ?? 0))}`}
-               tone={excede ? "warn" : "good"}
-            />
-            {!sinTope && (
-               <Stat
-                  label="Nuevo Saldo"
-                  value={`$${formatMoney(Math.max(0, esEntrada ? (topeBase ?? 0) + monto : (topeBase ?? 0) - monto))}`}
-               />
-            )}
-            {info.tipo === "PROYECTO" && <Stat label="Capital Actual" value={`$${formatMoney(info.capital)}`} />}
-            {info.tipo !== "PROYECTO" && <Stat label="Monto Total" value={`$${formatMoney(info.montoTotal)}`} />}
-            {info.tipo === "ORDEN_COMPRA" && <Stat label="Estado" value={info.estado ?? "-"} tone="muted" />}
-         </div>
-
-         {info.tipo === "GASTO" && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-               <Stat label="Cobrable al Cliente" value={`$${formatMoney(info.cobrableCliente)}`} />
-               <Stat label="Cobrable Empresa" value={`$${formatMoney(info.cobrableEmpresa)}`} />
-               <Stat label="Pagado Cliente" value={`$${formatMoney(info.pagadoCliente)}`} />
-               <Stat label="Pagado Empresa" value={`$${formatMoney(info.pagadoEmpresa)}`} />
-               <Stat label="Acepta Entrada" value={`$${formatMoney(info.aceptaPagoEntrada ?? 0)}`} />
-               <Stat label="Acepta Salida" value={`$${formatMoney(info.aceptaPagoSalida)}`} />
-            </div>
-         )}
-
-         {info.tipo === "DEDUCCION" && (
-            <div className="grid grid-cols-2 gap-2">
-               <Stat label="Amortizado" value={`$${formatMoney(info.totalPagado)}`} />
-               <Stat label="Pendiente" value={`$${formatMoney(info.aceptaPagoEntrada ?? 0)}`} tone="good" />
-            </div>
-         )}
-
-         {info.tipo === "ORDEN_COMPRA" && (
-            <div className="grid grid-cols-2 gap-2">
-               <Stat label="Monto Total" value={`$${formatMoney(info.montoTotal)}`} />
-               <Stat label="Pagado a Proveedor" value={`$${formatMoney(info.montoPagado)}`} />
-               <Stat label="Pendiente" value={`$${formatMoney(info.aceptaPagoSalida)}`} />
-            </div>
-         )}
-
-         {info.tipo === "PROYECTO" && (
-            <div className="grid grid-cols-2 gap-2">
-               <Stat label="Abonado (Entradas)" value={`$${formatMoney(info.totalAbonado)}`} />
-               <Stat label="Utilizado (Salidas)" value={`$${formatMoney(info.totalUtilizado)}`} />
-               <Stat label="Disponible para Usos" value={`$${formatMoney(info.aceptaPagoSalida)}`} />
-            </div>
-         )}
-
-         {info.tipo === "GASTO" && esEntrada && !info.cobrableProyecto && (
-            <p className="text-xs text-muted-foreground">
-               Este gasto no es cobrable al cliente: solo se permiten pagos de salida (lo cubre la empresa).
-            </p>
-         )}
-
-         {info.tipo === "GASTO" && !esEntrada && info.aceptaPagoSalida === 0 && (
-            <p className="text-xs text-muted-foreground">
-               Este gasto está asociado a una orden de compra: los pagos se registran contra la orden, no contra el gasto.
-            </p>
-         )}
-
-         {excede && (
-            <p className="text-xs font-medium text-destructive bg-destructive/10 p-2 rounded-md">
-               El monto supera el saldo disponible del destino (RD$ {formatMoney(Math.max(0, topeBase ?? 0))}).
-            </p>
-         )}
-      </div>
-   );
 }
