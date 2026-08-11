@@ -1,9 +1,11 @@
 import { Kysely } from "kysely";
 import { DB } from "@/backend/database";
+import { PaginatedResult } from "@/backend/shared/pagination";
 import {
    CreateGastoDTO,
    DeleteGastoDTO,
    Gasto,
+   GastosParams,
    IGastoRepository,
    UpdateGastoDTO,
 } from "../domain/gastos.domain";
@@ -111,27 +113,55 @@ export class KyselyGastoRepository implements IGastoRepository {
       return query;
    }
 
-   async findAll(params?: any): Promise<Gasto[]> {
+   async findAll(params?: GastosParams): Promise<PaginatedResult<Gasto>> {
       const { page = 1, limit = 20 } = params || {};
-      const rows = await this.buildBaseQuery(false, params)
+      const base = this.buildBaseQuery(false, params);
+
+      const countResult = await base
+         .clearSelect()
+         .select((eb) => eb.fn.countAll<string>().as("count"))
+         .executeTakeFirstOrThrow();
+      const total = Number(countResult.count);
+
+      const rows = await base
          .orderBy("gasto.fecha", "desc")
          .offset((page - 1) * limit)
          .limit(limit)
          .execute();
 
-      return rows.map((row) => this.mapToEntity(row));
+      return {
+         data: rows.map((row) => this.mapToEntity(row)),
+         total,
+         page,
+         limit,
+         totalPages: Math.max(1, Math.ceil(total / limit)),
+      };
    }
 
-   async findAllDeleted(params?: any): Promise<Gasto[]> {
+   async findAllDeleted(params?: GastosParams): Promise<PaginatedResult<Gasto>> {
       const { page = 1, limit = 20 } = params || {};
-      const rows = await this.buildBaseQuery(true, params)
+      const base = this.buildBaseQuery(true, params);
+
+      const countResult = await base
+         .clearSelect()
+         .select((eb) => eb.fn.countAll<string>().as("count"))
+         .executeTakeFirstOrThrow();
+      const total = Number(countResult.count);
+
+      const rows = await base
          .orderBy("gasto.deleted_at", "desc")
          .orderBy("gasto.fecha", "desc")
          .offset((page - 1) * limit)
          .limit(limit)
          .execute();
 
-      return rows.map((row) => this.mapToEntity(row));
+      return {
+         data: rows.map((row) => this.mapToEntity(row)),
+         total,
+         page,
+         limit,
+         totalPages: Math.max(1, Math.ceil(total / limit)),
+      };
    }
 
    async findById(id: string): Promise<Gasto | null> {

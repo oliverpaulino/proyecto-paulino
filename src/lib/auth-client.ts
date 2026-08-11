@@ -15,6 +15,7 @@ export const authClient = createAuthClient({
     // so `useSession().data.permissions` is available to `usePermissions`.
     customSessionClient<typeof auth>(),
   ],
+  baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
 });
 
 export const { signIn, signUp, useSession } = authClient;

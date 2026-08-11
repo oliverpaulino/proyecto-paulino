@@ -1,38 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GastoDetail } from "./components/gasto-detail";
-import type { Gasto } from "@/dtos/gastos.dto";
 import { useGastoStore } from "@/stores/useGastoStore";
 
 export default function GastoDetailPage() {
    const params = useParams();
    const router = useRouter();
-   const [gasto, setGasto] = useState<Gasto | null>(null);
-   const [loading, setLoading] = useState(true);
-   const { setSelectedGasto, clearSelectedGasto } = useGastoStore();
-
-   const fetchGasto = async () => {
-      setLoading(true);
-      try {
-         const res = await fetch(`/api/gastos/${params.id}`);
-         if (res.ok) {
-            const data = await res.json();
-            setGasto(data);
-            setSelectedGasto(data);
-         }
-      } finally {
-         setLoading(false);
-      }
-   };
+   const { selectedGasto: gasto, loading, GetGastoById, clearSelectedGasto } = useGastoStore();
 
    useEffect(() => {
-      fetchGasto();
+      GetGastoById(params.id as string);
       return () => clearSelectedGasto();
-   }, [params.id]);
+   }, [params.id, GetGastoById, clearSelectedGasto]);
 
    if (loading) {
       return (
@@ -54,7 +37,7 @@ export default function GastoDetailPage() {
 
    return (
       <div className="p-6 max-w-5xl mx-auto w-full">
-         <GastoDetail gasto={gasto} onRefresh={fetchGasto} />
+         <GastoDetail gasto={gasto} onRefresh={() => GetGastoById(params.id as string)} />
       </div>
    );
 }

@@ -1,9 +1,11 @@
 import { IProyectoRepository } from "../../proyectos/domain/proyecto.domain";
+import { PaginatedResult } from "@/backend/shared/pagination";
 import {
    CreateGastoDTO,
    CreateGastoDeduccionDTO,
    DeleteGastoDTO,
    GastoProps,
+   GastosParams,
    IGastoRepository,
    MoveCobrableDTO,
    UpdateGastoDTO,
@@ -40,14 +42,14 @@ export class GastoService {
       }
    }
 
-   async getAll(params?: any): Promise<GastoProps[]> {
-      const items = await this.repo.findAll(params);
-      return items.map((g) => g.toJSON());
+   async getAll(params?: GastosParams): Promise<PaginatedResult<GastoProps>> {
+      const result = await this.repo.findAll(params);
+      return { ...result, data: result.data.map((g) => g.toJSON()) };
    }
 
-   async getAllDeleted(params?: any): Promise<GastoProps[]> {
-      const items = await this.repo.findAllDeleted(params);
-      return items.map((g) => g.toJSON());
+   async getAllDeleted(params?: GastosParams): Promise<PaginatedResult<GastoProps>> {
+      const result = await this.repo.findAllDeleted(params);
+      return { ...result, data: result.data.map((g) => g.toJSON()) };
    }
 
    async getById(id: string): Promise<GastoProps | null> {

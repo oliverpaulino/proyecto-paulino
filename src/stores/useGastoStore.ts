@@ -40,6 +40,9 @@ type GastoStore = {
 
    GetGastos: (params?: GastosFilters & { page?: number; limit?: number; force?: boolean }) => Promise<void>;
    GetDeletedGastos: (params?: GastosFilters & { page?: number; limit?: number; force?: boolean }) => Promise<void>;
+   GetGastoById: (id: string) => Promise<Gasto | null>;
+   GetGastosSinProyecto: (search?: string) => Promise<Gasto[]>;
+   GetGastosByProyecto: (proyectoId: string, cobrable: boolean) => Promise<Gasto[]>;
 
    CreateGasto: (form: CreateGastoForm) => Promise<Gasto | Error>;
    UpdateGasto: (id: string, data: UpdateGastoForm) => Promise<void | Error>;
@@ -97,14 +100,14 @@ export const useGastoStore = create<GastoStore>((set, get) => ({
          const res = await fetch(`${BASE_URL}?${query.toString()}`);
          if (!res.ok) throw new Error("Error al cargar gastos");
 
-         const items: Gasto[] = await res.json();
-         const totalPages = Math.max(1, Math.ceil(items.length / limit));
+         const result: { data: Gasto[]; total: number; page: number; limit: number; totalPages: number } = await res.json();
+         const totalPages = Math.max(1, result.totalPages);
 
          set((s) => ({
-            Gastos: items,
+            Gastos: result.data,
             pagination: {
-               page, limit, total: items.length, totalPages,
-               hasNext: page < totalPages, hasPrev: page > 1,
+               page: result.page, limit: result.limit, total: result.total, totalPages,
+               hasNext: result.page < totalPages, hasPrev: result.page > 1,
             },
             _fetchedGastoLists: new Set(s._fetchedGastoLists).add(cacheKey),
          }));
@@ -134,14 +137,14 @@ export const useGastoStore = create<GastoStore>((set, get) => ({
          const res = await fetch(`${BASE_URL}/deleted?${query.toString()}`);
          if (!res.ok) throw new Error("Error al cargar gastos eliminados");
 
-         const items: Gasto[] = await res.json();
-         const totalPages = Math.max(1, Math.ceil(items.length / limit));
+         const result: { data: Gasto[]; total: number; page: number; limit: number; totalPages: number } = await res.json();
+         const totalPages = Math.max(1, result.totalPages);
 
          set((s) => ({
-            DeletedGastos: items,
+            DeletedGastos: result.data,
             pagination: {
-               page, limit, total: items.length, totalPages,
-               hasNext: page < totalPages, hasPrev: page > 1,
+               page: result.page, limit: result.limit, total: result.total, totalPages,
+               hasNext: result.page < totalPages, hasPrev: result.page > 1,
             },
             _fetchedDeletedLists: new Set(s._fetchedDeletedLists).add(cacheKey),
          }));
@@ -150,6 +153,42 @@ export const useGastoStore = create<GastoStore>((set, get) => ({
       } finally {
          set({ loading: false });
       }
+   },
+
+   GetGastoById: async (id) => {
+      set({ loading: true });
+      try {
+         const res = await fetch(`${BASE_URL}/${id}`);
+         if (!res.ok) throw new Error("Error al cargar gasto");
+         const data: Gasto = await res.json();
+         set({ selectedGasto: data });
+         return data;
+      } catch (error) {
+         console.error(error);
+         return null;
+      } finally {
+         set({ loading: false });
+      }
+   },
+
+   GetGastosSinProyecto: async (search = "") => {
+      const query = new URLSearchParams({ proyecto_id: "null", limit: "50", search });
+      const res = await fetch(`${BASE_URL}?${query.toString()}`);
+      if (!res.ok) throw new Error("Error al cargar gastos sin proyecto");
+      const result: { data: Gasto[] } = await res.json();
+      return result.data;
+   },
+
+   GetGastosByProyecto: async (proyectoId, cobrable) => {
+      const query = new URLSearchParams({
+         proyecto_id: proyectoId,
+         cobrable_proyecto: String(cobrable),
+         limit: "500",
+      });
+      const res = await fetch(`${BASE_URL}?${query.toString()}`);
+      if (!res.ok) throw new Error("Error al cargar los gastos del proyecto");
+      const result: { data: Gasto[] } = await res.json();
+      return result.data;
    },
 
    CreateGasto: async (form) => {

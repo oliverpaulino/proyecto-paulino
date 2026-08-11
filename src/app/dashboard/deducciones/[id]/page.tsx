@@ -1,38 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DeduccionDetail } from "./components/deduccion-detail";
-import type { Deduccion } from "@/dtos/deducciones.dto";
 import { useDeduccionStore } from "@/stores/useDeduccionStore";
 
 export default function DeduccionDetailPage() {
    const params = useParams();
    const router = useRouter();
-   const [deduccion, setDeduccion] = useState<Deduccion | null>(null);
-   const [loading, setLoading] = useState(true);
-   const { setSelectedDeduccion, clearSelectedDeduccion } = useDeduccionStore();
-
-   const fetchDeduccion = async () => {
-      setLoading(true);
-      try {
-         const res = await fetch(`/api/deducciones/${params.id}`);
-         if (res.ok) {
-            const data = await res.json();
-            setDeduccion(data);
-            setSelectedDeduccion(data);
-         }
-      } finally {
-         setLoading(false);
-      }
-   };
+   const { selectedDeduccion: deduccion, loading, GetDeduccionById, clearSelectedDeduccion } = useDeduccionStore();
 
    useEffect(() => {
-      fetchDeduccion();
+      GetDeduccionById(params.id as string);
       return () => clearSelectedDeduccion();
-   }, [params.id]);
+   }, [params.id, GetDeduccionById, clearSelectedDeduccion]);
 
    if (loading) {
       return (
@@ -54,7 +37,7 @@ export default function DeduccionDetailPage() {
 
    return (
       <div className="p-6 max-w-5xl mx-auto w-full">
-         <DeduccionDetail deduccion={deduccion} onRefresh={fetchDeduccion} />
+         <DeduccionDetail deduccion={deduccion} onRefresh={() => GetDeduccionById(params.id as string)} />
       </div>
    );
 }

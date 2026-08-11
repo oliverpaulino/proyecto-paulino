@@ -1,3 +1,5 @@
+import { PaginatedResult } from "@/backend/shared/pagination";
+
 export interface GastoProps {
    id: string;
    referencia: number;
@@ -121,30 +123,23 @@ export interface DeleteGastoDTO {
 };
 
 
-export interface IGastoRepository {
-   findAll( params?: { page?: number; 
-                     limit?: number; 
-                     search?: string; 
-                     start?: Date; 
-                     end?: Date; 
-                     categoria?: string; 
-                     grupo?: string;
-                     orden_compra_id?: string | null;
-                     proyecto_id?: string | null;
-                     equipo_id?: string | null;
-                     cobrable_proyecto?: boolean; }): Promise<Gasto[]>;
+export type GastosParams = {
+   page?: number;
+   limit?: number;
+   search?: string;
+   start?: Date;
+   end?: Date;
+   categoria?: string;
+   grupo?: string;
+   orden_compra_id?: string | null;
+   proyecto_id?: string | null;
+   equipo_id?: string | null;
+   cobrable_proyecto?: boolean;
+};
 
-   findAllDeleted( params?: { page?: number; 
-                     limit?: number; 
-                     search?: string; 
-                     start?: Date; 
-                     end?: Date; 
-                     categoria?: string; 
-                     grupo?: string;
-                     orden_compra_id?: string | null;
-                     proyecto_id?: string | null;
-                     equipo_id?: string | null;
-                     cobrable_proyecto?: boolean; }): Promise<Gasto[]>;
+export interface IGastoRepository {
+   findAll(params?: GastosParams): Promise<PaginatedResult<Gasto>>;
+   findAllDeleted(params?: GastosParams): Promise<PaginatedResult<Gasto>>;
 
    findById(id: string): Promise<Gasto | null>;
    findDeletedById(id: string): Promise<Gasto | null>;

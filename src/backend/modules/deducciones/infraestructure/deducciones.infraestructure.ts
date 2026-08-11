@@ -1,7 +1,9 @@
 import { Kysely, sql } from "kysely";
 import { DB } from "@/backend/database";
+import { PaginatedResult } from "@/backend/shared/pagination";
 import {
    CreateDeduccionDTO,
+   DeduccionesParams,
    DeleteDeduccionDTO,
    Deduccion,
    IDeduccionRepository,
@@ -169,27 +171,55 @@ export class KyselyDeduccionRepository implements IDeduccionRepository {
       return query;
    }
 
-   async findAll(params?: any): Promise<Deduccion[]> {
+   async findAll(params?: DeduccionesParams): Promise<PaginatedResult<Deduccion>> {
       const { page = 1, limit = 20 } = params || {};
-      const rows = await this.buildBaseQuery(false, params)
+      const base = this.buildBaseQuery(false, params);
+
+      const countResult = await base
+         .clearSelect()
+         .select((eb) => eb.fn.countAll<string>().as("count"))
+         .executeTakeFirstOrThrow();
+      const total = Number(countResult.count);
+
+      const rows = await base
          .orderBy("deduccion.fecha", "desc")
          .offset((page - 1) * limit)
          .limit(limit)
          .execute();
 
-      return rows.map((row) => this.mapToEntity(row));
+      return {
+         data: rows.map((row) => this.mapToEntity(row)),
+         total,
+         page,
+         limit,
+         totalPages: Math.max(1, Math.ceil(total / limit)),
+      };
    }
 
-   async findAllDeleted(params?: any): Promise<Deduccion[]> {
+   async findAllDeleted(params?: DeduccionesParams): Promise<PaginatedResult<Deduccion>> {
       const { page = 1, limit = 20 } = params || {};
-      const rows = await this.buildBaseQuery(true, params)
+      const base = this.buildBaseQuery(true, params);
+
+      const countResult = await base
+         .clearSelect()
+         .select((eb) => eb.fn.countAll<string>().as("count"))
+         .executeTakeFirstOrThrow();
+      const total = Number(countResult.count);
+
+      const rows = await base
          .orderBy("deduccion.deleted_at", "desc")
          .orderBy("deduccion.fecha", "desc")
          .offset((page - 1) * limit)
          .limit(limit)
          .execute();
 
-      return rows.map((row) => this.mapToEntity(row));
+      return {
+         data: rows.map((row) => this.mapToEntity(row)),
+         total,
+         page,
+         limit,
+         totalPages: Math.max(1, Math.ceil(total / limit)),
+      };
    }
 
    async findById(id: string): Promise<Deduccion | null> {
