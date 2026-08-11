@@ -22,6 +22,8 @@ interface Props {
    conduce: ConduceDTO | null;
    open: boolean;
    onOpenChange: (open: boolean) => void;
+   /** Se dispara tras guardar con éxito (para refrescar listas/totales). */
+   onSaved?: () => void;
 }
 
 /**
@@ -32,7 +34,7 @@ interface Props {
  * backend, conduce.infraestructure.ts update(), ya soporta cambiar
  * equipo_id y recalcula categoria_equipo_id solo, por si luego lo agregas).
  */
-export function ConduceEditDialog({ conduce, open, onOpenChange }: Props) {
+export function ConduceEditDialog({ conduce, open, onOpenChange, onSaved }: Props) {
    const { UpdateConduce } = useConduceStore();
    const [guardando, setGuardando] = useState(false);
    const [error, setError] = useState<string | null>(null);
@@ -139,12 +141,13 @@ export function ConduceEditDialog({ conduce, open, onOpenChange }: Props) {
          // backend recalcule los totales tanto del proyecto anterior como
          // del nuevo si el conduce se reasignó.
          const result = await UpdateConduce(conduce.id, form as any, conduce.proyecto_id ?? null);
-         if (result instanceof Error) {
-            setError(result.message);
-            return;
-         }
-         onOpenChange(false);
-      } finally {
+          if (result instanceof Error) {
+             setError(result.message);
+             return;
+          }
+          onOpenChange(false);
+          onSaved?.();
+       } finally {
          setGuardando(false);
       }
    };

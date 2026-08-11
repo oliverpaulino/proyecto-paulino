@@ -416,11 +416,17 @@ export function ConducesTab({
             open={!!conduceDetalle}
             onOpenChange={(v) => !v && setConduceDetalle(null)}
          />
-         <ConduceEditDialog
-            conduce={conduceAEditar}
-            open={!!conduceAEditar}
-            onOpenChange={(v) => !v && setConduceAEditar(null)}
-         />
+          <ConduceEditDialog
+             conduce={conduceAEditar}
+             open={!!conduceAEditar}
+             onOpenChange={(v) => !v && setConduceAEditar(null)}
+             onSaved={() => {
+                const categoria = conduceAEditar?.categoria_equipo_tarifa_nombre || "Sin categoría";
+                GetConducesByCategoria(proyecto.id, categoria);
+                GetCategoriasByProyecto(proyecto.id);
+                onProyectoChange();
+             }}
+          />
          <ConduceDeleteDialog
             conduce={conduceAEliminar}
             open={!!conduceAEliminar}
