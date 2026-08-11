@@ -30,8 +30,8 @@ const camposComunes = {
 export const CreateConduceCamionSchema = z.object({
    tipo_conduce: z.literal("CAMION"),
    ...camposComunes,
-   procedencia: z.string().min(1, "La procedencia es requerida"),
-   destino: z.string().min(1, "El destino es requerido"),
+   procedencia: z.string().optional(),
+   destino: z.string().optional(),
    cantidad: z.number().positive("Debe ser mayor a 0"),
    firma_chofer: z.boolean(),
    firma_recibido: z.boolean(),

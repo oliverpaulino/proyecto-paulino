@@ -309,8 +309,6 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId, fixe
       };
 
       if (tipoConduce === "CAMION") {
-         // if (!procedencia.trim()) { setError("La procedencia es requerida"); return null; }
-         // if (!destino.trim()) { setError("El destino es requerido"); return null; }
          if (cantidad <= 0) { setError("Los botes/viajes deben ser mayor a 0"); return null; }
 
          return {

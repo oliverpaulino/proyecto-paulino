@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
    Dialog,
@@ -62,6 +62,8 @@ interface ItemCobrable {
    fecha: string;
    /** Referencia del conduce o "Tarifa del servicio y cargos". */
    label: string;
+   /** Categoría del equipo del conduce (categoria_equipo_tarifa_nombre o tipo). */
+   categoria: string;
    /** Lo facturado original (conduce.subtotal o tarifa+cargos). */
    monto_original: number;
    pendiente: number;
@@ -84,6 +86,7 @@ function itemsFromFolios(folios: CuentaPorCobrar[]): ItemCobrable[] {
                folioNombre: f.nombre,
                fecha: f.fecha,
                label: cc.numero_referencia,
+               categoria: cc.categoria_equipo_tarifa_nombre ?? cc.tipo_conduce ?? "Sin categoría",
                monto_original: cc.monto_total,
                pendiente: cc.pendiente,
                tarifa_servicio: f.tarifa_servicio,
@@ -92,16 +95,17 @@ function itemsFromFolios(folios: CuentaPorCobrar[]): ItemCobrable[] {
          }
       }
       if (f.pendiente_tarifa_cargos > 0.01) {
-         items.push({
-            key: `PROYECTO:${f.id}`,
-            tipo: "PROYECTO",
-            destino_id: f.id,
-            folioId: f.id,
-            folioRef: f.numero_referencia,
-            folioNombre: f.nombre,
-            fecha: f.fecha,
-            label: "Tarifa del servicio y cargos",
-            monto_original: f.tarifa_servicio + f.cargos_cobrables,
+            items.push({
+               key: `PROYECTO:${f.id}`,
+               tipo: "PROYECTO",
+               destino_id: f.id,
+               folioId: f.id,
+               folioRef: f.numero_referencia,
+               folioNombre: f.nombre,
+               fecha: f.fecha,
+               label: "Tarifa del servicio y cargos",
+               categoria: "",
+               monto_original: f.tarifa_servicio + f.cargos_cobrables,
             pendiente: f.pendiente_tarifa_cargos,
             tarifa_servicio: f.tarifa_servicio,
             cargos_cobrables: f.cargos_cobrables,
@@ -118,6 +122,8 @@ interface PagoRapidoDialogProps {
    clienteInicialLabel?: string;
    /** Folio a cobrar en concreto (proyecto o conduce): lo preselecciona todo. */
    folioInicialId?: string;
+   /** Filtra y preselecciona solo los conduces de esta categoría de equipo. */
+   categoriaInicial?: string;
    onClose: () => void;
 }
 
@@ -133,6 +139,7 @@ export function PagoRapidoDialog({
    clienteInicialId,
    clienteInicialLabel,
    folioInicialId,
+   categoriaInicial,
    onClose,
 }: PagoRapidoDialogProps) {
    const RegistrarPago = useCuentasPorCobrarStore((s) => s.RegistrarPago);
@@ -146,6 +153,7 @@ export function PagoRapidoDialog({
    const [manual, setManual] = useState(false);
    const [folios, setFolios] = useState<CuentaPorCobrar[]>([]);
    const [busqueda, setBusqueda] = useState("");
+   const [categoria, setCategoria] = useState<string>("all");
    const [seleccion, setSeleccion] = useState<Record<string, boolean>>({});
    const [asignaciones, setAsignaciones] = useState<Record<string, string>>({});
    const [cargando, setCargando] = useState(false);
@@ -162,58 +170,101 @@ export function PagoRapidoDialog({
          setManual(false);
          setFolios([]);
          setBusqueda("");
+         setCategoria(categoriaInicial ?? "all");
          setSeleccion({});
          setAsignaciones({});
          setError(null);
       }
-   }, [open, clienteInicialId]);
+   }, [open, clienteInicialId, categoriaInicial]);
 
-   // Cuando se elige un cliente, cargamos sus folios pendientes.
+   // Cuando se elige un cliente, cargamos sus folios pendientes. Un ref por
+   // request evita que un fetch viejo (de otra apertura/categoría) sobreescriba
+   // la selección al resolver después que el actual.
+   const reqRef = useRef(0);
    useEffect(() => {
       if (!open || !clienteId) return;
+      const reqId = ++reqRef.current;
       setCargando(true);
       setError(null);
       GetPendientesCliente(clienteId)
          .then((folios) => {
+            if (reqRef.current !== reqId) return;
             setFolios(folios);
 
             const items = itemsFromFolios(folios);
             const pendienteTotal = items.reduce((acc, i) => acc + i.pendiente, 0);
             if (pendienteTotal > 0) setMonto(pendienteTotal.toFixed(2));
 
-            // Cobro de un folio concreto: se preselecciona todo lo pendiente
-            // de ese folio y se abre la distribución folio a folio.
-            const prefill = folioInicialId
-               ? items.filter((i) => i.folioId === folioInicialId)
-               : [];
-            if (prefill.length > 0) {
-               setManual(true);
-               const sel: Record<string, boolean> = {};
-               const asig: Record<string, string> = {};
-               for (const i of prefill) {
+            const sel: Record<string, boolean> = {};
+            const asig: Record<string, string> = {};
+            let sumaCategoria = 0;
+
+            // Pago "por categoría": preselecciona solo los conduces de esa
+            // categoría (y de ese folio cuando vino desde un proyecto) y se
+            // queda en monto automático con su pendiente.
+            if (categoriaInicial) {
+               setManual(false);
+               for (const i of items) {
+                  if (i.tipo !== "CONDUCE" || i.categoria !== categoriaInicial) continue;
+                  if (folioInicialId && i.folioId !== folioInicialId) continue;
                   sel[i.key] = true;
                   asig[i.key] = i.pendiente.toFixed(2);
+                  sumaCategoria += i.pendiente;
                }
+               if (sumaCategoria > 0) setMonto(sumaCategoria.toFixed(2));
                setSeleccion(sel);
                setAsignaciones(asig);
+            } else {
+               // Cobro de un folio concreto: se preselecciona todo lo pendiente
+               // de ese folio y se abre la distribución folio a folio.
+               const prefill = folioInicialId
+                  ? items.filter((i) => i.folioId === folioInicialId)
+                  : [];
+               if (prefill.length > 0) {
+                  setManual(true);
+                  for (const i of prefill) {
+                     sel[i.key] = true;
+                     asig[i.key] = i.pendiente.toFixed(2);
+                  }
+                  setSeleccion(sel);
+                  setAsignaciones(asig);
+               }
             }
          })
-         .catch(() => setError("No se pudieron cargar los folios pendientes del cliente."))
-         .finally(() => setCargando(false));
-   }, [open, clienteId, folioInicialId, GetPendientesCliente]);
+         .catch(() => {
+            if (reqRef.current === reqId)
+               setError("No se pudieron cargar los folios pendientes del cliente.");
+         })
+         .finally(() => {
+            if (reqRef.current === reqId) setCargando(false);
+         });
+   }, [open, clienteId, folioInicialId, categoriaInicial, GetPendientesCliente]);
 
    // ── Derivados ─────────────────────────────────────────────────────────────
    const items = useMemo(() => itemsFromFolios(folios), [folios]);
 
    const itemsFiltrados = useMemo(() => {
       const b = busqueda.trim().toLowerCase();
-      if (!b) return items;
-      return items.filter((i) =>
-         [i.folioRef, i.folioNombre, i.label]
+      return items.filter((i) => {
+         // Cuando el diálogo vino fijado a un proyecto y una categoría, solo se
+         // muestran los conduces de ese folio y esa categoría.
+         if (categoriaInicial && folioInicialId && i.folioId !== folioInicialId) return false;
+         if (categoria !== "all" && (i.tipo !== "CONDUCE" || i.categoria !== categoria)) return false;
+         if (!b) return true;
+         return [i.folioRef, i.folioNombre, i.label]
             .filter(Boolean)
-            .some((v) => v!.toLowerCase().includes(b))
-      );
-   }, [items, busqueda]);
+            .some((v) => v!.toLowerCase().includes(b));
+      });
+   }, [items, busqueda, categoria, categoriaInicial, folioInicialId]);
+
+   // Categorías de equipo presentes en los conduces pendientes del cliente.
+   const categorias = useMemo(() => {
+      const unicas = new Set<string>();
+      for (const i of items) {
+         if (i.tipo === "CONDUCE" && i.categoria) unicas.add(i.categoria);
+      }
+      return [...unicas];
+   }, [items]);
 
    const seleccionados = useMemo(() => items.filter((i) => seleccion[i.key]), [items, seleccion]);
    const totalPendiente = items.reduce((acc, i) => acc + i.pendiente, 0);
@@ -286,6 +337,17 @@ export function PagoRapidoDialog({
       },
       [seleccion, asignaciones, itemsFiltrados, manual, totalPendiente]
    );
+
+   // Cambiar el filtro de categoría limpia la selección anterior: así nunca se
+   // cobran juntos conduces de dos categorías sin querer. (Si el diálogo vino
+   // fijado a una categoría el select está bloqueado y esto no aplica.)
+   const handleCategoriaChange = (value: string) => {
+      setCategoria(value);
+      if (categoriaInicial) return;
+      setSeleccion({});
+      setAsignaciones({});
+      if (!manual) setMonto(totalPendiente.toFixed(2));
+   };
 
    const handleConfirm = async () => {
       setError(null);
@@ -420,15 +482,34 @@ export function PagoRapidoDialog({
                      </p>
                   ) : (
                      <>
-                        <div className="relative">
-                           <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                           <Input
-                              value={busqueda}
-                              onChange={(e) => setBusqueda(e.target.value)}
-                              placeholder="Buscar por folio, proyecto, conduce o tarifa…"
-                              disabled={loading}
-                              className="h-9 w-full rounded-md border border-input bg-background pl-8 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50"
-                           />
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                           <div className="relative flex-1">
+                              <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                              <Input
+                                 value={busqueda}
+                                 onChange={(e) => setBusqueda(e.target.value)}
+                                 placeholder="Buscar por folio, proyecto, conduce o tarifa…"
+                                 disabled={loading}
+                                 className="h-9 w-full rounded-md border border-input bg-background pl-8 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50"
+                              />
+                           </div>
+                            <Select
+                               value={categoria}
+                               onValueChange={handleCategoriaChange}
+                               disabled={loading || !!categoriaInicial}
+                            >
+                              <SelectTrigger className="h-9 w-full bg-input/30 sm:w-52">
+                                 <SelectValue placeholder="Todas las categorías" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                 <SelectItem value="all">Todas las categorías</SelectItem>
+                                 {categorias.map((c) => (
+                                    <SelectItem key={c} value={c}>
+                                       {c}
+                                    </SelectItem>
+                                 ))}
+                              </SelectContent>
+                           </Select>
                         </div>
 
                         <div className="flex items-center gap-2 border-b border-border pb-2">
@@ -508,6 +589,11 @@ export function PagoRapidoDialog({
                                                       </>
                                                    ) : (
                                                       <>
+                                                         Categoría:{" "}
+                                                         <span className="font-semibold">
+                                                            {item.categoria}
+                                                         </span>
+                                                         {" · "}
                                                          Monto del servicio:{" "}
                                                          <span className="font-semibold">
                                                             {money(item.monto_original)}

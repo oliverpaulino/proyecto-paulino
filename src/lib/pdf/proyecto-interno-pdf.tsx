@@ -60,10 +60,13 @@ function ProyectoInternoDocument({
 
    const conducesCobrables = conduces.filter((cc) => cc.es_cobrable);
    const conducesNoCobrables = conduces.filter((cc) => !cc.es_cobrable);
-   const grupos = agruparConduces(conduces);
 
    const totalConducesCobrables = sumaSubtotal(conducesCobrables);
    const totalConducesNoCobrables = sumaSubtotal(conducesNoCobrables);
+
+   // El resumen por equipo solo agrupa lo cobrable; los no cobrables quedan en
+   // el detalle y en el conteo de la sección de indicadores, no en los montos.
+   const grupos = agruparConduces(conducesCobrables);
 
    // Métricas operativas: viajes/metros de camión y horas de equipo pesado no
    // son la misma unidad, así que se cuentan por separado.
@@ -173,12 +176,17 @@ function ProyectoInternoDocument({
                         <Text style={[s.tableCell, c.grpSub]}>{fmt(g.subtotal)}</Text>
                      </View>
                   ))}
-                  {grupos.length === 0 && <Text style={s.emptyNote}>Sin conduces registrados.</Text>}
+                  {grupos.length === 0 &&
+                     (conduces.length > 0 ? (
+                        <Text style={s.emptyNote}>No hay conduces cobrables en este proyecto.</Text>
+                     ) : (
+                        <Text style={s.emptyNote}>Sin conduces registrados.</Text>
+                     ))}
                   {grupos.length > 0 && (
                      <View style={s.tableFoot}>
-                        <Text style={[s.tableFootCell, { flex: 1 }]}>Total</Text>
+                        <Text style={[s.tableFootCell, { flex: 1 }]}>Total cobrable</Text>
                         <Text style={[s.tableFootCell, c.grpSub]}>
-                           {fmt(totalConducesCobrables + totalConducesNoCobrables)}
+                           {fmt(totalConducesCobrables)}
                         </Text>
                      </View>
                   )}
@@ -245,10 +253,6 @@ function ProyectoInternoDocument({
                   <View style={s.resumenRow}>
                      <Text style={s.resumenLabel}>Conduces cobrables</Text>
                      <Text style={s.resumenValue}>{fmt(totalConducesCobrables)}</Text>
-                  </View>
-                  <View style={s.resumenRow}>
-                     <Text style={s.resumenLabel}>Conduces no cobrables (solo historial)</Text>
-                     <Text style={s.resumenValue}>{fmt(totalConducesNoCobrables)}</Text>
                   </View>
                   <View style={s.resumenRow}>
                      <Text style={s.resumenLabel}>Total cobrable</Text>

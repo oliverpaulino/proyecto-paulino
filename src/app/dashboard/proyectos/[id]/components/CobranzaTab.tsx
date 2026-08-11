@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +48,7 @@ export function CobranzaTab({ proyecto }: { proyecto: Proyecto }) {
    const [loading, setLoading] = useState(true);
    const [error, setError] = useState<string | null>(null);
    const [pagoDialog, setPagoDialog] = useState(false);
+   const [pagoCategoria, setPagoCategoria] = useState<string | null>(null);
 
    const fetchDetalle = useCallback(async () => {
       setLoading(true);
@@ -64,6 +65,24 @@ export function CobranzaTab({ proyecto }: { proyecto: Proyecto }) {
    useEffect(() => {
       fetchDetalle();
    }, [fetchDetalle]);
+
+   // Conduces pendientes agrupados por categoría de equipo, para cobrar toda
+   // una categoría de un golpe. Va antes de los early returns para no romper
+   // el orden de hooks.
+   const categoriasPendientes = useMemo(() => {
+      const folio = detalle?.folio;
+      if (!folio) return [];
+      const map = new Map<string, { nombre: string; conduces: number; pendiente: number }>();
+      for (const cc of folio.conduces) {
+         if (cc.pendiente <= 0.01) continue;
+         const nombre = cc.categoria_equipo_tarifa_nombre ?? cc.tipo_conduce ?? "Sin categoría";
+         const e = map.get(nombre) ?? { nombre, conduces: 0, pendiente: 0 };
+         e.conduces += 1;
+         e.pendiente += cc.pendiente;
+         map.set(nombre, e);
+      }
+      return [...map.values()].sort((a, b) => b.pendiente - a.pendiente);
+   }, [detalle]);
 
    if (loading && !detalle) {
       return (
@@ -110,7 +129,10 @@ export function CobranzaTab({ proyecto }: { proyecto: Proyecto }) {
                <Button
                   size="sm"
                   className="gap-2"
-                  onClick={() => setPagoDialog(true)}
+                  onClick={() => {
+                     setPagoCategoria(null);
+                     setPagoDialog(true);
+                  }}
                   disabled={!pendiente}
                >
                   <Zap className="size-4" /> Pago rápido
@@ -136,6 +158,44 @@ export function CobranzaTab({ proyecto }: { proyecto: Proyecto }) {
             </Card>
          ) : (
             <>
+               {categoriasPendientes.length > 0 && (
+                  <Card>
+                     <CardHeader>
+                        <CardTitle className="text-base">Cobrar por categoría</CardTitle>
+                        <CardDescription>
+                           Conduces pendientes agrupados por categoría de equipo. Cobra toda la
+                           categoría de un golpe.
+                        </CardDescription>
+                     </CardHeader>
+                     <CardContent className="flex flex-col gap-2">
+                        {categoriasPendientes.map((cat) => (
+                           <div
+                              key={cat.nombre}
+                              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 bg-card p-3"
+                           >
+                              <div className="min-w-0">
+                                 <p className="text-sm font-semibold">{cat.nombre}</p>
+                                 <p className="text-xs text-muted-foreground">
+                                    {cat.conduces} conduce{cat.conduces === 1 ? "" : "s"} ·{" "}
+                                    {formatMoney(cat.pendiente)} pendiente
+                                 </p>
+                              </div>
+                              <Button
+                                 size="sm"
+                                 className="gap-2"
+                                 onClick={() => {
+                                    setPagoCategoria(cat.nombre);
+                                    setPagoDialog(true);
+                                 }}
+                              >
+                                 <Zap className="size-4" /> Cobrar {formatMoney(cat.pendiente)}
+                              </Button>
+                           </div>
+                        ))}
+                     </CardContent>
+                  </Card>
+               )}
+
                <Card>
                   <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
                      <div>
@@ -302,8 +362,10 @@ export function CobranzaTab({ proyecto }: { proyecto: Proyecto }) {
             clienteInicialId={proyecto.cliente_id}
             clienteInicialLabel={proyecto.cliente_nombre ?? ""}
             folioInicialId={proyecto.id}
+            categoriaInicial={pagoCategoria ?? undefined}
             onClose={() => {
                setPagoDialog(false);
+               setPagoCategoria(null);
                fetchDetalle();
             }}
          />
