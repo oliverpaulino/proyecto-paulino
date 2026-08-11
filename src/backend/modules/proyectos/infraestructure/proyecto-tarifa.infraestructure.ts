@@ -188,6 +188,15 @@ export class KyselyProyectoTarifaRepository implements IProyectoTarifaRepository
          .execute();
    }
 
+   async findById(id: string): Promise<ProyectoTarifaProps | null> {
+      const row = await this.db
+         .selectFrom("proyecto_tarifa")
+         .selectAll()
+         .where("id", "=", id)
+         .executeTakeFirst();
+      return row ? this.#map(row) : null;
+   }
+
    async delete(id: string): Promise<void> {
       await this.db.deleteFrom("proyecto_tarifa").where("id", "=", id).execute();
    }

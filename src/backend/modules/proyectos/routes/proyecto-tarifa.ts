@@ -3,10 +3,20 @@ import db from "@/backend/database";
 import { KyselyProyectoTarifaRepository } from "../infraestructure/proyecto-tarifa.infraestructure";
 import { ProyectoTarifaService } from "../service/proyecto-tarifa.service";
 import { UpsertProyectoTarifaDTOSchema } from "@/dtos/proyecto-tarifa.dto";
+import { auth } from "@/lib/auth";
+import { assertProyectoEditable } from "../guards/proyecto-editable.guard";
 
 const proyectoTarifasRoute = new Hono();
 const repo = new KyselyProyectoTarifaRepository(db);
 const service = new ProyectoTarifaService(repo);
+
+// Los writes (upsert/bulk/delete) quedan bloqueados si el proyecto está
+// COMPLETADO. El GET no — solo se está leyendo.
+async function sessionOK(c: { req: { raw: Request } }): Promise<boolean> {
+   const session = await auth.api.getSession({ headers: c.req.raw.headers });
+   if (!session?.user) return false;
+   return true;
+}
 
 // GET /api/proyecto-tarifas?proyecto_id=xxx
 proyectoTarifasRoute.get("/", async (c) => {
@@ -41,11 +51,15 @@ proyectoTarifasRoute.get("/todas", async (c) => {
 // POST /api/proyecto-tarifas  (upsert single)
 proyectoTarifasRoute.post("/", async (c) => {
    try {
+      if (!(await sessionOK(c))) return c.json({ error: "No autenticado" }, 401);
+
       const rawBody = await c.req.json();
       const validation = UpsertProyectoTarifaDTOSchema.safeParse(rawBody);
       if (!validation.success) {
          return c.json({ error: "Datos incompletos o incorrectos", detalles: validation.error.format() }, 400);
       }
+
+      await assertProyectoEditable(validation.data.proyecto_id);
 
       const tarifa = await service.upsert(validation.data);
       return c.json(tarifa, 201);
@@ -57,11 +71,15 @@ proyectoTarifasRoute.post("/", async (c) => {
 // POST /api/proyecto-tarifas/bulk
 proyectoTarifasRoute.post("/bulk", async (c) => {
    try {
+      if (!(await sessionOK(c))) return c.json({ error: "No autenticado" }, 401);
+
       const rawBody = await c.req.json();
       const { proyecto_id, tarifas } = rawBody as { proyecto_id: string; tarifas: Array<{ categoria_equipo_tarifa_id: string; precio_unitario: number }> };
 
       if (!proyecto_id) return c.json({ error: "proyecto_id es requerido" }, 400);
       if (!Array.isArray(tarifas)) return c.json({ error: "tarifas debe ser un array" }, 400);
+
+      await assertProyectoEditable(proyecto_id);
 
       await service.bulkUpsert(proyecto_id, tarifas);
       return c.json({ success: true }, 200);
@@ -73,6 +91,12 @@ proyectoTarifasRoute.post("/bulk", async (c) => {
 // DELETE /api/proyecto-tarifas/:id
 proyectoTarifasRoute.delete("/:id", async (c) => {
    try {
+      if (!(await sessionOK(c))) return c.json({ error: "No autenticado" }, 401);
+
+      const tarifa = await service.getById(c.req.param("id"));
+      if (!tarifa) return c.json({ error: "Tarifa no encontrada" }, 404);
+      await assertProyectoEditable(tarifa.proyecto_id);
+
       await service.remove(c.req.param("id"));
       return c.json({ success: true });
    } catch (err: unknown) {
