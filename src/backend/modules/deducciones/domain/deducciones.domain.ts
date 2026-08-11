@@ -1,3 +1,5 @@
+import { PaginatedResult } from "@/backend/shared/pagination";
+
 export interface PagoDeduccion {
    id: string;
    fecha: Date;
@@ -122,22 +124,19 @@ export interface DeleteDeduccionDTO {
    deleted_reason?: string;
 };
 
-export interface IDeduccionRepository {
-   findAll( params?: { page?: number; 
-                     limit?: number; 
-                     search?: string; 
-                     start?: Date; 
-                     end?: Date; 
-                     empleado_id?: string;
-                     equipo_id?: string | null; }): Promise<Deduccion[]>;
+export type DeduccionesParams = {
+   page?: number;
+   limit?: number;
+   search?: string;
+   start?: Date;
+   end?: Date;
+   empleado_id?: string;
+   equipo_id?: string | null;
+};
 
-   findAllDeleted( params?: { page?: number; 
-                     limit?: number; 
-                     search?: string; 
-                     start?: Date; 
-                     end?: Date; 
-                     empleado_id?: string;
-                     equipo_id?: string | null; }): Promise<Deduccion[]>;
+export interface IDeduccionRepository {
+   findAll(params?: DeduccionesParams): Promise<PaginatedResult<Deduccion>>;
+   findAllDeleted(params?: DeduccionesParams): Promise<PaginatedResult<Deduccion>>;
 
     findById(id: string): Promise<Deduccion | null>;
     findDeletedById(id: string): Promise<Deduccion | null>;

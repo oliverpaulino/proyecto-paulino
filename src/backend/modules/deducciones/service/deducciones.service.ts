@@ -1,7 +1,9 @@
+import { PaginatedResult } from "@/backend/shared/pagination";
 import {
    CreateDeduccionDTO,
-   DeleteDeduccionDTO,
+   DeduccionesParams,
    DeduccionProps,
+   DeleteDeduccionDTO,
    IDeduccionRepository,
    PagarDeduccionDTO,
    UpdateDeduccionDTO,
@@ -10,14 +12,14 @@ import {
 export class DeduccionService {
    constructor(private readonly repo: IDeduccionRepository) { }
 
-   async getAll(params?: any): Promise<DeduccionProps[]> {
-      const items = await this.repo.findAll(params);
-      return items.map((c) => c.toJSON());
+   async getAll(params?: DeduccionesParams): Promise<PaginatedResult<DeduccionProps>> {
+      const result = await this.repo.findAll(params);
+      return { ...result, data: result.data.map((c) => c.toJSON()) };
    }
 
-   async getAllDeleted(params?: any): Promise<DeduccionProps[]> {
-      const items = await this.repo.findAllDeleted(params);
-      return items.map((c) => c.toJSON());
+   async getAllDeleted(params?: DeduccionesParams): Promise<PaginatedResult<DeduccionProps>> {
+      const result = await this.repo.findAllDeleted(params);
+      return { ...result, data: result.data.map((c) => c.toJSON()) };
    }
 
    async getById(id: string): Promise<DeduccionProps | null> {
