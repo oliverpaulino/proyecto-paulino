@@ -1,5 +1,6 @@
 import { Kysely, PostgresDialect, Generated } from "kysely";
 import { Pool } from "pg";
+import { poolConfig } from "./db-pool";
 
 export interface ServicioTable {
    id: Generated<string>;
@@ -786,18 +787,11 @@ export interface DB {
       deleted_reason: string | null;
    };
 }
-const connectionString = process.env.DB_CONNECTION_STRING || process.env.DATABASE_URL || "";
-
-if (!connectionString) {
-   throw new Error("La variable de entorno de la base de datos no está definida.");
-}
-
 const db = new Kysely<DB>({
    dialect: new PostgresDialect({
       pool: new Pool({
-         connectionString,
+         ...poolConfig,
          max: 10, // Límite de conexiones para no saturar el Pooler de Supabase en Serverless
-         ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
       }),
    }),
 });

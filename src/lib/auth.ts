@@ -4,14 +4,14 @@ import { admin, jwt, customSession } from "better-auth/plugins";
 import { Resend } from "resend";
 import { ac, roles } from "./permission";
 import { getPermissionsForRole } from "./permissions/resolve";
+import { poolConfig } from "@/backend/db-pool";
 
 // const resend = new Resend(process.env.RESEND_API_KEY);
 
 // 1. Instancia del Pool con SSL obligatorio en producción para Supabase
 const pool = new Pool({
-  connectionString: process.env.DB_CONNECTION_STRING || process.env.DATABASE_URL,
+  ...poolConfig,
   max: 10,
-  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
 });
 
 // Better-auth deriva su prefijo de rutas interno del path de baseURL. Si la
