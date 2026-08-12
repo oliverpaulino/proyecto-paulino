@@ -38,7 +38,21 @@ const app = new Hono().basePath("/api");
 app.use(
    "/*",
    cors({
-      origin: ["http://localhost:3000", "https://example.org"],
+      origin: (origin) => {
+         if (!origin) return "http://localhost:3000";
+
+         const allowed = [
+            process.env.NEXT_PUBLIC_APP_URL,
+            process.env.BETTER_AUTH_URL,
+            "http://localhost:3000"
+         ].filter(Boolean) as string[];
+
+         // Permite el origen si está en tus variables o es un subdominio de Vercel
+         if (allowed.includes(origin) || origin.endsWith(".vercel.app")) {
+            return origin;
+         }
+         return "http://localhost:3000"; // Fallback
+      },
       allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       allowHeaders: ["Content-Type", "Authorization"],
       credentials: true,
