@@ -16,6 +16,7 @@ const pool = new Pool({
 
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+  trustHost: true,
   database: pool,
 
   // 2. Manejo de orígenes mediante arreglo seguro para evitar errores de tipos y CORS
