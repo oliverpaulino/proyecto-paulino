@@ -14,8 +14,14 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
 });
 
+// Better-auth deriva su prefijo de rutas interno del path de baseURL. Si la
+// variable trae un path, el router no hace match con /api/auth/* y todos los
+// endpoints de auth responden 404. Se normaliza al origen y se fija el basePath.
+const baseURL = new URL(process.env.BETTER_AUTH_URL ?? "http://localhost:3000").origin;
+
 export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+  baseURL,
+  basePath: "/api/auth",
   trustHost: true,
   database: pool,
 
