@@ -294,7 +294,7 @@ export default function AppointmentDetailPage() {
             <TabsContent value="notas_avanzadas" className="space-y-4">
                <Card>
                   <CardHeader>
-                     <div className="flex items-center justify-between">
+                     <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
                            <CardTitle className="flex items-center gap-2">
                               <FileText className="size-5 text-brand-blue" />
