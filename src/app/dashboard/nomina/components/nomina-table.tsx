@@ -354,7 +354,7 @@ function TarifasDialog({
                   )}
                </p>
             ) : (
-               <div className="max-h-[60vh] overflow-y-auto">
+               <div className="max-h-[60vh] overflow-x-auto overflow-y-auto">
                   <table className="w-full text-sm">
                      <thead className="sticky top-0 bg-background">
                         <tr className="text-xs uppercase text-muted-foreground">
@@ -714,7 +714,8 @@ function DetalleDeducciones({
          <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
             Deducciones del período
          </p>
-         <table className="w-full text-sm">
+         <div className="overflow-x-auto">
+            <table className="w-full text-sm">
             <thead>
                <tr className="text-xs uppercase text-muted-foreground">
                   <th className="pb-1 text-left font-semibold">Fecha</th>
@@ -783,8 +784,9 @@ function DetalleDeducciones({
                      </tr>
                   );
                })}
-            </tbody>
-         </table>
+             </tbody>
+          </table>
+         </div>
 
          {puedeEditar && (
             <p className="mt-2 text-xs text-muted-foreground">
@@ -959,21 +961,22 @@ function FilaDesglose({
                </Button>
             )}
          </div>
-         <table className="w-full text-sm">
-            <thead>
-               <tr className="text-xs uppercase text-muted-foreground">
-                  <th className="pb-2 text-left font-semibold">Equipo</th>
-                  <th className="pb-2 text-left font-semibold">Tarifa</th>
-                  <th className="pb-2 text-left font-semibold">Proyecto</th>
-                  <th className="pb-2 text-left font-semibold">Medida</th>
-                  <th className="pb-2 text-right font-semibold">Cantidad</th>
-                  <th className="pb-2 text-right font-semibold">Precio unit.</th>
-                  <th className="pb-2 text-right font-semibold">Subtotal</th>
-               </tr>
-            </thead>
-            <tbody>
-               {tarifas.map((t, i) => (
-                  <tr key={i} className="border-t border-border/50">
+         <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+               <thead>
+                  <tr className="text-xs uppercase text-muted-foreground">
+                     <th className="pb-2 text-left font-semibold">Equipo</th>
+                     <th className="pb-2 text-left font-semibold">Tarifa</th>
+                     <th className="pb-2 text-left font-semibold">Proyecto</th>
+                     <th className="pb-2 text-left font-semibold">Medida</th>
+                     <th className="pb-2 text-right font-semibold">Cantidad</th>
+                     <th className="pb-2 text-right font-semibold">Precio unit.</th>
+                     <th className="pb-2 text-right font-semibold">Subtotal</th>
+                  </tr>
+               </thead>
+               <tbody>
+                  {tarifas.map((t, i) => (
+                     <tr key={i} className="border-t border-border/50">
                      {/* NULL = ciclo calculado antes de la migración 015. */}
                      <td className="py-2">
                         {t.categoria_equipo_nombre ?? (
@@ -1025,7 +1028,8 @@ function FilaDesglose({
                   </tr>
                )}
             </tbody>
-         </table>
+          </table>
+         </div>
 
          <DeduccionesExpandible empleado={empleado} readOnly={readOnly} />
       </div>

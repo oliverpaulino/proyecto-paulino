@@ -89,7 +89,7 @@ export function ProyectoForm({ initialData, onSubmit, onCancel, loading }: Props
    return (
       <form onSubmit={handleSubmit} className="space-y-5 ">
          {/* ── Cliente + Tarifa ── */}
-         <div className="grid grid-cols-2 gap-4">
+         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
                <Label htmlFor="cliente">Cliente *</Label>
                <Select value={clienteId} onValueChange={setClienteId} required>
@@ -121,7 +121,7 @@ export function ProyectoForm({ initialData, onSubmit, onCancel, loading }: Props
          </div>
 
          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-1">
                <Label htmlFor="nombre-proyecto">Nombre del Proyecto *</Label>
                <button
                   type="button"

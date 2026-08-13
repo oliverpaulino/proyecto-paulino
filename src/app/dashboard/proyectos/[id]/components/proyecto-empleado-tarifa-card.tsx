@@ -175,7 +175,7 @@ export function ProyectoEmpleadoTarifasCard({ proyectoId, locked = false }: Prop
                </div>
 
                {/* Paginación */}
-               <div className="flex items-center justify-between text-sm text-muted-foreground">
+               <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
                   <span>
                     {operadoresTotal} tarifa{operadoresTotal !== 1 ? "s" : ""} en total
                   </span>
