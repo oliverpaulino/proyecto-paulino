@@ -104,7 +104,7 @@ export function SelectBuscadorEquipo({
          </div>
 
          {isOpen && (
-            <div className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-md p-1">
+            <div className="absolute z-50 mt-1 max-h-[50dvh] w-full overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-md p-1">
                {loading && Equipos.length === 0 ? ( //[cite: 5]
                   <div className="p-4 text-center text-sm text-muted-foreground">Buscando equipos...</div>
                ) : Equipos.length > 0 ? ( //[cite: 5]

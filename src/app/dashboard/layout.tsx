@@ -17,7 +17,7 @@ export default async function Layout({
     <NavHotkeysProvider>
       <SidebarProvider defaultOpen={defaultOpen}>
         <AppSidebar />
-        <SidebarInset className="flex h-screen flex-col overflow-hidden">
+          <SidebarInset className="flex h-dvh flex-col overflow-hidden">
           <DashboardHeader />
           <main className="flex-1 overflow-y-auto">
             {children}

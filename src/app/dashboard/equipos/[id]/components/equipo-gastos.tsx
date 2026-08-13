@@ -117,7 +117,7 @@ export function EquipoGastos({ equipoId }: { equipoId: string }) {
          ) : (
             <div className="flex flex-col gap-4">
                <GastoTable gastos={Gastos} />
-               <div className="flex items-center justify-between border-t border-border pt-4">
+               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
                   <span className="text-sm text-muted-foreground">
                      Total: <strong>{pagination.total}</strong> gastos del equipo
                   </span>

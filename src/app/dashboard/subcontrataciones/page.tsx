@@ -383,7 +383,7 @@ export default function SubcontratacionesPage() {
 
             {/* ── Paginación ── */}
             {total > pageSize && (
-               <div className="flex items-center justify-between">
+               <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="text-xs text-muted-foreground">
                      Mostrando {desde}–{hasta} de {total}
                   </p>
@@ -594,7 +594,7 @@ function SubcontratacionForm({
             />
          </div>
 
-         <div className="grid grid-cols-2 gap-3">
+         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
                <Label>Monto total (RD$) *</Label>
                <Input
@@ -622,7 +622,7 @@ function SubcontratacionForm({
             </div>
          </div>
 
-         <div className="grid grid-cols-3 gap-3">
+         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="flex flex-col gap-1.5">
                <Label>Fecha deuda *</Label>
                <Input

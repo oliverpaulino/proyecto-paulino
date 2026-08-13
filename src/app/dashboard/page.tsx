@@ -56,6 +56,7 @@ export default function Page() {
                      >
                         <RotateCcw className="size-4" />
                         <span className="hidden sm:inline">Restablecer</span>
+                        <span className="sr-only sm:hidden">Restablecer vista</span>
                      </Button>
                      <Button size="sm" className="gap-2" onClick={() => setEditando(false)}>
                         <Check className="size-4" />
@@ -69,8 +70,9 @@ export default function Page() {
                      className="gap-2"
                      onClick={() => setEditando(true)}
                   >
-                     <Settings2 className="size-4" />
-                     <span className="hidden sm:inline">Personalizar</span>
+                      <Settings2 className="size-4" />
+                      <span className="hidden sm:inline">Personalizar</span>
+                      <span className="sr-only sm:hidden">Personalizar panel</span>
                   </Button>
                )}
             </div>

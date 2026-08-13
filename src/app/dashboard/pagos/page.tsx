@@ -93,7 +93,7 @@ export default function PagosPage() {
                <PagoTable pagos={Pagos} />
 
                {/* Paginación */}
-               <div className="flex items-center justify-between border-t border-border pt-4">
+               <div className="flex flex-col gap-3 items-center justify-between border-t border-border pt-4 sm:flex-row">
                   <span className="text-sm text-muted-foreground">
                      Total: <strong>{pagination.total}</strong> pagos registrados
                   </span>

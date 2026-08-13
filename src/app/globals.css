@@ -130,6 +130,16 @@
   }
 }
 
+/* Safari iOS hace zoom automático al enfocar un input con font-size < 16px.
+   Se deja sin capa (unlayered) para que gane sobre las utilidades text-sm. */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 @keyframes blobA {
 
   0%,

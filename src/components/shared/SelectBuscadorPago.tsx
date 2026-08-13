@@ -95,7 +95,7 @@ export function SelectBuscadorPago({
          </div>
 
          {isOpen && (
-            <div className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-md p-1">
+            <div className="absolute z-50 mt-1 max-h-[50dvh] w-full overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-md p-1">
                {loading && Pagos.length === 0 ? (
                   <div className="p-4 text-center text-sm text-muted-foreground">Buscando pagos...</div>
                ) : Pagos.length > 0 ? (

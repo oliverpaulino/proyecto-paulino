@@ -287,14 +287,14 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
                   </p>
                </div>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row min-w-[25vw]  sm:items-center">
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                <TableSearch
                   value={search}
                   onValueChange={setSearch}
                   onSearch={handleSearch}
                   placeholder="Buscar por nombre o cargo..."
                   loading={loadingContact}
-                  className="md:w-full w-[90vw] m-auto"
+                  className="w-full sm:w-64"
                />
                <PermissionGuard resource="client" action="create">
                <Button className="w-full sm:w-auto" onClick={() => { resetForm(); setCreateOpen(true); }}>
@@ -447,7 +447,7 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
                }
             }}
          >
-            <DialogContent className="w-[95vw] max-w-lg sm:max-w-[50vw]">
+            <DialogContent>
                <DialogHeader>
                   <DialogTitle>Nuevo Contacto</DialogTitle>
                   <DialogDescription>Agrega un nuevo contacto para este cliente.</DialogDescription>
@@ -481,7 +481,7 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
                }
             }}
          >
-            <DialogContent className="w-[95vw] max-w-lg sm:max-w-[50vw]">
+            <DialogContent>
                <DialogHeader>
                   <DialogTitle>Editar Contacto</DialogTitle>
                   <DialogDescription>Modifica la información del contacto.</DialogDescription>
@@ -514,7 +514,7 @@ export function ClientContactsView({ clientId }: ClientContactsViewProps) {
                }
             }}
          >
-            <DialogContent className="w-[95vw] max-w-lg sm:max-w-[50vw]">
+            <DialogContent>
                <DialogHeader>
                   <DialogTitle>Eliminar Contacto</DialogTitle>
                   <DialogDescription>

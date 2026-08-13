@@ -362,8 +362,8 @@ export default function DetalleClienteCxcPage() {
 
                                           {c.conduces.length > 0 && (
                                              <div className="rounded-lg border border-border/60 bg-card">
-                                                <div className="max-h-56 overflow-y-auto">
-                                                   <table className="w-full text-xs">
+                                              <div className="max-h-56 overflow-x-auto overflow-y-auto">
+                                                    <table className="w-full text-xs">
                                                       <thead>
                                                          <tr className="sticky top-0 border-b border-border/60 bg-muted/40">
                                                             <th className="px-3 py-2 text-left font-semibold uppercase text-muted-foreground">

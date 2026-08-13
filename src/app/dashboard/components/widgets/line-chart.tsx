@@ -191,7 +191,14 @@ export function LineChart({
 
             {activo !== null ? (
                <div
-                  className="pointer-events-none absolute top-0 z-10 min-w-32 -translate-x-1/2 rounded-md border bg-popover p-2 shadow-md"
+                  className={cn(
+                     "pointer-events-none absolute top-0 z-10 min-w-32 rounded-md border bg-popover p-2 shadow-md",
+                     activo === 0
+                        ? ""
+                        : activo === etiquetas.length - 1
+                          ? "-translate-x-full"
+                          : "-translate-x-1/2",
+                  )}
                   style={{ left: `${(xDe(activo) / ANCHO) * 100}%` }}
                >
                   <p className="mb-1 text-[10px] font-medium text-muted-foreground">

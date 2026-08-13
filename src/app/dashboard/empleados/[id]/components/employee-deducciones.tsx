@@ -280,8 +280,9 @@ export function EmployeeDeducciones({ empleadoId, empleadoNombre }: EmployeeDedu
                                           <p className="text-sm text-muted-foreground">
                                              Sin pagos registrados todavía. Los pagos aparecen aquí cuando una nómina descuenta la cuota o se registra un pago directo.
                                           </p>
-                                       ) : (
-                                          <table className="w-full text-xs">
+                                        ) : (
+                                          <div className="overflow-x-auto">
+                                             <table className="w-full text-xs">
                                              <thead>
                                                 <tr className="text-left uppercase text-muted-foreground">
                                                    <th className="py-1 pr-4 font-semibold">Fecha</th>
@@ -322,9 +323,10 @@ export function EmployeeDeducciones({ empleadoId, empleadoNombre }: EmployeeDedu
                                                       {fmtMoney(d.monto_cobrado)}
                                                    </td>
                                                 </tr>
-                                             </tfoot>
-                                          </table>
-                                       )}
+                                              </tfoot>
+                                           </table>
+                                          </div>
+                                        )}
                                     </td>
                                  </tr>
                               )}

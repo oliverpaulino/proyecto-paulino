@@ -86,8 +86,8 @@ export function SelectBuscadorDeudasProveedor({
          </div>
 
          {isOpen && (
-            <div className="absolute z-50 mt-1 max-h-60 w-full overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md">
-               <div className="max-h-52 overflow-y-auto p-1">
+            <div className="absolute z-50 mt-1 max-h-[50dvh] w-full overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md">
+               <div className="max-h-[42dvh] overflow-y-auto p-1">
                   {filtradas.length > 0 ? (
                      filtradas.map((d) => {
                         const k = key(d);

@@ -264,7 +264,7 @@ export function ConducesTab({
                      />
                   </div>
                   <Select value={conduceFilterCategoria} onValueChange={setConduceFilterCategoria}>
-                     <SelectTrigger className="w-[180px]">
+                     <SelectTrigger className="w-full sm:w-[180px]">
                         <SelectValue placeholder="Categoría" />
                      </SelectTrigger>
                      <SelectContent>
@@ -275,7 +275,7 @@ export function ConducesTab({
                      </SelectContent>
                   </Select>
                   <Select value={conduceFilterCobrable} onValueChange={setConduceFilterCobrable}>
-                     <SelectTrigger className="w-[160px]">
+                     <SelectTrigger className="w-full sm:w-[160px]">
                         <SelectValue placeholder="Cobrable" />
                      </SelectTrigger>
                      <SelectContent>
@@ -285,7 +285,7 @@ export function ConducesTab({
                      </SelectContent>
                   </Select>
                   <Select value={conduceFilterTipo} onValueChange={setConduceFilterTipo}>
-                     <SelectTrigger className="w-[150px]">
+                     <SelectTrigger className="w-full sm:w-[150px]">
                         <SelectValue placeholder="Tipo" />
                      </SelectTrigger>
                      <SelectContent>
@@ -298,11 +298,11 @@ export function ConducesTab({
 
                {/* Barra de acciones batch */}
                {selectedConduceIds.size > 0 && (
-                  <div className="flex items-center gap-3 rounded-lg border border-brand-blue/20 bg-brand-blue/5 p-3">
+                  <div className="flex flex-wrap items-center gap-2 rounded-lg border border-brand-blue/20 bg-brand-blue/5 p-3">
                      <span className="text-sm font-medium text-brand-blue">
                         {selectedConduceIds.size} seleccionado{selectedConduceIds.size > 1 ? "s" : ""}
                      </span>
-                     <div className="flex gap-2 ml-auto">
+                     <div className="flex flex-wrap gap-2 ml-auto">
                         <Button
                            size="sm"
                            variant="outline"

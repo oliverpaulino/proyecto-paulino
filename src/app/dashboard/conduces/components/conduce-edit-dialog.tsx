@@ -162,8 +162,8 @@ export function ConduceEditDialog({ conduce, open, onOpenChange, onSaved }: Prop
                </DialogDescription>
             </DialogHeader>
 
-            <div className="grid grid-cols-2 gap-3 py-2">
-               <div className="col-span-2 space-y-1">
+            <div className="grid grid-cols-1 gap-3 py-2 sm:grid-cols-2">
+               <div className="sm:col-span-2 space-y-1">
                   <label className="text-xs font-medium text-muted-foreground">Cliente</label>
                   <SelectBuscadorClient
                      value={clienteId}
@@ -179,7 +179,7 @@ export function ConduceEditDialog({ conduce, open, onOpenChange, onSaved }: Prop
                   />
                </div>
 
-               <div className="col-span-2 space-y-1">
+               <div className="sm:col-span-2 space-y-1">
                   <label className="text-xs font-medium text-muted-foreground">Proyecto</label>
                   <SelectBuscadorProyecto
                      value={proyectoId}
@@ -278,7 +278,7 @@ export function ConduceEditDialog({ conduce, open, onOpenChange, onSaved }: Prop
                   </>
                )}
 
-               <div className="col-span-2 flex items-center gap-2">
+               <div className="sm:col-span-2 flex items-center gap-2">
                   <input
                      id="es_cobrable"
                      type="checkbox"
@@ -291,7 +291,7 @@ export function ConduceEditDialog({ conduce, open, onOpenChange, onSaved }: Prop
                   </label>
                </div>
 
-               <div className="col-span-2 space-y-1">
+               <div className="sm:col-span-2 space-y-1">
                   <label className="text-xs font-medium text-muted-foreground">Observaciones</label>
                   <Textarea value={observaciones} onChange={(e) => setObservaciones(e.target.value)} className="min-h-16" />
                </div>

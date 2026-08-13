@@ -37,7 +37,7 @@ interface PurchaseOrderFormProps {
 const ITEM_GRID =
    "lg:grid-cols-[minmax(0,3fr)_minmax(0,2.5fr)_minmax(70px,1fr)_minmax(90px,1.4fr)_minmax(90px,1.3fr)_minmax(36px,0.6fr)]";
 
-const ITEM_COLS = `grid grid-cols-2 gap-3 items-end ${ITEM_GRID}`;
+const ITEM_COLS = `grid grid-cols-1 gap-3 items-end sm:grid-cols-2 ${ITEM_GRID}`;
 
 function emptyItem(): PurchaseOrderItemForm {
    return { descripcion: "", cantidad: 1, precio_unitario: 0, equipo_id: "" };
@@ -213,7 +213,7 @@ export function PurchaseOrderForm({
 
             {/* Ítems */}
             <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
-               <div className="mb-4 flex items-center justify-between gap-2">
+               <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                   <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-brand-blue dark:text-white">
                      <Package className="size-4" />
                      Ítems de la orden
@@ -333,11 +333,11 @@ export function PurchaseOrderForm({
                   </div>
                )}
 
-               <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-brand-blue/20 bg-brand-blue/5 px-4 py-3">
+               <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-blue/20 bg-brand-blue/5 px-4 py-3">
                   <span className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                      Total de la orden
                   </span>
-                  <span className="text-xl font-bold text-brand-blue dark:text-white">
+                  <span className="min-w-0 truncate text-xl font-bold text-brand-blue dark:text-white">
                      {formatMoney(total)}
                   </span>
                </div>

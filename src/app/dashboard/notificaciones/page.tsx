@@ -79,7 +79,7 @@ export default function NotificacionesPage() {
          <div className="flex flex-col gap-6 p-6">
             {/* Header */}
             <div>
-               <div className="flex items-center justify-between">
+               <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                      <div className="h-9 w-1.5 rounded-full bg-brand-yellow" />
                      <Bell className="size-7 text-brand-blue dark:text-blue-400" />
@@ -113,7 +113,7 @@ export default function NotificacionesPage() {
             {/* Filtros */}
             <div className="flex flex-wrap items-center gap-3">
                <Select value={tipo ?? ""} onValueChange={handleTipoChange}>
-                  <SelectTrigger className="h-9 w-[200px]">
+                  <SelectTrigger className="h-9 w-full sm:w-[200px]">
                      <SelectValue placeholder="Tipo: todos" />
                   </SelectTrigger>
                   <SelectContent>
@@ -127,7 +127,7 @@ export default function NotificacionesPage() {
                </Select>
 
                <Select value={estado ?? ""} onValueChange={handleEstadoChange}>
-                  <SelectTrigger className="h-9 w-[160px]">
+                  <SelectTrigger className="h-9 w-full sm:w-[160px]">
                      <SelectValue placeholder="Estado: todos" />
                   </SelectTrigger>
                   <SelectContent>

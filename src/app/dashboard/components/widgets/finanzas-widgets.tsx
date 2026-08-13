@@ -238,9 +238,9 @@ function AntiguedadBarra({
                ) : null,
             )}
          </div>
-         <div className="flex justify-between text-[10px] text-muted-foreground">
-            <span>0-30 d</span>
-            <span className={cn(antiguedad.mas_de_90 > 0 && "font-medium text-destructive")}>
+         <div className="flex justify-between gap-2 text-[10px] text-muted-foreground">
+            <span className="truncate">0-30 d</span>
+            <span className={cn("shrink-0 whitespace-nowrap", antiguedad.mas_de_90 > 0 && "font-medium text-destructive")}>
                +90 d: {money(antiguedad.mas_de_90)}
             </span>
          </div>

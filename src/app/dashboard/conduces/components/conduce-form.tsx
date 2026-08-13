@@ -486,7 +486,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId, fixe
       <>
          <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-4">
             {/* ── Selector de tipo ── */}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                <button
                   type="button"
                   onClick={() => handleCambiarTipo("CAMION")}
@@ -510,7 +510,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId, fixe
             </div>
 
             {/* ── Comunes ── */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                <div className="space-y-1.5">
                   <Label htmlFor="numero-referencia">Número de Referencia *</Label>
                   <Input
@@ -527,7 +527,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId, fixe
                </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                <div className="space-y-1.5">
                   <Label>Cliente *</Label>
                   <SelectBuscadorClient
@@ -585,7 +585,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId, fixe
 
             {tipoConduce === "CAMION" ? (
                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                      <div className="space-y-1.5">
                         <Label>Placa / Equipo *</Label>
                         <SelectBuscarEquipos key={tipoConduce} tipo="CAMION" value={equipoId || null} onChange={(id, equipo) => handleSelectEquipo(id, equipo)} />
@@ -609,7 +609,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId, fixe
                      {selectorTarifa}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                      <div className="space-y-1.5">
                         <Label htmlFor="procedencia">Procedencia</Label>
                         <Input id="procedencia" value={procedencia} onChange={(e) => setProcedencia(e.target.value)} placeholder="Origen del material" />
@@ -620,7 +620,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId, fixe
                      </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                      <div className="space-y-1.5">
                         <Label htmlFor="cantidad">
                            {nombreMedidaActual?.toLowerCase().includes("viaje")
@@ -662,7 +662,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId, fixe
                </div>
             ) : (
                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                      <div className="space-y-1.5">
                         <Label>Equipo *</Label>
                         <SelectBuscarEquipos key={tipoConduce} tipo="EQUIPO" value={equipoId || null} onChange={(id, equipo) => handleSelectEquipo(id, equipo)} />
@@ -688,7 +688,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId, fixe
 
                   <div className="rounded-lg border p-3 space-y-3">
                      <p className="text-xs font-semibold uppercase text-muted-foreground">Horario de Mañana</p>
-                     <div className="grid grid-cols-2 gap-4">
+                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="space-y-1.5">
                            <Label htmlFor="am-inicio">Desde</Label>
                            <Input id="am-inicio" type="time" value={horarioMananaInicio} onChange={(e) => setHorarioMananaInicio(e.target.value)} />
@@ -700,7 +700,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId, fixe
                      </div>
 
                      <p className="text-xs font-semibold uppercase text-muted-foreground pt-2">Horario de Tarde</p>
-                     <div className="grid grid-cols-2 gap-4">
+                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="space-y-1.5">
                            <Label htmlFor="pm-inicio">Desde</Label>
                            <Input id="pm-inicio" type="time" value={horarioTardeInicio} onChange={(e) => setHorarioTardeInicio(e.target.value)} />

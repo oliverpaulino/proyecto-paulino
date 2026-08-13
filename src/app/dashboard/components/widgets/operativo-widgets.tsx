@@ -39,12 +39,12 @@ export function NominaAbiertaWidget() {
                            <li key={c.id} className="flex items-center justify-between gap-2 text-xs">
                               <Link
                                  href={`/dashboard/nomina/${c.id}`}
-                                 className="truncate text-muted-foreground hover:text-foreground"
+                                 className="min-w-0 truncate text-muted-foreground hover:text-foreground"
                               >
                                  {c.nombre}
                               </Link>
                               <span className="flex shrink-0 items-center gap-2">
-                                 <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+                                 <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap">
                                     {c.estado}
                                  </span>
                                  <span className="tabular-nums">{money(c.neto_total)}</span>
@@ -91,10 +91,10 @@ export function DeduccionesPendientesWidget() {
                   />
                   <ul className="flex flex-col gap-1">
                      {lista.slice(0, 4).map((d) => (
-                        <li key={d.id} className="flex items-center justify-between gap-2 text-xs">
-                           <span className="truncate text-muted-foreground">
-                              {d.empleado_nombre ?? "—"} · {d.concepto}
-                           </span>
+                         <li key={d.id} className="flex items-center justify-between gap-2 text-xs">
+                            <span className="min-w-0 truncate text-muted-foreground">
+                               {d.empleado_nombre ?? "—"} · {d.concepto}
+                            </span>
                            <span className="shrink-0 tabular-nums">{money(d.balance_pendiente)}</span>
                         </li>
                      ))}
@@ -320,13 +320,13 @@ export function LicenciasPorVencerWidget() {
                   {lista.map((l) => {
                      const vencida = l.dias_para_vencer < 0;
                      return (
-                        <li key={l.operador_id} className="flex items-center justify-between gap-2 py-2 text-sm first:pt-0">
-                           <Link
-                              href={`/dashboard/empleados/${l.empleado_id}`}
-                              className="truncate hover:underline"
-                           >
-                              {l.empleado_nombre}
-                           </Link>
+                         <li key={l.operador_id} className="flex items-center justify-between gap-2 py-2 text-sm first:pt-0">
+                            <Link
+                               href={`/dashboard/empleados/${l.empleado_id}`}
+                               className="min-w-0 truncate hover:underline"
+                            >
+                               {l.empleado_nombre}
+                            </Link>
                            <span
                               className={cn(
                                  "shrink-0 text-xs tabular-nums",
@@ -365,10 +365,10 @@ export function OrdenesPendientesWidget() {
                   />
                   <ul className="flex flex-col divide-y">
                      {lista.slice(0, 4).map((o) => (
-                        <li key={o.id} className="flex items-center justify-between gap-2 py-1.5 text-xs">
-                           <span className="truncate">
-                              {o.codigoReferencia} · {o.proveedor_nombre ?? "Sin proveedor"}
-                           </span>
+                         <li key={o.id} className="flex items-center justify-between gap-2 py-1.5 text-xs">
+                            <span className="min-w-0 truncate">
+                               {o.codigoReferencia} · {o.proveedor_nombre ?? "Sin proveedor"}
+                            </span>
                            <span className="shrink-0 tabular-nums">{money(o.total)}</span>
                         </li>
                      ))}

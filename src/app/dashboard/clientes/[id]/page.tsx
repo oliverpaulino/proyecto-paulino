@@ -342,26 +342,49 @@ export default function ClientDetailPage() {
                               <p className="text-sm">Agrega el primer contacto para este cliente.</p>
                            </div>
                         ) : (
-                           <Table>
-                              <TableHeader>
-                                 <TableRow>
-                                    <TableHead>Nombre</TableHead>
-                                    <TableHead>Email</TableHead>
-                                    <TableHead>Teléfono</TableHead>
-                                    <TableHead>Cargo</TableHead>
-                                 </TableRow>
-                              </TableHeader>
-                              <TableBody>
+                           <>
+                              <div className="hidden md:block">
+                                 <Table>
+                                    <TableHeader>
+                                       <TableRow>
+                                          <TableHead>Nombre</TableHead>
+                                          <TableHead>Email</TableHead>
+                                          <TableHead>Teléfono</TableHead>
+                                          <TableHead>Cargo</TableHead>
+                                       </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                       {Contacts.map((contact) => (
+                                          <TableRow key={contact.id}>
+                                             <TableCell className="font-medium">{contact.name}</TableCell>
+                                             <TableCell>{contact.email || "—"}</TableCell>
+                                             <TableCell>{formatPhone(contact.phone)}</TableCell>
+                                             <TableCell>{contact.job_title || "—"}</TableCell>
+                                          </TableRow>
+                                       ))}
+                                    </TableBody>
+                                 </Table>
+                              </div>
+                              <div className="space-y-2 md:hidden">
                                  {Contacts.map((contact) => (
-                                    <TableRow key={contact.id}>
-                                       <TableCell className="font-medium">{contact.name}</TableCell>
-                                       <TableCell>{contact.email || "—"}</TableCell>
-                                       <TableCell>{formatPhone(contact.phone)}</TableCell>
-                                       <TableCell>{contact.job_title || "—"}</TableCell>
-                                    </TableRow>
+                                    <div
+                                       key={contact.id}
+                                       className="flex flex-col gap-1 rounded-lg border p-3 text-sm"
+                                    >
+                                       <span className="font-medium">{contact.name}</span>
+                                       <span className="text-muted-foreground">
+                                          {contact.email || "—"}
+                                       </span>
+                                       <span className="text-muted-foreground">
+                                          {formatPhone(contact.phone)}
+                                       </span>
+                                       <span className="text-muted-foreground">
+                                          {contact.job_title || "—"}
+                                       </span>
+                                    </div>
                                  ))}
-                              </TableBody>
-                           </Table>
+                              </div>
+                           </>
                         )}
                      </CardContent>
                   </Card>
