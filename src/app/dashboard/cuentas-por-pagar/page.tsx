@@ -174,8 +174,8 @@ export default function CuentasPorPagarPage() {
                <label className="mb-1 block text-xs font-medium text-muted-foreground">
                   Estado
                </label>
-               <div className="flex gap-1">
-                  {([undefined, "PENDIENTE", "PARCIAL"] as (EstadoCuenta | undefined)[]).map((e) => (
+                <div className="flex flex-wrap gap-1">
+                   {([undefined, "PENDIENTE", "PARCIAL"] as (EstadoCuenta | undefined)[]).map((e) => (
                      <Button
                         key={e ?? "todos"}
                         size="sm"
@@ -341,7 +341,7 @@ export default function CuentasPorPagarPage() {
 
          {/* ── Paginación ── */}
          {total > pageSize && (
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
                <p className="text-xs text-muted-foreground">
                   Mostrando {desde}–{hasta} de {total}
                </p>

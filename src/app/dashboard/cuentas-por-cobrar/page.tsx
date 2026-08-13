@@ -217,7 +217,7 @@ export default function CuentasPorCobrarPage() {
                <label className="mb-1 block text-xs font-medium text-muted-foreground">
                   Estado
                </label>
-               <div className="flex gap-1">
+               <div className="flex flex-wrap gap-1">
                   {([undefined, "PENDIENTE", "PARCIAL"] as (EstadoCxc | undefined)[]).map((e) => (
                      <Button
                         key={e ?? "todos"}
@@ -386,7 +386,7 @@ export default function CuentasPorCobrarPage() {
 
          {/* ── Paginación ── */}
          {total > pageSize && (
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
                <p className="text-xs text-muted-foreground">
                   Mostrando {desde}–{hasta} de {total}
                </p>
