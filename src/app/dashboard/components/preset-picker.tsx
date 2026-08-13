@@ -45,9 +45,10 @@ export function PresetPicker() {
             <Button variant="outline" size="sm" className="gap-2">
                <LayoutGrid className="size-4" />
                <span className="hidden sm:inline">Vistas</span>
+               <span className="sr-only sm:hidden">Vistas predefinidas</span>
             </Button>
          </DropdownMenuTrigger>
-         <DropdownMenuContent align="end" className="w-72">
+         <DropdownMenuContent align="end" className="w-72 max-w-[calc(100vw-2rem)]">
             <DropdownMenuLabel>Vistas predefinidas</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {disponibles.map(({ preset, cantidad }) => (

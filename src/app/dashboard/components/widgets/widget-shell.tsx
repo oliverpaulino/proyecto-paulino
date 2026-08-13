@@ -138,7 +138,7 @@ export function BigStat({
       <div className="flex flex-col gap-1">
          <span
             className={cn(
-               "text-2xl font-semibold tabular-nums tracking-tight",
+               "block max-w-full truncate text-2xl font-semibold tabular-nums tracking-tight",
                tone === "positive" && "text-emerald-600 dark:text-emerald-400",
                tone === "negative" && "text-destructive",
                tone === "warning" && "text-amber-600 dark:text-amber-400",
