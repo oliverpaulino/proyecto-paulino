@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { Unit } from "@/dtos/unit.dto";
 import { TipoUnidadEnum } from "@/dtos/unit.dto";
+import { useUnitStore } from "@/stores/useUnitStore";
 
 const tipoUnidadOptions = Object.entries(TipoUnidadEnum).map(([key, value]) => ({
    value: key as keyof typeof TipoUnidadEnum,
@@ -51,6 +52,7 @@ export function UnitForm({
    const [error, setError] = useState<string | null>(null);
    const [baseUnit, setBaseUnit] = useState<Unit | null>(null);
    const [isFetchingBase, setIsFetchingBase] = useState(false);
+   const { GetUnitsByTipo } = useUnitStore();
 
    useEffect(() => {
       if (values.tipo_unidad === "OTRO") {
@@ -59,29 +61,26 @@ export function UnitForm({
          return;
       }
 
-      const controller = new AbortController();
+      let active = true;
 
-      async function fetchBaseUnit() {
-         setIsFetchingBase(true);
-         try {
-            const res = await fetch(`/api/units/tipo/${values.tipo_unidad}`, {
-               signal: controller.signal,
-            });
-            if (res.ok) {
-               const units: Unit[] = await res.json();
-               const base = units.find((u) => Number(u.factor_a_base) === 1);
-               setBaseUnit(base || null);
-            }
-         } catch (err: any) {
-            if (err.name !== "AbortError") console.error("Error buscando unidad base");
-         } finally {
-            setIsFetchingBase(false);
-         }
-      }
+      setIsFetchingBase(true);
+      GetUnitsByTipo(values.tipo_unidad)
+         .then((units) => {
+            if (!active) return;
+            const base = units.find((u) => Number(u.factor_a_base) === 1);
+            setBaseUnit(base || null);
+         })
+         .catch((err) => {
+            if (active) console.error("Error buscando unidad base", err);
+         })
+         .finally(() => {
+            if (active) setIsFetchingBase(false);
+         });
 
-      fetchBaseUnit();
-      return () => controller.abort();
-   }, [values.tipo_unidad]);
+      return () => {
+         active = false;
+      };
+   }, [values.tipo_unidad, GetUnitsByTipo]);
 
    const isEditingBase = values.id && baseUnit?.id === values.id;
 
@@ -139,7 +138,7 @@ export function UnitForm({
             />
          </div>
 
-         <div className="grid grid-cols-2 gap-4">
+         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
                <Label htmlFor="unit-abreviatura">Abreviatura *</Label>
                <Input

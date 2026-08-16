@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { KyselyProyectoArchivoRepository } from "../infraestructure/proyecto-archivo.infraestructure";
 import { SupabaseProyectoArchivoStorage } from "../infraestructure/proyecto-archivo.storage";
 import { ProyectoArchivoService } from "../service/proyecto-archivo.service";
+import { assertProyectoEditable } from "../../proyectos/guards/proyecto-editable.guard";
 
 const repo = new KyselyProyectoArchivoRepository(db);
 const storage = new SupabaseProyectoArchivoStorage();
@@ -35,6 +36,8 @@ proyectoArchivosRoute.post("/:proyectoId/archivos", async (c) => {
    try {
       const session = await getSession(c);
       if (!session?.user) return c.json({ error: "No autenticado" }, 401);
+
+      await assertProyectoEditable(c.req.param("proyectoId"));
 
       const body = await c.req.parseBody({ all: true });
       const raw = body["files"];
@@ -82,6 +85,8 @@ proyectoArchivosRoute.patch("/:proyectoId/archivos/:archivoId", async (c) => {
       const session = await getSession(c);
       if (!session?.user) return c.json({ error: "No autenticado" }, 401);
 
+      await assertProyectoEditable(c.req.param("proyectoId"));
+
       const { nombre_archivo } = await c.req.json();
       const meta = await service.rename(c.req.param("archivoId"), String(nombre_archivo ?? ""));
       if (!meta || meta.proyecto_id !== c.req.param("proyectoId"))
@@ -98,6 +103,8 @@ proyectoArchivosRoute.delete("/:proyectoId/archivos/:archivoId", async (c) => {
    try {
       const session = await getSession(c);
       if (!session?.user) return c.json({ error: "No autenticado" }, 401);
+
+      await assertProyectoEditable(c.req.param("proyectoId"));
 
       const meta = await service.getById(c.req.param("archivoId"));
       if (!meta || meta.proyecto_id !== c.req.param("proyectoId"))

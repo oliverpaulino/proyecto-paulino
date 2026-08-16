@@ -29,14 +29,30 @@ import deduccionesRoute from "./modules/deducciones/routes/deducciones.routes";
 import pagosRoute from "./modules/pagos/routes/pagos.routes";
 import nominaRoute from "./modules/nomina/routes/nomina.routes";
 import cuentasPorPagarRoute from "./modules/cuentas-por-pagar/routes/cuentas-por-pagar.routes";
+import cuentasPorCobrarRoute from "./modules/cuentas-por-cobrar/routes/cuentas-por-cobrar.routes";
 import subcontratacionesRoute from "./modules/subcontrataciones/routes/subcontrataciones";
+import dashboardRoute from "./modules/dashboard/routes/dashboard.routes";
 
 const app = new Hono().basePath("/api");
 
 app.use(
    "/*",
    cors({
-      origin: ["http://localhost:3000", "https://example.org"],
+      origin: (origin) => {
+         if (!origin) return "http://localhost:3000";
+
+         const allowed = [
+            process.env.NEXT_PUBLIC_APP_URL,
+            process.env.BETTER_AUTH_URL,
+            "http://localhost:3000"
+         ].filter(Boolean) as string[];
+
+         // Permite el origen si está en tus variables o es un subdominio de Vercel
+         if (allowed.includes(origin) || origin.endsWith(".vercel.app")) {
+            return origin;
+         }
+         return "http://localhost:3000"; // Fallback
+      },
       allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       allowHeaders: ["Content-Type", "Authorization"],
       credentials: true,
@@ -67,6 +83,7 @@ app.use("/tipo-items/*", requireResourcePermission("inventory"));
 app.use("/items/*", requireResourcePermission("inventory"));
 app.use("/units/*", requireResourcePermission("inventory"));
 app.use("/roles/*", requireResourcePermission("user"));
+app.use("/cuentas-por-cobrar/*", requireResourcePermission("account_receivable"));
 app.use("/proyecto-tarifas/*", requireResourcePermission("project"));
 app.use("/proyecto-empleado-tarifas/*", requireResourcePermission("project"));
 // Los archivos de proyecto se sirven desde disco: nunca sin permiso ni sin
@@ -101,7 +118,11 @@ app.route("/roles", rolesRoute);
 app.route("/conduces", conducesRoute);
 app.route("/nomina", nominaRoute);
 app.route("/cuentas-por-pagar", cuentasPorPagarRoute);
+app.route("/cuentas-por-cobrar", cuentasPorCobrarRoute);
 app.route("/subcontrataciones", subcontratacionesRoute);
+// El panel principal NO lleva guard por path: cada ruta declara su permiso,
+// porque los widgets leen recursos distintos (ver dashboard.routes.ts).
+app.route("/dashboard", dashboardRoute);
 
 app.get("/dgii/:rnc", async (c) => {
    const rnc = c.req.param("rnc");

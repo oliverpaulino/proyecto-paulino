@@ -40,6 +40,7 @@ type EmployeeStore = {
    GetLinkedEmployeesByUserId: (userId: string) => Promise<Employee[]>;
 
    GetEmployeeDetails: (empleadoId: string, force?: boolean) => Promise<EmployeeDetails | null>;
+   GetOperadorByEmpleadoId: (empleadoId: string) => Promise<Operator | null>;
    CreateEmployee: (form: CreateEmployeeForm) => Promise<Employee | Error>;
    UpdateEmployee: (empleadoId: string, data: UpdateEmployeeForm) => Promise<void | Error>;
    DeleteEmployee: (empleadoId: string) => Promise<void | Error>;
@@ -308,6 +309,12 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
       } finally {
          set({ loading: false });
       }
+   },
+
+   GetOperadorByEmpleadoId: async (empleadoId) => {
+      const res = await fetch(`/api/employees/${empleadoId}/operator`);
+      if (!res.ok) return null;
+      return await res.json();
    },
 
    CreateEmployee: async (form) => {

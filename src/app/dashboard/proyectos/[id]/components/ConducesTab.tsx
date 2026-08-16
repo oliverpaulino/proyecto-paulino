@@ -38,9 +38,11 @@ import { ConduceCategoryGroup } from "./ConduceCategoryGroup";
 export function ConducesTab({
    proyecto,
    onProyectoChange,
+   locked,
 }: {
    proyecto: Proyecto;
    onProyectoChange: () => Promise<void>;
+   locked: boolean;
 }) {
    const {
       categorias,
@@ -222,7 +224,11 @@ export function ConducesTab({
 
                <Dialog open={conduceDialogOpen} onOpenChange={setConduceDialogOpen}>
                   <DialogTrigger asChild>
-                     <Button size="sm" className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold border-0">
+                     <Button
+                        size="sm"
+                        className="bg-brand-yellow text-brand-black hover:bg-yellow-300 font-semibold border-0"
+                        disabled={locked}
+                     >
                         <Plus className="size-4 mr-2" />
                         Registrar Conduce
                      </Button>
@@ -258,7 +264,7 @@ export function ConducesTab({
                      />
                   </div>
                   <Select value={conduceFilterCategoria} onValueChange={setConduceFilterCategoria}>
-                     <SelectTrigger className="w-[180px]">
+                     <SelectTrigger className="w-full sm:w-[180px]">
                         <SelectValue placeholder="Categoría" />
                      </SelectTrigger>
                      <SelectContent>
@@ -269,7 +275,7 @@ export function ConducesTab({
                      </SelectContent>
                   </Select>
                   <Select value={conduceFilterCobrable} onValueChange={setConduceFilterCobrable}>
-                     <SelectTrigger className="w-[160px]">
+                     <SelectTrigger className="w-full sm:w-[160px]">
                         <SelectValue placeholder="Cobrable" />
                      </SelectTrigger>
                      <SelectContent>
@@ -279,7 +285,7 @@ export function ConducesTab({
                      </SelectContent>
                   </Select>
                   <Select value={conduceFilterTipo} onValueChange={setConduceFilterTipo}>
-                     <SelectTrigger className="w-[150px]">
+                     <SelectTrigger className="w-full sm:w-[150px]">
                         <SelectValue placeholder="Tipo" />
                      </SelectTrigger>
                      <SelectContent>
@@ -292,16 +298,16 @@ export function ConducesTab({
 
                {/* Barra de acciones batch */}
                {selectedConduceIds.size > 0 && (
-                  <div className="flex items-center gap-3 rounded-lg border border-brand-blue/20 bg-brand-blue/5 p-3">
+                  <div className="flex flex-wrap items-center gap-2 rounded-lg border border-brand-blue/20 bg-brand-blue/5 p-3">
                      <span className="text-sm font-medium text-brand-blue">
                         {selectedConduceIds.size} seleccionado{selectedConduceIds.size > 1 ? "s" : ""}
                      </span>
-                     <div className="flex gap-2 ml-auto">
+                     <div className="flex flex-wrap gap-2 ml-auto">
                         <Button
                            size="sm"
                            variant="outline"
                            onClick={() => handleToggleConduces(true)}
-                           disabled={toggleConduceLoading}
+                           disabled={toggleConduceLoading || locked}
                         >
                            {toggleConduceLoading ? <Loader2 className="mr-1 size-3 animate-spin" /> : null}
                            Marcar Cobrable
@@ -310,7 +316,7 @@ export function ConducesTab({
                            size="sm"
                            variant="outline"
                            onClick={() => handleToggleConduces(false)}
-                           disabled={toggleConduceLoading}
+                           disabled={toggleConduceLoading || locked}
                         >
                            {toggleConduceLoading ? <Loader2 className="mr-1 size-3 animate-spin" /> : null}
                            Marcar No Cobrable
@@ -380,23 +386,24 @@ export function ConducesTab({
                         const displaySubtotalCobrable = isLoaded
                            ? items.reduce((s, c) => s + (c.es_cobrable ? Number(c.subtotal ?? 0) : 0), 0)
                            : subtotalCobrable;
-                        return (
-                           <ConduceCategoryGroup
-                              key={nombre}
-                              categoria={nombre}
-                              items={items}
-                              loadingCategoria={categoriaLoading === nombre}
-                              resumen={{ subtotal: displaySubtotal, subtotalCobrable: displaySubtotalCobrable, count: displayCount }}
-                              selectedIds={selectedConduceIds}
-                              onSelectIds={setSelectedConduceIds}
-                              onToggleCategory={handleToggleCategory}
-                              onDetail={setConduceDetalle}
-                              onEdit={setConduceAEditar}
-                              onDelete={setConduceAEliminar}
-                              onToggleOne={handleToggleOneConduce}
-                              toggleLoading={toggleConduceLoading}
-                           />
-                        );
+                         return (
+                            <ConduceCategoryGroup
+                               key={nombre}
+                               categoria={nombre}
+                               items={items}
+                               loadingCategoria={categoriaLoading === nombre}
+                               resumen={{ subtotal: displaySubtotal, subtotalCobrable: displaySubtotalCobrable, count: displayCount }}
+                               selectedIds={selectedConduceIds}
+                               onSelectIds={setSelectedConduceIds}
+                               onToggleCategory={handleToggleCategory}
+                               onDetail={setConduceDetalle}
+                               onEdit={setConduceAEditar}
+                               onDelete={setConduceAEliminar}
+                               onToggleOne={handleToggleOneConduce}
+                               toggleLoading={toggleConduceLoading}
+                               locked={locked}
+                            />
+                         );
                      })}
                   </Accordion>
                )}
@@ -409,11 +416,17 @@ export function ConducesTab({
             open={!!conduceDetalle}
             onOpenChange={(v) => !v && setConduceDetalle(null)}
          />
-         <ConduceEditDialog
-            conduce={conduceAEditar}
-            open={!!conduceAEditar}
-            onOpenChange={(v) => !v && setConduceAEditar(null)}
-         />
+          <ConduceEditDialog
+             conduce={conduceAEditar}
+             open={!!conduceAEditar}
+             onOpenChange={(v) => !v && setConduceAEditar(null)}
+             onSaved={() => {
+                const categoria = conduceAEditar?.categoria_equipo_tarifa_nombre || "Sin categoría";
+                GetConducesByCategoria(proyecto.id, categoria);
+                GetCategoriasByProyecto(proyecto.id);
+                onProyectoChange();
+             }}
+          />
          <ConduceDeleteDialog
             conduce={conduceAEliminar}
             open={!!conduceAEliminar}

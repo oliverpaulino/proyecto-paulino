@@ -2,11 +2,21 @@ import { Hono } from "hono";
 import db from "@/backend/database";
 import { KyselyEmployeeRepository } from "../infraestructure/employees.infraestructure";
 import { EmployeeService } from "../service/employees.service";
+import { KyselyProyectoRepository } from "../../proyectos/infraestructure/proyecto.infraestructure";
 import { catchError } from "@/lib/utils";
 
 const employeesRoute = new Hono();
 const repo = new KyselyEmployeeRepository(db);
 const service = new EmployeeService(repo);
+const proyectoRepo = new KyselyProyectoRepository(db);
+
+// `empleado_categoria_tarifa.monto_pago` alimenta el costo de operadores y la
+// rentabilidad de todos los proyectos donde ese empleado opera equipos: hay
+// que recalcularlos cada vez que cambia una tarifa del empleado.
+async function recalcularProyectosDelEmpleado(empleadoId: string): Promise<void> {
+   const ids = await proyectoRepo.findProyectoIdsByEmpleado(empleadoId);
+   await Promise.all(ids.map((pid) => proyectoRepo.recalcularTotales(pid)));
+}
 
 
 // GET /api/employees
@@ -198,6 +208,8 @@ employeesRoute.post("/:id/tarifas", async (c) => {
          monto_pago: Number(monto_pago)
       });
 
+      await recalcularProyectosDelEmpleado(empleado_id);
+
       return c.json(nuevaTarifa, 201);
    } catch (error: any) {
       return c.json({ error: error.message }, 400);
@@ -215,6 +227,9 @@ employeesRoute.patch("/tarifas/:tarifaId", async (c) => {
          Number(monto_pago),
          frecuencia_pago
       );
+      if (tarifaActualizada?.empleado_id) {
+         await recalcularProyectosDelEmpleado(tarifaActualizada.empleado_id);
+      }
       return c.json(tarifaActualizada, 200);
    } catch (error: any) {
       return c.json({ error: error.message }, 400);
@@ -225,7 +240,10 @@ employeesRoute.patch("/tarifas/:tarifaId", async (c) => {
 employeesRoute.delete("/tarifas/:tarifaId", async (c) => {
    try {
       const tarifaId = c.req.param().tarifaId;
-      await service.deleteTarifa(tarifaId);
+      const eliminada = await service.deleteTarifa(tarifaId);
+      if (eliminada?.empleado_id) {
+         await recalcularProyectosDelEmpleado(eliminada.empleado_id);
+      }
       return c.json({ message: "Tarifa eliminada con éxito" }, 200);
    } catch (error: any) {
       return c.json({ error: error.message }, 400);
@@ -239,6 +257,7 @@ employeesRoute.post("/:id/tarifas/bulk", async (c) => {
       const { tarifas } = await c.req.json();
 
       await service.saveTarifasEnBloque({ empleado_id, tarifas });
+      await recalcularProyectosDelEmpleado(empleado_id);
 
       return c.json({ message: "Tarifas guardadas con éxito" }, 200);
    } catch (error: any) {
@@ -251,7 +270,10 @@ employeesRoute.delete("/tarifas/:tarifaId", async (c) => {
    try {
       const tarifaId = c.req.param().tarifaId;
 
-      await service.deleteTarifa(tarifaId);
+      const eliminada = await service.deleteTarifa(tarifaId);
+      if (eliminada?.empleado_id) {
+         await recalcularProyectosDelEmpleado(eliminada.empleado_id);
+      }
 
       return c.json({ message: "Tarifa eliminada con éxito" }, 200);
    } catch (error: any) {

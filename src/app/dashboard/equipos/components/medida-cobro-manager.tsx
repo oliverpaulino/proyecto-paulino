@@ -51,7 +51,9 @@ export function MedidaCobroManager({ open, onOpenChange }: MedidaCobroManagerPro
    }, [open, GetMedidaCobros]);
 
    function countCategoriasEqupos(medidaId: string): number {
-      return CategoriaEquipos.filter((e) => e.medida_cobro_id === medidaId).length;
+      return CategoriaEquipos.reduce((count, categoria) => {
+         return count + categoria.tarifas.filter((tarifa) => tarifa.medida_cobro_id === medidaId).length;
+      }, 0);
    }
 
    async function handleCreate(e: React.FormEvent) {
@@ -146,7 +148,7 @@ export function MedidaCobroManager({ open, onOpenChange }: MedidaCobroManagerPro
 
             {/* Formulario de nueva medida de cobro */}
             <form onSubmit={handleCreate} className="flex flex-col gap-2">
-               <div className="grid grid-cols-2 gap-2">
+               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <div className="flex flex-col gap-1">
                      <Label className="text-xs">Se cobra en *</Label>
                      <Input
@@ -221,7 +223,7 @@ export function MedidaCobroManager({ open, onOpenChange }: MedidaCobroManagerPro
                         <div key={med.id} className="px-3 py-2">
                            {isEditing ? (
                               <div className="flex flex-col gap-2">
-                                 <div className="grid grid-cols-2 gap-2">
+                                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                     <Input
                                        value={editNombre}
                                        onChange={(e) => setEditNombre(e.target.value)}

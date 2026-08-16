@@ -24,23 +24,28 @@ import {
    CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { Gasto, UpdateGastoForm } from "@/dtos/gastos.dto";
+import type { CreatePagoForm } from "@/dtos/pagos.dto";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useGastoStore } from "@/stores/useGastoStore";
 import { DeleteGastoDialog } from "../../components/delete-gasto-dialog";
 import { RestoreGastoDialog } from "../../components/restore-gasto-dialog";
 import { GastoForm } from "../../components/gasto-form";
+import { PagoForm } from "../../../pagos/components/pago-form";
+import { usePagoStore } from "@/stores/usePagoStore";
 
 export function GastoDetail({ gasto, onRefresh }: { gasto: Gasto; onRefresh: () => void }) {
    const { DeleteGasto, UpdateGasto, RestoreGasto } = useGastoStore();
+   const { CreatePago } = usePagoStore();
    const router = useRouter();
 
    const [actionLoading, setActionLoading] = useState(false);
    const [showDelete, setShowDelete] = useState(false);
    const [showRestore, setShowRestore] = useState(false);
    const [showEdit, setShowEdit] = useState(false);
+   const [showPago, setShowPago] = useState(false);
 
    const isDeleted = !!gasto.deleted_at;
    const fechaCita = new Date(gasto.fecha);
@@ -61,6 +66,18 @@ export function GastoDetail({ gasto, onRefresh }: { gasto: Gasto; onRefresh: () 
       try {
          await RestoreGasto(gasto.id);
          setShowRestore(false);
+         onRefresh();
+      } finally {
+         setActionLoading(false);
+      }
+   };
+
+   const handleCreatePago = async (data: CreatePagoForm) => {
+      setActionLoading(true);
+      try {
+         const result = await CreatePago(data);
+         if (result instanceof Error) throw result;
+         setShowPago(false);
          onRefresh();
       } finally {
          setActionLoading(false);
@@ -109,6 +126,10 @@ export function GastoDetail({ gasto, onRefresh }: { gasto: Gasto; onRefresh: () 
             <div className="flex flex-wrap gap-2 lg:justify-end shrink-0">
                {!isDeleted ? (
                   <>
+                     <Button onClick={() => setShowPago(true)} disabled={actionLoading} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                        <Banknote className="mr-2 size-4" />
+                        Registrar Pago
+                     </Button>
                      <Button variant="outline" onClick={() => setShowEdit(true)} disabled={actionLoading}>
                         <Edit2 className="mr-2 size-4" />
                         Editar
@@ -304,6 +325,27 @@ export function GastoDetail({ gasto, onRefresh }: { gasto: Gasto; onRefresh: () 
             onClose={() => setShowRestore(false)} 
             loading={actionLoading} 
          />
+
+         <Dialog open={showPago} onOpenChange={setShowPago}>
+            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+               <DialogHeader>
+                  <DialogTitle>Registrar Pago</DialogTitle>
+                  <DialogDescription>
+                     Pago aplicado al gasto {gasto.codigoReferencia}.
+                  </DialogDescription>
+               </DialogHeader>
+               <PagoForm
+                  predefinedValues={{
+                     gasto_empresa_id: gasto.id,
+                     tipo_movimiento: "SALIDA",
+                  }}
+                  predefinedGastoLabel={gasto.codigoReferencia}
+                  onSubmit={handleCreatePago}
+                  onCancel={() => setShowPago(false)}
+                  loading={actionLoading}
+               />
+            </DialogContent>
+         </Dialog>
 
          <Dialog open={showEdit} onOpenChange={setShowEdit}>
             <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">

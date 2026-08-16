@@ -23,6 +23,9 @@ import { EstadoProyectoArray, UpdateProyectoForm, type EstadoProyecto } from "@/
 import { ProyectoTarifasCard } from "./proyecto-tarifa-card";
 import { ProyectoEmpleadoTarifasCard } from "./proyecto-empleado-tarifa-card";
 import { SelectBuscadorClient } from "@/components/shared/selectBuscadorClient";
+import { ESTADO_BADGE } from "./formatMoney";
+import { Badge } from "@/components/ui/badge";
+import { History } from "lucide-react";
 
 function toDateInputValue(d: string | null | undefined): string {
    if (!d) return "";
@@ -36,7 +39,19 @@ function toDateInputValue(d: string | null | undefined): string {
    return `${y}-${m}-${day}`;
 }
 
-export default function ConfiguracionTab({ proyectoId, onProyectoChange }: { proyectoId: string; onProyectoChange?: () => Promise<void> | void }) {
+function formatFechaHora(d: string): string {
+   const date = new Date(d);
+   if (isNaN(date.getTime())) return d;
+   return date.toLocaleString("es-DO", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+   });
+}
+
+export default function ConfiguracionTab({ proyectoId, onProyectoChange, locked = false }: { proyectoId: string; onProyectoChange?: () => Promise<void> | void; locked?: boolean }) {
    const { proyecto, GetProyectoById, UpdateProyecto } = useProyectoStore();
 
    const [nombre, setNombre] = useState("");
@@ -105,6 +120,8 @@ export default function ConfiguracionTab({ proyectoId, onProyectoChange }: { pro
       setGuardando(false);
    }
 
+   const historial = proyecto?.historial_estados ?? [];
+
    if (!proyecto) return <div>Cargando...</div>;
 
    return (
@@ -117,6 +134,12 @@ export default function ConfiguracionTab({ proyectoId, onProyectoChange }: { pro
                <p className="mb-3 text-sm text-muted-foreground">
                   Datos básicos del proyecto: cliente, nombre, tarifa, fechas, estado y notas.
                </p>
+               {locked && (
+                  <p className="mb-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+                     Proyecto <strong>COMPLETADO</strong>: solo puedes cambiar el estado. Para editar el
+                     resto, cámbialo primero a otro estado.
+                  </p>
+               )}
                <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-1.5">
                      <Label className="text-xs">Cliente *</Label>
@@ -124,6 +147,7 @@ export default function ConfiguracionTab({ proyectoId, onProyectoChange }: { pro
                         value={clienteId}
                         onChange={(id) => setClienteId(id ?? "")}
                         initialLabel={proyecto.cliente_nombre ?? ""}
+                        disabled={locked}
                      />
                   </div>
                   <div className="space-y-1.5">
@@ -133,6 +157,7 @@ export default function ConfiguracionTab({ proyectoId, onProyectoChange }: { pro
                         value={nombre}
                         onChange={(e) => setNombre(e.target.value)}
                         placeholder="Nombre del proyecto"
+                        disabled={locked}
                      />
                   </div>
                   <div className="space-y-1.5">
@@ -143,6 +168,7 @@ export default function ConfiguracionTab({ proyectoId, onProyectoChange }: { pro
                         step="0.01"
                         value={tarifaServicio}
                         onChange={(e) => setTarifaServicio(Number(e.target.value))}
+                        disabled={locked}
                      />
                   </div>
                   <div className="space-y-1.5">
@@ -169,6 +195,7 @@ export default function ConfiguracionTab({ proyectoId, onProyectoChange }: { pro
                         type="date"
                         value={fechaInicio}
                         onChange={(e) => setFechaInicio(e.target.value)}
+                        disabled={locked}
                      />
                   </div>
                   <div className="space-y-1.5">
@@ -177,6 +204,7 @@ export default function ConfiguracionTab({ proyectoId, onProyectoChange }: { pro
                         type="date"
                         value={fechaFin}
                         onChange={(e) => setFechaFin(e.target.value)}
+                        disabled={locked}
                      />
                   </div>
                   <div className="space-y-1.5 md:col-span-2">
@@ -186,6 +214,7 @@ export default function ConfiguracionTab({ proyectoId, onProyectoChange }: { pro
                         onChange={(e) => setNotas(e.target.value)}
                         rows={3}
                         placeholder="Notas adicionales (opcional)"
+                        disabled={locked}
                      />
                   </div>
                </div>
@@ -213,7 +242,7 @@ export default function ConfiguracionTab({ proyectoId, onProyectoChange }: { pro
                   Precios negociados para este proyecto que sobreescriben las tarifas globales
                   (ej. botes, viajes de camiones, horas de equipo pesado).
                </p>
-               <ProyectoTarifasCard proyectoId={proyectoId} />
+               <ProyectoTarifasCard proyectoId={proyectoId} locked={locked} />
             </AccordionContent>
          </AccordionItem>
 
@@ -226,7 +255,44 @@ export default function ConfiguracionTab({ proyectoId, onProyectoChange }: { pro
                   Sobreescribe lo que gana cada operador para una tarifa específica dentro de este
                   proyecto. Si no se configura, se usa la tarifa global del empleado.
                </p>
-               <ProyectoEmpleadoTarifasCard proyectoId={proyectoId} />
+               <ProyectoEmpleadoTarifasCard proyectoId={proyectoId} locked={locked} />
+            </AccordionContent>
+         </AccordionItem>
+
+         <AccordionItem value="historial" className="rounded-lg border bg-card">
+            <AccordionTrigger className="px-4 py-3 text-base font-semibold hover:bg-muted-foreground/5 hover:no-underline transition-colors">
+               <span className="flex items-center gap-2">
+                  <History className="size-4 text-muted-foreground" />
+                  Historial de Estados
+               </span>
+            </AccordionTrigger>
+            <AccordionContent className="px-4 pb-4">
+               {historial.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                     No hay cambios de estado registrados aún.
+                  </p>
+               ) : (
+                  <ol className="space-y-3">
+                     {historial
+                        .slice()
+                        .reverse()
+                        .map((h) => (
+                           <li key={h.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                              <Badge className={ESTADO_BADGE[h.estado_anterior ?? "BORRADOR"]}>
+                                 {h.estado_anterior ?? "—"}
+                              </Badge>
+                              <span className="text-muted-foreground">→</span>
+                              <Badge className={ESTADO_BADGE[h.estado_nuevo]}>{h.estado_nuevo}</Badge>
+                              <span className="text-xs text-muted-foreground">
+                                 {formatFechaHora(h.created_at)}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                 por {h.changed_by_name ?? "desconocido"}
+                              </span>
+                           </li>
+                        ))}
+                  </ol>
+               )}
             </AccordionContent>
          </AccordionItem>
       </Accordion>

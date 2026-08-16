@@ -14,8 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useClientStore } from "@/stores/useClientStore";
-import type { CreateProyectoForm, LineItemForm } from "@/dtos/proyecto.dto";
-import { X } from "lucide-react";
+import type { CreateProyectoForm } from "@/dtos/proyecto.dto";
 import { fechaRD } from "@/lib/utils";
 
 interface Props {
@@ -25,12 +24,13 @@ interface Props {
    loading: boolean;
 }
 
-const emptyItem = (): LineItemForm => ({ descripcion: "", cantidad: 1, precio_unitario: 0 });
-
-// NOTA: la sección "Equipo en campo" que existía aquí se eliminó. El equipo,
+// NOTA 1: la sección "Equipo en campo" que existía aquí se eliminó. El equipo,
 // operador y precio ya no se registran al crear el proyecto — se agregan
 // después, uno por uno, como Conduces desde la página de detalle del
 // proyecto (ver components/conduce-form.tsx).
+// NOTA 2: la sección de Cargos Cobrables / Gastos Internos también se eliminó.
+// Esos ítems se registran como Gastos desde los tabs Cobrables/Incobrables del
+// detalle del proyecto (antes generaban doble conteo con la tabla gasto).
 export function ProyectoForm({ initialData, onSubmit, onCancel, loading }: Props) {
    const { Clients, GetClients } = useClientStore();
 
@@ -51,36 +51,11 @@ export function ProyectoForm({ initialData, onSubmit, onCancel, loading }: Props
    const [nombreProyecto, setNombreProyecto] = useState(initialData?.nombre || "");
    const [tarifaServicio, setTarifaServicio] = useState(0);
    const [notas, setNotas] = useState("");
-
-   const [cobrables, setCobrables] = useState<LineItemForm[]>([]);
-   const [internos, setInternos] = useState<LineItemForm[]>([]);
    const [error, setError] = useState<string | null>(null);
-
-   function addItem(setter: React.Dispatch<React.SetStateAction<LineItemForm[]>>) {
-      setter((prev) => [...prev, emptyItem()]);
-   }
-
-   function updateItem(
-      setter: React.Dispatch<React.SetStateAction<LineItemForm[]>>,
-      idx: number,
-      field: keyof LineItemForm,
-      value: string | number
-   ) {
-      setter((prev) => prev.map((item, i) => (i === idx ? { ...item, [field]: value } : item)));
-   }
-
-   function removeItem<T>(setter: React.Dispatch<React.SetStateAction<T[]>>, idx: number) {
-      setter((prev) => prev.filter((_, i) => i !== idx));
-   }
 
    const handleClickCompleteNombreProyecto = () => {
       setNombreProyecto(`Proyecto a ${Clients.find((c) => c.id === clienteId)?.nombre ?? "cliente"} ${fechaRD("day")}/${fechaRD("month")}/${fechaRD("year")}`);
    }
-
-   const subtotalCobrables = cobrables.reduce((s, i) => s + i.cantidad * i.precio_unitario, 0);
-   const totalCobrable = tarifaServicio + subtotalCobrables;
-   const totalInterno = internos.reduce((s, i) => s + i.cantidad * i.precio_unitario, 0);
-   const rentabilidad = totalCobrable - totalInterno;
 
    async function handleSubmit(e: React.FormEvent) {
       e.preventDefault();
@@ -96,14 +71,6 @@ export function ProyectoForm({ initialData, onSubmit, onCancel, loading }: Props
          setError("La tarifa del servicio debe ser mayor o igual a 0");
          return;
       }
-      if (cobrables.some((c) => c.cantidad <= 0 || c.precio_unitario < 0)) {
-         setError("Los cargos cobrables deben tener cantidad > 0 y precio unitario >= 0");
-         return;
-      }
-      if (internos.some((i) => i.cantidad <= 0 || i.precio_unitario < 0)) {
-         setError("Los gastos internos deben tener cantidad > 0 y precio unitario >= 0");
-         return;
-      }
 
       setError(null);
 
@@ -111,8 +78,6 @@ export function ProyectoForm({ initialData, onSubmit, onCancel, loading }: Props
          cliente_id: clienteId,
          nombre: nombreProyecto,
          tarifa_servicio: tarifaServicio,
-         cargos_cobrables: cobrables,
-         gastos_internos: internos,
          notas: notas || null,
       };
 
@@ -124,7 +89,7 @@ export function ProyectoForm({ initialData, onSubmit, onCancel, loading }: Props
    return (
       <form onSubmit={handleSubmit} className="space-y-5 ">
          {/* ── Cliente + Tarifa ── */}
-         <div className="grid grid-cols-2 gap-4">
+         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
                <Label htmlFor="cliente">Cliente *</Label>
                <Select value={clienteId} onValueChange={setClienteId} required>
@@ -156,7 +121,7 @@ export function ProyectoForm({ initialData, onSubmit, onCancel, loading }: Props
          </div>
 
          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-1">
                <Label htmlFor="nombre-proyecto">Nombre del Proyecto *</Label>
                <button
                   type="button"
@@ -181,130 +146,27 @@ export function ProyectoForm({ initialData, onSubmit, onCancel, loading }: Props
             la página de detalle de este proyecto.
          </div>
 
-         <Separator />
-
-         {/* ── Cargos Cobrables ── */}
-         <div className="space-y-2">
-            <div>
-               <h3 className="text-sm font-semibold">Cargos Cobrables</h3>
-               <p className="text-xs text-muted-foreground">
-                  Se incluyen en la factura del cliente (<code>es_cobrable = true</code>)
-               </p>
-            </div>
-            {cobrables.map((item, idx) => (
-               <div key={idx} className="grid grid-cols-[1fr_72px_100px_28px] gap-2 items-center">
-                  <Input
-                     placeholder="Descripción"
-                     value={item.descripcion}
-                     onChange={(e) => updateItem(setCobrables, idx, "descripcion", e.target.value)}
-                  />
-                  <Input
-                     type="number"
-                     min={0}
-                     step="1"
-                     placeholder="Cant."
-                     value={item.cantidad || 1}
-                     onChange={(e) => updateItem(setCobrables, idx, "cantidad", Number(e.target.value))}
-                  />
-                  <Input
-                     type="number"
-                     min={0}
-                     step="0.01"
-                     placeholder="P. Unit."
-                     value={item.precio_unitario || 0}
-                     onChange={(e) => updateItem(setCobrables, idx, "precio_unitario", Number(e.target.value))}
-                  />
-                  <Button
-                     type="button"
-                     variant="ghost"
-                     size="icon"
-                     className="size-7 text-muted-foreground hover:text-destructive"
-                     onClick={() => removeItem(setCobrables, idx)}
-                  >
-                     <X className="h-4 w-4" />
-                  </Button>
-               </div>
-            ))}
-            <Button type="button" variant="outline" size="sm" onClick={() => addItem(setCobrables)}>
-               + Agregar cargo cobrable
-            </Button>
+         <div className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+            Los <strong>gastos</strong> (cobrables e incobrables) se registran después desde los tabs
+            <strong> Cobrables</strong> y <strong>Incobrables</strong> del detalle de este proyecto.
          </div>
 
          <Separator />
 
-         {/* ── Gastos Internos No Cobrables ── */}
-         <div className="space-y-2">
-            <div>
-               <h3 className="text-sm font-semibold">Gastos Internos No Cobrables</h3>
-               <p className="text-xs text-muted-foreground">
-                  Solo afectan la rentabilidad interna (<code>es_cobrable = false</code>)
-               </p>
-            </div>
-            {internos.map((item, idx) => (
-               <div key={idx} className="grid grid-cols-[1fr_72px_100px_28px] gap-2 items-center">
-                  <Input
-                     placeholder="Ej. combustible, peajes"
-                     value={item.descripcion}
-                     onChange={(e) => updateItem(setInternos, idx, "descripcion", e.target.value)}
-                  />
-                  <Input
-                     type="number"
-                     min={0}
-                     step="1"
-                     placeholder="Cant."
-                     value={item.cantidad || 1}
-                     onChange={(e) => updateItem(setInternos, idx, "cantidad", Number(e.target.value))}
-                  />
-                  <Input
-                     type="number"
-                     min={0}
-                     step="0.01"
-                     placeholder="P. Unit."
-                     value={item.precio_unitario || 0}
-                     onChange={(e) => updateItem(setInternos, idx, "precio_unitario", Number(e.target.value))}
-                  />
-                  <Button
-                     type="button"
-                     variant="ghost"
-                     size="icon"
-                     className="size-7 text-muted-foreground hover:text-destructive"
-                     onClick={() => removeItem(setInternos, idx)}
-                  >
-                     <X className="h-4 w-4" />
-                  </Button>
-               </div>
-            ))}
-            <Button type="button" variant="outline" size="sm" onClick={() => addItem(setInternos)}>
-               + Agregar gasto interno
-            </Button>
-         </div>
-
-         <Separator />
-
-         {/* ── Resumen financiero (estimado — no incluye equipos, se agregan después) ── */}
+         {/* ── Resumen financiero (parcial — conduces y gastos se agregan después) ── */}
          <div className="rounded-lg border bg-muted/30 p-4 space-y-1.5 text-sm">
             <div className="flex justify-between">
                <span className="text-muted-foreground">Tarifa del servicio</span>
                <span>RD$ {tarifaServicio.toLocaleString("es-DO")}</span>
             </div>
-            <div className="flex justify-between">
-               <span className="text-muted-foreground">Cargos cobrables</span>
-               <span>RD$ {subtotalCobrables.toLocaleString("es-DO")}</span>
-            </div>
             <div className="flex justify-between font-medium border-t pt-1.5">
-               <span>Total cobrable (sin equipos aún)</span>
-               <span className="text-green-600">RD$ {totalCobrable.toLocaleString("es-DO")}</span>
+               <span>Total cobrable (parcial)</span>
+               <span className="text-green-600">RD$ {tarifaServicio.toLocaleString("es-DO")}</span>
             </div>
-            <div className="flex justify-between text-muted-foreground">
-               <span>Gastos internos</span>
-               <span className="text-red-500">− RD$ {totalInterno.toLocaleString("es-DO")}</span>
-            </div>
-            <div className="flex justify-between font-bold border-t pt-1.5">
-               <span>Rentabilidad estimada</span>
-               <span className={rentabilidad >= 0 ? "text-green-700" : "text-red-600"}>
-                  RD$ {rentabilidad.toLocaleString("es-DO")}
-               </span>
-            </div>
+            <p className="text-xs text-muted-foreground border-t pt-1.5">
+               Los conduces y gastos se sumarán automáticamente al total del proyecto
+               conforme se registren en el detalle.
+            </p>
          </div>
 
          <Textarea

@@ -27,6 +27,10 @@ const RESOURCE_MAP: Record<Resource, readonly string[]> = {
    task: ["task"],
    appointment: ["appointment"],
    payroll: ["payroll"],
+   account_payable: ["account_payable"],
+   account_receivable: ["account_receivable"],
+   payment: ["payment"],
+   expense: ["expense"],
    warning: ["warning"],
 };
 

@@ -12,6 +12,7 @@ export const TIPO_DESTINO_LABEL: Record<TipoDestinoPago, string> = {
    DEDUCCION: "Deducción",
    PROYECTO: "Proyecto",
    ORDEN_COMPRA: "Orden de Compra",
+   CONDUCE: "Conduce",
 };
 
 export function Stat({ label, value, tone = "default" }: { label: string; value: string; tone?: "default" | "good" | "warn" | "muted" }) {

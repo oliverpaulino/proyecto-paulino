@@ -18,6 +18,12 @@ export interface PagoProps {
    // join
    deduccion_codigo_referencia: string | null;
 
+   // ENTRADA de cuentas por cobrar: pago de un cliente contra un conduce
+   // cobrable. Mutuamente excluyente con los orígenes de salida.
+   conduce_id: string | null;
+   // join — `conduce` no tiene `referencia` numérica: se muestra el folio.
+   conduce_numero_referencia: string | null;
+
    proyecto_id: string | null;
    // join
    proyecto_codigo_referencia: string | null;
@@ -55,6 +61,8 @@ export class Pago {
    get gasto_codigo_referencia() { return this.props.gasto_codigo_referencia; }
    get deduccion_empleado_id() { return this.props.deduccion_empleado_id; }
    get deduccion_codigo_referencia() { return this.props.deduccion_codigo_referencia; }
+   get conduce_id() { return this.props.conduce_id; }
+   get conduce_numero_referencia() { return this.props.conduce_numero_referencia; }
    get proyecto_id() { return this.props.proyecto_id; }
    get proyecto_codigo_referencia() { return this.props.proyecto_codigo_referencia; }
    get orden_compra_id() { return this.props.orden_compra_id; }
@@ -79,6 +87,7 @@ export interface CreatePagoDTO {
    fecha: Date;
    gasto_empresa_id?: string | null;
    deduccion_empleado_id?: string | null;
+   conduce_id?: string | null;
    proyecto_id?: string | null;
    orden_compra_id?: string | null;
 }
@@ -90,7 +99,7 @@ export interface DeletePagoDTO {
    deleted_reason?: string;
 };
 
-export type TipoDestinoPago = "GASTO" | "DEDUCCION" | "PROYECTO" | "ORDEN_COMPRA";
+export type TipoDestinoPago = "GASTO" | "DEDUCCION" | "PROYECTO" | "ORDEN_COMPRA" | "CONDUCE";
 
 /**
  * Información polimórfica del destino de un pago, calculada según el tipo:
@@ -149,6 +158,7 @@ export interface IPagoRepository {
                      end?: Date; 
                      gasto_empresa_id?: string | null;
                      deduccion_empleado_id?: string | null;
+                     conduce_id?: string | null;
                      proyecto_id?: string | null;
                      orden_compra_id?: string | null; }): Promise<Pago[]>;
 
@@ -159,6 +169,7 @@ export interface IPagoRepository {
                      end?: Date; 
                      gasto_empresa_id?: string | null;
                      deduccion_empleado_id?: string | null;
+                     conduce_id?: string | null;
                      proyecto_id?: string | null;
                      orden_compra_id?: string | null; }): Promise<Pago[]>;
 
@@ -173,6 +184,7 @@ export interface IPagoRepository {
    getInfoDestino(params: {
       gasto_empresa_id?: string | null;
       deduccion_empleado_id?: string | null;
+      conduce_id?: string | null;
       proyecto_id?: string | null;
       orden_compra_id?: string | null;
    }): Promise<InfoDestinoPago | null>;

@@ -12,9 +12,9 @@ export class PagoService {
    constructor(private readonly repo: IPagoRepository) { }
 
    private validarExclusividad(data: Partial<CreatePagoDTO>) {
-      const count = [data.gasto_empresa_id, data.deduccion_empleado_id, data.proyecto_id, data.orden_compra_id].filter(Boolean).length;
+      const count = [data.gasto_empresa_id, data.deduccion_empleado_id, data.conduce_id, data.proyecto_id, data.orden_compra_id].filter(Boolean).length;
       if (count !== 1) {
-         throw new Error("El pago debe estar asociado a exactamente un origen (Gasto, Costo, Deducción, Proyecto u Orden de Compra).");
+         throw new Error("El pago debe estar asociado a exactamente un origen (Gasto, Costo, Deducción, Conduce, Proyecto u Orden de Compra).");
       }
    }
 
@@ -24,8 +24,8 @@ export class PagoService {
       a: Partial<CreatePagoDTO>,
       b: Partial<CreatePagoDTO>
    ): boolean {
-      const idA = a.gasto_empresa_id ?? a.deduccion_empleado_id ?? a.proyecto_id ?? a.orden_compra_id;
-      const idB = b.gasto_empresa_id ?? b.deduccion_empleado_id ?? b.proyecto_id ?? b.orden_compra_id;
+      const idA = a.gasto_empresa_id ?? a.deduccion_empleado_id ?? a.conduce_id ?? a.proyecto_id ?? a.orden_compra_id;
+      const idB = b.gasto_empresa_id ?? b.deduccion_empleado_id ?? b.conduce_id ?? b.proyecto_id ?? b.orden_compra_id;
       return !!idA && idA === idB;
    }
 
@@ -49,6 +49,9 @@ export class PagoService {
       }
       if (info.tipo === "DEDUCCION" && !esEntrada) {
          throw new Error("Las deducciones solo aceptan pagos de entrada (el empleado amortiza su deuda).");
+      }
+      if (info.tipo === "CONDUCE" && !esEntrada) {
+         throw new Error("Los conduces solo aceptan pagos de entrada (el cliente paga).");
       }
       if (info.tipo === "ORDEN_COMPRA" && !this.ESTADOS_PAGABLES.includes(info.estado ?? "")) {
          throw new Error(
@@ -82,6 +85,7 @@ export class PagoService {
    async getInfoDestino(params: {
       gasto_empresa_id?: string | null;
       deduccion_empleado_id?: string | null;
+      conduce_id?: string | null;
       proyecto_id?: string | null;
       orden_compra_id?: string | null;
    }): Promise<InfoDestinoPago | null> {
@@ -133,6 +137,7 @@ export class PagoService {
       const mergeData = {
          gasto_empresa_id: data.gasto_empresa_id !== undefined ? data.gasto_empresa_id : current.gasto_empresa_id,
          deduccion_empleado_id: data.deduccion_empleado_id !== undefined ? data.deduccion_empleado_id : current.deduccion_empleado_id,
+         conduce_id: data.conduce_id !== undefined ? data.conduce_id : current.conduce_id,
          proyecto_id: data.proyecto_id !== undefined ? data.proyecto_id : current.proyecto_id,
          orden_compra_id: data.orden_compra_id !== undefined ? data.orden_compra_id : current.orden_compra_id,
       };

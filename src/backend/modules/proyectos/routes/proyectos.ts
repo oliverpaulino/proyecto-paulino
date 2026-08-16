@@ -65,32 +65,21 @@ proyectosRoute.get("/:id/liquidacion", async (c) => {
 // PATCH /api/proyectos/:id — actualizar proyecto (tarifa_servicio, etc.)
 proyectosRoute.patch("/:id", async (c) => {
    try {
+      const session = await auth.api.getSession({ headers: c.req.raw.headers });
+      if (!session?.user) return c.json({ error: "No autenticado" }, 401);
+
       const body = await c.req.json();
-      const proyecto = await service.update(c.req.param("id"), body);
+      const proyecto = await service.update(c.req.param("id"), {
+         ...body,
+         // Quién hizo el cambio de estado: se guarda en el historial. La sesión
+         // vive en la ruta, el repo no la conoce.
+         changed_by: session.user.id,
+         changed_by_name: session.user.name,
+      });
       if (!proyecto) return c.json({ error: "Proyecto no encontrado" }, 404);
       return c.json(proyecto);
    } catch (err: unknown) {
       return c.json({ error: err instanceof Error ? err.message : "Error al actualizar proyecto" }, 400);
-   }
-});
-
-// PATCH /api/proyectos/detalle/cobrable — toggle es_cobrable en lote
-proyectosRoute.patch("/detalle/cobrable", async (c) => {
-   try {
-      const body = await c.req.json();
-      const { ids, es_cobrable } = body as { ids: string[]; es_cobrable: boolean };
-
-      if (!Array.isArray(ids) || ids.length === 0) {
-         return c.json({ error: "Se requiere al menos un ID" }, 400);
-      }
-      if (typeof es_cobrable !== "boolean") {
-         return c.json({ error: "es_cobrable debe ser boolean" }, 400);
-      }
-
-      await service.toggleDetalleCobrable(ids, es_cobrable);
-      return c.json({ success: true });
-   } catch (err: unknown) {
-      return c.json({ error: err instanceof Error ? err.message : "Error al actualizar detalle" }, 500);
    }
 });
 
@@ -117,8 +106,6 @@ proyectosRoute.post("/", async (c) => {
             ...body,
             fecha_inicio: body.fecha_inicio ? new Date(body.fecha_inicio) : new Date(),
             fecha_fin: body.fecha_fin ? new Date(body.fecha_fin) : undefined,
-            cargos_cobrables: body.cargos_cobrables ?? [],
-            gastos_internos: body.gastos_internos ?? [],
          });
          return c.json(proyecto, 201);
       } catch (error: any) {

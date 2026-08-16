@@ -169,20 +169,20 @@ export default function AprobadoresPage() {
       <div className="flex flex-col gap-6 p-6">
          {/* Header */}
          <div>
-            <div className="flex items-center gap-3">
-               <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => router.push("/dashboard/compras")}
-               >
-                  <ArrowLeft className="size-4" />
-               </Button>
-               <Shield className="size-7 text-brand-blue dark:text-blue-400" />
-               <h1 className="text-3xl font-bold text-brand-blue dark:text-white tracking-tight">
-                  Aprobadores de Órdenes
-               </h1>
-            </div>
-            <p className="mt-1.5 ml-24 text-sm text-muted-foreground">
+         <div className="flex flex-wrap items-center gap-3">
+            <Button
+               variant="outline"
+               size="icon"
+               onClick={() => router.push("/dashboard/compras")}
+            >
+               <ArrowLeft className="size-4" />
+            </Button>
+            <Shield className="size-7 text-brand-blue dark:text-blue-400" />
+            <h1 className="text-3xl font-bold text-brand-blue dark:text-white tracking-tight">
+               Aprobadores de Órdenes
+            </h1>
+         </div>
+         <p className="mt-1.5 ml-0 text-sm text-muted-foreground sm:ml-24">
                Usuarios autorizados para firmar y aprobar órdenes de compra
             </p>
             <div className="mt-4 h-px bg-gradient-to-r from-brand-blue via-brand-yellow/50 to-transparent" />
@@ -190,7 +190,7 @@ export default function AprobadoresPage() {
 
          {/* Quick-add self card */}
          {!isSelfApprover && (
-            <div className="flex items-center justify-between rounded-xl border border-brand-yellow/40 bg-brand-yellow/10 px-5 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-yellow/40 bg-brand-yellow/10 px-5 py-4">
                <div>
                   <p className="text-sm font-semibold text-brand-black dark:text-yellow-200">
                      ¿Quieres ser firmante tú mismo?
@@ -216,7 +216,7 @@ export default function AprobadoresPage() {
          )}
 
          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardHeader className="flex flex-col items-start justify-between gap-3 space-y-0 sm:flex-row sm:items-center">
                <div>
                   <CardTitle>Firmantes autorizados</CardTitle>
                   <CardDescription>
@@ -239,8 +239,9 @@ export default function AprobadoresPage() {
                      <Shield className="size-10 opacity-20" />
                      <p className="text-sm">No hay firmantes registrados aún.</p>
                   </div>
-               ) : (
-                  <table className="w-full text-sm">
+                ) : (
+                  <div className="overflow-x-auto">
+                     <table className="w-full text-sm">
                      <thead>
                         <tr className="bg-muted/40 border-b border-border">
                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -281,9 +282,10 @@ export default function AprobadoresPage() {
                            </tr>
 
                         ))}
-                     </tbody>
-                  </table>
-               )}
+                      </tbody>
+                     </table>
+                  </div>
+                )}
             </CardContent>
          </Card>
 

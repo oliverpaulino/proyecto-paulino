@@ -16,6 +16,8 @@ import {
    TipoRolEmpleado,
 } from "@/dtos/employee.dto";
 
+import { useEmployeeStore } from "@/stores/useEmployeeStore";
+
 
 const SELECT_CLASS =
    "h-9 w-full rounded-4xl border border-input bg-input/30 px-3 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 text-foreground";
@@ -87,6 +89,8 @@ export function EmployeeForm({
 
    const isOperador = values.rol === "OPERADOR";
 
+   const { GetOperadorByEmpleadoId } = useEmployeeStore();
+
    useEffect(() => {
       if (existingOperador) {
          setOperadorData({
@@ -104,8 +108,7 @@ export function EmployeeForm({
          hasFetchedOp.current = true;
          setLoadingOp(true);
 
-         fetch(`/api/employees/${initialData.id}/operator`)
-            .then((res) => (res.ok ? res.json() : null))
+         GetOperadorByEmpleadoId(initialData.id)
             .then((data) => {
                if (data) {
                   setOperadorData({
@@ -175,7 +178,7 @@ export function EmployeeForm({
             />
          </div>
 
-         <div className="grid grid-cols-2 gap-3">
+         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
                <Label htmlFor="ef-tipo-id">Tipo ID</Label>
                <select
@@ -252,7 +255,7 @@ export function EmployeeForm({
             </div>
          )}
 
-         <div className="grid grid-cols-2 gap-3">
+         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
                <Label htmlFor="ef-salario">Salario (RD$) *</Label>
                <Input

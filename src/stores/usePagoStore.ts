@@ -22,6 +22,7 @@ type PagosFilters = {
 type DestinoParams = {
    gasto_empresa_id?: string;
    deduccion_empleado_id?: string;
+   conduce_id?: string;
    proyecto_id?: string;
    orden_compra_id?: string;
 };
@@ -48,6 +49,7 @@ type PagoStore = {
    GetPagos: (params?: PagosFilters & { page?: number; limit?: number; force?: boolean }) => Promise<void>;
    GetPagosByOrdenCompra: (ordenCompraId: string, params?: { limit?: number; force?: boolean }) => Promise<void>;
    GetDeletedPagos: (params?: PagosFilters & { page?: number; limit?: number; force?: boolean }) => Promise<void>;
+   GetPagoById: (id: string) => Promise<Pago | null>;
 
    /** Balance polimórfico del destino seleccionado en el form de pago. */
    destinoInfo: InfoDestinoPago | null;
@@ -211,6 +213,21 @@ export const usePagoStore = create<PagoStore>((set, get) => ({
 
    clearDestinoInfo: () => set({ destinoInfo: null }),
 
+   GetPagoById: async (id) => {
+      set({ loading: true });
+      try {
+         const res = await fetch(`${BASE_URL}/${id}`);
+         if (!res.ok) throw new Error("Error al cargar pago");
+         const data: Pago = await res.json();
+         set({ selectedPago: data });
+         return data;
+      } catch (error) {
+         console.error(error);
+         return null;
+      } finally {
+         set({ loading: false });
+      }
+   },
    CreatePago: async (form) => {
       try {
          const res = await fetch(BASE_URL, {

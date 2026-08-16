@@ -8,6 +8,7 @@ import { SelectBuscadorGasto } from "@/components/shared/SelectBuscadorGasto";
 import { SelectBuscadorDeduccion } from "@/components/shared/SelectBuscadorDeduccion";
 import { SelectBuscadorProyecto } from "@/components/shared/selectBuscadorProyecto";
 import { SelectBuscadorOrdenCompra } from "@/components/shared/selectBuscadorOrdenCompra";
+import { SelectBuscadorConduce } from "@/components/shared/selectBuscadorConduce";
 import {
    CreatePagoForm,
    InfoDestinoPago,
@@ -19,6 +20,7 @@ import { GastoInfoCard } from "./info-cards/gasto-info-card";
 import { DeduccionInfoCard } from "./info-cards/deduccion-info-card";
 import { ProyectoInfoCard } from "./info-cards/proyecto-info-card";
 import { OrdenCompraInfoCard } from "./info-cards/orden-compra-info-card";
+import { ConduceInfoCard } from "./info-cards/conduce-info-card";
 import { TIPO_DESTINO_LABEL } from "./info-cards/info-card-shell";
 
 interface PagoFormProps {
@@ -27,6 +29,9 @@ interface PagoFormProps {
    /** Código visible de la OC cuando viene predefinida (pago rápido), para que
     * el selector muestre la referencia aunque esté bloqueado. */
    predefinedOrdenCompraLabel?: string;
+   /** Código visible del gasto cuando viene predefinido (pago rápido desde
+    * gastos), para que el selector muestre la referencia aunque esté bloqueado. */
+   predefinedGastoLabel?: string;
    onSubmit: (data: any) => Promise<void>;
    onCancel?: () => void;
    loading?: boolean;
@@ -35,11 +40,12 @@ interface PagoFormProps {
 const INPUT_CLASS = "h-9 w-full rounded-md border border-input bg-input/30 px-3 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] disabled:opacity-60 disabled:bg-muted";
 const TEXTAREA_CLASS = "min-h-[80px] w-full rounded-md border border-input bg-input/30 px-3 py-2 text-sm outline-none disabled:opacity-60 disabled:bg-muted resize-none";
 
-export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraLabel, onSubmit, onCancel, loading }: PagoFormProps) {
+export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraLabel, predefinedGastoLabel, onSubmit, onCancel, loading }: PagoFormProps) {
    // Determinar estado inicial del tipo de destino basado en la data inicial
    const getInitialDestino = () => {
       if (initialData?.gasto_empresa_id || predefinedValues?.gasto_empresa_id) return 'GASTO';
       if (initialData?.deduccion_empleado_id || predefinedValues?.deduccion_empleado_id) return 'DEDUCCION';
+      if (initialData?.conduce_id || predefinedValues?.conduce_id) return 'CONDUCE';
       if (initialData?.proyecto_id || predefinedValues?.proyecto_id) return 'PROYECTO';
       if (initialData?.orden_compra_id || predefinedValues?.orden_compra_id) return 'ORDEN_COMPRA';
       return '';
@@ -65,6 +71,7 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
       
       gasto_empresa_id: initialData?.gasto_empresa_id ?? predefinedValues?.gasto_empresa_id ?? null,
       deduccion_empleado_id: initialData?.deduccion_empleado_id ?? predefinedValues?.deduccion_empleado_id ?? null,
+      conduce_id: initialData?.conduce_id ?? predefinedValues?.conduce_id ?? null,
       proyecto_id: initialData?.proyecto_id ?? predefinedValues?.proyecto_id ?? null,
       orden_compra_id: initialData?.orden_compra_id ?? predefinedValues?.orden_compra_id ?? null,
    });
@@ -82,6 +89,7 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
       const params: Record<string, string> = {};
       if (values.gasto_empresa_id) params.gasto_empresa_id = values.gasto_empresa_id;
       if (values.deduccion_empleado_id) params.deduccion_empleado_id = values.deduccion_empleado_id;
+      if (values.conduce_id) params.conduce_id = values.conduce_id;
       if (values.proyecto_id) params.proyecto_id = values.proyecto_id;
       if (values.orden_compra_id) params.orden_compra_id = values.orden_compra_id;
 
@@ -94,6 +102,7 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
    }, [
       values.gasto_empresa_id,
       values.deduccion_empleado_id,
+      values.conduce_id,
       values.proyecto_id,
       values.orden_compra_id,
       GetDestinoInfo,
@@ -124,15 +133,16 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
          tipo_movimiento: nextConfig?.tipoMovimientoPosibles[0]?.value ?? prev.tipo_movimiento,
          gasto_empresa_id: null,
          deduccion_empleado_id: null,
+         conduce_id: null,
          proyecto_id: null,
          orden_compra_id: null,
       }));
    };
 
    // Hay que guardar una referencia de destino concreta (gasto, deducción,
-   // proyecto u orden de compra); elegir solo el tipo no desbloquea el resto.
+   // conduce, proyecto u orden de compra); elegir solo el tipo no desbloquea el resto.
    const destinoReferenciaSeleccionada = Boolean(
-      values.gasto_empresa_id || values.deduccion_empleado_id || values.proyecto_id || values.orden_compra_id
+      values.gasto_empresa_id || values.deduccion_empleado_id || values.conduce_id || values.proyecto_id || values.orden_compra_id
    );
 
    const esEntrada = values.tipo_movimiento === "ENTRADA";
@@ -190,9 +200,9 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
 
       if (Number(values.monto_pagado) <= 0) return setError("El monto debe ser mayor a 0.");
       
-      const count = [values.gasto_empresa_id, values.deduccion_empleado_id, values.proyecto_id, values.orden_compra_id].filter(Boolean).length;
+      const count = [values.gasto_empresa_id, values.deduccion_empleado_id, values.conduce_id, values.proyecto_id, values.orden_compra_id].filter(Boolean).length;
       if (count !== 1) {
-         return setError("Debe proveer exactamente una referencia de destino válida (Gasto, Deducción, Proyecto u Orden de Compra).");
+         return setError("Debe proveer exactamente una referencia de destino válida (Gasto, Deducción, Conduce, Proyecto u Orden de Compra).");
       }
 
       if (destinoInfo) {
@@ -201,6 +211,9 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
 
          if (destinoInfo.tipo === 'DEDUCCION' && !esEntrada) {
             return setError("Las deducciones solo aceptan pagos de entrada (el empleado amortiza su deuda).");
+         }
+         if (destinoInfo.tipo === 'CONDUCE' && !esEntrada) {
+            return setError("Los conduces solo aceptan pagos de entrada (el cliente paga).");
          }
          if (destinoInfo.tipo === 'ORDEN_COMPRA' && !esEntrada) {
             return setError("Las órdenes de compra solo aceptan pagos de salida (la empresa paga al proveedor).");
@@ -232,6 +245,7 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
             fecha: values.fecha,
             gasto_empresa_id: values.gasto_empresa_id,
             deduccion_empleado_id: values.deduccion_empleado_id,
+            conduce_id: values.conduce_id,
             proyecto_id: values.proyecto_id,
             orden_compra_id: values.orden_compra_id,
          });
@@ -250,7 +264,7 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
                     <select 
                         value={destinoTipo} 
                         onChange={handleDestinoChange}
-                        disabled={loading || !!initialData || (!!predefinedValues?.orden_compra_id)} 
+                        disabled={loading || !!initialData || (!!predefinedValues?.orden_compra_id) || (!!predefinedValues?.gasto_empresa_id)} 
                         className={INPUT_CLASS}
                         required
                     >
@@ -287,7 +301,7 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
                {destinoTipo === 'GASTO' && (
                   <SelectBuscadorGasto 
                      value={values.gasto_empresa_id}
-                     initialLabel={initialData?.gasto_codigo_referencia ?? ""} 
+                     initialLabel={initialData?.gasto_codigo_referencia ?? predefinedGastoLabel ?? ""} 
                      onChange={(id) => set("gasto_empresa_id", id)} 
                      disabled={isDestinoBuscadorDisabled("gasto_empresa_id")} 
                   />
@@ -316,10 +330,18 @@ export function PagoForm({ initialData, predefinedValues, predefinedOrdenCompraL
                      disabled={isDestinoBuscadorDisabled("orden_compra_id")} 
                   />
                )}
+               {destinoTipo === 'CONDUCE' && (
+                  <SelectBuscadorConduce 
+                     value={values.conduce_id}
+                     initialLabel={initialData?.conduce_numero_referencia ?? ""} 
+                     onChange={(id) => set("conduce_id", id)} 
+                     disabled={isDestinoBuscadorDisabled("conduce_id")} 
+                  />
+               )}
             </div>
 
             {/* ── Sección informativa del destino (balance polimórfico) ── */}
-            {(destinoTipo && (values.gasto_empresa_id || values.deduccion_empleado_id || values.proyecto_id || values.orden_compra_id)) && (
+            {(destinoTipo && (values.gasto_empresa_id || values.deduccion_empleado_id || values.conduce_id || values.proyecto_id || values.orden_compra_id)) && (
                <DestinoInfoCards
                   destinoTipo={destinoTipo}
                   info={destinoInfo}
@@ -407,6 +429,8 @@ function DestinoInfoCards({ destinoTipo, info, loading, esEntrada, monto, adjust
          return <GastoInfoCard {...common} />;
       case "DEDUCCION":
          return <DeduccionInfoCard {...common} />;
+      case "CONDUCE":
+         return <ConduceInfoCard {...common} />;
       case "PROYECTO":
          return <ProyectoInfoCard {...common} />;
       case "ORDEN_COMPRA":

@@ -20,7 +20,7 @@ const TIPOS_MOVIMIENTO = Object.keys(TipoMovimiento) as [keyof typeof TipoMovimi
 export type TipoMetodoPago = keyof typeof MetodoPago;
 export type TipoMovimientoPago = keyof typeof TipoMovimiento;
 
-export const TIPOS_DESTINO_PAGO = ["GASTO", "DEDUCCION", "PROYECTO", "ORDEN_COMPRA"] as const;
+export const TIPOS_DESTINO_PAGO = ["GASTO", "DEDUCCION", "PROYECTO", "ORDEN_COMPRA", "CONDUCE"] as const;
 export type TipoDestinoPago = (typeof TIPOS_DESTINO_PAGO)[number];
 
 /**
@@ -90,6 +90,17 @@ export const ConfigPagoPorDestino: Record<TipoDestinoPago, ConfigPagoDestino> = 
       ],
       tipoMovimientoPosibles: [{ value: "SALIDA", label: TipoMovimiento.SALIDA }],
    },
+   CONDUCE: {
+      recibePago: true,
+      destino: "CONDUCE",
+      tipoMetodoPagoPosible: [
+         { value: "TRANSFERENCIA", label: MetodoPago.TRANSFERENCIA },
+         { value: "EFECTIVO", label: MetodoPago.EFECTIVO },
+         { value: "TARJETA", label: MetodoPago.TARJETA },
+         { value: "CHEQUE", label: MetodoPago.CHEQUE },
+      ],
+      tipoMovimientoPosibles: [{ value: "ENTRADA", label: TipoMovimiento.ENTRADA }],
+   },
 };
 
 export const PagoDTO = z.object({
@@ -107,6 +118,9 @@ export const PagoDTO = z.object({
    deduccion_empleado_id: z.string().uuid().nullable(),
    deduccion_codigo_referencia: z.string().nullable(),
 
+   conduce_id: z.string().uuid().nullable(),
+   conduce_numero_referencia: z.string().nullable(),
+
    proyecto_id: z.string().uuid().nullable(),
    proyecto_codigo_referencia: z.string().nullable(),
 
@@ -122,7 +136,7 @@ export const PagoDTO = z.object({
 });
 
 const ExclusivityRefinement = (data: any) => {
-   const count = [data.gasto_empresa_id, data.deduccion_empleado_id, data.proyecto_id, data.orden_compra_id].filter(Boolean).length;
+   const count = [data.gasto_empresa_id, data.deduccion_empleado_id, data.conduce_id, data.proyecto_id, data.orden_compra_id].filter(Boolean).length;
    return count === 1;
 };
 
@@ -134,17 +148,18 @@ export const BasePagoSchema = z.object({
    fecha: z.coerce.date(),
    gasto_empresa_id: z.string().uuid().optional().nullable(),
    deduccion_empleado_id: z.string().uuid().optional().nullable(),
+   conduce_id: z.string().uuid().optional().nullable(),
    proyecto_id: z.string().uuid().optional().nullable(),
    orden_compra_id: z.string().uuid().optional().nullable(),
 });
 
 export const CreatePagoSchema = BasePagoSchema.refine(ExclusivityRefinement, {
-   message: "Debe proveer exactamente un destino (Gasto, Deducción, Proyecto u Orden de Compra)",
+   message: "Debe proveer exactamente un destino (Gasto, Deducción, Conduce, Proyecto u Orden de Compra)",
    path: ["concepto"]
 });
 
 export const UpdatePagoSchema = BasePagoSchema.partial().refine(ExclusivityRefinement, {
-   message: "Debe proveer exactamente un destino (Gasto, Deducción, Proyecto u Orden de Compra)",
+   message: "Debe proveer exactamente un destino (Gasto, Deducción, Conduce, Proyecto u Orden de Compra)",
    path: ["concepto"]
 });
 

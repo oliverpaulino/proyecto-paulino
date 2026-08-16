@@ -24,6 +24,10 @@ export type Resource =
    | "task"
    | "appointment"
    | "payroll"
+   | "account_payable"
+   | "account_receivable"
+   | "payment"
+   | "expense"
    | "warning";
 
 export type Action =

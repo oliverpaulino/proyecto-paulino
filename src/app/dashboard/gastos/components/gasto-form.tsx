@@ -20,6 +20,7 @@ import type { CreateGastoForm } from "@/dtos/gastos.dto";
 interface GastoFormProps {
    initialData?: any;
    predefinedValues?: Partial<CreateGastoForm>;
+   predefinedLabels?: { proyecto?: string };
    onSubmit: (data: any) => Promise<void>;
    onCancel?: () => void;
    loading?: boolean;
@@ -28,7 +29,7 @@ interface GastoFormProps {
 const INPUT_CLASS = "h-9 w-full rounded-md border border-input bg-input/30 px-3 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] disabled:opacity-60 disabled:bg-muted";
 const TEXTAREA_CLASS = "min-h-[80px] w-full rounded-md border border-input bg-input/30 px-3 py-2 text-sm outline-none disabled:opacity-60 disabled:bg-muted resize-none";
 
-export function GastoForm({ initialData, predefinedValues, onSubmit, onCancel, loading }: GastoFormProps) {
+export function GastoForm({ initialData, predefinedValues, predefinedLabels, onSubmit, onCancel, loading }: GastoFormProps) {
    const router = useRouter();
    const { CreateCategoria } = useCategoriaGastoStore();
    const [isCategoriaModalOpen, setIsCategoriaModalOpen] = useState(false);
@@ -49,6 +50,23 @@ export function GastoForm({ initialData, predefinedValues, onSubmit, onCancel, l
       equipo_id: initialData?.equipo_id ?? predefinedValues?.equipo_id ?? null,
    });
 
+   // ── Facturación por cantidad ──
+   // Si el gasto se cobra varias veces (cantidad > 1), el monto total se
+   // calcula automáticamente como cantidad × precio unitario.
+   const [porCantidad, setPorCantidad] = useState<boolean>(() => {
+      const c = initialData?.cantidad;
+      return c != null && Number(c) > 1;
+   });
+   const [cantidad, setCantidad] = useState<string>(
+      initialData?.cantidad != null ? String(initialData.cantidad) : "1"
+   );
+   const [montoUnitario, setMontoUnitario] = useState<string>(
+      initialData?.monto_unitario != null ? String(initialData.monto_unitario) : ""
+   );
+
+   const cantidadNum = Number(cantidad) || 0;
+   const montoUnitarioNum = Number(montoUnitario) || 0;
+
    const [asociarEmpleado, setAsociarEmpleado] = useState(false);
    const [deduccion, setDeduccion] = useState({
       empleado_id: null as string | null,
@@ -64,13 +82,19 @@ export function GastoForm({ initialData, predefinedValues, onSubmit, onCancel, l
 
    // ── Cobrable al Cliente ──
    const [cobrableProyecto, setCobrableProyecto] = useState<boolean>(
-      initialData?.cobrable_proyecto ?? false
+      initialData?.cobrable_proyecto ?? predefinedValues?.cobrable_proyecto ?? false
    );
    const [cobrableMonto, setCobrableMonto] = useState<string>(
       initialData?.cobrable_proyecto
          ? String(initialData.cobrable_monto ?? initialData.monto_total ?? "")
-         : "0"
+         : predefinedValues?.cobrable_proyecto
+            ? String(predefinedValues.cobrable_monto ?? predefinedValues.monto_total ?? "")
+            : "0"
    );
+   // El usuario puede editar a mano el monto a cobrar; mientras no lo toque,
+   // se mantiene sincronizado con el monto total del gasto. En modo por
+   // cantidad se fuerza la sincronización para que el cobro siga el cálculo.
+   const [cobrableMontoTouched, setCobrableMontoTouched] = useState(() => !!initialData?.cobrable_proyecto && !porCantidad);
 
    const [error, setError] = useState<string | null>(null);
 
@@ -125,8 +149,35 @@ export function GastoForm({ initialData, predefinedValues, onSubmit, onCancel, l
    // Al activar/desactivar el interruptor cobrable
    const handleCobrableToggle = (checked: boolean) => {
       setCobrableProyecto(checked);
+      setCobrableMontoTouched(false);
       setCobrableMonto(checked ? String(values.monto_total ?? "") : "0");
    };
+
+   // Mientras el usuario no toque el monto a cobrar, se sugiere el total del gasto.
+   useEffect(() => {
+      if (!cobrableProyecto || cobrableMontoTouched) return;
+      setCobrableMonto(String(values.monto_total ?? ""));
+   }, [cobrableProyecto, values.monto_total, cobrableMontoTouched]);
+
+   // En modo "por cantidad", el monto total se calcula como cantidad × precio.
+   useEffect(() => {
+      if (!porCantidad) return;
+      if (cantidadNum > 0 && montoUnitarioNum > 0) {
+         set("monto_total", String(cantidadNum * montoUnitarioNum));
+      }
+   }, [porCantidad, cantidadNum, montoUnitarioNum]);
+
+   function handlePorCantidadToggle(checked: boolean) {
+      setPorCantidad(checked);
+      setCobrableMontoTouched(false);
+      if (checked) {
+         if (cantidadNum < 1) setCantidad("1");
+      } else {
+         // Vuelve al modo manual: conserva el total calculado, cantidad 1.
+         setCantidad("1");
+         setMontoUnitario("");
+      }
+   }
 
    // Al activar la asociación, precarga la deducción con los datos del gasto
    const handleAsociarToggle = (checked: boolean) => {
@@ -167,6 +218,11 @@ export function GastoForm({ initialData, predefinedValues, onSubmit, onCancel, l
       setError(null);
 
       if (!values.categoria_gasto_id) return setError("Debe seleccionar una categoría de gasto.");
+
+      if (porCantidad) {
+         if (cantidadNum < 1) return setError("La cantidad debe ser al menos 1.");
+         if (montoUnitarioNum <= 0) return setError("El precio unitario debe ser mayor a 0.");
+      }
       if (Number(values.monto_total) <= 0) return setError("El monto debe ser mayor a 0.");
 
       if (cobrableProyecto) {
@@ -200,6 +256,8 @@ export function GastoForm({ initialData, predefinedValues, onSubmit, onCancel, l
             equipo_id: values.equipo_id,
             cobrable_proyecto: cobrableProyecto,
             cobrable_monto: cobrableProyecto ? cobrableMontoNum : 0,
+            cantidad: porCantidad ? cantidadNum : 1,
+            monto_unitario: porCantidad ? (montoUnitarioNum > 0 ? montoUnitarioNum : null) : null,
          };
 
          if (asociarEmpleado && deduccion.empleado_id) {
@@ -240,8 +298,65 @@ export function GastoForm({ initialData, predefinedValues, onSubmit, onCancel, l
                 </div>
                 <div className="flex flex-col gap-1.5">
                    <Label>Monto Total ($) *</Label>
-                   <Input type="number" step="0.01" min="0.01" value={values.monto_total} onChange={(e) => set("monto_total", e.target.value)} required disabled={isDisabled("monto_total")} className={INPUT_CLASS} />
+                   <Input type="number" step="0.01" min="0.01" value={values.monto_total} onChange={(e) => set("monto_total", e.target.value)} required disabled={isDisabled("monto_total") || porCantidad} className={INPUT_CLASS} />
+                   {porCantidad && (
+                      <p className="text-xs text-muted-foreground">
+                         Calculado automáticamente: {cantidadNum} × ${montoUnitarioNum.toLocaleString("en-US", { minimumFractionDigits: 2 })}.
+                      </p>
+                   )}
                 </div>
+            </div>
+
+            {/* ── Facturación por cantidad ── */}
+            <div className="rounded-md border border-border bg-muted/20 p-4 flex flex-col gap-3">
+               <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-0.5">
+                     <Label htmlFor="por-cantidad" className="font-semibold">
+                        Se cobra varias veces (por cantidad)
+                     </Label>
+                     <p className="text-sm text-muted-foreground">
+                        {porCantidad
+                           ? "El monto total se calcula como cantidad × precio unitario."
+                           : "Se registra un solo ítem con el monto total a mano."}
+                     </p>
+                  </div>
+                  <Switch
+                     id="por-cantidad"
+                     checked={porCantidad}
+                     onCheckedChange={handlePorCantidadToggle}
+                     disabled={loading}
+                  />
+               </div>
+
+               {porCantidad && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-border/50 pt-3">
+                     <div className="flex flex-col gap-1.5">
+                        <Label>Cantidad *</Label>
+                        <Input
+                           type="number"
+                           min="1"
+                           step="1"
+                           value={cantidad}
+                           onChange={(e) => setCantidad(e.target.value)}
+                           disabled={loading}
+                           className={INPUT_CLASS}
+                        />
+                     </div>
+                     <div className="flex flex-col gap-1.5">
+                        <Label>Precio Unitario ($) *</Label>
+                        <Input
+                           type="number"
+                           min="0"
+                           step="0.01"
+                           value={montoUnitario}
+                           onChange={(e) => setMontoUnitario(e.target.value)}
+                           disabled={loading}
+                           className={INPUT_CLASS}
+                           placeholder="0.00"
+                        />
+                     </div>
+                  </div>
+               )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -290,7 +405,7 @@ export function GastoForm({ initialData, predefinedValues, onSubmit, onCancel, l
                   <Label>Proyecto Asociado</Label>
                   <SelectBuscadorProyecto
                      value={values.proyecto_id}
-                     initialLabel={initialData?.proyecto_codigo_referencia ?? ""}
+                     initialLabel={initialData?.proyecto_codigo_referencia ?? predefinedLabels?.proyecto ?? ""}
                      onChange={(id) => set("proyecto_id", id)}
                      disabled={isDisabled("proyecto_id")}
                   />
@@ -311,7 +426,7 @@ export function GastoForm({ initialData, predefinedValues, onSubmit, onCancel, l
                      id="cobrable-proyecto"
                      checked={cobrableProyecto}
                      onCheckedChange={handleCobrableToggle}
-                     disabled={loading}
+                     disabled={isDisabled("cobrable_proyecto")}
                   />
                </div>
 
@@ -324,14 +439,19 @@ export function GastoForm({ initialData, predefinedValues, onSubmit, onCancel, l
                         step="0.01"
                         min="0"
                         max={gastoMonto > 0 ? gastoMonto : undefined}
-                        value={cobrableMonto}
-                        onChange={(e) => setCobrableMonto(e.target.value)}
-                        disabled={loading}
-                        className={INPUT_CLASS}
-                     />
-                     <p className="text-xs text-muted-foreground">
-                        No puede ser menor a 0 ni mayor a ${gastoMonto.toLocaleString("en-US", { minimumFractionDigits: 2 })}.
-                     </p>
+                         value={cobrableMonto}
+                         onChange={(e) => {
+                            setCobrableMonto(e.target.value);
+                            setCobrableMontoTouched(true);
+                         }}
+                         disabled={loading || porCantidad}
+                         className={INPUT_CLASS}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                         {porCantidad
+                            ? "Se cobra el total calculado (cantidad × precio unitario)."
+                            : `No puede ser menor a 0 ni mayor a $${gastoMonto.toLocaleString("en-US", { minimumFractionDigits: 2 })}.`}
+                      </p>
                   </div>
                )}
             </div>

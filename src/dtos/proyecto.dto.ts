@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { ConduceDTO } from "./conduce.dto";
+import type { Gasto } from "./gastos.dto";
 
 // ─── Creación (formulario simplificado: ya NO incluye tarifas ni equipos) ───
 export const CreateProyectoDTOSchema = z.object({
@@ -9,24 +10,6 @@ export const CreateProyectoDTOSchema = z.object({
    fecha_inicio: z.string().optional(),
    fecha_fin: z.string().nullable().optional(),
    tarifa_servicio: z.number().min(0).optional(),
-   cargos_cobrables: z
-      .array(
-         z.object({
-            descripcion: z.string().min(1, "La descripción es requerida"),
-            cantidad: z.number().positive("La cantidad debe ser mayor a 0"),
-            precio_unitario: z.number().min(0),
-         })
-      )
-      .optional(),
-   gastos_internos: z
-      .array(
-         z.object({
-            descripcion: z.string().min(1, "La descripción es requerida"),
-            cantidad: z.number().positive("La cantidad debe ser mayor a 0"),
-            precio_unitario: z.number().min(0),
-         })
-      )
-      .optional(),
 });
 export interface UpdateProyectoForm {
    nombre?: string;
@@ -37,24 +20,22 @@ export interface UpdateProyectoForm {
    fecha_inicio?: string;
    cliente_id?: string;
    cliente_nombre?: string;
+   porcentaje_avance?: number;
 }
 export type CreateProyectoForm = z.infer<typeof CreateProyectoDTOSchema>;
-export type LineItemForm = { descripcion: string; cantidad: number; precio_unitario: number };
 
 // ─── Lectura ─────────────────────────────────────────────────────────────
 export type EstadoProyecto = "BORRADOR" | "COMPLETADO" | "EN PROGRESO" | "CANCELADO";
 export const EstadoProyectoArray: EstadoProyecto[] = ["BORRADOR", "COMPLETADO", "EN PROGRESO", "CANCELADO"];
 
-export interface ProyectoDetalle {
+export interface ProyectoEstadoHistorial {
    id: string;
    proyecto_id: string;
-   descripcion: string;
-   cantidad: number;
-   precio_unitario: number;
-   subtotal: number;
-   es_cobrable: boolean;
+   estado_anterior: EstadoProyecto | null;
+   estado_nuevo: EstadoProyecto;
+   changed_by: string | null;
+   changed_by_name: string | null;
    created_at: string;
-   updated_at: string;
 }
 
 interface ProyectoBase {
@@ -68,18 +49,18 @@ interface ProyectoBase {
    total_cobrable: number;
    total_gasto_interno: number;
    total_equipos: number; // ← NUEVO, para la columna "Total en Camiones" del historial
+   total_costo_operador: number; // Σ cantidad × monto_pago (lo que se paga a los choferes)
    rentabilidad: number;
+   porcentaje_avance: number; // 0-100, ajustable con el slider de la vista general
    notas: string | null;
    fecha_inicio: string;
    fecha_fin: string | null;
-   detalle: ProyectoDetalle[];
    conduces: ConduceDTO[]; // ← reemplaza a equiposDetalle
+   gastos?: Gasto[]; // ← gastos del módulo Gastos vinculados a este proyecto
+   historial_estados?: ProyectoEstadoHistorial[];
    created_at: string;
    updated_at: string;
 }
-
-
-
 
 export type Proyecto = ProyectoBase;
 
@@ -89,11 +70,12 @@ export interface LiquidacionExpress {
    proyecto_id: string;
    cliente_nombre: string;
    tarifa_servicio: number;
-   cargos_cobrables: ProyectoDetalle[];
-   gastos_internos: ProyectoDetalle[];
+   gastos_cobrables: Gasto[];
+   gastos_incobrables: Gasto[];
    conduces: ConduceDTO[];
    total_cobrable: number;
    total_gasto_interno: number;
+   total_costo_operador: number;
    rentabilidad: number;
    fecha: string;
 }

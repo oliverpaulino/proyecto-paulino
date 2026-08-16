@@ -231,9 +231,19 @@ export const useConduceStore = create<ConduceStore>((set, get) => ({
             const errorText = await res.text();
             throw new Error(`Error ${res.status}: ${errorText}`);
          }
-         const data: ConduceDTO = await res.json();
-         set((s) => ({ conduces: s.conduces.map((c) => (c.id === id ? data : c)) }));
-         return data;
+          const data: ConduceDTO = await res.json();
+          set((s) => ({
+             conduces: s.conduces.map((c) => (c.id === id ? data : c)),
+             // La tabla del detalle de proyecto lee de `conducesPorCategoria`;
+             // sin esta actualización, el precio editado no se reflejaba.
+             conducesPorCategoria: Object.fromEntries(
+                Object.entries(s.conducesPorCategoria).map(([cat, items]) => [
+                   cat,
+                   items.map((c) => (c.id === id ? data : c)),
+                ])
+             ),
+          }));
+          return data;
       } catch (error) {
          return error as Error;
       }

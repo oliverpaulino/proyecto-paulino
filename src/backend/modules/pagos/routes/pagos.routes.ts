@@ -18,6 +18,7 @@ function extractParams(c: any) {
       end: c.req.query("end") ? new Date(`${c.req.query("end")}T23:59:59.999`) : undefined,
       gasto_empresa_id: c.req.query("gasto_empresa_id"),
       deduccion_empleado_id: c.req.query("deduccion_empleado_id"),
+      conduce_id: c.req.query("conduce_id"),
       orden_compra_id: c.req.query("orden_compra_id"),
       proyecto_id: c.req.query("proyecto_id"),
       // Pagos vinculados a un equipo (vía gasto / deducción / orden de compra).
@@ -45,8 +46,8 @@ pagosRoute.get("/deleted", async (c) => {
 });
 
 /**
- * Información polimórfica del destino de un pago (Gasto, Deducción, Proyecto
- * u Orden de Compra): monto total, balance pendiente, cobrable, etc.
+ * Información polimórfica del destino de un pago (Gasto, Deducción, Proyecto,
+ * Orden de Compra o Conduce): monto total, balance pendiente, cobrable, etc.
  * GET /api/pagos/destino-info?gasto_empresa_id=&proyecto_id=&...
  */
 pagosRoute.get("/destino-info", async (c) => {
@@ -54,6 +55,7 @@ pagosRoute.get("/destino-info", async (c) => {
       const params = {
          gasto_empresa_id: c.req.query("gasto_empresa_id") ?? null,
          deduccion_empleado_id: c.req.query("deduccion_empleado_id") ?? null,
+         conduce_id: c.req.query("conduce_id") ?? null,
          proyecto_id: c.req.query("proyecto_id") ?? null,
          orden_compra_id: c.req.query("orden_compra_id") ?? null,
       };
@@ -61,7 +63,7 @@ pagosRoute.get("/destino-info", async (c) => {
       const count = Object.values(params).filter(Boolean).length;
       if (count !== 1) {
          return c.json(
-            { error: "Debe proporcionar exactamente un destino (gasto_empresa_id, deduccion_empleado_id, proyecto_id u orden_compra_id)." },
+            { error: "Debe proporcionar exactamente un destino (gasto_empresa_id, deduccion_empleado_id, conduce_id, proyecto_id u orden_compra_id)." },
             400
          );
       }

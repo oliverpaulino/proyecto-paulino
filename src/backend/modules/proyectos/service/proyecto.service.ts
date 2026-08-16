@@ -37,6 +37,20 @@ export class ProyectoService {
    }
 
    async update(id: string, data: UpdateProyectoDTO): Promise<ProyectoProps | null> {
+      const estado = await this.repo.getEstado(id);
+      if (!estado) return null;
+
+      // Política de bloqueo: un proyecto COMPLETADO está cerrado. Lo único que
+      // se le puede hacer es cambiarle el estado (para reabrirlo), y en ese
+      // mismo request se permiten también otros campos (notas, nombre, etc.).
+      // Cualquier otro cambio en frío se rechaza.
+      if (estado === "COMPLETADO") {
+         const cambiaEstado = data.estado !== undefined && data.estado !== "COMPLETADO";
+         if (!cambiaEstado) {
+            throw new Error("El proyecto está COMPLETADO. Para editarlo, primero cámbialo a otro estado.");
+         }
+      }
+
       const proyecto = await this.repo.update(id, data);
       if (!proyecto) return null;
       const conduces = await this.conduceRepo.findByProyectoId(id);
@@ -46,11 +60,9 @@ export class ProyectoService {
    async create(data: CreateProyectoDTO): Promise<ProyectoProps> {
       if (!data.cliente_id?.trim()) throw new Error("El cliente es requerido");
       if (!data.nombre?.trim()) throw new Error("El nombre es requerido");
-      this.#validateItems(data.cargos_cobrables || [], "cargo cobrable");
-      this.#validateItems(data.gastos_internos || [], "gasto interno");
 
       const proyecto = await this.repo.create(data);
-      return { ...proyecto, conduces: [] }; // recién creado, aún no tiene conduces
+      return { ...proyecto, conduces: [], gastos: [] }; // recién creado, aún no tiene conduces ni gastos
    }
 
    async getLiquidacion(id: string): Promise<LiquidacionFacade | null> {
@@ -64,14 +76,14 @@ export class ProyectoService {
       return { ...liquidacion, conduces };
    }
 
-    async recalcularTotales(id: string): Promise<ProyectoTotales> {
-       return this.repo.recalcularTotales(id);
-    }
+   async recalcularTotales(id: string): Promise<ProyectoTotales> {
+      return this.repo.recalcularTotales(id);
+   }
 
-    async toggleDetalleCobrable(ids: string[], es_cobrable: boolean): Promise<void> {
-       if (ids.length === 0) return;
-       return this.repo.toggleDetalleCobrable(ids, es_cobrable);
-    }
+   async recalcularProyectosDelEmpleado(empleadoId: string): Promise<void> {
+      const ids = await this.repo.findProyectoIdsByEmpleado(empleadoId);
+      await Promise.all(ids.map((pid) => this.repo.recalcularTotales(pid)));
+   }
 
    #validateItems(
 
@@ -86,6 +98,20 @@ export class ProyectoService {
             throw new Error(`${tipo} ${i + 1}: la cantidad debe ser mayor a 0`);
          if (item.precio_unitario < 0)
             throw new Error(`${tipo} ${i + 1}: el precio unitario debe ser mayor o igual a 0`);
+      }
+   }
+
+   // Guard compartido con las rutas: rechaza mutaciones cuando el proyecto
+   // está COMPLETADO. Las rutas de archivos/tarifas/conduces lo llaman con
+   // el proyecto que vienen tocando.
+   async assertEditable(proyectoId: string): Promise<void> {
+      await this.#assertEditable(proyectoId);
+   }
+
+   async #assertEditable(proyectoId: string): Promise<void> {
+      const estado = await this.repo.getEstado(proyectoId);
+      if (estado === "COMPLETADO") {
+         throw new Error("El proyecto está COMPLETADO y no puede editarse. Cámbialo a otro estado para continuar.");
       }
    }
 }

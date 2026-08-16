@@ -113,8 +113,8 @@ export function SelectBuscadorClient({
          </div>
 
          {isOpen && (
-            <div className="absolute z-50 mt-1 max-h-72 w-full flex flex-col overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md">
-               <div className="overflow-y-auto max-h-60 p-1">
+            <div className="absolute z-50 mt-1 max-h-[50dvh] w-full flex flex-col overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md">
+               <div className="overflow-y-auto max-h-[42dvh] p-1">
                   {loading && Clients.length === 0 ? (
                      <div className="p-4 text-center text-sm text-muted-foreground">Buscando...</div>
                   ) : Clients.length > 0 ? (

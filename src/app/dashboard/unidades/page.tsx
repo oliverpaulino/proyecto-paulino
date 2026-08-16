@@ -121,7 +121,7 @@ export default function UnidadesPage() {
          </div>
 
          {/* Search + New */}
-         <div className="flex items-center gap-3">
+         <div className="flex flex-wrap items-center gap-3">
             <TableSearch
                value={searchInput}
                onValueChange={setSearchInput}

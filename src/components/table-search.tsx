@@ -83,7 +83,7 @@ export function TableSearch({
 
    return (
       <div
-         className={`border w-[20vw] px-2 pl-4 rounded-lg flex flex-row justify-between py-1 items-center ${className}`}
+         className={`border w-full px-2 pl-4 rounded-lg flex flex-row justify-between py-1 items-center ${className}`}
       >
          <input
             type="text"

@@ -22,6 +22,8 @@ interface Props {
    conduce: ConduceDTO | null;
    open: boolean;
    onOpenChange: (open: boolean) => void;
+   /** Se dispara tras guardar con éxito (para refrescar listas/totales). */
+   onSaved?: () => void;
 }
 
 /**
@@ -32,7 +34,7 @@ interface Props {
  * backend, conduce.infraestructure.ts update(), ya soporta cambiar
  * equipo_id y recalcula categoria_equipo_id solo, por si luego lo agregas).
  */
-export function ConduceEditDialog({ conduce, open, onOpenChange }: Props) {
+export function ConduceEditDialog({ conduce, open, onOpenChange, onSaved }: Props) {
    const { UpdateConduce } = useConduceStore();
    const [guardando, setGuardando] = useState(false);
    const [error, setError] = useState<string | null>(null);
@@ -139,12 +141,13 @@ export function ConduceEditDialog({ conduce, open, onOpenChange }: Props) {
          // backend recalcule los totales tanto del proyecto anterior como
          // del nuevo si el conduce se reasignó.
          const result = await UpdateConduce(conduce.id, form as any, conduce.proyecto_id ?? null);
-         if (result instanceof Error) {
-            setError(result.message);
-            return;
-         }
-         onOpenChange(false);
-      } finally {
+          if (result instanceof Error) {
+             setError(result.message);
+             return;
+          }
+          onOpenChange(false);
+          onSaved?.();
+       } finally {
          setGuardando(false);
       }
    };
@@ -159,8 +162,8 @@ export function ConduceEditDialog({ conduce, open, onOpenChange }: Props) {
                </DialogDescription>
             </DialogHeader>
 
-            <div className="grid grid-cols-2 gap-3 py-2">
-               <div className="col-span-2 space-y-1">
+            <div className="grid grid-cols-1 gap-3 py-2 sm:grid-cols-2">
+               <div className="sm:col-span-2 space-y-1">
                   <label className="text-xs font-medium text-muted-foreground">Cliente</label>
                   <SelectBuscadorClient
                      value={clienteId}
@@ -176,7 +179,7 @@ export function ConduceEditDialog({ conduce, open, onOpenChange }: Props) {
                   />
                </div>
 
-               <div className="col-span-2 space-y-1">
+               <div className="sm:col-span-2 space-y-1">
                   <label className="text-xs font-medium text-muted-foreground">Proyecto</label>
                   <SelectBuscadorProyecto
                      value={proyectoId}
@@ -275,7 +278,7 @@ export function ConduceEditDialog({ conduce, open, onOpenChange }: Props) {
                   </>
                )}
 
-               <div className="col-span-2 flex items-center gap-2">
+               <div className="sm:col-span-2 flex items-center gap-2">
                   <input
                      id="es_cobrable"
                      type="checkbox"
@@ -288,7 +291,7 @@ export function ConduceEditDialog({ conduce, open, onOpenChange }: Props) {
                   </label>
                </div>
 
-               <div className="col-span-2 space-y-1">
+               <div className="sm:col-span-2 space-y-1">
                   <label className="text-xs font-medium text-muted-foreground">Observaciones</label>
                   <Textarea value={observaciones} onChange={(e) => setObservaciones(e.target.value)} className="min-h-16" />
                </div>

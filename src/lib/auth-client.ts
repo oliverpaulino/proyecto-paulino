@@ -11,10 +11,10 @@ export const authClient = createAuthClient({
   plugins: [
     adminClient({ ac, roles }),
     inferAdditionalFields<typeof auth>(),
-    // Types the `permissions` map that `customSession` attaches server-side,
-    // so `useSession().data.permissions` is available to `usePermissions`.
     customSessionClient<typeof auth>(),
   ],
+  // Usamos una variable pública o dejamos que asuma el dominio actual
+  baseURL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
 });
 
 export const { signIn, signUp, useSession } = authClient;

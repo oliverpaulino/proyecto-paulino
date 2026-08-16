@@ -1,15 +1,21 @@
-import { Kysely } from "kysely";
+import { Kysely, sql } from "kysely";
 import type { DB } from "@/backend/database";
 import type {
    IProyectoRepository,
    ProyectoProps,
-   ProyectoDetalleProps,
+   ProyectoEstadoHistorialProps,
    ProyectoTotales,
    LiquidacionFacade,
    CreateProyectoDTO,
    UpdateProyectoDTO,
+   EstadoProyecto,
 } from "../domain/proyecto.domain";
 import { ConduceProps } from "../../conduce/domain/conduce.domain";
+import { GastoProps } from "../../gastos/domain/gastos.domain";
+
+const num = (v: unknown): number => Number(v ?? 0) || 0;
+
+const ESTADOS_VALIDOS = new Set(["BORRADOR", "COMPLETADO", "EN PROGRESO", "CANCELADO"]);
 
 export class KyselyProyectoRepository implements IProyectoRepository {
 
@@ -51,7 +57,9 @@ export class KyselyProyectoRepository implements IProyectoRepository {
             "proyecto.total_cobrable",
             "proyecto.total_gasto_interno",
             "proyecto.total_equipos",
+            "proyecto.total_costo_operador",
             "proyecto.rentabilidad",
+            "proyecto.porcentaje_avance",
             "proyecto.notas",
             "proyecto.fecha_inicio",
             "proyecto.fecha_fin",
@@ -92,7 +100,9 @@ export class KyselyProyectoRepository implements IProyectoRepository {
             "proyecto.total_cobrable",
             "proyecto.total_gasto_interno",
             "proyecto.total_equipos",
+            "proyecto.total_costo_operador",
             "proyecto.rentabilidad",
+            "proyecto.porcentaje_avance",
             "proyecto.notas",
             "proyecto.fecha_inicio",
             "proyecto.fecha_fin",
@@ -104,16 +114,41 @@ export class KyselyProyectoRepository implements IProyectoRepository {
 
       if (!row) return null;
 
-      const detalle = await this.db
-         .selectFrom("proyecto_detalle")
+      // Historial de cambios de estado, más reciente primero. Se usa para
+      // mostrar el último movimiento en la vista de configuración.
+      const historial = await this.db
+         .selectFrom("proyecto_estado_historial")
          .selectAll()
          .where("proyecto_id", "=", id)
+         .orderBy("created_at", "desc")
+         .execute();
+
+      const gastos = await this.db
+         .selectFrom("gasto")
+         .innerJoin("categoria_gasto", "categoria_gasto.id", "gasto.categoria_gasto_id")
+         .leftJoin("proyecto", "proyecto.id", "gasto.proyecto_id")
+         .leftJoin("equipo", "equipo.id", "gasto.equipo_id")
+         .leftJoin("orden_compra", "orden_compra.id", "gasto.orden_compra_id")
+         .selectAll("gasto")
+         .select([
+            "categoria_gasto.nombre as categoria_gasto_nombre",
+            "categoria_gasto.grupo as categoria_gasto_grupo",
+            "proyecto.referencia as proyecto_codigo_referencia",
+            "equipo.referencia as equipo_codigo_referencia",
+            "orden_compra.referencia as orden_compra_codigo_referencia",
+         ])
+         .where("gasto.proyecto_id", "=", id)
+         .where("gasto.deleted_at", "is", null)
+         .orderBy("gasto.fecha", "desc")
          .execute();
 
       // conduces se deja en [] aquí a propósito: ProyectoService.getById()
       // lo combina llamando a ConduceRepository.findByProyectoId(), para no
       // duplicar el mapeo de dos subtipos (CAMION/EQUIPO_PESADO) en dos sitios.
-      return this.#mapRow(row, detalle, []);
+      return {
+         ...this.#mapRow(row, [], historial),
+         gastos: gastos.map((g) => this.#mapGasto(g)),
+      };
    }
 
    async findByClientId(clienteId: string, search?: string, pagination?: { page: number, limit: number }): Promise<ProyectoProps[]> {
@@ -131,7 +166,9 @@ export class KyselyProyectoRepository implements IProyectoRepository {
             "proyecto.total_cobrable",
             "proyecto.total_gasto_interno",
             "proyecto.total_equipos",
+            "proyecto.total_costo_operador",
             "proyecto.rentabilidad",
+            "proyecto.porcentaje_avance",
             "proyecto.notas",
             "proyecto.fecha_inicio",
             "proyecto.fecha_fin",
@@ -153,80 +190,141 @@ export class KyselyProyectoRepository implements IProyectoRepository {
       return rows.map((r) => this.#mapRow(r, [], []));
    }
 
-   // ── Creación: SOLO cabecera + cargos/gastos manuales. El equipo ya no se ──
-   // ── registra aquí: se agrega después vía conduces (ver conduce.service). ──
+   // ── Creación: SOLO cabecera. El equipo y los cargos/cobrables se agregan ──
+   // ── después vía conduces y gastos (ver conduce.service / gastos.service). ──
    async create(data: CreateProyectoDTO): Promise<ProyectoProps> {
-      const header = await this.db.transaction().execute(async (trx) => {
-         const inserted = await trx
-            .insertInto("proyecto")
-            .values({
-               nombre: data.nombre,
-               estado: "BORRADOR", // antes era COMPLETADO fijo; ahora el proyecto vive en el tiempo mientras se agregan conduces
-               cliente_id: data.cliente_id,
-               tarifa_servicio: data.tarifa_servicio ?? 0,
-               notas: data.notas ?? null,
-               fecha_inicio: data.fecha_inicio ?? new Date(),
-               fecha_fin: null,
+      const inserted = await this.db
+         .insertInto("proyecto")
+         .values({
+            nombre: data.nombre,
+            estado: "BORRADOR", // antes era COMPLETADO fijo; ahora el proyecto vive en el tiempo mientras se agregan conduces
+            cliente_id: data.cliente_id,
+            tarifa_servicio: data.tarifa_servicio ?? 0,
+            notas: data.notas ?? null,
+            fecha_inicio: data.fecha_inicio ?? new Date(),
+            fecha_fin: null,
+         })
+         .returningAll()
+         .executeTakeFirstOrThrow();
 
-            })
-            .returningAll()
-            .executeTakeFirstOrThrow();
-
-         const itemsCobrables = data.cargos_cobrables.map((c) => ({
-            proyecto_id: inserted.id,
-            descripcion: c.descripcion,
-            cantidad: c.cantidad,
-            precio_unitario: c.precio_unitario,
-            subtotal: c.cantidad * c.precio_unitario,
-            es_cobrable: true,
-         }));
-         const itemsInternos = data.gastos_internos.map((g) => ({
-            proyecto_id: inserted.id,
-            descripcion: g.descripcion,
-            cantidad: g.cantidad,
-            precio_unitario: g.precio_unitario,
-            subtotal: g.cantidad * g.precio_unitario,
-            es_cobrable: false,
-         }));
-         const allItems = [...itemsCobrables, ...itemsInternos];
-
-         if (allItems.length > 0) {
-            await trx.insertInto("proyecto_detalle").values(allItems).execute();
-         }
-
-         return inserted;
-      });
-
-      // Los totales (tarifa_servicio + cargos - gastos) se calculan con la
+      // Los totales (tarifa_servicio + cobrables - gastos) se calculan con la
       // misma rutina que usan los conduces, para no duplicar la fórmula.
-      await this.recalcularTotales(header.id);
+      await this.recalcularTotales(inserted.id);
 
-      const proyecto = await this.findById(header.id);
+      const proyecto = await this.findById(inserted.id);
       return proyecto!;
    }
 
    async update(id: string, data: UpdateProyectoDTO): Promise<ProyectoProps | null> {
-      const safeData: Record<string, unknown> = {};
-      if (data.nombre !== undefined) safeData.nombre = data.nombre;
-      if (data.estado !== undefined) safeData.estado = data.estado;
-      if (data.tarifa_servicio !== undefined) safeData.tarifa_servicio = data.tarifa_servicio;
-      if (data.notas !== undefined) safeData.notas = data.notas;
-      if (data.fecha_fin !== undefined) safeData.fecha_fin = data.fecha_fin;
-      // fecha_inicio llega como "YYYY-MM-DD" (input date). Se guarda tal cual,
-      // sin pasar por new Date(), para que Postgres no convierta según la zona
-      // horaria del servidor y corra la fecha un día.
-      if (data.fecha_inicio !== undefined) safeData.fecha_inicio = data.fecha_inicio;
-      if (data.cliente_id !== undefined) safeData.cliente_id = data.cliente_id;
-      safeData.updated_at = new Date();
+      // Si el estado va a cambiar hay que anotarlo en el historial (quién y
+      // cuándo). Se lee ANTES de escribir, dentro de la misma transacción,
+      // para que un DELETE/UPDATE concurrente no deje la bitácora a medias.
+      const result = await this.db.transaction().execute(async (trx) => {
+         const anterior = await trx
+            .selectFrom("proyecto")
+            .select(["estado", "porcentaje_avance"])
+            .where("id", "=", id)
+            .executeTakeFirst();
 
-      await this.db
-         .updateTable("proyecto")
-         .set(safeData)
-         .where("id", "=", id)
-         .execute();
+         if (!anterior) return null;
+
+         const estadoNuevo = data.estado ?? anterior.estado;
+         const estadoCambia = estadoNuevo !== anterior.estado;
+
+         // Un proyecto COMPLETADO está cerrado; su avance es 100 y no debería
+         // poder bajar. Se fuerza aquí para que la UI no pueda escribir un
+         // porcentaje inconsistente aunque la política de bloqueo falle.
+         const porcentaje =
+            data.porcentaje_avance !== undefined
+               ? Math.min(100, Math.max(0, Math.round(data.porcentaje_avance)))
+               : estadoNuevo === "COMPLETADO"
+                  ? 100
+                  : anterior.porcentaje_avance;
+
+         const safeData: Record<string, unknown> = {};
+         if (data.nombre !== undefined) safeData.nombre = data.nombre;
+         if (data.estado !== undefined) safeData.estado = data.estado;
+         if (data.tarifa_servicio !== undefined) safeData.tarifa_servicio = data.tarifa_servicio;
+         if (data.notas !== undefined) safeData.notas = data.notas;
+         if (data.fecha_fin !== undefined) safeData.fecha_fin = data.fecha_fin;
+         // fecha_inicio llega como "YYYY-MM-DD" (input date). Se guarda tal cual,
+         // sin pasar por new Date(), para que Postgres no convierta según la zona
+         // horaria del servidor y corra la fecha un día.
+         if (data.fecha_inicio !== undefined) safeData.fecha_inicio = data.fecha_inicio;
+         if (data.cliente_id !== undefined) safeData.cliente_id = data.cliente_id;
+         if (porcentaje !== anterior.porcentaje_avance) safeData.porcentaje_avance = porcentaje;
+         safeData.updated_at = new Date();
+
+         const updated = await trx
+            .updateTable("proyecto")
+            .set(safeData)
+            .where("id", "=", id)
+            .returning(["id"])
+            .executeTakeFirst();
+
+         if (estadoCambia && updated) {
+            await trx
+               .insertInto("proyecto_estado_historial")
+               .values({
+                  proyecto_id: id,
+                  estado_anterior: anterior.estado,
+                  estado_nuevo: estadoNuevo,
+                  changed_by: data.changed_by ?? null,
+                  changed_by_name: data.changed_by_name ?? null,
+               })
+               .execute();
+         }
+
+         return updated;
+      });
+
+      if (!result) return null;
 
       await this.recalcularTotales(id);
       return this.findById(id);
+   }
+
+   // Estado actual, ligero: lo usan los guards para bloquear mutaciones
+   // (conduces, gastos, archivos, tarifas) cuando el proyecto está COMPLETADO.
+   async getEstado(id: string): Promise<EstadoProyecto | null> {
+      const row = await this.db
+         .selectFrom("proyecto")
+         .select("estado")
+         .where("id", "=", id)
+         .executeTakeFirst();
+
+      return (row?.estado as EstadoProyecto) ?? null;
+   }
+
+   /**
+    * Proyectos cuyos conduces se resuelven a este empleado como operador
+    * (mismos tres niveles que la nómina y recalcularTotales). Lo usan las
+    * rutas de empleados: al cambiar `empleado_categoria_tarifa.monto_pago`
+    * hay que recalcular la rentabilidad de todos los proyectos afectados.
+    */
+   async findProyectoIdsByEmpleado(empleadoId: string): Promise<string[]> {
+      const rows = await this.db
+         .selectFrom("conduce")
+         .leftJoin("operador", "operador.id", "conduce.operador_id")
+         .leftJoin("equipo", "equipo.id", "conduce.equipo_id")
+         .leftJoin("operador as eq_op", "eq_op.id", "equipo.operador_id")
+         .select("conduce.proyecto_id")
+         .where("conduce.proyecto_id", "is not", null)
+         .where("conduce.deleted_at", "is", null)
+         .where((eb) =>
+            eb.or([
+               eb("conduce.empleado_id", "=", empleadoId),
+               eb("operador.empleado_id", "=", empleadoId),
+               eb.and([
+                  eb("conduce.empleado_id", "is", null),
+                  eb("operador.empleado_id", "is", null),
+                  eb("eq_op.empleado_id", "=", empleadoId),
+               ]),
+            ])
+         )
+         .execute();
+
+      return [...new Set(rows.map((r) => r.proyecto_id as string).filter(Boolean))];
    }
 
    async getLiquidacion(id: string): Promise<LiquidacionFacade | null> {
@@ -238,39 +336,106 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          proyecto_id: id,
          cliente_nombre: proyecto.cliente_nombre ?? "",
          tarifa_servicio: proyecto.tarifa_servicio,
-         cargos_cobrables: proyecto.detalle.filter((d) => d.es_cobrable),
-         gastos_internos: proyecto.detalle.filter((d) => !d.es_cobrable),
+         gastos_cobrables: proyecto.gastos.filter((g) => g.cobrable_proyecto),
+         gastos_incobrables: proyecto.gastos.filter((g) => !g.cobrable_proyecto),
          conduces: proyecto.conduces,
          total_cobrable: Number(proyecto.total_cobrable),
          total_gasto_interno: Number(proyecto.total_gasto_interno),
+         total_costo_operador: Number(proyecto.total_costo_operador),
          rentabilidad: Number(proyecto.rentabilidad),
+         porcentaje_avance: Number(proyecto.porcentaje_avance),
          fecha: proyecto.fecha_inicio,
       };
    }
 
-   // ── NUEVO: recalcula total_cobrable / total_gasto_interno / total_equipos / ──
-   // ── rentabilidad a partir de proyecto_detalle + conduce, y los persiste.  ──
-   // ── Lo llama ConduceService después de crear/editar/borrar un conduce.    ──
+   // ── Recalcula total_cobrable / total_gasto_interno / total_equipos / ─────
+   // ── rentabilidad a partir de tarifa + conduces + gastos, y los persiste. ──
+   // ── Lo llama ConduceService y GastoService tras cada mutación.            ──
    async recalcularTotales(proyectoId: string): Promise<ProyectoTotales> {
-      const [proyecto, detalle, conduces] = await Promise.all([
+      const [proyecto, conduces, gastos] = await Promise.all([
          this.db
             .selectFrom("proyecto")
             .select(["tarifa_servicio"])
             .where("id", "=", proyectoId)
             .executeTakeFirst(),
+         this.db.selectFrom("conduce").leftJoin("operador", "operador.id", "conduce.operador_id").leftJoin("equipo", "equipo.id", "conduce.equipo_id").leftJoin("operador as eq_op", "eq_op.id", "equipo.operador_id").select(["conduce.subtotal", "conduce.es_cobrable", "conduce.cantidad", "conduce.total_horas", "conduce.categoria_equipo_tarifa_id", "conduce.categoria_equipo_tarifa_nombre", "conduce.empleado_id", sql<string>` coalesce( conduce.empleado_id, operador.empleado_id, eq_op.empleado_id ) `.as("empleado_id_efectivo"),]).where("conduce.proyecto_id", "=", proyectoId).where("conduce.deleted_at", "is", null).execute(),
          this.db
-            .selectFrom("proyecto_detalle")
-            .select(["subtotal", "es_cobrable"])
+            .selectFrom("gasto")
+            .select(["monto_total", "cobrable_proyecto", "cobrable_monto"])
             .where("proyecto_id", "=", proyectoId)
-            .execute(),
-         this.db
-            .selectFrom("conduce")
-            .select(["subtotal", "es_cobrable"])
-            .where("proyecto_id", "=", proyectoId)
+            .where("deleted_at", "is", null)
             .execute(),
       ]);
 
-      const tarifaServicio = Number(proyecto?.tarifa_servicio ?? 0);
+      // Costo del operador por conduce: misma lógica que la nómina y que
+      // rentabilidad.service.ts. Prioridad del monto_pago:
+      //   1. proyecto_empleado_tarifa (proyecto + empleado + tarifa)
+      //   2. empleado_categoria_tarifa (empleado + tarifa)
+      //   3. catálogo por NOMBRE único si el conduce perdió el id de la tarifa
+      const empleados = [...new Set(conduces.map((c) => c.empleado_id_efectivo).filter(Boolean))];
+
+      const [tarifasEmpleadoRows, tarifasProyectoRows, catalogoTarifasRows] = await Promise.all([
+         empleados.length > 0
+            ? this.db
+               .selectFrom("empleado_categoria_tarifa")
+               .select(["empleado_id", "categoria_equipo_tarifa_id", "monto_pago"])
+               .where("empleado_id", "in", empleados)
+               .execute()
+            : Promise.resolve([]),
+         empleados.length > 0
+            ? this.db
+               .selectFrom("proyecto_empleado_tarifa")
+               .select(["proyecto_id", "empleado_id", "categoria_equipo_tarifa_id", "monto_pago"])
+               .where("proyecto_id", "=", proyectoId)
+               .where("empleado_id", "in", empleados)
+               .execute()
+            : Promise.resolve([]),
+         this.db.selectFrom("categoria_equipo_tarifa").select(["id", "nombre"]).execute(),
+      ]);
+
+      const montoPorEmpleadoTarifa = new Map<string, number>();
+      for (const t of tarifasEmpleadoRows) {
+         montoPorEmpleadoTarifa.set(`${t.empleado_id}::${t.categoria_equipo_tarifa_id}`, num(t.monto_pago));
+      }
+
+      const montoPorProyectoEmpleadoTarifa = new Map<string, number>();
+      for (const t of tarifasProyectoRows) {
+         montoPorProyectoEmpleadoTarifa.set(
+            `${t.proyecto_id}::${t.empleado_id}::${t.categoria_equipo_tarifa_id}`,
+            num(t.monto_pago)
+         );
+      }
+
+      // Tarifa por nombre único: si el conduce guardó el nombre pero el id se
+      // perdió (conduces viejos), se recupera el id solo cuando el nombre no
+      // es ambiguo — mismo criterio que rentabilidad.service.ts.
+      const nombres = new Map<string, string[]>();
+      for (const t of catalogoTarifasRows) {
+         const k = (t.nombre ?? "").trim().toLowerCase();
+         nombres.set(k, [...(nombres.get(k) ?? []), t.id]);
+      }
+      const tarifaIdPorNombreUnico = new Map<string, string>();
+      for (const [nombre, ids] of nombres) {
+         if (ids.length === 1) tarifaIdPorNombreUnico.set(nombre, ids[0]);
+      }
+
+      let totalCostoOperador = 0;
+      for (const c of conduces) {
+         const tarifaId =
+            c.categoria_equipo_tarifa_id ??
+            tarifaIdPorNombreUnico.get((c.categoria_equipo_tarifa_nombre ?? "").trim().toLowerCase()) ??
+            null;
+
+         const montoPago =
+            c.empleado_id_efectivo && tarifaId
+               ? montoPorProyectoEmpleadoTarifa.get(`${proyectoId}::${c.empleado_id_efectivo}::${tarifaId}`) ??
+               montoPorEmpleadoTarifa.get(`${c.empleado_id_efectivo}::${tarifaId}`) ??
+               0
+               : 0;
+
+         const cantidad = num(c.cantidad) || num(c.total_horas);
+         totalCostoOperador += cantidad * montoPago;
+      }
 
       const totalEquiposCobrables = conduces
          .filter((c) => c.es_cobrable)
@@ -279,17 +444,28 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          .filter((c) => !c.es_cobrable)
          .reduce((sum, c) => sum + Number(c.subtotal), 0);
 
-      const totalCargosCobrables = detalle
-         .filter((d) => d.es_cobrable)
-         .reduce((sum, d) => sum + Number(d.subtotal), 0);
-      const totalGastosInternosDetalle = detalle
-         .filter((d) => !d.es_cobrable)
-         .reduce((sum, d) => sum + Number(d.subtotal), 0);
+      // Gastos asociados al proyecto: los cobrables suman su monto a cobrar al
+      // cliente (cobrable_monto, o el total del gasto si no hay monto definido),
+      // los incobrables corren por cuenta de la empresa.
+      const totalGastosCobrables = gastos
+         .filter((g) => g.cobrable_proyecto)
+         .reduce((sum, g) => sum + Number(g.cobrable_monto || g.monto_total), 0);
+      const totalGastosInternos = gastos
+         .filter((g) => !g.cobrable_proyecto)
+         .reduce((sum, g) => sum + Number(g.monto_total), 0);
+
+      const tarifaServicio = Number(proyecto?.tarifa_servicio ?? 0);
 
       const total_equipos = totalEquiposCobrables + totalEquiposInternos;
-      const total_cobrable = tarifaServicio + totalEquiposCobrables + totalCargosCobrables;
-      const total_gasto_interno = totalEquiposInternos + totalGastosInternosDetalle;
-      const rentabilidad = total_cobrable - total_gasto_interno;
+      const total_costo_operador = totalCostoOperador;
+      const total_cobrable =
+         tarifaServicio + totalEquiposCobrables + totalGastosCobrables;
+      // Los conduces NO cobrables son "solo historial": se hizo el trabajo pero
+      // no se facturó, así que su valor NO es un gasto ni toca la rentabilidad.
+      // Lo que sí se pagó de verdad es el operador (total_costo_operador), que
+      // se cobra SIEMPRE — también por conduces no cobrables.
+      const total_gasto_interno = totalGastosInternos;
+      const rentabilidad = total_cobrable - total_gasto_interno - total_costo_operador;
 
       await this.db
          .updateTable("proyecto")
@@ -297,34 +473,14 @@ export class KyselyProyectoRepository implements IProyectoRepository {
             total_cobrable,
             total_gasto_interno,
             total_equipos,
+            total_costo_operador,
             rentabilidad,
             updated_at: new Date(),
          })
          .where("id", "=", proyectoId)
          .execute();
 
-      return { total_cobrable, total_gasto_interno, total_equipos, rentabilidad };
-   }
-
-   async toggleDetalleCobrable(ids: string[], es_cobrable: boolean): Promise<void> {
-      if (ids.length === 0) return;
-
-      await this.db
-         .updateTable("proyecto_detalle")
-         .set({ es_cobrable, updated_at: new Date() })
-         .where("id", "in", ids)
-         .execute();
-
-      // Recalcular totales del proyecto al que pertenece el primer ítem
-      const first = await this.db
-         .selectFrom("proyecto_detalle")
-         .select("proyecto_id")
-         .where("id", "=", ids[0])
-         .executeTakeFirst();
-
-      if (first) {
-         await this.recalcularTotales(first.proyecto_id);
-      }
+      return { total_cobrable, total_gasto_interno, total_equipos, total_costo_operador, rentabilidad };
    }
 
    // ─── Mapper privado ────────────────────────────────────────────────────────
@@ -349,23 +505,25 @@ export class KyselyProyectoRepository implements IProyectoRepository {
    }
 
    // ─── Mapper privado ────────────────────────────────────────────────────────
+   // El historial (findAll/findByClientId) no necesita los gastos línea por
+   // línea, solo los totales ya cacheados en la fila. findById sí los carga.
    #mapRow(
       row: Record<string, unknown>,
-      detalle: Array<Record<string, unknown>>,
-      conduces: ConduceProps[] = []
+      conduces: ConduceProps[] = [],
+      historial: Array<Record<string, unknown>> = [],
+      gastos: GastoProps[] = [],
    ): ProyectoProps {
 
-      const mappedDetalle: ProyectoDetalleProps[] = detalle.map((d) => ({
-         id: d.id as string,
-         proyecto_id: d.proyecto_id as string,
-         descripcion: d.descripcion as string,
-         cantidad: Number(d.cantidad),
-         precio_unitario: Number(d.precio_unitario),
-         subtotal: Number(d.subtotal),
-         es_cobrable: d.es_cobrable as boolean,
-         created_at: new Date(d.created_at as string),
-         updated_at: new Date(d.updated_at as string),
+      const mappedHistorial: ProyectoEstadoHistorialProps[] = historial.map((h) => ({
+         id: h.id as string,
+         proyecto_id: h.proyecto_id as string,
+         estado_anterior: (h.estado_anterior as string | null) as EstadoProyecto | null,
+         estado_nuevo: h.estado_nuevo as EstadoProyecto,
+         changed_by: (h.changed_by as string) ?? null,
+         changed_by_name: (h.changed_by_name as string) ?? null,
+         created_at: new Date(h.created_at as string),
       }));
+
 
       const base = {
          id: row.id as string,
@@ -378,17 +536,57 @@ export class KyselyProyectoRepository implements IProyectoRepository {
          total_cobrable: Number(row.total_cobrable),
          total_gasto_interno: Number(row.total_gasto_interno),
          total_equipos: Number(row.total_equipos ?? 0),
+         total_costo_operador: Number(row.total_costo_operador ?? 0),
          rentabilidad: Number(row.rentabilidad),
+         porcentaje_avance: Number(row.porcentaje_avance ?? 0),
          notas: (row.notas as string) ?? null,
          fecha_inicio: new Date(row.fecha_inicio as string),
          fecha_fin: row.fecha_fin ? new Date(row.fecha_fin as string) : null,
          created_at: new Date(row.created_at as string),
          updated_at: new Date(row.updated_at as string),
-         detalle: mappedDetalle,
+         gastos,
          conduces,
+         historial_estados: mappedHistorial,
       };
 
-
       return { ...base };
+   }
+
+   // ─── Mapper de gasto → GastoProps (para findById/getLiquidacion) ──────────
+   // No duplica el de gastos.infraestructure: acá solo se usan los campos que
+   // el detalle del proyecto necesita (concepto, montos, categoría, cantidad).
+   #mapGasto(row: Record<string, unknown>): GastoProps {
+      const referencia = Number(row.referencia);
+      const codigoReferencia = `GAS-${String(referencia).padStart(3, "0")}`;
+      const codigo = (prefix: string, ref: unknown) =>
+         ref != null ? `${prefix}-${String(ref).padStart(3, "0")}` : null;
+
+      return {
+         id: row.id as string,
+         referencia,
+         codigoReferencia,
+         monto_total: Number(row.monto_total),
+         concepto: row.concepto as string,
+         ncf: (row.ncf as string) ?? null,
+         categoria_gasto_id: row.categoria_gasto_id as string,
+         categoria_gasto_nombre: row.categoria_gasto_nombre as string,
+         categoria_gasto_grupo: row.categoria_gasto_grupo as string,
+         orden_compra_id: (row.orden_compra_id as string) ?? null,
+         orden_compra_codigo_referencia: codigo("OC", row.orden_compra_codigo_referencia),
+         proyecto_id: (row.proyecto_id as string) ?? null,
+         proyecto_codigo_referencia: codigo("PRO", row.proyecto_codigo_referencia),
+         equipo_id: (row.equipo_id as string) ?? null,
+         equipo_codigo_referencia: codigo("EQU", row.equipo_codigo_referencia),
+         cobrable_proyecto: row.cobrable_proyecto as boolean,
+         cobrable_monto: row.cobrable_monto != null ? Number(row.cobrable_monto) : null,
+         cantidad: row.cantidad != null ? Number(row.cantidad) : 1,
+         monto_unitario: row.monto_unitario != null ? Number(row.monto_unitario) : null,
+         fecha: new Date(row.fecha as string),
+         created_at: new Date(row.created_at as string),
+         updated_at: new Date(row.updated_at as string),
+         deleted_by: (row.deleted_by as string) ?? null,
+         deleted_at: row.deleted_at ? new Date(row.deleted_at as string) : null,
+         deleted_reason: (row.deleted_reason as string) ?? null,
+      };
    }
 }

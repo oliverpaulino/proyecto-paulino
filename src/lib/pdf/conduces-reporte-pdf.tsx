@@ -102,12 +102,15 @@ function ConducesReporteDocument({
    etiquetas: FiltrosEtiquetados;
 }) {
    const chips = describirFiltros(filtros, etiquetas);
-   const grupos = agruparConduces(conduces);
 
    const cobrables = conduces.filter((cc) => cc.es_cobrable);
    const noCobrables = conduces.filter((cc) => !cc.es_cobrable);
    const totalCobrable = sumaSubtotal(cobrables);
    const totalNoCobrable = sumaSubtotal(noCobrables);
+
+   // El resumen por equipo solo considera lo cobrable: lo que no se cobró
+   // se deja aparte en el detalle y en los totales, sin mezclarse aquí.
+   const grupos = agruparConduces(cobrables);
 
    const camiones = conduces.filter((cc) => cc.tipo_conduce === "CAMION");
    const totalHoras = conduces.reduce(
@@ -183,9 +186,12 @@ function ConducesReporteDocument({
                         <Text style={[s.tableCell, c.grpSub]}>{fmt(g.subtotal)}</Text>
                      </View>
                   ))}
-                  {grupos.length === 0 && (
-                     <Text style={s.emptyNote}>Ningún conduce coincide con estos filtros.</Text>
-                  )}
+                   {grupos.length === 0 &&
+                     (conduces.length > 0 ? (
+                        <Text style={s.emptyNote}>No hay conduces cobrables en esta selección.</Text>
+                     ) : (
+                        <Text style={s.emptyNote}>Ningún conduce coincide con estos filtros.</Text>
+                     ))}
                </View>
 
                {/* Detalle */}

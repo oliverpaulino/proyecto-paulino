@@ -37,5 +37,6 @@ export interface IProyectoTarifaRepository {
    findAllConGlobales(proyectoId: string, search?: string, page?: number, limit?: number): Promise<{ rows: TarifaGlobalRow[]; total: number }>;
    upsert(data: UpsertProyectoTarifaDTO): Promise<ProyectoTarifaProps>;
    bulkUpsert(proyectoId: string, tarifas: BulkUpsertTarifaInput[]): Promise<void>;
+   findById(id: string): Promise<ProyectoTarifaProps | null>;
    delete(id: string): Promise<void>;
 }

@@ -18,9 +18,10 @@ import type { TarifaGlobalRowDTO } from "@/dtos/proyecto-tarifa.dto";
 
 interface Props {
    proyectoId: string;
+   locked?: boolean;
 }
 
-export function ProyectoTarifasCard({ proyectoId }: Props) {
+export function ProyectoTarifasCard({ proyectoId, locked = false }: Props) {
    const { tarifasGlobales, tarifasGlobalesTotal, loading, GetTarifasGlobales, BulkUpsertTarifas } = useProyectoTarifaStore();
 
    const [search, setSearch] = useState("");
@@ -95,6 +96,11 @@ export function ProyectoTarifasCard({ proyectoId }: Props) {
 
    return (
       <div className="space-y-4">
+         {locked && (
+            <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+               Proyecto <strong>COMPLETADO</strong>: las tarifas están bloqueadas.
+            </p>
+         )}
          <div className="relative max-w-sm">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -102,6 +108,7 @@ export function ProyectoTarifasCard({ proyectoId }: Props) {
                value={search}
                onChange={(e) => setSearch(e.target.value)}
                className="pl-9"
+               disabled={locked}
             />
          </div>
 
@@ -136,15 +143,16 @@ export function ProyectoTarifasCard({ proyectoId }: Props) {
                                  RD$ {row.precio_global.toLocaleString("es-DO")}
                               </TableCell>
                               <TableCell className="text-right">
-                                 <Input
-                                    type="number"
-                                    min={0}
-                                    step="0.01"
-                                    placeholder={row.precio_global.toLocaleString("es-DO")}
-                                    value={getDisplay(row)}
-                                    onChange={(e) => handleEdit(row, e.target.value)}
-                                    className={`h-8 w-28 text-right ml-auto ${tieneCambio(row) ? "border-amber-400" : ""}`}
-                                 />
+                                  <Input
+                                     type="number"
+                                     min={0}
+                                     step="0.01"
+                                     placeholder={row.precio_global.toLocaleString("es-DO")}
+                                     value={getDisplay(row)}
+                                     onChange={(e) => handleEdit(row, e.target.value)}
+                                     disabled={locked}
+                                     className={`h-8 w-28 text-right ml-auto ${tieneCambio(row) ? "border-amber-400" : ""}`}
+                                  />
                               </TableCell>
                            </TableRow>
                         ))}
@@ -152,7 +160,7 @@ export function ProyectoTarifasCard({ proyectoId }: Props) {
                   </Table>
                </div>
 
-               <div className="flex items-center justify-between text-sm text-muted-foreground">
+               <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
                   <span>
                      {tarifasGlobalesTotal} tarifa{tarifasGlobalesTotal !== 1 ? "s" : ""} en total
                   </span>

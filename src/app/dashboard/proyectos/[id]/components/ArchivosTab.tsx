@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
    Card,
    CardContent,
@@ -39,19 +39,16 @@ import {
    FileSpreadsheet,
    FileText,
    Loader2,
+   Lock,
    Pencil,
    Trash2,
    UploadCloud,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-
-export interface ProyectoArchivo {
-   id: string;
-   nombre_archivo: string;
-   tipo_mime: string;
-   tamanio_bytes: number;
-   created_at: string;
-}
+import {
+   useArchivoStore,
+   type ProyectoArchivo,
+} from "@/stores/useArchivoStore";
 
 const ACCEPT = [
    "application/pdf",
@@ -98,25 +95,8 @@ function FileIcon({ mime }: { mime: string }) {
    return <File className="size-5 text-muted-foreground" />;
 }
 
-/** Pide la signed URL (60s) al backend. Con `download` fuerza Content-Disposition
- * attachment y el navegador descarga con el nombre editable del archivo. */
-async function getSignedUrl(archivo: ProyectoArchivo, download = false): Promise<string | null> {
-   try {
-      const res = await fetch(
-         `/api/proyectos/archivos/${archivo.id}/descargar${download ? "?descargar=true" : ""}`,
-      );
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      return data.url ?? null;
-   } catch {
-      toast.error("No se pudo generar el enlace del archivo");
-      return null;
-   }
-}
-
-export function ArchivosTab({ proyectoId }: { proyectoId: string }) {
-   const [archivos, setArchivos] = useState<ProyectoArchivo[]>([]);
-   const [loading, setLoading] = useState(true);
+export function ArchivosTab({ proyectoId, locked = false }: { proyectoId: string; locked?: boolean }) {
+   const { archivos, loading, GetArchivos, UploadArchivos, RenombrarArchivo, DeleteArchivo, GetArchivoUrl } = useArchivoStore();
    const [uploading, setUploading] = useState(false);
    const [dragging, setDragging] = useState(false);
    const [deleting, setDeleting] = useState<ProyectoArchivo | null>(null);
@@ -128,20 +108,9 @@ export function ArchivosTab({ proyectoId }: { proyectoId: string }) {
    const [previewLoading, setPreviewLoading] = useState(false);
    const inputRef = useRef<HTMLInputElement>(null);
 
-   const load = useCallback(async () => {
-      const res = await fetch(`/api/proyectos/${proyectoId}/archivos`);
-      if (res.ok) {
-         const data = await res.json();
-         setArchivos(data.archivos ?? []);
-      } else {
-         toast.error("Error al cargar los archivos");
-      }
-   }, [proyectoId]);
-
    useEffect(() => {
-      setLoading(true);
-      load().finally(() => setLoading(false));
-   }, [load]);
+      GetArchivos(proyectoId);
+   }, [proyectoId, GetArchivos]);
 
    async function handleFiles(files: FileList | File[]) {
       if (uploading) return;
@@ -150,25 +119,7 @@ export function ArchivosTab({ proyectoId }: { proyectoId: string }) {
 
       setUploading(true);
       try {
-         const formData = new FormData();
-         for (const file of list) formData.append("files", file);
-
-         const res = await fetch(`/api/proyectos/${proyectoId}/archivos`, {
-            method: "POST",
-            body: formData,
-         });
-
-         if (!res.ok) {
-            const data = await res.json().catch(() => null);
-            throw new Error(data?.error ?? "Error al subir los archivos");
-         }
-
-         toast.success(
-            list.length === 1 ? "Archivo subido correctamente" : `${list.length} archivos subidos`,
-         );
-         await load();
-      } catch (err) {
-         toast.error(err instanceof Error ? err.message : "Error al subir los archivos");
+         await UploadArchivos(proyectoId, list);
       } finally {
          setUploading(false);
          if (inputRef.current) inputRef.current.value = "";
@@ -176,14 +127,14 @@ export function ArchivosTab({ proyectoId }: { proyectoId: string }) {
    }
 
    async function handleDescargar(archivo: ProyectoArchivo) {
-      const url = await getSignedUrl(archivo, true);
+      const url = await GetArchivoUrl(archivo.id, true);
       if (url) window.open(url, "_blank");
    }
 
    async function handlePreview(archivo: ProyectoArchivo) {
       setPreviewLoading(true);
       try {
-         const url = await getSignedUrl(archivo);
+         const url = await GetArchivoUrl(archivo.id);
          if (url) setPreview({ archivo, url });
       } finally {
          setPreviewLoading(false);
@@ -199,20 +150,8 @@ export function ArchivosTab({ proyectoId }: { proyectoId: string }) {
       }
       setRenameLoading(true);
       try {
-         const res = await fetch(`/api/proyectos/${proyectoId}/archivos/${renaming.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ nombre_archivo: nombre }),
-         });
-         if (!res.ok) {
-            const data = await res.json().catch(() => null);
-            throw new Error(data?.error ?? "Error al renombrar el archivo");
-         }
-         toast.success("Archivo renombrado");
+         await RenombrarArchivo(proyectoId, renaming.id, nombre);
          setRenaming(null);
-         await load();
-      } catch (err) {
-         toast.error(err instanceof Error ? err.message : "Error al renombrar el archivo");
       } finally {
          setRenameLoading(false);
       }
@@ -222,15 +161,8 @@ export function ArchivosTab({ proyectoId }: { proyectoId: string }) {
       if (!deleting) return;
       setDeleteLoading(true);
       try {
-         const res = await fetch(`/api/proyectos/${proyectoId}/archivos/${deleting.id}`, {
-            method: "DELETE",
-         });
-         if (!res.ok) throw new Error("Error al eliminar el archivo");
-         toast.success("Archivo eliminado");
+         await DeleteArchivo(proyectoId, deleting.id);
          setDeleting(null);
-         await load();
-      } catch (err) {
-         toast.error(err instanceof Error ? err.message : "Error al eliminar el archivo");
       } finally {
          setDeleteLoading(false);
       }
@@ -250,49 +182,58 @@ export function ArchivosTab({ proyectoId }: { proyectoId: string }) {
             </CardHeader>
             <CardContent className="space-y-4">
                <PermissionGuard resource="project" action="create">
-                  <div
-                     role="button"
-                     tabIndex={0}
-                     aria-label="Subir archivos"
-                     onClick={() => inputRef.current?.click()}
-                     onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") inputRef.current?.click();
-                     }}
-                     onDragOver={(e) => {
-                        e.preventDefault();
-                        setDragging(true);
-                     }}
-                     onDragLeave={() => setDragging(false)}
-                     onDrop={(e) => {
-                        e.preventDefault();
-                        setDragging(false);
-                        handleFiles(e.dataTransfer.files);
-                     }}
-                     className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
-                        dragging
-                           ? "border-brand-blue bg-brand-blue/10"
-                           : "border-border bg-muted/30 hover:border-brand-blue/50 hover:bg-brand-blue/5"
-                     }`}
-                  >
-                     <UploadCloud
-                        className={`size-8 ${dragging ? "text-brand-blue" : "text-muted-foreground"}`}
-                     />
-                     <div className="text-sm font-medium">
-                        {uploading ? "Subiendo archivos…" : "Arrastra archivos aquí o haz clic para seleccionar"}
+                  {locked ? (
+                     <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/20 p-8 text-center">
+                        <Lock className="size-6 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground">
+                           Bloqueado: el proyecto está COMPLETADO. No se pueden subir archivos.
+                        </p>
                      </div>
-                     <p className="text-xs text-muted-foreground">
-                        PDF, imágenes, Word, Excel, PowerPoint y ZIP. Hasta 15 MB por archivo.
-                     </p>
-                     <input
-                        ref={inputRef}
-                        type="file"
-                        multiple
-                        accept={ACCEPT}
-                        className="hidden"
-                        disabled={uploading}
-                        onChange={(e) => e.target.files && handleFiles(e.target.files)}
-                     />
-                  </div>
+                  ) : (
+                     <div
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Subir archivos"
+                        onClick={() => inputRef.current?.click()}
+                        onKeyDown={(e) => {
+                           if (e.key === "Enter" || e.key === " ") inputRef.current?.click();
+                        }}
+                        onDragOver={(e) => {
+                           e.preventDefault();
+                           setDragging(true);
+                        }}
+                        onDragLeave={() => setDragging(false)}
+                        onDrop={(e) => {
+                           e.preventDefault();
+                           setDragging(false);
+                           handleFiles(e.dataTransfer.files);
+                        }}
+                        className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
+                           dragging
+                              ? "border-brand-blue bg-brand-blue/10"
+                              : "border-border bg-muted/30 hover:border-brand-blue/50 hover:bg-brand-blue/5"
+                        }`}
+                     >
+                        <UploadCloud
+                           className={`size-8 ${dragging ? "text-brand-blue" : "text-muted-foreground"}`}
+                        />
+                        <div className="text-sm font-medium">
+                           {uploading ? "Subiendo archivos…" : "Arrastra archivos aquí o haz clic para seleccionar"}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                           PDF, imágenes, Word, Excel, PowerPoint y ZIP. Hasta 15 MB por archivo.
+                        </p>
+                        <input
+                           ref={inputRef}
+                           type="file"
+                           multiple
+                           accept={ACCEPT}
+                           className="hidden"
+                           disabled={uploading}
+                           onChange={(e) => e.target.files && handleFiles(e.target.files)}
+                        />
+                     </div>
+                  )}
                </PermissionGuard>
 
                {loading ? (
@@ -345,6 +286,7 @@ export function ArchivosTab({ proyectoId }: { proyectoId: string }) {
                                     <Button
                                        variant="ghost"
                                        size="sm"
+                                       disabled={locked}
                                        onClick={() => {
                                           setRenaming(archivo);
                                           setRenameValue(archivo.nombre_archivo);
@@ -359,6 +301,7 @@ export function ArchivosTab({ proyectoId }: { proyectoId: string }) {
                                        variant="ghost"
                                        size="sm"
                                        className="text-brand-red hover:text-brand-red"
+                                       disabled={locked}
                                        onClick={() => setDeleting(archivo)}
                                        title="Eliminar"
                                     >

@@ -89,14 +89,14 @@ export function NominaFilters({
             className="w-full sm:w-76"
          />
 
-         <div className="flex items-center gap-1.5 bg-input/20 px-2.5 py-0.5 rounded-4xl border border-input">
+         <div className="flex max-w-full flex-wrap items-center gap-x-1.5 gap-y-0.5 bg-input/20 px-2.5 py-1 rounded-4xl border border-input">
             <span className="text-[11px] font-semibold text-muted-foreground uppercase">Desde:</span>
             <Input
                type="date"
                value={filtros.start}
                onChange={(e) => onChange({ ...filtros, start: e.target.value })}
                max={filtros.end || undefined}
-               className="h-7 w-32 border-0 bg-transparent p-0 text-xs shadow-none"
+               className="h-7 w-28 min-w-24 border-0 bg-transparent p-0 text-xs shadow-none sm:w-32"
             />
             <span className="text-muted-foreground text-xs font-bold">—</span>
             <span className="text-[11px] font-semibold text-muted-foreground uppercase">Hasta:</span>
@@ -105,7 +105,7 @@ export function NominaFilters({
                value={filtros.end}
                onChange={(e) => onChange({ ...filtros, end: e.target.value })}
                min={filtros.start || undefined}
-               className="h-7 w-32 border-0 bg-transparent p-0 text-xs shadow-none"
+               className="h-7 w-28 min-w-24 border-0 bg-transparent p-0 text-xs shadow-none sm:w-32"
             />
          </div>
 

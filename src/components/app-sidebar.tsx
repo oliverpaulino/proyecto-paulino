@@ -24,9 +24,11 @@ import {
   Bell,
 } from "lucide-react"
 
-import { NavMain } from "@/components/nav-main"
+import { NavMain, type NavItem } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
 import { NameIcon } from "@/components/name-icon"
+import { NAV_SHORTCUTS } from "@/lib/nav-shortcuts"
+import { useNavShortcuts } from "@/hooks/useNavShortcuts"
 import {
   Sidebar,
   SidebarContent,
@@ -56,6 +58,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // aparecen en ROLE_HIERARCHY y quedarían en nivel 0.
   const { canPerform: puedeVerNomina } = usePermissions({
     resource: "payroll",
+    action: "read",
+  })
+  const { canPerform: puedeVerCxC } = usePermissions({
+    resource: "account_receivable",
     action: "read",
   })
 
@@ -122,6 +128,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       items: [
         { id: "fin-compras", title: "Compras", url: "/dashboard/compras" },
         { id: "fin-cuentas-por-pagar", title: "Cuentas por Pagar", url: "/dashboard/cuentas-por-pagar" },
+        ...(puedeVerCxC
+          ? [{ id: "fin-cuentas-por-cobrar", title: "Cuentas por Cobrar", url: "/dashboard/cuentas-por-cobrar" }]
+          : []),
         { id: "fin-subcontrataciones", title: "Subcontrataciones", url: "/dashboard/subcontrataciones" },
         { id: "fin-gastos", title: "Gastos", url: "/dashboard/gastos" },
         { id: "fin-deducciones", title: "Deducciones", url: "/dashboard/deducciones" },
@@ -166,13 +175,29 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     },
   ]
 
+  // Cuelga de cada item su atajo (si tiene) para que el sidebar pinte las
+  // teclas. Sale de la misma tabla que usa `useNavShortcuts` para registrarlos,
+  // así lo que se muestra y lo que funciona no pueden divergir.
+  const withShortcuts = React.useMemo(() => {
+    const decorate = (list: NavItem[]): NavItem[] =>
+      list.map((item) => ({
+        ...item,
+        shortcut: NAV_SHORTCUTS[item.id],
+        items: item.items?.length ? decorate(item.items) : item.items,
+      }))
+    return decorate(navMain)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, puedeVerNomina, unreadCount])
+
+  useNavShortcuts(withShortcuts)
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <NameIcon />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navMain} />
+        <NavMain items={withShortcuts} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

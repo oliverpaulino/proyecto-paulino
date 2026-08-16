@@ -308,26 +308,43 @@ export default function EmployeeDetailView() {
                            <p className="text-sm">Agrega el primer contacto para este empleado.</p>
                         </div>
                      ) : (
-                        <Table>
-                           <TableHeader>
-                              <TableRow>
-                                 <TableHead>Nombre</TableHead>
-                                 <TableHead>Email</TableHead>
-                                 <TableHead>Teléfono</TableHead>
-                                 <TableHead>Cargo</TableHead>
-                              </TableRow>
-                           </TableHeader>
-                           <TableBody>
+                        <>
+                           <div className="hidden md:block">
+                              <Table>
+                                 <TableHeader>
+                                    <TableRow>
+                                       <TableHead>Nombre</TableHead>
+                                       <TableHead>Email</TableHead>
+                                       <TableHead>Teléfono</TableHead>
+                                       <TableHead>Cargo</TableHead>
+                                    </TableRow>
+                                 </TableHeader>
+                                 <TableBody>
+                                    {contactos.map((c) => (
+                                       <TableRow key={c.id}>
+                                          <TableCell className="font-medium">{c.name}</TableCell>
+                                          <TableCell>{c.email || "—"}</TableCell>
+                                          <TableCell>{c.phone || "—"}</TableCell>
+                                          <TableCell>{c.job_title || "—"}</TableCell>
+                                       </TableRow>
+                                    ))}
+                                 </TableBody>
+                              </Table>
+                           </div>
+                           <div className="space-y-2 md:hidden">
                               {contactos.map((c) => (
-                                 <TableRow key={c.id}>
-                                    <TableCell className="font-medium">{c.name}</TableCell>
-                                    <TableCell>{c.email || "—"}</TableCell>
-                                    <TableCell>{c.phone || "—"}</TableCell>
-                                    <TableCell>{c.job_title || "—"}</TableCell>
-                                 </TableRow>
+                                 <div
+                                    key={c.id}
+                                    className="flex flex-col gap-1 rounded-lg border p-3 text-sm"
+                                 >
+                                    <span className="font-medium">{c.name}</span>
+                                    <span className="text-muted-foreground">{c.email || "—"}</span>
+                                    <span className="text-muted-foreground">{c.phone || "—"}</span>
+                                    <span className="text-muted-foreground">{c.job_title || "—"}</span>
+                                 </div>
                               ))}
-                           </TableBody>
-                        </Table>
+                           </div>
+                        </>
                      )}
                   </CardContent>
                </Card>

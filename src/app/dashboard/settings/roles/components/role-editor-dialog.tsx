@@ -21,17 +21,13 @@ import {
   PERMISSION_CATALOG,
   type ResourceGroup,
 } from "@/lib/permission-catalog";
+import {
+  useRoleStore,
+  type PermissionMap,
+  type RoleRow,
+} from "@/stores/useRoleStore";
 
-export type PermissionMap = Record<string, string[]>;
-
-export interface RoleRow {
-  key: string;
-  label: string;
-  description: string | null;
-  permissions: PermissionMap;
-  isBuiltin: boolean;
-  isAdmin: boolean;
-}
+export type { PermissionMap, RoleRow } from "@/stores/useRoleStore";
 
 interface RoleEditorDialogProps {
   open: boolean;
@@ -54,6 +50,8 @@ export function RoleEditorDialog({
   onSaved,
 }: RoleEditorDialogProps) {
   const isEdit = role !== null;
+
+  const { CreateRole, UpdateRole } = useRoleStore();
 
   const [key, setKey] = useState("");
   const [label, setLabel] = useState("");
@@ -104,24 +102,10 @@ export function RoleEditorDialog({
     setError(null);
 
     try {
-      const res = await fetch(
-        isEdit ? `/api/roles/${role.key}` : "/api/roles",
-        {
-          method: isEdit ? "PATCH" : "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify(
-            isEdit
-              ? { label, description, permissions }
-              : { key, label, description, permissions },
-          ),
-        },
-      );
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? "No se pudo guardar el rol");
-      }
+      const result = isEdit
+        ? await UpdateRole(role.key, { label, description, permissions })
+        : await CreateRole({ key, label, description, permissions });
+      if (result instanceof Error) throw result;
 
       onSaved();
       onOpenChange(false);

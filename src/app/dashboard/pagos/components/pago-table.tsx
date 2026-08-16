@@ -67,7 +67,7 @@ export function PagoTable({ pagos }: { pagos: Pago[] }) {
                <tbody>
                   {pagos.map((p) => {
                      const isEntrada = p.tipo_movimiento === 'ENTRADA';
-                      const destinoNombre = p.gasto_codigo_referencia || p.deduccion_codigo_referencia || p.proyecto_codigo_referencia || p.orden_compra_codigo_referencia || "N/A";
+                      const destinoNombre = p.gasto_codigo_referencia || p.deduccion_codigo_referencia || p.conduce_numero_referencia || p.proyecto_codigo_referencia || p.orden_compra_codigo_referencia || "N/A";
                      const tipoMovimientoLabel = TipoMovimiento[p.tipo_movimiento as keyof typeof TipoMovimiento] ?? p.tipo_movimiento;
                      
                      return (

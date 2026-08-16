@@ -127,8 +127,8 @@ export function SelectBuscadorProveedor({
          )}
 
          {isOpen && (
-            <div className="absolute z-50 mt-1 max-h-60 w-full flex flex-col overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md">
-               <div className="max-h-52 overflow-y-auto p-1">
+            <div className="absolute z-50 mt-1 max-h-[50dvh] w-full flex flex-col overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md">
+               <div className="max-h-[42dvh] overflow-y-auto p-1">
                   {loading && proveedoresFiltrados.length === 0 ? (
                      <div className="p-4 text-center text-sm text-muted-foreground">Buscando proveedores...</div>
                   ) : proveedoresFiltrados.length > 0 ? (

@@ -36,6 +36,7 @@ type DeduccionStore = {
 
    GetDeducciones: (params?: DeduccionesFilters & { page?: number; limit?: number; force?: boolean }) => Promise<void>;
    GetDeletedDeducciones: (params?: DeduccionesFilters & { page?: number; limit?: number; force?: boolean }) => Promise<void>;
+   GetDeduccionById: (id: string) => Promise<Deduccion | null>;
 
    CreateDeduccion: (form: CreateDeduccionForm) => Promise<Deduccion | Error>;
    UpdateDeduccion: (id: string, data: UpdateDeduccionForm) => Promise<void | Error>;
@@ -93,14 +94,14 @@ export const useDeduccionStore = create<DeduccionStore>((set, get) => ({
          const res = await fetch(`${BASE_URL}?${query.toString()}`);
          if (!res.ok) throw new Error("Error al cargar deducciones");
 
-         const items: Deduccion[] = await res.json();
-         const totalPages = Math.max(1, Math.ceil(items.length / limit));
+         const result: { data: Deduccion[]; total: number; page: number; limit: number; totalPages: number } = await res.json();
+         const totalPages = Math.max(1, result.totalPages);
 
          set((s) => ({
-            Deducciones: items,
+            Deducciones: result.data,
             pagination: {
-               page, limit, total: items.length, totalPages,
-               hasNext: page < totalPages, hasPrev: page > 1,
+               page: result.page, limit: result.limit, total: result.total, totalPages,
+               hasNext: result.page < totalPages, hasPrev: result.page > 1,
             },
             _fetchedDeduccionLists: new Set(s._fetchedDeduccionLists).add(cacheKey),
          }));
@@ -130,19 +131,35 @@ export const useDeduccionStore = create<DeduccionStore>((set, get) => ({
          const res = await fetch(`${BASE_URL}/deleted?${query.toString()}`);
          if (!res.ok) throw new Error("Error al cargar deducciones eliminadas");
 
-         const items: Deduccion[] = await res.json();
-         const totalPages = Math.max(1, Math.ceil(items.length / limit));
+         const result: { data: Deduccion[]; total: number; page: number; limit: number; totalPages: number } = await res.json();
+         const totalPages = Math.max(1, result.totalPages);
 
          set((s) => ({
-            DeletedDeducciones: items,
+            DeletedDeducciones: result.data,
             pagination: {
-               page, limit, total: items.length, totalPages,
-               hasNext: page < totalPages, hasPrev: page > 1,
+               page: result.page, limit: result.limit, total: result.total, totalPages,
+               hasNext: result.page < totalPages, hasPrev: result.page > 1,
             },
             _fetchedDeletedLists: new Set(s._fetchedDeletedLists).add(cacheKey),
          }));
       } catch (error) {
          console.error(error);
+      } finally {
+         set({ loading: false });
+      }
+   },
+
+   GetDeduccionById: async (id) => {
+      set({ loading: true });
+      try {
+         const res = await fetch(`${BASE_URL}/${id}`);
+         if (!res.ok) throw new Error("Error al cargar deducción");
+         const data: Deduccion = await res.json();
+         set({ selectedDeduccion: data });
+         return data;
+      } catch (error) {
+         console.error(error);
+         return null;
       } finally {
          set({ loading: false });
       }

@@ -99,7 +99,7 @@ export function UserEmployeeLinkManager({ fixedUserId }: UserEmployeeLinkManager
 
    return (
       <div className="flex flex-col gap-4">
-         <div className="flex items-center justify-between">
+         <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
                <Link2 className="h-5 w-5 text-muted-foreground" />
                <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">

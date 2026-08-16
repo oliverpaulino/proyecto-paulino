@@ -42,5 +42,6 @@ export interface IProyectoEmpleadoTarifaRepository {
    findOperadoresConTarifas(proyectoId: string, search?: string, page?: number, limit?: number): Promise<{ rows: OperadorTarifaRow[]; total: number }>;
    upsert(data: UpsertProyectoEmpleadoTarifaDTO): Promise<ProyectoEmpleadoTarifaProps>;
    bulkUpsert(proyectoId: string, tarifas: BulkUpsertInput[]): Promise<void>;
+   findById(id: string): Promise<ProyectoEmpleadoTarifaProps | null>;
    delete(id: string): Promise<void>;
 }
