@@ -12,6 +12,7 @@ import type { DragEvent } from "react";
 import { AppointmentForm } from "./appointment-form";
 import { PermissionGuard } from "@/components/permission-guard";
 import { useRouter } from "next/navigation";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 const ESTADOS_LISTA = Object.entries(EstadoCita).map(([key, label]) => ({ key: key as keyof typeof EstadoCita, label }));
 
@@ -28,6 +29,8 @@ export function AppointmentsKanbanView() {
    const [editTarget, setEditTarget] = useState<AppointmentUI | null>(null);
    const [draggedId, setDraggedId] = useState<string | null>(null);
    const [formLoading, setFormLoading] = useState(false)
+   const [deleteTarget, setDeleteTarget] = useState<AppointmentUI | null>(null);
+   const [deleting, setDeleting] = useState(false);
    
    async function handleMove(id: string, nuevoEstado: string) {
       setFormLoading(true);
@@ -35,8 +38,12 @@ export function AppointmentsKanbanView() {
    }
 
    async function handleDelete(id: string) {
-      if (confirm("¿Estás seguro de que deseas eliminar esta cita?")) {
+      setDeleting(true);
+      try {
          await DeleteAppointment(id);
+         setDeleteTarget(null);
+      } finally {
+         setDeleting(false);
       }
    }
 
@@ -81,9 +88,9 @@ export function AppointmentsKanbanView() {
                                  setDraggedId(cita.id);
                                  e.dataTransfer.setData("text/plain", cita.id);
                               }}
-                              onMove={(nuevoEstado: string) => handleMove(cita.id, nuevoEstado)}
-                              onEdit={() => setEditTarget(cita)}
-                              onDelete={() => handleDelete(cita.id)}
+                               onMove={(nuevoEstado: string) => handleMove(cita.id, nuevoEstado)}
+                               onEdit={() => setEditTarget(cita)}
+                               onDelete={() => setDeleteTarget(cita)}
                            />
                         ))}
                         {cards.length === 0 && (
@@ -103,6 +110,19 @@ export function AppointmentsKanbanView() {
                {editTarget && <AppointmentForm initialData={editTarget} onSubmit={async (f) => { await UpdateAppointment(editTarget.id, f as any); setEditTarget(null); }} onCancel={() => setEditTarget(null)} loading={formLoading} />}
             </DialogContent>
          </Dialog>
+
+         <ConfirmDialog
+            open={!!deleteTarget}
+            onOpenChange={(v) => !v && setDeleteTarget(null)}
+            title="¿Eliminar la cita?"
+            description="Esta acción es permanente y no se puede deshacer."
+            confirmLabel="Eliminar"
+            destructive
+            loading={deleting}
+            onConfirm={() => {
+               if (deleteTarget) void handleDelete(deleteTarget.id);
+            }}
+         />
 
       </div>
    );

@@ -8,6 +8,7 @@ import { ArrowLeft, Trash2, RefreshCw, Eye, RotateCcw } from "lucide-react";
 import { useGastoStore } from "@/stores/useGastoStore";
 import type { Gasto } from "@/dtos/gastos.dto";
 import { RestoreGastoDialog } from "../components/restore-gasto-dialog";
+import { toast } from "sonner";
 
 function formatMoney(value: number): string {
    return new Intl.NumberFormat("es-DO", {
@@ -49,8 +50,8 @@ export default function GastosEliminadosPage() {
       setFormLoading(true);
       try {
          const result = await RestoreGasto(restoreTarget.id);
-         if (result instanceof Error) {
-            alert(result.message);
+          if (result instanceof Error) {
+            toast.error(result.message);
          } else {
             setRestoreTarget(null);
          }

@@ -38,6 +38,7 @@ import { generatePurchaseOrderPDF } from "./purchase-order-pdf";
 import { PurchaseOrderPagos } from "./purchase-order-pagos";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { toast } from "sonner";
 
 const ESTADO_BADGE: Record<string, string> = {
    BORRADOR:
@@ -80,7 +81,9 @@ const TRANSITIONS: Record<EstadoOrdenCompra, EstadoOrdenCompra[]> = {
    PENDIENTE: ["APROBADA", "BORRADOR", "CANCELADA"],
    APROBADA: ["RECIBIDA", "CANCELADA"],
    RECIBIDA: [],
-   CANCELADA: [],
+   // Descancelar devuelve la orden a borrador: vuelve a estar editable y debe
+   // pasar de nuevo por el flujo (revisión → aprobación) antes de recibirse.
+   CANCELADA: ["BORRADOR"],
 };
 
 const TRANSITION_BUTTON_LABEL: Record<EstadoOrdenCompra, string> = {
@@ -90,6 +93,12 @@ const TRANSITION_BUTTON_LABEL: Record<EstadoOrdenCompra, string> = {
    RECIBIDA: "Marcar como Recibida",
    CANCELADA: "Cancelar",
 };
+
+function transitionLabel(from: EstadoOrdenCompra, to: EstadoOrdenCompra): string {
+   // Descancelar es el único camino de salida de CANCELADA.
+   if (from === "CANCELADA" && to === "BORRADOR") return "Descancelar";
+   return TRANSITION_BUTTON_LABEL[to] ?? to;
+}
 
 function formatMoney(value: number): string {
    return new Intl.NumberFormat("es-DO", {
@@ -225,9 +234,9 @@ export default function PurchaseOrderDetail() {
          if (result instanceof Error) throw result;
          setRestoreOpen(false);
          await refreshOrder();
-      } catch (error: any) {
-         alert(error.message || "Error al restaurar la orden");
-      } finally {
+       } catch (error: any) {
+          toast.error(error.message || "Error al restaurar la orden");
+       } finally {
          setActionLoading(false);
       }
    }
@@ -330,11 +339,16 @@ export default function PurchaseOrderDetail() {
                         <Button
                            key={estado}
                            variant={estado === "CANCELADA" ? "destructive" : "outline"}
+                           className={
+                              order.estado === "CANCELADA"
+                                 ? "bg-amber-500 hover:bg-amber-600 text-white border-transparent"
+                                 : undefined
+                           }
                            onClick={() => handleStatusChange(estado)}
                            disabled={actionLoading}
                            size="sm"
                         >
-                           {TRANSITION_BUTTON_LABEL[estado]}
+                           {transitionLabel(order.estado, estado)}
                         </Button>
                      ))}
 

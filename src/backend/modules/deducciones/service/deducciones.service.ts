@@ -3,6 +3,7 @@ import {
    DeleteDeduccionDTO,
    DeduccionProps,
    IDeduccionRepository,
+   PagarDeduccionDTO,
    UpdateDeduccionDTO,
 } from "../domain/deducciones.domain";
 
@@ -50,6 +51,18 @@ export class DeduccionService {
 
       const item = await this.repo.update(id, data);
       return item ? item.toJSON() : null;
+   }
+
+   /**
+    * Registra un pago directo contra una deducción (fuera de la nómina).
+    * El monto no puede exceder lo que queda pendiente por cobrar.
+    */
+   async pagar(id: string, data: PagarDeduccionDTO): Promise<DeduccionProps | null> {
+      if (!id) throw new Error("Debe proporcionar el id de la deducción");
+
+      const item = await this.repo.pagar(id, data);
+      if (!item) return null;
+      return item.toJSON();
    }
 
    /**

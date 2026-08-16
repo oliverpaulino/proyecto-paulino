@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import db from "@/backend/database";
 import { KyselyDeduccionRepository } from "../infraestructure/deducciones.infraestructure";
 import { DeduccionService } from "../service/deducciones.service";
-import { CreateDeduccionSchema, DeleteDeduccionSchema, UpdateDeduccionSchema } from "@/dtos/deducciones.dto";
+import { CreateDeduccionSchema, DeleteDeduccionSchema, PagarDeduccionSchema, UpdateDeduccionSchema } from "@/dtos/deducciones.dto";
 import { auth } from "@/lib/auth";
 
 const deduccionesRoute = new Hono();
@@ -75,6 +75,23 @@ deduccionesRoute.patch("/:id", async (c) => {
 
    try {
       const deduccion = await service.update(c.req.param("id"), parseResult.data);
+      if (!deduccion) return c.json({ error: "Deducción no encontrada" }, 404);
+      return c.json(deduccion);
+   } catch (err: unknown) {
+      return c.json({ error: err instanceof Error ? err.message : "Error desconocido" }, 400);
+   }
+});
+
+deduccionesRoute.post("/:id/pagar", async (c) => {
+   const body = await c.req.json();
+   const parseResult = PagarDeduccionSchema.safeParse(body);
+
+   if (!parseResult.success) {
+      return c.json({ error: parseResult.error.format() }, 400);
+   }
+
+   try {
+      const deduccion = await service.pagar(c.req.param("id"), parseResult.data);
       if (!deduccion) return c.json({ error: "Deducción no encontrada" }, 404);
       return c.json(deduccion);
    } catch (err: unknown) {

@@ -10,6 +10,7 @@ import { RestorePurchaseOrderDialog } from "../components/restore-purchase-order
 import { PermissionGuard } from "@/components/permission-guard";
 import { TableSearch } from "@/components/table-search";
 import { PageSizeSelector } from "@/components/page-size-selector";
+import { toast } from "sonner";
 
 function formatMoney(value: number): string {
    return new Intl.NumberFormat("es-DO", {
@@ -58,13 +59,13 @@ export default function ComprasEliminadasPage() {
       setFormLoading(true);
       try {
          const result = await RestorePurchaseOrder(restoreTarget.id);
-         if (result instanceof Error) {
-            alert(result.message);
+          if (result instanceof Error) {
+            toast.error(result.message);
          } else {
             setRestoreTarget(null);
          }
       } catch (error: any) {
-         alert(error.message || "Error al restaurar la orden");
+         toast.error(error.message || "Error al restaurar la orden");
       } finally {
          setFormLoading(false);
       }

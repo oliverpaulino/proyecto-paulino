@@ -8,6 +8,7 @@ import { ArrowLeft, Trash2, Eye, RotateCcw } from "lucide-react";
 import { useDeduccionStore } from "@/stores/useDeduccionStore";
 import type { Deduccion } from "@/dtos/deducciones.dto";
 import { RestoreDeduccionDialog } from "../components/restore-deduccion-dialog";
+import { toast } from "sonner";
 
 function formatMoney(value: number): string {
    return new Intl.NumberFormat("es-DO", {
@@ -49,8 +50,8 @@ export default function DeduccionesEliminadasPage() {
       setFormLoading(true);
       try {
          const result = await RestoreDeduccion(restoreTarget.id);
-         if (result instanceof Error) {
-            alert(result.message);
+          if (result instanceof Error) {
+            toast.error(result.message);
          } else {
             setRestoreTarget(null);
          }

@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { AppointmentForm } from "../components/appointment-form";
 import { PermissionGuard } from "@/components/permission-guard";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 const ESTADO_LABEL: Record<string, string> = {
    ASIGNADA: "Asignada",
@@ -63,6 +64,7 @@ export default function AppointmentDetailPage() {
    const [notesOpen, setNotesOpen] = useState(false); // Estado para el modal de notas
    const [notesText, setNotesText] = useState("");     // Estado para el texto del Textarea
    const [actionLoading, setActionLoading] = useState(false);
+   const [deleteOpen, setDeleteOpen] = useState(false);
 
    useEffect(() => {
       GetAppointments({ limit: 100, force: true });
@@ -94,7 +96,6 @@ export default function AppointmentDetailPage() {
    }
 
    async function handleDelete() {
-      if (!confirm("¿Estás seguro de que deseas eliminar esta cita de forma permanente?")) return;
       setActionLoading(true);
       try {
          await DeleteAppointment(citaId);
@@ -161,12 +162,12 @@ export default function AppointmentDetailPage() {
                      Editar
                   </Button>
                </PermissionGuard>
-               <PermissionGuard resource="appointment" action="delete">
-                  <Button variant="destructive" onClick={handleDelete} disabled={actionLoading}>
-                     {actionLoading ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Trash2 className="mr-2 size-4" />}
-                     Eliminar
-                  </Button>
-               </PermissionGuard>
+                <PermissionGuard resource="appointment" action="delete">
+                   <Button variant="destructive" onClick={() => setDeleteOpen(true)} disabled={actionLoading}>
+                      {actionLoading ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Trash2 className="mr-2 size-4" />}
+                      Eliminar
+                   </Button>
+                </PermissionGuard>
             </div>
          </div>
 
@@ -375,6 +376,17 @@ export default function AppointmentDetailPage() {
                </DialogFooter>
             </DialogContent>
          </Dialog>
+
+         <ConfirmDialog
+            open={deleteOpen}
+            onOpenChange={setDeleteOpen}
+            title="¿Eliminar la cita?"
+            description="Esta acción es permanente y no se puede deshacer."
+            confirmLabel="Eliminar"
+            destructive
+            loading={actionLoading}
+            onConfirm={handleDelete}
+         />
       </div>
       </PermissionGuard>
    );

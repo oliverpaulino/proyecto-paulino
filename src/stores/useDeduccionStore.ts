@@ -4,6 +4,7 @@ import type {
    CreateDeduccionForm,
    UpdateDeduccionForm,
    DeleteDeduccionForm,
+   PagarDeduccionForm,
 } from "@/dtos/deducciones.dto";
 
 type DeduccionesFilters = {
@@ -40,6 +41,7 @@ type DeduccionStore = {
    UpdateDeduccion: (id: string, data: UpdateDeduccionForm) => Promise<void | Error>;
    DeleteDeduccion: (id: string, data: DeleteDeduccionForm) => Promise<void | Error>;
    RestoreDeduccion: (id: string) => Promise<void | Error>;
+   PagarDeduccion: (id: string, data: PagarDeduccionForm) => Promise<Deduccion | Error>;
 
    NextPage: () => Promise<void>;
    PrevPage: () => Promise<void>;
@@ -201,6 +203,22 @@ export const useDeduccionStore = create<DeduccionStore>((set, get) => ({
          get().invalidateCache();
          await get().GetDeducciones({ force: true });
          await get().GetDeletedDeducciones({ force: true });
+      } catch (error) {
+         return error as Error;
+      }
+   },
+
+   PagarDeduccion: async (id, data) => {
+      try {
+         const res = await fetch(`${BASE_URL}/${id}/pagar`, {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
+         });
+         const result = await res.json();
+         if (!res.ok) throw new Error(result.error || "Error al registrar el pago");
+
+         get().invalidateCache();
+         await get().GetDeducciones({ force: true });
+         return result as Deduccion;
       } catch (error) {
          return error as Error;
       }

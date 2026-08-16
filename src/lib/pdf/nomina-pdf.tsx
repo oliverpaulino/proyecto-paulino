@@ -191,7 +191,7 @@ function DetalleEmpleado({ e }: { e: NominaEmpleado }) {
                      <Text style={[s.tableCell, { flex: 1 }]}>
                         {d.concepto}
                         {d.cuotas_sugeridas > 1
-                           ? ` · cuota ${d.cuotas_aplicadas} de ${d.cuotas_sugeridas}`
+                           ? ` · pendiente por pagar ${fmt(d.monto_pendiente)}`
                            : ""}
                      </Text>
                      <Text style={[s.tableCell, s.colSub, { color: "#DC2626" }]}>
