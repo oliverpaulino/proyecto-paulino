@@ -4,6 +4,7 @@ import type {
    CreatePagoForm,
    UpdatePagoForm,
    DeletePagoForm,
+   InfoDestinoPago,
 } from "@/dtos/pagos.dto";
 
 type PagosFilters = {
@@ -12,9 +13,20 @@ type PagosFilters = {
    end?: string;
    gasto_empresa_id?: string;
    deduccion_empleado_id?: string;
+   proyecto_id?: string;
    orden_compra_id?: string;
    equipo_id?: string;
    proveedor_id?: string;
+};
+
+type DestinoParams = {
+   gasto_empresa_id?: string;
+   deduccion_empleado_id?: string;
+   conduce_id?: string;
+   proyecto_id?: string;
+   orden_compra_id?: string;
+   /** Si se pasa, solo suma pagos con created_at < fecha (para ver estado "antes"). */
+   fecha?: string;
 };
 
 type PagoStore = {
@@ -41,6 +53,18 @@ type PagoStore = {
    GetDeletedPagos: (params?: PagosFilters & { page?: number; limit?: number; force?: boolean }) => Promise<void>;
    GetPagoById: (id: string) => Promise<Pago | null>;
 
+   /** Balance polimórfico del destino seleccionado en el form de pago. */
+   destinoInfo: InfoDestinoPago | null;
+   destinoInfoLoading: boolean;
+   GetDestinoInfo: (params: DestinoParams) => Promise<void>;
+   clearDestinoInfo: () => void;
+
+   /** Balance polimórfico del destino "antes" de un pago específico (para detalle). */
+   destinoInfoBefore: InfoDestinoPago | null;
+   destinoInfoBeforeLoading: boolean;
+   GetDestinoInfoBefore: (params: DestinoParams) => Promise<void>;
+   clearDestinoInfoBefore: () => void;
+
    CreatePago: (form: CreatePagoForm) => Promise<Pago | Error>;
    UpdatePago: (id: string, data: UpdatePagoForm) => Promise<void | Error>;
    DeletePago: (id: string, data: DeletePagoForm) => Promise<void | Error>;
@@ -63,6 +87,10 @@ export const usePagoStore = create<PagoStore>((set, get) => ({
    DeletedPagos: [],
    selectedPago: null,
    loading: false,
+   destinoInfo: null,
+   destinoInfoLoading: false,
+   destinoInfoBefore: null,
+   destinoInfoBeforeLoading: false,
    pagination: {
       page: 1, limit: 20, total: 0, totalPages: 0, hasNext: false, hasPrev: false,
    },
@@ -172,6 +200,52 @@ export const usePagoStore = create<PagoStore>((set, get) => ({
       }
    },
 
+   GetDestinoInfo: async (params) => {
+      set({ destinoInfoLoading: true });
+      try {
+         const query = new URLSearchParams();
+         Object.entries(params).forEach(([key, val]) => {
+            if (val) query.append(key, val);
+         });
+
+         const res = await fetch(`${BASE_URL}/destino-info?${query.toString()}`);
+         if (!res.ok) throw new Error("Error al obtener la información del destino");
+
+         const info: InfoDestinoPago = await res.json();
+         set({ destinoInfo: info });
+      } catch (error) {
+         set({ destinoInfo: null });
+         console.error(error);
+      } finally {
+         set({ destinoInfoLoading: false });
+      }
+   },
+
+   clearDestinoInfo: () => set({ destinoInfo: null }),
+
+   GetDestinoInfoBefore: async (params) => {
+      set({ destinoInfoBeforeLoading: true });
+      try {
+         const query = new URLSearchParams();
+         Object.entries(params).forEach(([key, val]) => {
+            if (val) query.append(key, val);
+         });
+
+         const res = await fetch(`${BASE_URL}/destino-info?${query.toString()}`);
+         if (!res.ok) throw new Error("Error al obtener la información del destino");
+
+         const info: InfoDestinoPago = await res.json();
+         set({ destinoInfoBefore: info });
+      } catch (error) {
+         set({ destinoInfoBefore: null });
+         console.error(error);
+      } finally {
+         set({ destinoInfoBeforeLoading: false });
+      }
+   },
+
+   clearDestinoInfoBefore: () => set({ destinoInfoBefore: null }),
+
    GetPagoById: async (id) => {
       set({ loading: true });
       try {
@@ -187,7 +261,6 @@ export const usePagoStore = create<PagoStore>((set, get) => ({
          set({ loading: false });
       }
    },
-
    CreatePago: async (form) => {
       try {
          const res = await fetch(BASE_URL, {

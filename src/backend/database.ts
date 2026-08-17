@@ -1,4 +1,4 @@
-import { Kysely, PostgresDialect, Generated } from "kysely";
+import { Kysely, PostgresDialect, Generated, ColumnType } from "kysely";
 import { Pool } from "pg";
 import { poolConfig } from "./db-pool";
 

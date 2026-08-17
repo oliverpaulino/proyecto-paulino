@@ -66,7 +66,7 @@ export default function PagosPage() {
                   <DialogHeader>
                      <DialogTitle>Registrar Nuevo Pago</DialogTitle>
                      <DialogDescription>
-                        Ingresa los detalles financieros y la vinculación exclusiva a un Gasto, Proyecto, Orden de Compra o Deducción.
+                        Ingresa los detalles financieros y la vinculación exclusiva a un Gasto, Proyecto, Conduce, Orden de Compra o Deducción.
                      </DialogDescription>
                   </DialogHeader>
                   <PagoForm
