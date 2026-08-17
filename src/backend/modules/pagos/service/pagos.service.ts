@@ -38,7 +38,9 @@ export class PagoService {
       data: { destino: Partial<CreatePagoDTO>; tipo_movimiento: string; monto_pagado: number },
       current?: Pago | null
    ) {
-      const info = await this.repo.getInfoDestino(data.destino);
+      // Extraer solo los IDs de destino (no fecha ni otros campos)
+      const { fecha: _fecha, ...destinoIds } = data.destino;
+      const info = await this.repo.getInfoDestino(destinoIds);
       if (!info) throw new Error("El destino del pago no existe o está anulado.");
 
       const esEntrada = data.tipo_movimiento === "ENTRADA";

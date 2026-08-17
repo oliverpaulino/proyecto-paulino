@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { 
    AlertTriangle, 
@@ -15,7 +15,11 @@ import {
    ArrowDownRight,
    Link as LinkIcon,
    Clock,
-   ArrowLeft
+   ArrowLeft,
+   Info,
+   Loader2,
+   TrendingUp,
+   TrendingDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,7 +31,7 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Pago, UpdatePagoForm, MetodoPago } from "@/dtos/pagos.dto";
+import { Pago, UpdatePagoForm, MetodoPago, InfoDestinoPago } from "@/dtos/pagos.dto";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { usePagoStore } from "@/stores/usePagoStore";
@@ -36,7 +40,11 @@ import { RestorePagoDialog } from "../../components/restore-pago-dialog";
 import { PagoForm } from "../../components/pago-form";
 
 export function PagoDetail({ pago, onRefresh }: { pago: Pago; onRefresh: () => void }) {
-   const { DeletePago, UpdatePago, RestorePago } = usePagoStore();
+   const {
+      DeletePago, UpdatePago, RestorePago,
+      GetDestinoInfo, destinoInfo, destinoInfoLoading, clearDestinoInfo,
+      GetDestinoInfoBefore, destinoInfoBefore, destinoInfoBeforeLoading, clearDestinoInfoBefore,
+   } = usePagoStore();
    const router = useRouter();
 
    const [actionLoading, setActionLoading] = useState(false);
@@ -49,6 +57,27 @@ export function PagoDetail({ pago, onRefresh }: { pago: Pago; onRefresh: () => v
    const isEntrada = pago.tipo_movimiento === 'ENTRADA';
    
    const metodoPagoLabel = MetodoPago[pago.metodo_pago as keyof typeof MetodoPago] ?? pago.metodo_pago;
+
+   // Cargar información del destino actual y del estado "antes" del pago
+   useEffect(() => {
+      const params: Record<string, string> = {};
+      if (pago.gasto_empresa_id) params.gasto_empresa_id = pago.gasto_empresa_id;
+      if (pago.deduccion_empleado_id) params.deduccion_empleado_id = pago.deduccion_empleado_id;
+      if (pago.conduce_id) params.conduce_id = pago.conduce_id;
+      if (pago.proyecto_id) params.proyecto_id = pago.proyecto_id;
+      if (pago.orden_compra_id) params.orden_compra_id = pago.orden_compra_id;
+
+      if (Object.keys(params).length === 1) {
+         GetDestinoInfo(params);
+         // Estado "antes" de este pago (created_at < fecha del pago)
+         GetDestinoInfoBefore({ ...params, fecha: new Date(pago.fecha).toISOString() });
+      }
+
+      return () => {
+         clearDestinoInfo();
+         clearDestinoInfoBefore();
+      };
+   }, [pago, GetDestinoInfo, clearDestinoInfo, GetDestinoInfoBefore, clearDestinoInfoBefore]);
 
    const handleDelete = async (reason: string) => {
       setActionLoading(true);
@@ -91,6 +120,10 @@ export function PagoDetail({ pago, onRefresh }: { pago: Pago; onRefresh: () => v
    {
       label: "Deducción de Empleado",
       value: pago.deduccion_codigo_referencia,
+   },
+   {
+      label: "Conduce",
+      value: pago.conduce_numero_referencia,
    },
    {
       label: "Proyecto",
@@ -173,6 +206,9 @@ export function PagoDetail({ pago, onRefresh }: { pago: Pago; onRefresh: () => v
                </TabsTrigger>
                <TabsTrigger value="clasificacion" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
                   Auditoría
+               </TabsTrigger>
+               <TabsTrigger value="destino" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                  Información de Destino
                </TabsTrigger>
             </TabsList>
 
@@ -277,6 +313,28 @@ export function PagoDetail({ pago, onRefresh }: { pago: Pago; onRefresh: () => v
                         )}
                      </CardContent>
                   </Card>
+             </TabsContent>
+
+            {/* ── INFORMACIÓN DE DESTINO ── */}
+            <TabsContent value="destino" className="space-y-4">
+               {destinoInfoLoading || destinoInfoBeforeLoading ? (
+                  <div className="flex items-center justify-center gap-3 rounded-xl border border-border bg-muted/10 p-8 text-sm text-muted-foreground">
+                     <Loader2 className="size-5 animate-spin text-brand-blue" />
+                     Consultando el balance del destino…
+                  </div>
+               ) : destinoInfo ? (
+                  <DestinoInfoView
+                     info={destinoInfo}
+                     infoBefore={destinoInfoBefore}
+                     pago={pago}
+                     isEntrada={isEntrada}
+                  />
+               ) : (
+                  <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/10 p-8 text-sm text-muted-foreground">
+                     <Info className="size-5 text-brand-blue" />
+                     No se pudo obtener la información del destino de este pago.
+                  </div>
+               )}
             </TabsContent>
          </Tabs>
 
@@ -308,6 +366,162 @@ export function PagoDetail({ pago, onRefresh }: { pago: Pago; onRefresh: () => v
                />
             </DialogContent>
          </Dialog>
+      </div>
+   );
+}
+
+/** Vista de solo lectura del balance del destino de un pago. */
+function DestinoInfoView({
+   info,
+   infoBefore,
+   pago,
+   isEntrada,
+}: {
+   info: InfoDestinoPago;
+   infoBefore: InfoDestinoPago | null;
+   pago: Pago;
+   isEntrada: boolean;
+}) {
+   const formatMoney = (v: number) => v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+   // Determinar si el destino acepta entrada (excepto proyecto)
+   const aceptaEntrada = info.aceptaPagoEntrada !== null && info.aceptaPagoEntrada !== undefined;
+
+   // Montos del estado actual
+   const pendienteClienteActual = info.aceptaPagoEntrada ?? 0;
+   const pendienteEmpresaActual = info.aceptaPagoSalida;
+
+   // Montos del estado "antes" (si infoBefore existe)
+   const pendienteClienteBefore = infoBefore ? (infoBefore.aceptaPagoEntrada ?? 0) : null;
+   const pendienteEmpresaBefore = infoBefore ? infoBefore.aceptaPagoSalida : null;
+
+   return (
+      <div className="space-y-4">
+         {/* Encabezado del destino */}
+         <div className="rounded-xl border border-brand-blue/20 bg-brand-blue/5 p-4">
+            <div className="flex items-center gap-2 mb-3">
+               <Info className="size-4 text-brand-blue" />
+               <p className="text-sm font-semibold text-foreground">
+                  {info.tipo}: {info.referencia}
+               </p>
+            </div>
+            {info.concepto && (
+               <p className="text-sm text-muted-foreground mb-3">{info.concepto}</p>
+            )}
+            {info.estado && (
+               <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-secondary text-secondary-foreground">
+                  Estado: {info.estado}
+               </span>
+            )}
+         </div>
+
+         {/* Tarjetas de balance del destino */}
+         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {/* Monto Total */}
+            <div className="rounded-xl border border-border bg-card p-4">
+               <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Monto Total</p>
+               <p className="text-xl font-bold mt-1 text-foreground">${formatMoney(info.montoTotal)}</p>
+            </div>
+
+            {/* Cobrable a Cliente (si aplica - todos los que aceptan ENTRADA excepto proyecto) */}
+            {aceptaEntrada && (
+               <div className="rounded-xl border border-border bg-card p-4">
+                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Cobrable al Cliente</p>
+                  <p className="text-xl font-bold mt-1 text-foreground">${formatMoney(info.cobrableCliente)}</p>
+               </div>
+            )}
+
+            {/* Cobrable Empresa */}
+            <div className="rounded-xl border border-border bg-card p-4">
+               <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Cobrable Empresa</p>
+               <p className="text-xl font-bold mt-1 text-foreground">${formatMoney(info.cobrableEmpresa)}</p>
+            </div>
+
+            {/* Pendiente Cliente (si aplica) */}
+            {aceptaEntrada && (
+               <div className="rounded-xl border border-border bg-card p-4">
+                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pendiente por Cobrar al Cliente</p>
+                  <p className={`text-xl font-bold mt-1 ${pendienteClienteActual > 0 ? "text-amber-600" : "text-emerald-600"}`}>
+                     ${formatMoney(pendienteClienteActual)}
+                  </p>
+               </div>
+            )}
+
+            {/* Pendiente Empresa */}
+            <div className="rounded-xl border border-border bg-card p-4">
+               <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pendiente por Pagar a la Empresa</p>
+               <p className={`text-xl font-bold mt-1 ${pendienteEmpresaActual > 0 ? "text-amber-600" : "text-emerald-600"}`}>
+                  ${formatMoney(pendienteEmpresaActual)}
+               </p>
+            </div>
+         </div>
+
+         {/* Impacto de este pago */}
+         {infoBefore && (
+            <Card>
+               <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                     {isEntrada ? <TrendingUp className="size-5 text-green-600" /> : <TrendingDown className="size-5 text-rose-600" />}
+                     Impacto de Este Pago
+                  </CardTitle>
+                  <CardDescription>
+                     Cómo afecta este pago al balance del destino (estado antes vs. después).
+                  </CardDescription>
+               </CardHeader>
+               <CardContent>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                     {/* Antes */}
+                     <div className="rounded-xl border border-border bg-muted/20 p-4">
+                        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
+                           Antes de Este Pago
+                        </p>
+                        {aceptaEntrada && pendienteClienteBefore !== null && (
+                           <InfoField
+                              label="Pendiente Cliente"
+                              value={`$${formatMoney(pendienteClienteBefore)}`}
+                           />
+                        )}
+                        {pendienteEmpresaBefore !== null && (
+                           <InfoField
+                              label="Pendiente Empresa"
+                              value={`$${formatMoney(pendienteEmpresaBefore)}`}
+                           />
+                        )}
+                     </div>
+
+                     {/* Después */}
+                     <div className="rounded-xl border border-brand-blue/20 bg-brand-blue/5 p-4">
+                        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
+                           Después de Este Pago
+                        </p>
+                        {aceptaEntrada && (
+                           <InfoField
+                              label="Pendiente Cliente"
+                              value={`$${formatMoney(pendienteClienteActual)}`}
+                           />
+                        )}
+                        <InfoField
+                           label="Pendiente Empresa"
+                           value={`$${formatMoney(pendienteEmpresaActual)}`}
+                        />
+                     </div>
+                  </div>
+
+                  {/* Resumen del impacto */}
+                  <div className="mt-4 rounded-lg border border-brand-blue/20 bg-brand-blue/5 p-3">
+                     <p className="text-sm text-muted-foreground">
+                        <span className="font-semibold text-foreground">Este pago: </span>
+                        <span className={`font-bold ${isEntrada ? "text-green-600" : "text-rose-600"}`}>
+                           ${formatMoney(pago.monto_pagado)}
+                        </span>
+                        <span className="text-muted-foreground">
+                           {" "}({isEntrada ? "entrada a favor del destino" : "salida en contra del destino"})
+                        </span>
+                     </p>
+                  </div>
+               </CardContent>
+            </Card>
+         )}
       </div>
    );
 }

@@ -58,9 +58,12 @@ pagosRoute.get("/destino-info", async (c) => {
          conduce_id: c.req.query("conduce_id") ?? null,
          proyecto_id: c.req.query("proyecto_id") ?? null,
          orden_compra_id: c.req.query("orden_compra_id") ?? null,
+         fecha: c.req.query("fecha") ?? undefined,
       };
 
-      const count = Object.values(params).filter(Boolean).length;
+      // Contar solo los IDs de destino (excluir fecha)
+      const { fecha: _fecha, ...destinos } = params;
+      const count = Object.values(destinos).filter(Boolean).length;
       if (count !== 1) {
          return c.json(
             { error: "Debe proporcionar exactamente un destino (gasto_empresa_id, deduccion_empleado_id, conduce_id, proyecto_id u orden_compra_id)." },

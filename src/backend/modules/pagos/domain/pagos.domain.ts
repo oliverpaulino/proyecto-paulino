@@ -187,5 +187,7 @@ export interface IPagoRepository {
       conduce_id?: string | null;
       proyecto_id?: string | null;
       orden_compra_id?: string | null;
+      /** Si se pasa, solo suma pagos con created_at < fecha (para ver estado "antes"). */
+      fecha?: string;
    }): Promise<InfoDestinoPago | null>;
 }

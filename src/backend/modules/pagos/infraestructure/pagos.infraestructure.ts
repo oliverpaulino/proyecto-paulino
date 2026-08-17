@@ -289,20 +289,26 @@ export class KyselyPagoRepository implements IPagoRepository {
    /**
     * Función polimórfica: según cuál id de destino llegue, calcula el balance
     * con la fórmula correspondiente. Solo suma pagos no anulados.
+    * Si `fecha` se pasa, solo suma pagos con created_at < fecha.
     */
    private async sumPagosPorDestino(
       columna: "gasto_empresa_id" | "deduccion_empleado_id" | "conduce_id" | "proyecto_id" | "orden_compra_id",
       id: string,
-      tipo: "ENTRADA" | "SALIDA"
+      tipo: "ENTRADA" | "SALIDA",
+      fecha?: string
    ): Promise<number> {
-      const row = await this.db
+      let query = this.db
          .selectFrom("pago")
          .select(({ fn }) => fn.sum("pago.monto_pagado").as("total"))
          .where(sql.ref(`pago.${columna}`), "=", id)
          .where("pago.tipo_movimiento", "=", tipo)
-         .where("pago.deleted_at", "is", null)
-         .executeTakeFirst();
+         .where("pago.deleted_at", "is", null);
 
+      if (fecha) {
+         query = query.where("pago.created_at", "<", new Date(fecha));
+      }
+
+      const row = await query.executeTakeFirst();
       return Number(row?.total ?? 0);
    }
 
@@ -312,8 +318,9 @@ export class KyselyPagoRepository implements IPagoRepository {
       conduce_id?: string | null;
       proyecto_id?: string | null;
       orden_compra_id?: string | null;
+      fecha?: string;
    }): Promise<InfoDestinoPago | null> {
-      const { gasto_empresa_id, deduccion_empleado_id, conduce_id, proyecto_id, orden_compra_id } = params;
+      const { gasto_empresa_id, deduccion_empleado_id, conduce_id, proyecto_id, orden_compra_id, fecha } = params;
 
       const base = {
          estado: null,
@@ -351,8 +358,8 @@ export class KyselyPagoRepository implements IPagoRepository {
 
          if (!gasto) return null;
 
-         const pagadoEmpresa = await this.sumPagosPorDestino("gasto_empresa_id", gasto_empresa_id, "SALIDA");
-         const pagadoCliente = await this.sumPagosPorDestino("gasto_empresa_id", gasto_empresa_id, "ENTRADA");
+         const pagadoEmpresa = await this.sumPagosPorDestino("gasto_empresa_id", gasto_empresa_id, "SALIDA", fecha);
+         const pagadoCliente = await this.sumPagosPorDestino("gasto_empresa_id", gasto_empresa_id, "ENTRADA", fecha);
          const montoTotal = Number(gasto.monto_total);
          const cobrableProyecto = !!gasto.cobrable_proyecto;
          const cobrableCliente = gasto.cobrable_monto != null ? Number(gasto.cobrable_monto) : 0;
@@ -390,7 +397,7 @@ export class KyselyPagoRepository implements IPagoRepository {
 
          if (!deduccion) return null;
 
-         const totalPagado = await this.sumPagosPorDestino("deduccion_empleado_id", deduccion_empleado_id, "ENTRADA");
+         const totalPagado = await this.sumPagosPorDestino("deduccion_empleado_id", deduccion_empleado_id, "ENTRADA", fecha);
          const montoTotal = Number(deduccion.monto_total);
 
          return {
@@ -415,8 +422,8 @@ export class KyselyPagoRepository implements IPagoRepository {
 
          if (!proyecto) return null;
 
-         const entradas = await this.sumPagosPorDestino("proyecto_id", proyecto_id, "ENTRADA");
-         const salidas = await this.sumPagosPorDestino("proyecto_id", proyecto_id, "SALIDA");
+         const entradas = await this.sumPagosPorDestino("proyecto_id", proyecto_id, "ENTRADA", fecha);
+         const salidas = await this.sumPagosPorDestino("proyecto_id", proyecto_id, "SALIDA", fecha);
          const capital = entradas - salidas;
 
          return {
@@ -447,7 +454,7 @@ export class KyselyPagoRepository implements IPagoRepository {
 
          if (!oc) return null;
 
-         const pagado = await this.sumPagosPorDestino("orden_compra_id", orden_compra_id, "SALIDA");
+         const pagado = await this.sumPagosPorDestino("orden_compra_id", orden_compra_id, "SALIDA", fecha);
          const total = Number(oc.total);
 
          return {
@@ -474,7 +481,7 @@ export class KyselyPagoRepository implements IPagoRepository {
 
          if (!conduce) return null;
 
-         const pagado = await this.sumPagosPorDestino("conduce_id", conduce_id, "ENTRADA");
+         const pagado = await this.sumPagosPorDestino("conduce_id", conduce_id, "ENTRADA", fecha);
          const montoTotal = Number(conduce.subtotal);
 
          return {
