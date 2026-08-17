@@ -105,23 +105,28 @@ export function SelectBuscadorEmployee({
                {loading && currentEmployeesList.length === 0 ? (
                   <div className="p-4 text-center text-sm text-muted-foreground">Buscando empleados...</div>
                ) : currentEmployeesList.length > 0 ? (
-                  currentEmployeesList.map((employee) => (
-                     <div
-                        key={employee.id}
-                        onClick={() => handleSelect(employee)}
-                        className="flex cursor-pointer flex-col gap-1 rounded-sm px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
-                     >
-                        <div className="flex justify-between items-center">
-                           <span className="font-medium truncate">{employee.nombre}</span>
-                           <span className="text-[10px] uppercase font-semibold bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">
-                              {employee.rol}
-                           </span>
-                        </div>
-                        <span className="text-xs text-muted-foreground truncate">
-                           {employee.tipo_identificacion}: {employee.identificacion}
-                        </span>
-                     </div>
-                  ))
+                   currentEmployeesList.map((employee) => (
+                      <div
+                         key={employee.id}
+                         onClick={() => handleSelect(employee)}
+                         className="flex cursor-pointer flex-col gap-1 rounded-sm px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                      >
+                         <div className="flex justify-between items-center">
+                            <span className="font-medium truncate">{employee.nombre}</span>
+                            <div className="flex items-center gap-1.5">
+                               <span className="text-[10px] font-mono font-semibold text-muted-foreground">
+                                  EMP-{String(employee.referencia ?? "").padStart(3, "0")}
+                               </span>
+                               <span className="text-[10px] uppercase font-semibold bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">
+                                  {employee.rol}
+                               </span>
+                            </div>
+                         </div>
+                         <span className="text-xs text-muted-foreground truncate">
+                            {employee.tipo_identificacion}: {employee.identificacion}
+                         </span>
+                      </div>
+                   ))
                ) : (
                   <div className="p-4 text-center text-sm text-muted-foreground">No se encontraron empleados.</div>
                )}

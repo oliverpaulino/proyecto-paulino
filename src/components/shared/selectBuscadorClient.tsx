@@ -124,7 +124,12 @@ export function SelectBuscadorClient({
                            onClick={() => handleSelect(client)}
                            className="flex cursor-pointer flex-col rounded-sm px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
                         >
-                           <span className="font-medium">{client.nombre}</span>
+                           <div className="flex justify-between items-center">
+                              <span className="font-medium">{client.nombre}</span>
+                              <span className="text-[10px] font-mono font-semibold text-muted-foreground">
+                                 CLI-{String(client.referencia ?? "").padStart(3, "0")}
+                              </span>
+                           </div>
                            <span className="text-xs text-muted-foreground truncate">
                               {client.email || "Sin email"} • {client.identificacion || "Sin ID"}
                            </span>

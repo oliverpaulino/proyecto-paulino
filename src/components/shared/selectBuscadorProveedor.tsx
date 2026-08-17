@@ -54,16 +54,18 @@ export function SelectBuscadorProveedor({
       GetSuppliers({ force: true });
    }, [isOpen, GetSuppliers]);
 
-   const proveedoresFiltrados = useMemo(() => {
-      const base = filterTipos?.length ? Suppliers.filter((s) => filterTipos.includes(s.tipo)) : Suppliers;
-      if (!debouncedSearch.trim()) return base;
-      const q = debouncedSearch.toLowerCase();
-      return base.filter(
-         (s) =>
-            s.nombre.toLowerCase().includes(q) ||
-            s.rnc.toLowerCase().includes(q)
-      );
-   }, [Suppliers, debouncedSearch, filterTipos]);
+    const proveedoresFiltrados = useMemo(() => {
+       const base = filterTipos?.length ? Suppliers.filter((s) => filterTipos.includes(s.tipo)) : Suppliers;
+       if (!debouncedSearch.trim()) return base;
+       const q = debouncedSearch.toLowerCase();
+       return base.filter(
+          (s) =>
+             s.nombre.toLowerCase().includes(q) ||
+             s.rnc.toLowerCase().includes(q) ||
+             String(s.referencia ?? "").includes(q) ||
+             `SUP-${String(s.referencia ?? "").padStart(3, "0")}`.toLowerCase().includes(q)
+       );
+    }, [Suppliers, debouncedSearch, filterTipos]);
 
    const proveedorSeleccionado = useMemo(() => {
       if (!value) return null;
@@ -132,18 +134,23 @@ export function SelectBuscadorProveedor({
                   {loading && proveedoresFiltrados.length === 0 ? (
                      <div className="p-4 text-center text-sm text-muted-foreground">Buscando proveedores...</div>
                   ) : proveedoresFiltrados.length > 0 ? (
-                     proveedoresFiltrados.map((p) => (
-                        <div
-                           key={p.id}
-                           onClick={() => handleSelect(p)}
-                           className="flex cursor-pointer items-center justify-between gap-2 rounded-sm px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
-                        >
-                           <span className="truncate font-medium">{p.nombre}</span>
-                           <span className="shrink-0 text-[10px] font-semibold text-muted-foreground">
-                              {p.rnc}
-                           </span>
-                        </div>
-                     ))
+                      proveedoresFiltrados.map((p) => (
+                         <div
+                            key={p.id}
+                            onClick={() => handleSelect(p)}
+                            className="flex cursor-pointer items-center justify-between gap-2 rounded-sm px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                         >
+                            <span className="truncate font-medium">{p.nombre}</span>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                               <span className="text-[10px] font-mono font-semibold text-muted-foreground">
+                                  SUP-{String(p.referencia ?? "").padStart(3, "0")}
+                               </span>
+                               <span className="text-[10px] font-semibold text-muted-foreground">
+                                  {p.rnc}
+                               </span>
+                            </div>
+                         </div>
+                      ))
                   ) : (
                      <div className="p-4 text-center text-sm text-muted-foreground">No se encontraron proveedores.</div>
                   )}

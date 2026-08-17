@@ -87,10 +87,13 @@ export class KyselyEquipoRepository implements IEquipoRepository {
          .orderBy("equipo.created_at", "desc");
 
       if (search) {
+         const cleaned = search.trim().toUpperCase();
+         const refDigits = (cleaned.startsWith("EQU-") ? cleaned.slice(4) : cleaned).replace(/\D/g, "");
          qb = qb.where((eb) =>
             eb.or([
                eb("equipo.nombre", "ilike", `%${search}%`),
                eb("categoria_equipo.nombre", "ilike", `%${search}%`),
+               ...(refDigits ? [eb("equipo.referencia", "=", Number(refDigits))] : []),
             ])
          );
       }

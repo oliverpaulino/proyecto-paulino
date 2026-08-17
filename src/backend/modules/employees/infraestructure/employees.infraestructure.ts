@@ -37,10 +37,13 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
          .selectAll();
 
       if (search) {
+         const cleaned = search.trim().toUpperCase();
+         const refDigits = (cleaned.startsWith("EMP-") ? cleaned.slice(4) : cleaned).replace(/\D/g, "");
          query = query.where((eb) =>
             eb.or([
                eb("empleado.nombre", "like", `%${search}%`),
                eb("empleado.identificacion", "like", `%${search}%`),
+               ...(refDigits ? [eb("empleado.referencia", "=", Number(refDigits))] : []),
             ])
          );
       }

@@ -150,13 +150,15 @@ export const useClientStore = create<ClientStore>((set, get) => ({
 
          const allClients: Client[] = await res.json();
 
-         const filtered = search
-            ? allClients.filter((c) =>
-               c.nombre.toLowerCase().includes(search.toLowerCase()) ||
-               c.identificacion.toLowerCase().includes(search.toLowerCase()) ||
-               (c.email ?? "").toLowerCase().includes(search.toLowerCase())
-            )
-            : allClients;
+          const filtered = search
+             ? allClients.filter((c) =>
+                c.nombre.toLowerCase().includes(search.toLowerCase()) ||
+                c.identificacion.toLowerCase().includes(search.toLowerCase()) ||
+                (c.email ?? "").toLowerCase().includes(search.toLowerCase()) ||
+                String(c.referencia ?? "").includes(search) ||
+                `CLI-${String(c.referencia ?? "").padStart(3, "0")}`.toLowerCase().includes(search.toLowerCase())
+             )
+             : allClients;
 
          const total = filtered.length;
          const totalPages = Math.max(1, Math.ceil(total / limit));
