@@ -171,18 +171,20 @@ export function ConducesTab({
    }, [BulkToggleCobrable, onProyectoChange]);
 
    // ── Crear ────────────────────────────────────────────────────────────
-   async function handleCreateConduce(data: CreateConduceForm) {
-      setConduceLoading(true);
-      try {
-         const result = await CreateConduce(data);
-         if (result instanceof Error) throw result;
-         await onProyectoChange();
-         await GetCategoriasByProyecto(proyecto.id);
-         setConduceDialogOpen(false);
-      } finally {
-         setConduceLoading(false);
-      }
-   }
+    async function handleCreateConduce(data: CreateConduceForm, seguirRegistrando?: boolean) {
+       setConduceLoading(true);
+       try {
+          const result = await CreateConduce(data);
+          if (result instanceof Error) throw result;
+          await onProyectoChange();
+          await GetCategoriasByProyecto(proyecto.id);
+          if (!seguirRegistrando) {
+             setConduceDialogOpen(false);
+          }
+       } finally {
+          setConduceLoading(false);
+       }
+    }
 
    // ── Eliminar ─────────────────────────────────────────────────────────
    async function handleDeleteConduce(id: string) {

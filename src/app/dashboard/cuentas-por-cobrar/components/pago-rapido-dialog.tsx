@@ -246,16 +246,16 @@ export function PagoRapidoDialog({
    const itemsFiltrados = useMemo(() => {
       const b = busqueda.trim().toLowerCase();
       return items.filter((i) => {
-         // Cuando el diálogo vino fijado a un proyecto y una categoría, solo se
-         // muestran los conduces de ese folio y esa categoría.
-         if (categoriaInicial && folioInicialId && i.folioId !== folioInicialId) return false;
+         // Cuando el diálogo vino fijado a un proyecto, solo se muestran
+         // los ítems de ese folio (proyecto).
+         if (folioInicialId && i.folioId !== folioInicialId) return false;
          if (categoria !== "all" && (i.tipo !== "CONDUCE" || i.categoria !== categoria)) return false;
          if (!b) return true;
          return [i.folioRef, i.folioNombre, i.label]
             .filter(Boolean)
             .some((v) => v!.toLowerCase().includes(b));
       });
-   }, [items, busqueda, categoria, categoriaInicial, folioInicialId]);
+   }, [items, busqueda, categoria, folioInicialId]);
 
    // Categorías de equipo presentes en los conduces pendientes del cliente.
    const categorias = useMemo(() => {
@@ -267,7 +267,7 @@ export function PagoRapidoDialog({
    }, [items]);
 
    const seleccionados = useMemo(() => items.filter((i) => seleccion[i.key]), [items, seleccion]);
-   const totalPendiente = items.reduce((acc, i) => acc + i.pendiente, 0);
+   const totalPendiente = (folioInicialId ? itemsFiltrados : items).reduce((acc, i) => acc + i.pendiente, 0);
    const pendienteSeleccionado = seleccionados.reduce((acc, i) => acc + i.pendiente, 0);
    const sumaAsignaciones = items.reduce(
       (acc, i) => acc + (seleccion[i.key] ? Number(asignaciones[i.key]) || 0 : 0),
@@ -674,11 +674,13 @@ export function PagoRapidoDialog({
                         className={INPUT_CLASS}
                      />
                      <p className="text-xs text-muted-foreground">
-                        {seleccionados.length > 0
-                           ? `Se repartirá (FIFO) solo entre los ${seleccionados.length} ítem${
-                                seleccionados.length === 1 ? "" : "s"
-                             } seleccionado${seleccionados.length === 1 ? "" : "s"}.`
-                           : "Sin selección, se repartirá (FIFO) entre todo lo pendiente del cliente."}
+                         {seleccionados.length > 0
+                            ? `Se repartirá (FIFO) solo entre los ${seleccionados.length} ítem${
+                                 seleccionados.length === 1 ? "" : "s"
+                              } seleccionado${seleccionados.length === 1 ? "" : "s"}.`
+                            : folioInicialId
+                               ? "Sin selección, se repartirá (FIFO) entre todo lo pendiente de este proyecto."
+                               : "Sin selección, se repartirá (FIFO) entre todo lo pendiente del cliente."}
                      </p>
                   </div>
                )}
