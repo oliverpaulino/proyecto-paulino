@@ -8,12 +8,13 @@ import { InfoCardShell, Stat, formatMoney } from "./info-card-shell";
  * por pagar a la empresa. Si el gasto nació de una orden de compra y el
  * movimiento es SALIDA, no acepta pagos: muestra la OC a la que deben ir.
  */
-export function GastoInfoCard({ info, loading, esEntrada, monto, adjustment }: {
+export function GastoInfoCard({ info, loading, esEntrada, monto, adjustment, hideNuevoSaldo }: {
    info: InfoDestinoPago | null;
    loading: boolean;
    esEntrada: boolean;
    monto: number;
    adjustment: number;
+   hideNuevoSaldo?: boolean;
 }) {
    if (!info) {
       return (
@@ -40,7 +41,7 @@ export function GastoInfoCard({ info, loading, esEntrada, monto, adjustment }: {
 
    return (
       <InfoCardShell info={info} loading={loading} esEntrada={esEntrada} monto={monto} adjustment={adjustment}>
-         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+         <div className={`grid grid-cols-1 gap-2 ${hideNuevoSaldo ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
             <Stat
                label={esEntrada ? "Monto Total Cobrable al Cliente" : "Monto Total"}
                value={`$${formatMoney(esEntrada ? info.cobrableCliente : info.montoTotal)}`}
@@ -49,11 +50,13 @@ export function GastoInfoCard({ info, loading, esEntrada, monto, adjustment }: {
                label={esEntrada ? "Pendiente por Cobrar (Cliente)" : "Pendiente por Pagar (Empresa)"}
                value={`$${formatMoney(Math.max(0, pendiente))}`}
             />
-            <Stat
-               label="Nuevo Saldo Pendiente"
-               value={`$${formatMoney(Math.max(0, pendiente - monto))}`}
-               tone="good"
-            />
+            {!hideNuevoSaldo && (
+               <Stat
+                  label="Nuevo Saldo Pendiente"
+                  value={`$${formatMoney(Math.max(0, pendiente - monto))}`}
+                  tone="good"
+               />
+            )}
          </div>
       </InfoCardShell>
    );
