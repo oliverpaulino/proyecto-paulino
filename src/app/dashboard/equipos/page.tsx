@@ -71,11 +71,14 @@ export default function EquiposPage() {
 
    const filtered = Equipos.filter((e) => {
       const q = search.toLowerCase();
+      const refCode = `EQU-${String(e.referencia).padStart(3, "0")}`.toLowerCase();
       return (
          e.nombre.toLowerCase().includes(q) ||
          e.categoria_nombre.toLowerCase().includes(q) ||
          (e.placa ?? "").toLowerCase().includes(q) ||
-         (e.modelo ?? "").toLowerCase().includes(q)
+         (e.modelo ?? "").toLowerCase().includes(q) ||
+         String(e.referencia).includes(q) ||
+         refCode.includes(q)
       );
    });
 
