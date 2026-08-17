@@ -176,7 +176,9 @@ export function EquipoCompras({ equipoId }: { equipoId: string }) {
                                        href={`/dashboard/compras/${item.orden_compra_id}`}
                                        className="font-mono text-xs font-medium text-brand-blue hover:underline"
                                     >
-                                       {item.orden_compra_id.slice(0, 8)}…
+                                       <span className="inline-block rounded bg-brand-yellow/25 px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-black dark:text-brand-yellow">
+                                          {item.orden_codigo}
+                                       </span>
                                     </Link>
                                  </td>
                                  <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">

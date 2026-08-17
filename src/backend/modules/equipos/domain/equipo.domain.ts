@@ -71,6 +71,7 @@ export interface EstadoHistorialProps {
 export interface EquipoCompraItemProps {
    id: string;
    orden_compra_id: string;
+   orden_codigo: string;
    orden_fecha: Date;
    orden_estado: string;
    descripcion: string;
