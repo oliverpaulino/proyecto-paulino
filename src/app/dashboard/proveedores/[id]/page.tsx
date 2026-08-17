@@ -424,11 +424,12 @@ export default function SupplierDetailPage() {
             {/* Tabs */}
             < Tabs defaultValue={currentTab} onValueChange={handleTabChange} className="space-y-4" >
                <TabsList className="w-full flex-wrap justify-start gap-1 bg-transparent p-0">
-                  {[
-                     { value: "resumen", label: "Resumen" },
-                     { value: "compras", label: "Órdenes de compra" },
-                     { value: "pagos", label: "Pagos" },
-                  ].map((tab) => (
+                   {[
+                      { value: "resumen", label: "Resumen" },
+                      { value: "compras", label: "Órdenes de compra" },
+                      { value: "subcontrataciones", label: "Subcontrataciones" },
+                      { value: "pagos", label: "Pagos" },
+                   ].map((tab) => (
                      <TabsTrigger
                         key={tab.value}
                         value={tab.value}
