@@ -46,14 +46,7 @@ import { EmployeeDeducciones } from "./employee-deducciones";
 import { TarifaEmpleadoDialog } from "./TarifaEmpleadoDialog";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-
-const ROL_LABEL: Record<string, string> = {
-   OPERADOR: "Operador",
-   INGENIERO: "Ingeniero",
-   MECANICO: "Mecánico",
-   CONTABLE: "Contable",
-   MENSAJERO: "Mensajero",
-};
+import { useRolEmpleadoStore } from "@/stores/useRolEmpleadoStore";
 
 const TIPO_ID_LABEL: Record<string, string> = {
    CEDULA: "Cédula",
@@ -77,6 +70,18 @@ export default function EmployeeDetailView() {
       DeleteEmployee,
       DeleteTarifaEmpleado
    } = useEmployeeStore();
+
+   const { roles: rolesDisponibles, GetRoles } = useRolEmpleadoStore();
+
+   useEffect(() => {
+      GetRoles();
+   }, [GetRoles]);
+
+   // Mapa nombre -> label para acceso rápido
+   const rolLabel = (nombre: string) =>
+      rolesDisponibles.find((r) => r.nombre === nombre)?.label ?? nombre;
+   const esOperador = (nombre: string) =>
+      rolesDisponibles.find((r) => r.nombre === nombre)?.es_operador ?? false;
 
    const [editOpen, setEditOpen] = useState(false);
    const [deleteOpen, setDeleteOpen] = useState(false);
@@ -166,7 +171,7 @@ export default function EmployeeDetailView() {
                         {empleado.nombre}
                      </h1>
                      <span className="rounded-full bg-brand-yellow/20 px-2.5 py-1 text-xs font-semibold text-brand-black dark:text-brand-yellow">
-                        {ROL_LABEL[empleado.rol] ?? empleado.rol}
+                        {rolLabel(empleado.rol)}
                      </span>
                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${empleado.activo
                         ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
@@ -206,7 +211,7 @@ export default function EmployeeDetailView() {
                <TabsTrigger value="resumen" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
                   Resumen
                </TabsTrigger>
-               {empleado.rol === "OPERADOR" && (
+               {esOperador(empleado.rol) && (
                   <TabsTrigger value="conduces" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
                      Conduces
                   </TabsTrigger>
@@ -261,7 +266,7 @@ export default function EmployeeDetailView() {
                            <InfoField label="Nombre" value={empleado.nombre} />
                            <InfoField label="Identificación" value={empleado.identificacion} />
                            <InfoField label="Tipo de identificación" value={TIPO_ID_LABEL[empleado.tipo_identificacion] ?? empleado.tipo_identificacion} />
-                           <InfoField label="Rol" value={ROL_LABEL[empleado.rol] ?? empleado.rol} />
+                           <InfoField label="Rol" value={rolLabel(empleado.rol)} />
                            <InfoField label="Salario Base" value={`RD$ ${empleado.salario.toLocaleString("es-DO")}`} />
                            <InfoField label="Frecuencia de Pago" value={empleado.frecuencia_pago || "QUINCENAL"} />
                            <InfoField label="Estado" value={empleado.activo ? "Activo" : "Inactivo"} />
@@ -351,7 +356,7 @@ export default function EmployeeDetailView() {
             </TabsContent>
 
             {/* ── Conduces ── */}
-            {empleado.rol === "OPERADOR" && (
+            {esOperador(empleado.rol) && (
 
                <TabsContent value="conduces" className="space-y-4">
                   <Card>

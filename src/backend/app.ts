@@ -32,6 +32,7 @@ import cuentasPorPagarRoute from "./modules/cuentas-por-pagar/routes/cuentas-por
 import cuentasPorCobrarRoute from "./modules/cuentas-por-cobrar/routes/cuentas-por-cobrar.routes";
 import subcontratacionesRoute from "./modules/subcontrataciones/routes/subcontrataciones";
 import dashboardRoute from "./modules/dashboard/routes/dashboard.routes";
+import rolEmpleadoRoute from "./modules/rol-empleado/routes/rol-empleado.routes";
 
 const app = new Hono().basePath("/api");
 
@@ -83,6 +84,7 @@ app.use("/tipo-items/*", requireResourcePermission("inventory"));
 app.use("/items/*", requireResourcePermission("inventory"));
 app.use("/units/*", requireResourcePermission("inventory"));
 app.use("/roles/*", requireResourcePermission("user"));
+app.use("/roles-empleado/*", requireResourcePermission("employee"));
 app.use("/cuentas-por-cobrar/*", requireResourcePermission("account_receivable"));
 app.use("/proyecto-tarifas/*", requireResourcePermission("project"));
 app.use("/proyecto-empleado-tarifas/*", requireResourcePermission("project"));
@@ -114,6 +116,7 @@ app.route("/notifications", notificationsRoute);
 app.route("/units", unitsRoute);
 app.route("/user-employee-links", userEmployeeLinksRoute);
 app.route("/roles", rolesRoute);
+app.route("/roles-empleado", rolEmpleadoRoute);
 
 app.route("/conduces", conducesRoute);
 app.route("/nomina", nominaRoute);

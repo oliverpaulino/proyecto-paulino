@@ -175,16 +175,26 @@ export interface DB {
    };
    empleado_categoria_tarifa: EmpleadoCategoriaTarifaTable;
 
-   contact_empleado: {
-      id: Generated<string>;
-      empleado_id: string;
-      name: string;
-      email: string | null;
-      phone: string | null;
-      job_title: string | null;
-      created_at: Date;
-      updated_at: Date;
-   };
+    contact_empleado: {
+       id: Generated<string>;
+       empleado_id: string;
+       name: string;
+       email: string | null;
+       phone: string | null;
+       job_title: string | null;
+       created_at: Date;
+       updated_at: Date;
+    };
+
+    rol_empleado: {
+       id: Generated<string>;
+       nombre: string;
+       label: string;
+       es_operador: boolean;
+       color: string | null;
+       created_at: Generated<Date>;
+       updated_at: Generated<Date>;
+    };
 
    operador: {
       id: Generated<string>;
