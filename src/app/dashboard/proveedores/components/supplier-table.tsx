@@ -46,7 +46,8 @@ export function SupplierTable({ suppliers, onEdit, onDelete }: SupplierTableProp
          <table className="w-full text-sm">
             <thead>
                <tr className="bg-brand-blue">
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">RNC</th>
+                   <th className="px-2 py-3 w-10"></th>
+                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">RNC</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Proveedor</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Tipo</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Contacto</th>
@@ -56,12 +57,17 @@ export function SupplierTable({ suppliers, onEdit, onDelete }: SupplierTableProp
             </thead>
             <tbody>
                {suppliers.map((supplier) => (
-                  <tr
-                     key={supplier.id}
-                     onClick={() => router.push(`/dashboard/proveedores/${supplier.id}`)}
-                     className="border-t border-border hover:bg-brand-blue/10 transition-colors cursor-pointer"
-                  >
-                     <td className="px-4 py-3">
+                   <tr
+                      key={supplier.id}
+                      onClick={() => router.push(`/dashboard/proveedores/${supplier.id}`)}
+                      className="border-t border-border hover:bg-brand-blue/10 transition-colors cursor-pointer"
+                   >
+                      <td className="px-2 py-3">
+                         <button onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/proveedores/${supplier.id}`) }} className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10 transition-colors" title="Ver detalle">
+                            <Eye className="size-4" />
+                         </button>
+                      </td>
+                      <td className="px-4 py-3">
                         <span className="inline-block rounded bg-brand-yellow/25 px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-black dark:text-brand-yellow">
                            {supplier.rnc}
                         </span>

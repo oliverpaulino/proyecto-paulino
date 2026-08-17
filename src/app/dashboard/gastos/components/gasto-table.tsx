@@ -139,7 +139,8 @@ export function GastoTable({ gastos, onMoveGasto, moveTargetLabel, onDataChanged
             <table className="w-full text-sm">
                <thead>
                   <tr className="bg-brand-blue">
-                     <th className="w-10 px-4 py-3">
+                      <th className="px-2 py-3 w-10"></th>
+                      <th className="w-10 px-4 py-3">
                         <Checkbox
                            aria-label="Seleccionar todos"
                            className="border-blue-200 data-[state=checked]:bg-white data-[state=checked]:text-brand-blue"
@@ -159,12 +160,19 @@ export function GastoTable({ gastos, onMoveGasto, moveTargetLabel, onDataChanged
                </thead>
                <tbody>
                   {gastos.map((g) => (
-                     <tr
-                        key={g.id}
-                        className={`border-b border-border/50 transition-colors ${seleccionados.has(g.id) ? "bg-brand-blue/5" : "hover:bg-brand-blue/5"
-                           }`}
-                     >
-                        <td className="px-4 py-3">
+                      <tr
+                         key={g.id}
+                         className={`border-b border-border/50 transition-colors ${seleccionados.has(g.id) ? "bg-brand-blue/5" : "hover:bg-brand-blue/5"
+                            }`}
+                      >
+                         <td className="px-2 py-3">
+                            <Link href={`/dashboard/gastos/${g.id}`}>
+                               <button className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10 transition-colors" title="Ver detalle">
+                                  <Eye className="size-4" />
+                               </button>
+                            </Link>
+                         </td>
+                         <td className="px-4 py-3">
                            <Checkbox
                               aria-label={`Seleccionar ${g.codigoReferencia}`}
                               checked={seleccionados.has(g.id)}

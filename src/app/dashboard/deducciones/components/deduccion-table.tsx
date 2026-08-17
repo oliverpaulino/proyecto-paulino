@@ -54,8 +54,9 @@ export function DeduccionTable({ deducciones }: { deducciones: Deduccion[] }) {
          <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
             <table className="w-full text-sm">
                <thead>
-                  <tr className="bg-brand-blue">
-                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Referencia</th>
+                   <tr className="bg-brand-blue">
+                      <th className="px-2 py-3 w-10"></th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Referencia</th>
                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Fecha</th>
                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Concepto</th>
                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-blue-200">Empleado</th>
@@ -66,8 +67,15 @@ export function DeduccionTable({ deducciones }: { deducciones: Deduccion[] }) {
                </thead>
                <tbody>
                   {deducciones.map((d) => (
-                     <tr key={d.id} className="border-b border-border/50 hover:bg-brand-blue/5 transition-colors">
-                        <td className="px-4 py-3 font-mono font-medium text-brand-blue">
+                      <tr key={d.id} className="border-b border-border/50 hover:bg-brand-blue/5 transition-colors">
+                         <td className="px-2 py-3">
+                            <Link href={`/dashboard/deducciones/${d.id}`}>
+                               <button className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10 transition-colors" title="Ver detalle">
+                                  <Eye className="size-4" />
+                               </button>
+                            </Link>
+                         </td>
+                         <td className="px-4 py-3 font-mono font-medium text-brand-blue">
                            {d.codigoReferencia}
                         </td>
                         <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">

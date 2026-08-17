@@ -55,7 +55,8 @@ export function ClientTable({ clients, onEdit, onDelete }: ClientTableProps) {
          <table className="w-full text-sm">
             <thead>
                <tr className="bg-brand-blue">
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">ID</th>
+                   <th className="px-2 py-3 w-10"></th>
+                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">ID</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Cliente</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Tipo</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Contacto</th>
@@ -68,13 +69,18 @@ export function ClientTable({ clients, onEdit, onDelete }: ClientTableProps) {
                   const tipoCliente = (client.tipo_cliente?.toUpperCase() || "FISICA") as keyof typeof TipoCliente;
                   const tipoIdentificacion = (client.tipo_identificacion?.toUpperCase() || "CEDULA") as keyof typeof TipoIdentificacion;
 
-                  return (
-                     <tr
-                        key={client.id}
-                        className="border-t border-border hover:bg-brand-blue/5 transition-colors"
-                     >
-                        <td className="px-4 py-3">
-                           <Link href={`/dashboard/clientes/${client.id}`} className="hover:bg-brand-yellow/50 transition  " >
+                   return (
+                      <tr
+                         key={client.id}
+                         className="border-t border-border hover:bg-brand-blue/5 transition-colors"
+                      >
+                         <td className="px-2 py-3">
+                            <button onClick={() => router.push(`/dashboard/clientes/${client.id}`)} className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10 transition-colors" title="Ver detalle">
+                               <Eye className="size-4" />
+                            </button>
+                         </td>
+                         <td className="px-4 py-3">
+                            <Link href={`/dashboard/clientes/${client.id}`} className="hover:bg-brand-yellow/50 transition  " >
                               {/* Usamos el DTO para el Label de la Identificación */}
                               <div className="text-xs text-muted-foreground">
                                  {TipoIdentificacion[tipoIdentificacion] ?? tipoIdentificacion}
