@@ -146,28 +146,36 @@ export class KyselyNominaRepository implements INominaRepository {
 
    // ── Empleados candidatos ─────────────────────────────────────────────────
 
-   /**
-    * Todos los empleados activos. La modalidad se deriva del rol: solo los
-    * OPERADOR cobran por producción (conduces); el resto del personal cobra
-    * su salario fijo del período.
-    */
-   async listEmpleadosParaNomina(): Promise<EmpleadoParaNomina[]> {
-      const rows = await this.db
-         .selectFrom("empleado")
-         .select(["id", "nombre", "rol", "salario", "frecuencia_pago"])
-         .where("activo", "=", true)
-         .orderBy("nombre", "asc")
-         .execute();
+    /**
+     * Todos los empleados activos. La modalidad se deriva del rol: solo los
+     * roles marcados como `es_operador` cobran por producción (conduces);
+     * el resto del personal cobra su salario fijo del período.
+     */
+    async listEmpleadosParaNomina(): Promise<EmpleadoParaNomina[]> {
+       const rows = await this.db
+          .selectFrom("empleado")
+          .leftJoin("rol_empleado", "rol_empleado.nombre", "empleado.rol")
+          .select([
+             "empleado.id",
+             "empleado.nombre",
+             "empleado.rol",
+             "empleado.salario",
+             "empleado.frecuencia_pago",
+             "rol_empleado.es_operador",
+          ])
+          .where("empleado.activo", "=", true)
+          .orderBy("empleado.nombre", "asc")
+          .execute();
 
-      return rows.map((r) => ({
-         id: r.id,
-         nombre: r.nombre,
-         rol: r.rol,
-         modalidad: r.rol === "OPERADOR" ? "PRODUCCION" : "FIJO",
-         salario: num(r.salario),
-         frecuencia_pago: r.frecuencia_pago ?? null,
-      }));
-   }
+       return rows.map((r) => ({
+          id: r.id,
+          nombre: r.nombre,
+          rol: r.rol,
+          modalidad: r.es_operador === true ? "PRODUCCION" : "FIJO",
+          salario: num(r.salario),
+          frecuencia_pago: r.frecuencia_pago ?? null,
+       }));
+    }
 
    // ── Conduces del período ─────────────────────────────────────────────────
 
