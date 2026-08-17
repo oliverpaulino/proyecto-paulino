@@ -156,15 +156,15 @@ export interface DB {
       updated_at: Date;
    };
 
-   empleado: {
-      id: Generated<string>;
-      referencia: Generated<number>;
-      nombre: string;
-      identificacion: string;
-      tipo_identificacion: string;
-      frecuencia_pago: string; // <-- Agregado el campo de frecuencia de pago
-      rol: string;
-      salario: number;
+    empleado: {
+       id: Generated<string>;
+       referencia: Generated<number>;
+       nombre: string;
+       identificacion: string;
+       tipo_identificacion: string;
+       frecuencia_pago: string; // <-- Agregado el campo de frecuencia de pago
+       rol: string;
+       salario: number;
       // Si se le retienen TSS (AFP/SFS) e ISR en la nómina. Por defecto FALSE:
       // activarlo cambia lo que la persona cobra, así que es una decisión
       // explícita por empleado, no un default. Ver migración 016.

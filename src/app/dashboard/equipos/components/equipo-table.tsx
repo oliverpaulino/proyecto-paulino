@@ -19,14 +19,6 @@ interface EquipoTableProps {
 
 export function EquipoTable({ equipos, onEdit, onDelete }: EquipoTableProps) {
    const { GetOperators, Operators } = useEmployeeStore();
-   if (equipos.length === 0) {
-      return (
-         <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-brand-blue/20 bg-brand-blue/5 p-12 text-sm text-muted-foreground gap-2">
-            <span className="text-3xl opacity-30">🚜</span>
-            <span>No hay equipos que mostrar.</span>
-         </div>
-      );
-   }
 
    useEffect(() => {
       const fetchOperadores = async () => {
@@ -40,7 +32,14 @@ export function EquipoTable({ equipos, onEdit, onDelete }: EquipoTableProps) {
       fetchOperadores();
    }, [GetOperators]);
 
-
+   if (equipos.length === 0) {
+      return (
+         <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-brand-blue/20 bg-brand-blue/5 p-12 text-sm text-muted-foreground gap-2">
+            <span className="text-3xl opacity-30">🚜</span>
+            <span>No hay equipos que mostrar.</span>
+         </div>
+      );
+   }
 
    return (
       <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
