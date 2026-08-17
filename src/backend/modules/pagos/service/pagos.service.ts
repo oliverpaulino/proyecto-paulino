@@ -4,6 +4,7 @@ import {
    InfoDestinoPago,
    Pago,
    PagoProps,
+   PagoPaginatedResult,
    IPagoRepository,
    UpdatePagoDTO,
 } from "../domain/pagos.domain";
@@ -94,9 +95,18 @@ export class PagoService {
       return this.repo.getInfoDestino(params);
    }
 
-   async getAll(params?: any): Promise<PagoProps[]> {
-      const items = await this.repo.findAll(params);
-      return items.map((c) => c.toJSON());
+   async getAll(params?: any): Promise<PagoPaginatedResult> {
+      const { page = 1, limit = 20 } = params || {};
+      const [items, total] = await Promise.all([
+         this.repo.findAll(params),
+         this.repo.countAll(params),
+      ]);
+      return {
+         data: items.map((c) => c.toJSON()),
+         total,
+         page,
+         limit,
+      };
    }
 
    async getAllDeleted(params?: any): Promise<PagoProps[]> {

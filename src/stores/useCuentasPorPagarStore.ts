@@ -90,7 +90,7 @@ export const useCuentasPorPagarStore = create<State>((set, get) => ({
    resumen: RESUMEN_VACIO,
    total: 0,
    page: 1,
-   pageSize: 25,
+   pageSize: 10,
    filtros: {},
    loading: false,
    error: null,
@@ -98,6 +98,9 @@ export const useCuentasPorPagarStore = create<State>((set, get) => ({
    GetCuentas: async (filtros) => {
       const f = { ...get().filtros, ...filtros };
       set({ loading: true, error: null, filtros: f });
+
+      const pageSize = f.pageSize ?? get().pageSize;
+      const page = f.page ?? 1;
 
       const qs = new URLSearchParams();
       if (f.tipo) qs.set("tipo", f.tipo);
@@ -107,8 +110,8 @@ export const useCuentasPorPagarStore = create<State>((set, get) => ({
       if (f.fecha_desde) qs.set("fecha_desde", f.fecha_desde);
       if (f.fecha_hasta) qs.set("fecha_hasta", f.fecha_hasta);
       if (f.proveedor_id) qs.set("proveedor_id", f.proveedor_id);
-      qs.set("page", String(f.page ?? 1));
-      qs.set("pageSize", String(f.pageSize ?? 25));
+      qs.set("page", String(page));
+      qs.set("pageSize", String(pageSize));
 
       try {
          const res = await fetch(`/api/cuentas-por-pagar?${qs}`);

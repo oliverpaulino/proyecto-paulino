@@ -25,6 +25,8 @@ import { Label } from "@/components/ui/label";
 import {
    ArrowLeft,
    Boxes,
+   ChevronLeft,
+   ChevronRight,
    FileText,
    HandCoins,
    HardHat,
@@ -99,7 +101,7 @@ export default function SupplierDetailPage() {
    const { GetOrdenesCompraBySupplier, PurchaseOrders: ordenes } = usePurchaseOrderStore();
    const { GetCuentas, cuentas: cuentasPagar } = useCuentasPorPagarStore();
    const { GetSubcontrataciones, subcontrataciones, loading: subLoading } = useSubcontratacionStore();
-   const { Pagos: pagosProveedor, GetPagos, loading: pagosLoading } = usePagoStore();
+   const { Pagos: pagosProveedor, pagination: pagosPagination, GetPagos, NextPage: pagosNextPage, PrevPage: pagosPrevPage, loading: pagosLoading } = usePagoStore();
 
    const [supplier, setSupplier] = useState<Supplier | null>(null);
    const [loading, setLoading] = useState(true);
@@ -120,6 +122,7 @@ export default function SupplierDetailPage() {
    const [ocSel, setOcSel] = useState<Set<string>>(new Set());
    const [subSel, setSubSel] = useState<Set<string>>(new Set());
    const [pagoBusqueda, setPagoBusqueda] = useState("");
+   const [pagoBusquedaDebounced, setPagoBusquedaDebounced] = useState("");
 
    // const handleTabChange = (value: string) => {
    //    // setCurrentTab(value);
@@ -141,9 +144,9 @@ export default function SupplierDetailPage() {
          try {
             const data = await GetSupplierById(supplierId);
             await GetOrdenesCompraBySupplier(supplierId, { force: true, limit: 1000 });
-            await GetCuentas({ proveedor_id: supplierId, incluir_pagadas: true, pageSize: 1000 });
-            await GetSubcontrataciones({ proveedor_id: supplierId, incluir_pagadas: true, pageSize: 1000 });
-            await GetPagos({ proveedor_id: supplierId, limit: 1000, force: true });
+            await GetCuentas({ proveedor_id: supplierId, incluir_pagadas: true, pageSize: 10 });
+            await GetSubcontrataciones({ proveedor_id: supplierId, incluir_pagadas: true, pageSize: 10 });
+            await GetPagos({ proveedor_id: supplierId, limit: 20, force: true });
 
             setSupplier(data);
             if (data)
@@ -168,8 +171,17 @@ export default function SupplierDetailPage() {
       await GetCuentas({ proveedor_id: supplierId, incluir_pagadas: true, pageSize: 1000 });
       await GetSubcontrataciones({ proveedor_id: supplierId, incluir_pagadas: true, pageSize: 1000 });
       await GetOrdenesCompraBySupplier(supplierId, { force: true, limit: 1000 });
-      await GetPagos({ proveedor_id: supplierId, limit: 1000, force: true });
+      await GetPagos({ proveedor_id: supplierId, limit: 20, force: true });
    }
+
+   useEffect(() => {
+      const t = setTimeout(() => setPagoBusquedaDebounced(pagoBusqueda), 350);
+      return () => clearTimeout(t);
+   }, [pagoBusqueda]);
+
+   useEffect(() => {
+      GetPagos({ proveedor_id: supplierId, limit: 20, search: pagoBusquedaDebounced || undefined, force: true });
+   }, [pagoBusquedaDebounced, supplierId]);
 
    const handleTabChange = (value: string) => {
       const params = new URLSearchParams(searchParams.toString());
@@ -328,12 +340,7 @@ export default function SupplierDetailPage() {
       return { ref: "—", tipo: "" };
    };
 
-   const pagosFiltrados = pagosProveedor.filter((p) => {
-      if (!pagoBusqueda.trim()) return true;
-      const b = pagoBusqueda.trim().toLowerCase();
-      const texto = [p.codigoReferencia, origenPago(p).ref, p.concepto].join(" ").toLowerCase();
-      return texto.includes(b);
-   });
+   const pagosFiltrados = pagosProveedor;
 
    const subPagables: PagarItem[] = subcontrataciones
       .filter((s) => s.pendiente > 0 && s.gasto_id)
@@ -424,12 +431,12 @@ export default function SupplierDetailPage() {
             {/* Tabs */}
             < Tabs defaultValue={currentTab} onValueChange={handleTabChange} className="space-y-4" >
                <TabsList className="w-full flex-wrap justify-start gap-1 bg-transparent p-0">
-                   {[
-                      { value: "resumen", label: "Resumen" },
-                      { value: "compras", label: "Órdenes de compra" },
-                      { value: "subcontrataciones", label: "Subcontrataciones" },
-                      { value: "pagos", label: "Pagos" },
-                   ].map((tab) => (
+                  {[
+                     { value: "resumen", label: "Resumen" },
+                     { value: "compras", label: "Órdenes de compra" },
+                     { value: "subcontrataciones", label: "Subcontrataciones" },
+                     { value: "pagos", label: "Pagos" },
+                  ].map((tab) => (
                      <TabsTrigger
                         key={tab.value}
                         value={tab.value}
@@ -1158,20 +1165,39 @@ export default function SupplierDetailPage() {
                                           </tr>
                                        );
                                     })}
-                                    {pagosFiltrados.length === 0 && (
-                                       <tr>
-                                          <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
-                                             Sin resultados para la búsqueda.
-                                          </td>
-                                       </tr>
-                                    )}
-                                 </tbody>
-                              </table>
-                           </div>
-                        )}
-                     </CardContent>
-                  </Card>
-               </TabsContent>
+                                     {pagosFiltrados.length === 0 && (
+                                        <tr>
+                                           <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
+                                              Sin resultados para la búsqueda.
+                                           </td>
+                                        </tr>
+                                     )}
+                                  </tbody>
+                               </table>
+                            </div>
+                         )}
+
+                         {pagosProveedor.length > 0 && pagosPagination.totalPages > 1 && (
+                            <div className="flex flex-col items-center justify-between gap-3 border-t border-border pt-3 sm:flex-row">
+                               <p className="text-xs text-muted-foreground">
+                                  Mostrando {((pagosPagination.page - 1) * pagosPagination.limit) + 1}–{Math.min(pagosPagination.page * pagosPagination.limit, pagosPagination.total)} de {pagosPagination.total}
+                               </p>
+                               <div className="flex gap-2">
+                                  <Button variant="outline" size="sm" disabled={!pagosPagination.hasPrev || pagosLoading} onClick={pagosPrevPage}>
+                                     <ChevronLeft className="size-4" /> Anterior
+                                  </Button>
+                                  <span className="flex items-center text-xs font-medium">
+                                     Pág. {pagosPagination.page} / {pagosPagination.totalPages}
+                                  </span>
+                                  <Button variant="outline" size="sm" disabled={!pagosPagination.hasNext || pagosLoading} onClick={pagosNextPage}>
+                                     Siguiente <ChevronRight className="size-4" />
+                                  </Button>
+                               </div>
+                            </div>
+                         )}
+                      </CardContent>
+                   </Card>
+                </TabsContent>
 
             </Tabs>
 
