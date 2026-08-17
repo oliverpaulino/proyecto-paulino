@@ -37,7 +37,7 @@ import { useEmployeeStore } from "@/stores/useEmployeeStore";
 // AÑADIR ESTA IMPORTACIÓN (Ajusta la ruta según tu proyecto)
 
 interface Props {
-   onSubmit: (data: CreateConduceForm) => Promise<void>;
+   onSubmit: (data: CreateConduceForm, seguirRegistrando?: boolean) => Promise<void>;
    onCancel: () => void;
    loading: boolean;
    fixedProyectoId?: string;
@@ -374,7 +374,7 @@ export function ConduceForm({ onSubmit, onCancel, loading, fixedProyectoId, fixe
       // 2. PETICIÓN EN SEGUNDO PLANO (Background Mutation)
       // Disparamos la acción sin bloquear la pantalla con un "loading" global
       try {
-         await onSubmit(payload);
+         await onSubmit(payload, seguirRegistrando);
       } catch (error) {
          // Si falla, aquí puedes disparar una alerta tipo Toast (ej: sonner o shadcn toast)
          console.error("Error al guardar el conduce en segundo plano:", error);
