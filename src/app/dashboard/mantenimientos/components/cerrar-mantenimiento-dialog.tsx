@@ -68,6 +68,7 @@ export function CerrarMantenimientoDialog({
    const { Gastos, GetGastos } = useGastoStore();
 
    const [trabajo, setTrabajo] = useState("");
+   const [trabajoManual, setTrabajoManual] = useState(""); // texto extra del usuario
    const [fechaFin, setFechaFin] = useState(todayISO());
    const [costo, setCosto] = useState("");
    const [modoGasto, setModoGasto] = useState<ModoGasto>("NINGUNO");
@@ -77,10 +78,21 @@ export function CerrarMantenimientoDialog({
    const [montoGastoNuevo, setMontoGastoNuevo] = useState("");
    const [localError, setLocalError] = useState<string | null>(null);
 
+   // Reconstruir la descripción combinando conceptos de gastos + texto manual
+   const reconstruirTrabajo = (ids: string[], manual: string) => {
+      const conceptos = ids
+         .map((id) => gastosEquipo.find((g) => g.id === id)?.concepto)
+         .filter(Boolean) as string[];
+      const partes = [...conceptos];
+      if (manual.trim()) partes.push(manual.trim());
+      setTrabajo(partes.join(". "));
+   };
+
    // Reiniciar el formulario cada vez que se abre para un mantenimiento distinto.
    useEffect(() => {
       if (!open) return;
       setTrabajo("");
+      setTrabajoManual("");
       setFechaFin(todayISO());
       setCosto("");
       setModoGasto("NINGUNO");
@@ -128,18 +140,16 @@ export function CerrarMantenimientoDialog({
    const hayGastos = gastoIds.length > 0 || (modoGasto === "CREAR" && montoNuevoNum > 0);
 
    /**
-    * Marcar/desmarcar un gasto. Al marcar el primero se aprovecha su concepto
-    * para "¿qué se hizo?" si el campo sigue vacío; el costo se recalcula solo.
+    * Marcar/desmarcar un gasto. La descripción se reconstruye automáticamente
+    * concatenando los conceptos de todos los gastos seleccionados + el texto
+    * manual del usuario.
     */
    function toggleGasto(id: string) {
       setGastoIds((prev) => {
          const yaEsta = prev.includes(id);
          const siguiente = yaEsta ? prev.filter((g) => g !== id) : [...prev, id];
-
-         if (!yaEsta && !trabajo.trim()) {
-            const gasto = gastosEquipo.find((g) => g.id === id);
-            if (gasto) setTrabajo(gasto.concepto);
-         }
+         // Reconstruir la descripción con la nueva lista
+         reconstruirTrabajo(siguiente, trabajoManual);
          return siguiente;
       });
    }
@@ -216,14 +226,49 @@ export function CerrarMantenimientoDialog({
                   <Label htmlFor="trabajo-realizado">
                      ¿Qué se hizo? <span className="text-destructive">*</span>
                   </Label>
+                  {gastoIds.length > 0 && (
+                     <div className="flex flex-wrap gap-1.5">
+                        {gastoIds.map((id) => {
+                           const g = gastosEquipo.find((x) => x.id === id);
+                           return (
+                              <span
+                                 key={id}
+                                 className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-xs"
+                              >
+                                 {g?.concepto}
+                                 <button
+                                    type="button"
+                                    className="ml-0.5 text-muted-foreground hover:text-foreground"
+                                    onClick={() => toggleGasto(id)}
+                                    disabled={loading}
+                                 >
+                                    ×
+                                 </button>
+                              </span>
+                           );
+                        })}
+                     </div>
+                  )}
                   <Textarea
                      id="trabajo-realizado"
-                     value={trabajo}
-                     onChange={(e) => setTrabajo(e.target.value)}
-                     placeholder="Ej: Cambio de aceite y filtros, ajuste de frenos."
+                     value={trabajoManual}
+                     onChange={(e) => {
+                        setTrabajoManual(e.target.value);
+                        reconstruirTrabajo(gastoIds, e.target.value);
+                     }}
+                     placeholder={
+                        gastoIds.length > 0
+                           ? "Agregar descripción adicional (opcional)…"
+                           : "Ej: Cambio de aceite y filtros, ajuste de frenos."
+                     }
                      rows={3}
                      disabled={loading}
                   />
+                  {gastoIds.length > 0 && (
+                     <p className="text-xs text-muted-foreground">
+                        Se guardará la combinación de los conceptos seleccionados + tu texto.
+                     </p>
+                  )}
                </div>
 
                <div className="grid gap-4 sm:grid-cols-2">
