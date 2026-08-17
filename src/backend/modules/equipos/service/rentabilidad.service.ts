@@ -188,29 +188,42 @@ export async function getEquipoRentabilidad(
       };
    });
 
-   // ── Gastos ──────────────────────────────────────────────────────────────
-   const gastosRows = await db
-      .selectFrom("gasto")
-      .innerJoin("categoria_gasto", "categoria_gasto.id", "gasto.categoria_gasto_id")
-      .leftJoin("orden_compra", "orden_compra.id", "gasto.orden_compra_id")
-      .leftJoin("proyecto", "proyecto.id", "gasto.proyecto_id")
-      .leftJoin("equipo", "equipo.id", "gasto.equipo_id")
-      .selectAll("gasto")
-      .select([
-         "categoria_gasto.nombre as categoria_gasto_nombre",
-         "categoria_gasto.grupo as categoria_gasto_grupo",
-         "orden_compra.referencia as orden_compra_codigo_referencia",
-         "proyecto.referencia as proyecto_codigo_referencia",
-         "equipo.referencia as equipo_codigo_referencia",
-      ])
-      .where("gasto.equipo_id", "=", equipoId)
-      .where("gasto.deleted_at", "is", null)
-      .$if(!!desde, (q: any) => q.where("gasto.fecha", ">=", desde))
-      .$if(!!desdeExcl, (q: any) => q.where("gasto.fecha", "<", desdeExcl))
-      .orderBy("gasto.fecha", "desc")
-      .execute();
+    // IDs de gastos vinculados a mantenimientos para excluirlos (evita doble
+    // conteo: el costo del mantenimiento ya se suma por separado en `mantTotal`).
+    const gastosVinculadosRows = await db
+       .selectFrom("mantenimiento_gasto")
+       .select("mantenimiento_gasto.gasto_id")
+       .execute();
+    const gastosVinculadosIds = new Set(gastosVinculadosRows.map((r) => r.gasto_id));
 
-   const gastos = gastosRows.map((r: any) => ({
+    // ── Gastos ──────────────────────────────────────────────────────────────
+    // Se excluyen los gastos creados automáticamente al cerrar un mantenimiento
+    // (enlazados via mantenimiento_gasto) para evitar doble conteo.
+    const gastosRows = await db
+       .selectFrom("gasto")
+       .innerJoin("categoria_gasto", "categoria_gasto.id", "gasto.categoria_gasto_id")
+       .leftJoin("orden_compra", "orden_compra.id", "gasto.orden_compra_id")
+       .leftJoin("proyecto", "proyecto.id", "gasto.proyecto_id")
+       .leftJoin("equipo", "equipo.id", "gasto.equipo_id")
+       .selectAll("gasto")
+       .select([
+          "categoria_gasto.nombre as categoria_gasto_nombre",
+          "categoria_gasto.grupo as categoria_gasto_grupo",
+          "orden_compra.referencia as orden_compra_codigo_referencia",
+          "proyecto.referencia as proyecto_codigo_referencia",
+          "equipo.referencia as equipo_codigo_referencia",
+       ])
+       .where("gasto.equipo_id", "=", equipoId)
+       .where("gasto.deleted_at", "is", null)
+       .$if(!!desde, (q: any) => q.where("gasto.fecha", ">=", desde))
+       .$if(!!desdeExcl, (q: any) => q.where("gasto.fecha", "<", desdeExcl))
+       .orderBy("gasto.fecha", "desc")
+       .execute();
+
+    // Excluir gastos vinculados a mantenimientos para evitar doble conteo.
+    const gastosFiltrados = gastosRows.filter((r: any) => !gastosVinculadosIds.has(r.id));
+
+    const gastos = gastosFiltrados.map((r: any) => ({
       id: r.id,
       referencia: num(r.referencia),
       codigoReferencia: buildCodigo("GAS", r.referencia),

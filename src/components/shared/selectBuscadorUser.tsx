@@ -53,7 +53,7 @@ export function SelectBuscadorUser({
    const fetchUsers = async () => {
       setLoading(true);
       try {
-         const { data } = await (authClient.admin as any).listUsers({ query: { limit: 500 } });
+         const { data } = await authClient.admin.listUsers({ query: { limit: 500 } });
          setUsers((data?.users as UserRecord[]) || []);
       } catch (error) {
          console.error(error);

@@ -6,13 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-   Select,
-   SelectContent,
-   SelectItem,
-   SelectTrigger,
-   SelectValue,
-} from "@/components/ui/select";
+   Dialog,
+   DialogContent,
+   DialogHeader,
+   DialogTitle,
+} from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import { SelectBuscadorClient } from "@/components/shared/selectBuscadorClient";
+import { ClientForm } from "../../clientes/components/client-form";
 import { useClientStore } from "@/stores/useClientStore";
 import type { CreateProyectoForm } from "@/dtos/proyecto.dto";
 import { fechaRD } from "@/lib/utils";
@@ -32,7 +33,10 @@ interface Props {
 // Esos ítems se registran como Gastos desde los tabs Cobrables/Incobrables del
 // detalle del proyecto (antes generaban doble conteo con la tabla gasto).
 export function ProyectoForm({ initialData, onSubmit, onCancel, loading }: Props) {
-   const { Clients, GetClients } = useClientStore();
+   const { Clients, GetClients, CreateClient } = useClientStore();
+   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+   const [isCreatingClient, setIsCreatingClient] = useState(false);
+   const [newClientInitialName, setNewClientInitialName] = useState("");
 
    useEffect(() => {
       GetClients();
@@ -87,23 +91,23 @@ export function ProyectoForm({ initialData, onSubmit, onCancel, loading }: Props
    const isFormValid = Boolean(clienteId && nombreProyecto.trim());
 
    return (
+      <>
       <form onSubmit={handleSubmit} className="space-y-5 ">
          {/* ── Cliente + Tarifa ── */}
          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
                <Label htmlFor="cliente">Cliente *</Label>
-               <Select value={clienteId} onValueChange={setClienteId} required>
-                  <SelectTrigger id="cliente">
-                     <SelectValue placeholder="Seleccionar cliente…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                     {Clients.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                           {c.nombre}
-                        </SelectItem>
-                     ))}
-                  </SelectContent>
-               </Select>
+               <SelectBuscadorClient
+                  value={clienteId}
+                  initialLabel={Clients.find((c) => c.id === clienteId)?.nombre ?? ""}
+                  onChange={(id) => setClienteId(id ?? "")}
+                  placeholder="Buscar cliente por nombre..."
+                  disabled={loading}
+                  onCreateNew={(nombre) => {
+                     setNewClientInitialName(nombre);
+                     setIsClientModalOpen(true);
+                  }}
+               />
             </div>
 
             <div className="space-y-1.5">
@@ -191,5 +195,41 @@ export function ProyectoForm({ initialData, onSubmit, onCancel, loading }: Props
             </Button>
          </div>
       </form>
+
+      {/* ── Modal de Creación de Cliente ── */}
+      <Dialog open={isClientModalOpen} onOpenChange={setIsClientModalOpen}>
+         <DialogContent className="max-w-xl">
+            <DialogHeader>
+               <DialogTitle>Crear Nuevo Cliente</DialogTitle>
+            </DialogHeader>
+            <ClientForm
+               initialData={{ nombre: newClientInitialName }}
+               loading={isCreatingClient}
+               onSubmit={async (data) => {
+                  setIsCreatingClient(true);
+                  try {
+                     const result = await CreateClient({
+                        ...data,
+                        email: data.email || null,
+                        telefono: data.telefono || null,
+                        direccion: data.direccion || null,
+                     });
+                     if (result instanceof Error) throw result;
+                     if (result && result.id) {
+                        setClienteId(result.id);
+                        GetClients();
+                     }
+                     setIsClientModalOpen(false);
+                  } catch (err) {
+                     console.error("Error al crear cliente", err);
+                  } finally {
+                     setIsCreatingClient(false);
+                  }
+               }}
+               onCancel={() => setIsClientModalOpen(false)}
+            />
+         </DialogContent>
+      </Dialog>
+   </>
    );
 }

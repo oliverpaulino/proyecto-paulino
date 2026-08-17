@@ -86,8 +86,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     { id: "settings-unidades", title: "Unidades", url: "/dashboard/unidades" },
     { id: "settings-vinculos", title: "Vínculos", url: "/dashboard/user-employee-link" },
     ...(isAdmin ? [{ id: "settings-usuarios", title: "Usuarios", url: "/dashboard/settings/users" }] : []),
-    ...(isAdmin ? [{ id: "settings-roles", title: "Roles y Permisos", url: "/dashboard/settings/roles" }] : []),
-  ]
+     ...(isAdmin ? [{ id: "settings-roles", title: "Roles y Permisos", url: "/dashboard/settings/roles" }] : []),
+     { id: "settings-roles-empleado", title: "Roles de Empleado", url: "/dashboard/settings/roles-empleado" },
+   ]
 
   const navMain = [
     {

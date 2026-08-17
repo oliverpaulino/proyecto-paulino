@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Pencil, Trash2, User } from "lucide-react";
+import { Eye, Pencil, Trash2, User } from "lucide-react";
 import type { Equipo } from "@/dtos/equipo.dto";
 import { ESTADO_BADGE, ESTADO_LABEL } from "./equipo-labels";
 import { PermissionGuard } from "@/components/permission-guard";
@@ -19,14 +19,6 @@ interface EquipoTableProps {
 
 export function EquipoTable({ equipos, onEdit, onDelete }: EquipoTableProps) {
    const { GetOperators, Operators } = useEmployeeStore();
-   if (equipos.length === 0) {
-      return (
-         <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-brand-blue/20 bg-brand-blue/5 p-12 text-sm text-muted-foreground gap-2">
-            <span className="text-3xl opacity-30">🚜</span>
-            <span>No hay equipos que mostrar.</span>
-         </div>
-      );
-   }
 
    useEffect(() => {
       const fetchOperadores = async () => {
@@ -40,14 +32,23 @@ export function EquipoTable({ equipos, onEdit, onDelete }: EquipoTableProps) {
       fetchOperadores();
    }, [GetOperators]);
 
-
+   if (equipos.length === 0) {
+      return (
+         <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-brand-blue/20 bg-brand-blue/5 p-12 text-sm text-muted-foreground gap-2">
+            <span className="text-3xl opacity-30">🚜</span>
+            <span>No hay equipos que mostrar.</span>
+         </div>
+      );
+   }
 
    return (
       <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
          <table className="w-full text-sm">
             <thead>
                <tr className="bg-brand-blue">
+                  <th className="w-10 px-3 py-3"></th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Equipo</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Código</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Categoría</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Operador</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Estado</th>
@@ -63,6 +64,15 @@ export function EquipoTable({ equipos, onEdit, onDelete }: EquipoTableProps) {
                      key={equipo.id}
                      className="border-t border-border hover:bg-brand-blue/5 transition-colors"
                   >
+                     <td className="px-3 py-3 text-center">
+                        <Link
+                           href={`/dashboard/equipos/${equipo.id}`}
+                           className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10 transition-colors"
+                           title="Ver detalle"
+                        >
+                           <Eye className="size-4" />
+                        </Link>
+                     </td>
                      <td className="px-4 py-3">
                         <Link
                            href={`/dashboard/equipos/${equipo.id}`}
@@ -73,6 +83,11 @@ export function EquipoTable({ equipos, onEdit, onDelete }: EquipoTableProps) {
                         <div className="text-xs text-muted-foreground">
                            {new Date(equipo.created_at).toLocaleDateString("es-DO")}
                         </div>
+                     </td>
+                     <td className="px-4 py-3">
+                        <span className="inline-block rounded bg-brand-yellow/25 px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-black dark:text-brand-yellow">
+                           EQU-{String(equipo.referencia).padStart(3, "0")}
+                        </span>
                      </td>
                      <td className="px-4 py-3">
                         <span className="inline-flex items-center rounded-full border border-brand-blue/30 bg-brand-blue/10 px-2.5 py-0.5 text-xs font-semibold text-brand-blue dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300">

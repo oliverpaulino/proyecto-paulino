@@ -31,6 +31,15 @@ export class KyselyEquipoRepository implements IEquipoRepository {
       return `EQU-${ref}`;
    }
 
+   private buildCodigoOrdenCompra(referencia: number, fecha: Date | string): string {
+      const d = new Date(fecha);
+      const yy = String(d.getFullYear()).slice(-2);
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      const ref = String(referencia).padStart(3, "0");
+      return `OC-${yy}${mm}${dd}-${ref}`;
+   }
+
    private mapToEntity(row: any): Equipo {
       return Equipo.create({
          id: row.id,
@@ -78,10 +87,13 @@ export class KyselyEquipoRepository implements IEquipoRepository {
          .orderBy("equipo.created_at", "desc");
 
       if (search) {
+         const cleaned = search.trim().toUpperCase();
+         const refDigits = (cleaned.startsWith("EQU-") ? cleaned.slice(4) : cleaned).replace(/\D/g, "");
          qb = qb.where((eb) =>
             eb.or([
                eb("equipo.nombre", "ilike", `%${search}%`),
                eb("categoria_equipo.nombre", "ilike", `%${search}%`),
+               ...(refDigits ? [eb("equipo.referencia", "=", Number(refDigits))] : []),
             ])
          );
       }
@@ -286,6 +298,7 @@ export class KyselyEquipoRepository implements IEquipoRepository {
          .select([
             "orden_compra_item.id",
             "orden_compra_item.orden_compra_id",
+            "orden_compra.referencia as orden_referencia",
             "orden_compra.fecha as orden_fecha",
             "orden_compra.estado as orden_estado",
             "orden_compra_item.descripcion",
@@ -303,6 +316,7 @@ export class KyselyEquipoRepository implements IEquipoRepository {
       return rows.map((r) => ({
          id: r.id,
          orden_compra_id: r.orden_compra_id,
+         orden_codigo: this.buildCodigoOrdenCompra(Number(r.orden_referencia), r.orden_fecha),
          orden_fecha: new Date(r.orden_fecha),
          orden_estado: r.orden_estado,
          descripcion: r.descripcion,

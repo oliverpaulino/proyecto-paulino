@@ -56,6 +56,7 @@ const EquipoEstadoHistorialSchema = z.object({
 const EquipoCompraItemSchema = z.object({
    id: z.string(),
    orden_compra_id: z.string(),
+   orden_codigo: z.string(),
    orden_fecha: z.coerce.date(),
    orden_estado: z.string(),
    descripcion: z.string(),

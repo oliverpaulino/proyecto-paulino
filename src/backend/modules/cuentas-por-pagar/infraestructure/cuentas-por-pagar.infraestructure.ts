@@ -144,76 +144,79 @@ export class KyselyCuentasPorPagarRepository implements ICuentasPorPagarReposito
       }
 
       // ── Costos ────────────────────────────────────────────────────────────
-      if (filtros.tipo !== "GASTO") {
-         let q = this.db
-            .selectFrom("costo")
-            .leftJoin("proyecto", "proyecto.id", "costo.proyecto_id")
-            .leftJoin("orden_compra", "orden_compra.id", "costo.orden_compra_id")
-            .select([
-               "costo.id",
-               "costo.referencia",
-               "costo.concepto",
-               "costo.ncf",
-               "costo.fecha",
-               "costo.monto_total",
-               "costo.proyecto_id",
-               "costo.orden_compra_id",
-               // `proyecto` no tiene columna `referencia`: se identifica por nombre.
-               "proyecto.nombre as proyecto_nombre",
-               "orden_compra.referencia as oc_referencia",
-               pagadoDe("costo_cliente_id", "costo.id").as("pagado"),
-               ultimoPagoDe("costo_cliente_id", "costo.id").as("ultimo_pago_fecha"),
-               cantPagosDe("costo_cliente_id", "costo.id").as("cantidad_pagos"),
-            ])
-            .where("costo.deleted_at", "is", null);
-
-         if (filtros.proyecto_id) q = q.where("costo.proyecto_id", "=", filtros.proyecto_id);
-         if (filtros.fecha_desde)
-            q = q.where("costo.fecha", ">=", aFechaISO(filtros.fecha_desde) as any);
-         if (filtros.fecha_hasta)
-            q = q.where("costo.fecha", "<=", aFechaISO(filtros.fecha_hasta) as any);
-         if (filtros.busqueda) {
-            const b = `%${filtros.busqueda}%`;
-            q = q.where((eb) =>
-               eb.or([
-                  eb("costo.concepto", "ilike", b),
-                  eb("costo.ncf", "ilike", b),
-                  eb(sql`costo.referencia::text`, "ilike", b),
-               ])
-            );
-         }
-
-         for (const r of await q.execute()) {
-            const monto = num(r.monto_total);
-            const pagado = num(r.pagado);
-            filas.push({
-               id: r.id,
-               tipo: "COSTO" as TipoCuenta,
-               referencia: num(r.referencia),
-               codigoReferencia: `COS-${String(r.referencia).padStart(3, "0")}`,
-               concepto: r.concepto,
-               ncf: r.ncf ?? null,
-               fecha: r.fecha,
-               monto_total: monto,
-               pagado,
-               pendiente: Math.max(0, monto - pagado),
-               estado: estadoDeCuenta(monto, pagado),
-               dias_transcurridos: diasDesde(r.fecha),
-               categoria_gasto_nombre: null,
-               proveedor_id: null,
-               proveedor_nombre: null,
-               proveedor_tipo: null,
-               proyecto_id: r.proyecto_id ?? null,
-               proyecto_nombre: r.proyecto_nombre ?? null,
-               orden_compra_id: r.orden_compra_id ?? null,
-               orden_compra_codigo_referencia: r.oc_referencia
-                  ? `OC-${String(r.oc_referencia).padStart(3, "0")}`
-                  : null,
-               ultimo_pago_fecha: (r.ultimo_pago_fecha as Date | null) ?? null,
-               cantidad_pagos: num(r.cantidad_pagos),
-            });
-         }
-      }
+      // TODO: la tabla `pago` no tiene columna `costo_cliente_id`; el módulo
+      // de costos aún no está implementado. Cuando se agregue la FK hay que
+      // descomentar esta sección.
+      //
+      // if (filtros.tipo !== "GASTO") {
+      //    let q = this.db
+      //       .selectFrom("costo")
+      //       .leftJoin("proyecto", "proyecto.id", "costo.proyecto_id")
+      //       .leftJoin("orden_compra", "orden_compra.id", "costo.orden_compra_id")
+      //       .select([
+      //          "costo.id",
+      //          "costo.referencia",
+      //          "costo.concepto",
+      //          "costo.ncf",
+      //          "costo.fecha",
+      //          "costo.monto_total",
+      //          "costo.proyecto_id",
+      //          "costo.orden_compra_id",
+      //          "proyecto.nombre as proyecto_nombre",
+      //          "orden_compra.referencia as oc_referencia",
+      //          pagadoDe("costo_cliente_id", "costo.id").as("pagado"),
+      //          ultimoPagoDe("costo_cliente_id", "costo.id").as("ultimo_pago_fecha"),
+      //          cantPagosDe("costo_cliente_id", "costo.id").as("cantidad_pagos"),
+      //       ])
+      //       .where("costo.deleted_at", "is", null);
+      //
+      //    if (filtros.proyecto_id) q = q.where("costo.proyecto_id", "=", filtros.proyecto_id);
+      //    if (filtros.fecha_desde)
+      //       q = q.where("costo.fecha", ">=", aFechaISO(filtros.fecha_desde) as any);
+      //    if (filtros.fecha_hasta)
+      //       q = q.where("costo.fecha", "<=", aFechaISO(filtros.fecha_hasta) as any);
+      //    if (filtros.busqueda) {
+      //       const b = `%${filtros.busqueda}%`;
+      //       q = q.where((eb) =>
+      //          eb.or([
+      //             eb("costo.concepto", "ilike", b),
+      //             eb("costo.ncf", "ilike", b),
+      //             eb(sql`costo.referencia::text`, "ilike", b),
+      //          ])
+      //       );
+      //    }
+      //
+      //    for (const r of await q.execute()) {
+      //       const monto = num(r.monto_total);
+      //       const pagado = num(r.pagado);
+      //       filas.push({
+      //          id: r.id,
+      //          tipo: "COSTO" as TipoCuenta,
+      //          referencia: num(r.referencia),
+      //          codigoReferencia: `COS-${String(r.referencia).padStart(3, "0")}`,
+      //          concepto: r.concepto,
+      //          ncf: r.ncf ?? null,
+      //          fecha: r.fecha,
+      //          monto_total: monto,
+      //          pagado,
+      //          pendiente: Math.max(0, monto - pagado),
+      //          estado: estadoDeCuenta(monto, pagado),
+      //          dias_transcurridos: diasDesde(r.fecha),
+      //          categoria_gasto_nombre: null,
+      //          proveedor_id: null,
+      //          proveedor_nombre: null,
+      //          proveedor_tipo: null,
+      //          proyecto_id: r.proyecto_id ?? null,
+      //          proyecto_nombre: r.proyecto_nombre ?? null,
+      //          orden_compra_id: r.orden_compra_id ?? null,
+      //          orden_compra_codigo_referencia: r.oc_referencia
+      //             ? `OC-${String(r.oc_referencia).padStart(3, "0")}`
+      //             : null,
+      //          ultimo_pago_fecha: (r.ultimo_pago_fecha as Date | null) ?? null,
+      //          cantidad_pagos: num(r.cantidad_pagos),
+      //       });
+      //    }
+      // }
 
       // El estado se deriva en memoria (depende de la suma de pagos), así que
       // el filtrado por estado y el orden también se hacen aquí.

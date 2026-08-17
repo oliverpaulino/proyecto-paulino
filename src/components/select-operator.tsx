@@ -178,27 +178,34 @@ export function SelectBuscadorOperator({
                {loading && (asignables?.length ?? 0) === 0 ? (
                   <div className="p-4 text-center text-sm text-muted-foreground">Buscando operadores...</div>
                ) : (asignables?.length ?? 0) > 0 ? (
-                  asignables
-                     .filter(o => o.id !== value) // Filtrar solo operadores activos y no seleccionados
-                     .map((operator) => (
-                        <div
-                           key={operator.id}
-                           onClick={() => handleSelect(operator)}
-                           className="flex cursor-pointer flex-col gap-1 rounded-sm px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
-                        >
-                           <div className="flex justify-between items-center">
-                              <span className="font-medium truncate">{operator.nombre}</span>
-                              {estadoLicencia(operator.fecha_vencimiento).enRiesgo && (
-                                 <span className="text-[10px] uppercase font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 px-1.5 py-0.5 rounded">
-                                    Licencia por vencer
-                                 </span>
-                              )}
-                           </div>
-                           <span className={`text-xs truncate ${estadoLicencia(operator.fecha_vencimiento).clase}`}>
-                              {estadoLicencia(operator.fecha_vencimiento).texto}
-                           </span>
-                        </div>
-                     ))
+                      asignables
+                         .filter(o => o.id !== value) // Filtrar solo operadores activos y no seleccionados
+                         .map((operator) => (
+                            <div
+                               key={operator.id}
+                               onClick={() => handleSelect(operator)}
+                               className="flex cursor-pointer flex-col gap-1 rounded-sm px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                            >
+                               <div className="flex justify-between items-center">
+                                  <span className="font-medium truncate">{operator.nombre}</span>
+                                  <div className="flex items-center gap-1.5">
+                                     {operator.referencia != null && (
+                                        <span className="text-[10px] font-mono font-semibold text-muted-foreground">
+                                           EMP-{String(operator.referencia).padStart(3, "0")}
+                                        </span>
+                                     )}
+                                     {estadoLicencia(operator.fecha_vencimiento).enRiesgo && (
+                                        <span className="text-[10px] uppercase font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 px-1.5 py-0.5 rounded">
+                                           Licencia por vencer
+                                        </span>
+                                     )}
+                                  </div>
+                               </div>
+                               <span className={`text-xs truncate ${estadoLicencia(operator.fecha_vencimiento).clase}`}>
+                                  {estadoLicencia(operator.fecha_vencimiento).texto}
+                               </span>
+                            </div>
+                         ))
                ) : (
                   <div className="p-4 text-center text-sm text-muted-foreground">No se encontraron empleados.</div>
                )}

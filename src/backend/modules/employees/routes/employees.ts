@@ -10,6 +10,16 @@ const repo = new KyselyEmployeeRepository(db);
 const service = new EmployeeService(repo);
 const proyectoRepo = new KyselyProyectoRepository(db);
 
+/** Verificar si un rol es de operador (cobra por producción) */
+async function esRolOperador(rolNombre: string): Promise<boolean> {
+   const rol = await db
+      .selectFrom("rol_empleado")
+      .select("es_operador")
+      .where("nombre", "=", rolNombre)
+      .executeTakeFirst();
+   return rol?.es_operador ?? false;
+}
+
 // `empleado_categoria_tarifa.monto_pago` alimenta el costo de operadores y la
 // rentabilidad de todos los proyectos donde ese empleado opera equipos: hay
 // que recalcularlos cada vez que cambia una tarifa del empleado.
@@ -80,7 +90,7 @@ employeesRoute.post("/", async (c) => {
    try {
       const employee = await service.create(employeeData);
 
-      if (employeeData.rol === "OPERADOR" && operador) {
+      if (await esRolOperador(employeeData.rol) && operador) {
          await service.createOperator({
             empleado_id: employee.id,
             licencia: operador.licencia,
@@ -110,7 +120,7 @@ employeesRoute.patch("/:id", async (c) => {
                licencia: operador.licencia,
                fecha_vencimiento: operador.fecha_vencimiento
             });
-         } else if (employee.rol === "OPERADOR" || employeeData.rol === "OPERADOR") {
+         } else if (await esRolOperador(employee.rol) || (employeeData.rol && await esRolOperador(employeeData.rol))) {
             await service.createOperator({
                empleado_id: id,
                licencia: operador.licencia,

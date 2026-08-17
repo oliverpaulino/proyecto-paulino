@@ -81,7 +81,9 @@ export function EquipoComprasCard({ equipoId }: { equipoId: string }) {
                            <tr key={item.id} className="border-t border-border hover:bg-muted/20">
                               <td className="px-4 py-3">
                                  <Link href={`/dashboard/compras/${item.orden_compra_id}`} className="font-medium text-brand-blue hover:underline">
-                                    {item.orden_compra_id.slice(0, 8)}…
+                                    <span className="inline-block rounded bg-brand-yellow/25 px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-black dark:text-brand-yellow">
+                                       {item.orden_codigo}
+                                    </span>
                                  </Link>
                               </td>
                               <td className="px-4 py-3 text-muted-foreground">{formatDate(item.orden_fecha)}</td>

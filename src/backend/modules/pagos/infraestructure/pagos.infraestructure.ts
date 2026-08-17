@@ -160,6 +160,60 @@ export class KyselyPagoRepository implements IPagoRepository {
       return rows.map((row) => this.mapToEntity(row));
    }
 
+   async countAll(params?: any): Promise<number> {
+      const { page: _page, limit: _limit, ...filters } = params || {};
+
+      let q = this.db
+         .selectFrom("pago")
+         .leftJoin("gasto", "gasto.id", "pago.gasto_empresa_id")
+         .leftJoin("orden_compra", "orden_compra.id", "pago.orden_compra_id")
+         .where("pago.deleted_at", "is", null)
+         .select(sql<number>`count(*)::int`.as("cnt"));
+
+      if (filters?.search) {
+         const searchLike = `%${String(filters.search).trim()}%`;
+         const refNumber = this.safeParseReferencia(String(filters.search).trim());
+         q = q.where((eb) => {
+            const conditions: any[] = [
+               eb("pago.concepto", "ilike", searchLike),
+               eb("pago.metodo_pago", "ilike", searchLike),
+               eb("pago.tipo_movimiento", "ilike", searchLike),
+            ];
+            if (refNumber !== null) conditions.push(eb("pago.referencia", "=", refNumber));
+            return eb.or(conditions);
+         });
+      }
+      if (filters?.start) q = q.where("pago.fecha", ">=", filters.start);
+      if (filters?.end) q = q.where("pago.fecha", "<=", filters.end);
+      if (filters?.gasto_empresa_id) q = q.where("pago.gasto_empresa_id", "=", filters.gasto_empresa_id);
+      if (filters?.deduccion_empleado_id) q = q.where("pago.deduccion_empleado_id", "=", filters.deduccion_empleado_id);
+      if (filters?.conduce_id) q = q.where("pago.conduce_id", "=", filters.conduce_id);
+      if (filters?.proyecto_id) q = q.where("pago.proyecto_id", "=", filters.proyecto_id);
+      if (filters?.orden_compra_id) q = q.where("pago.orden_compra_id", "=", filters.orden_compra_id);
+      if (filters?.proveedor_id) {
+         const proveedorId = String(filters.proveedor_id);
+         q = q.where((eb) =>
+            eb.or([
+               eb("gasto.proveedor_id", "=", proveedorId),
+               eb("orden_compra.proveedor_id", "=", proveedorId),
+            ]),
+         );
+      }
+      if (filters?.equipo_id) {
+         const equipoId = filters.equipo_id;
+         q = q.where((eb) =>
+            eb.or([
+               eb.exists(this.db.selectFrom("gasto").select("gasto.id").where(sql.ref("gasto.id"), "=", sql.ref("pago.gasto_empresa_id")).where("gasto.equipo_id", "=", equipoId)),
+               eb.exists(this.db.selectFrom("deduccion").select("deduccion.id").where(sql.ref("deduccion.id"), "=", sql.ref("pago.deduccion_empleado_id")).where("deduccion.equipo_id", "=", equipoId)),
+               eb.exists(this.db.selectFrom("orden_compra_item").select("orden_compra_item.id").where(sql.ref("orden_compra_item.orden_compra_id"), "=", sql.ref("pago.orden_compra_id")).where("orden_compra_item.equipo_id", "=", equipoId)),
+            ]),
+         );
+      }
+
+      const result = await q.executeTakeFirst();
+      return result?.cnt ?? 0;
+   }
+
    async findAllDeleted(params?: any): Promise<Pago[]> {
       const { page = 1, limit = 20 } = params || {};
       const rows = await this.buildBaseQuery(true, params)

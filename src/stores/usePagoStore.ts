@@ -124,13 +124,15 @@ export const usePagoStore = create<PagoStore>((set, get) => ({
          const res = await fetch(`${BASE_URL}?${query.toString()}`);
          if (!res.ok) throw new Error("Error al cargar pagos");
 
-         const items: Pago[] = await res.json();
-         const totalPages = Math.max(1, Math.ceil(items.length / limit));
+         const json = await res.json();
+         const items: Pago[] = json.data ?? json;
+         const total: number = json.total ?? items.length;
+         const totalPages = Math.max(1, Math.ceil(total / limit));
 
          set((s) => ({
             Pagos: items,
             pagination: {
-               page, limit, total: items.length, totalPages,
+               page, limit, total, totalPages,
                hasNext: page < totalPages, hasPrev: page > 1,
             },
             _fetchedPagoLists: new Set(s._fetchedPagoLists).add(cacheKey),
@@ -322,19 +324,19 @@ export const usePagoStore = create<PagoStore>((set, get) => ({
       }
    },
 
-   NextPage: async () => {
+    NextPage: async () => {
       const { pagination } = get();
-      if (pagination.hasNext) await get().GetPagos({ page: pagination.page + 1, limit: pagination.limit });
+      if (pagination.hasNext) await get().GetPagos({ page: pagination.page + 1, limit: pagination.limit, force: true });
    },
 
    PrevPage: async () => {
       const { pagination } = get();
-      if (pagination.hasPrev) await get().GetPagos({ page: pagination.page - 1, limit: pagination.limit });
+      if (pagination.hasPrev) await get().GetPagos({ page: pagination.page - 1, limit: pagination.limit, force: true });
    },
 
    GoToPage: async (page) => {
       const { pagination } = get();
-      if (page >= 1 && page <= pagination.totalPages) await get().GetPagos({ page, limit: pagination.limit });
+      if (page >= 1 && page <= pagination.totalPages) await get().GetPagos({ page, limit: pagination.limit, force: true });
    },
 
    setSelectedPago: (pago) => set({ selectedPago: pago }),

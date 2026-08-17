@@ -30,7 +30,7 @@ export function EquipoPagos({ equipoId }: { equipoId: string }) {
             start: f.desde || undefined,
             end: f.hasta || undefined,
             page,
-            limit: 50,
+            limit: 10,
             force,
          });
       },

@@ -173,6 +173,7 @@ const OperadorAsignableDTO = z.object({
    id: z.string(), // operador.id (id del perfil de operador, no del empleado)
    nombre: z.string(),
    identificacion: z.string(),
+   referencia: z.number().optional(),
    licencia: z.string().nullable(),
    fecha_vencimiento: z.coerce.date().nullable(),
    // Si es false, el operador no debe poder asignarse a nada nuevo.

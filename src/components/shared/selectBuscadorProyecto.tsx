@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Loader2, Search, X } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useProyectoStore } from "@/stores/useProyectoStore";
+import type { Proyecto } from "@/dtos/proyecto.dto";
 
 interface SelectBuscadorProyectoProps {
    value?: string | null;
@@ -31,7 +32,7 @@ export function SelectBuscadorProyecto({
    // ESTADOS DE PAGINACIÓN Y CONTROL DE ESCRITURA
    const [page, setPage] = useState(1);
    const [hasMore, setHasMore] = useState(true);
-   const [localProyectos, setLocalProyectos] = useState<any[]>([]);
+   const [localProyectos, setLocalProyectos] = useState<Proyecto[]>([]);
    const [hasTyped, setHasTyped] = useState(false); // NUEVO ESTADO
 
    const containerRef = useRef<HTMLDivElement>(null);
@@ -123,7 +124,7 @@ export function SelectBuscadorProyecto({
       [loading, hasMore]
    );
 
-   const handleSelect = (proyecto: any) => {
+   const handleSelect = (proyecto: Proyecto) => {
       setInputValue(proyecto.nombre);
       setHasTyped(false);
       onChange(proyecto.id);
@@ -183,7 +184,12 @@ export function SelectBuscadorProyecto({
                               onClick={() => handleSelect(proyecto)}
                               className="flex cursor-pointer flex-col rounded-sm px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
                            >
-                              <span className="font-medium">{proyecto.nombre}</span>
+                              <div className="flex justify-between items-center">
+                                 <span className="font-medium">{proyecto.nombre}</span>
+                                 <span className="text-[10px] font-mono font-semibold text-muted-foreground">
+                                    {String(proyecto.codigoReferencia ?? "")}
+                                 </span>
+                              </div>
                               <span className="text-xs text-muted-foreground truncate">
                                  {proyecto.estado || "Activo"} • {proyecto.cliente_nombre || "Sin cliente asignado"}
                               </span>

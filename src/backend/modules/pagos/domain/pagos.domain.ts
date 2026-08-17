@@ -150,6 +150,13 @@ export interface InfoDestinoPago {
    aceptaPagoSalida: number;
 }
 
+export interface PagoPaginatedResult {
+   data: PagoProps[];
+   total: number;
+   page: number;
+   limit: number;
+}
+
 export interface IPagoRepository {
    findAll( params?: { page?: number; 
                      limit?: number; 
@@ -160,7 +167,22 @@ export interface IPagoRepository {
                      deduccion_empleado_id?: string | null;
                      conduce_id?: string | null;
                      proyecto_id?: string | null;
-                     orden_compra_id?: string | null; }): Promise<Pago[]>;
+                     orden_compra_id?: string | null;
+                     proveedor_id?: string | null;
+                     equipo_id?: string | null; }): Promise<Pago[]>;
+
+   countAll( params?: { page?: number; 
+                     limit?: number; 
+                     search?: string; 
+                     start?: Date; 
+                     end?: Date; 
+                     gasto_empresa_id?: string | null;
+                     deduccion_empleado_id?: string | null;
+                     conduce_id?: string | null;
+                     proyecto_id?: string | null;
+                     orden_compra_id?: string | null;
+                     proveedor_id?: string | null;
+                     equipo_id?: string | null; }): Promise<number>;
 
    findAllDeleted( params?: { page?: number; 
                      limit?: number; 

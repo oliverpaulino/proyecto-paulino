@@ -74,6 +74,10 @@ export default function CuentasPorPagarPage() {
    } = useCuentasPorPagarStore();
 
    useEffect(() => {
+      document.title = "Cuentas por pagar";
+   }, []);
+
+   useEffect(() => {
       GetCuentas();
    }, [GetCuentas]);
 
@@ -174,24 +178,26 @@ export default function CuentasPorPagarPage() {
                <label className="mb-1 block text-xs font-medium text-muted-foreground">
                   Estado
                </label>
-                <div className="flex flex-wrap gap-1">
-                   {([undefined, "PENDIENTE", "PARCIAL"] as (EstadoCuenta | undefined)[]).map((e) => (
+               <div className="flex flex-wrap gap-1">
+                  {([undefined, "PENDIENTE", "PARCIAL"] as (EstadoCuenta | undefined)[]).map((e) => (
                      <Button
                         key={e ?? "todos"}
                         size="sm"
                         variant={filtros.estado === e ? "default" : "outline"}
                         onClick={() => SetFiltros({ estado: e })}
                      >
-                        {e === undefined ? "Por pagar" : e === "PENDIENTE" ? "Sin pagos" : "Parcial"}
+                        {e === undefined ? "Todos" : e === "PENDIENTE" ? "Sin pagos" : "Parcial"}
                      </Button>
                   ))}
                   <Button
                      size="sm"
-                     variant={filtros.incluir_pagadas ? "default" : "outline"}
+                     variant={filtros.estado === "PAGADO" ? "default" : "outline"}
                      onClick={() =>
-                        SetFiltros({ incluir_pagadas: !filtros.incluir_pagadas, estado: undefined })
+                        SetFiltros({
+                           estado: filtros.estado === "PAGADO" ? undefined : "PAGADO",
+                        })
                      }
-                     title="Incluir también los documentos ya saldados"
+                     title="Ver solo documentos ya saldados"
                   >
                      Ver pagadas
                   </Button>
@@ -336,28 +342,27 @@ export default function CuentasPorPagarPage() {
                      </tr>
                   </tfoot>
                </table>
-            </div>
-         )}
 
-         {/* ── Paginación ── */}
-         {total > pageSize && (
-            <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
-               <p className="text-xs text-muted-foreground">
-                  Mostrando {desde}–{hasta} de {total}
-               </p>
-               <div className="flex gap-2">
-                  <Button variant="outline" size="sm" disabled={page <= 1} onClick={PrevPage}>
-                     <ChevronLeft className="size-4" /> Anterior
-                  </Button>
-                  <Button
-                     variant="outline"
-                     size="sm"
-                     disabled={page * pageSize >= total}
-                     onClick={NextPage}
-                  >
-                     Siguiente <ChevronRight className="size-4" />
-                  </Button>
-               </div>
+               {cuentas.length > 0 && (
+                  <div className="flex flex-col items-center justify-between gap-3 border-t border-border px-4 py-3 sm:flex-row">
+                     <p className="text-xs text-muted-foreground">
+                        Mostrando {desde}–{hasta} de {total}
+                     </p>
+                     <div className="flex gap-2">
+                        <Button variant="outline" size="sm" disabled={page <= 1} onClick={PrevPage}>
+                           <ChevronLeft className="size-4" /> Anterior
+                        </Button>
+                        <Button
+                           variant="outline"
+                           size="sm"
+                           disabled={page * pageSize >= total}
+                           onClick={NextPage}
+                        >
+                           Siguiente <ChevronRight className="size-4" />
+                        </Button>
+                     </div>
+                  </div>
+               )}
             </div>
          )}
       </div>

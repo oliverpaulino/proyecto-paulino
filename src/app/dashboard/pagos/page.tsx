@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
    Dialog,
@@ -35,6 +35,10 @@ export default function PagosPage() {
          setFormLoading(false);
       }
    }
+
+   useEffect(() => {
+      document.title = "Pagos ";
+   }, [])
 
    return (
       <div className="flex flex-col gap-6 p-6">
@@ -79,7 +83,7 @@ export default function PagosPage() {
          </div>
 
          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-4 shrink-0">
-            <PagoFilters viewLimit={20} />
+            <PagoFilters />
          </div>
 
          {/* Tabla */}
@@ -110,16 +114,16 @@ export default function PagosPage() {
                   </div>
                </div>
             </div>
-          )}
- 
-          {useSession().data?.user?.role === "administrador" && (
-             <Button asChild variant="outline" className="font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive">
-                <Link href="/dashboard/pagos/anulados">
-                   <Trash2 className="size-4 mr-2" />
-                   Pagos Anulados
-                </Link>
-             </Button>
-          )}
+         )}
+
+         {useSession().data?.user?.role === "administrador" && (
+            <Button asChild variant="outline" className="font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive">
+               <Link href="/dashboard/pagos/anulados">
+                  <Trash2 className="size-4 mr-2" />
+                  Pagos Anulados
+               </Link>
+            </Button>
+         )}
       </div>
    );
 }

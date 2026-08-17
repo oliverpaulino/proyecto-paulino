@@ -4,7 +4,15 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Truck, Loader2 } from "lucide-react";
+import {
+   Dialog,
+   DialogContent,
+   DialogDescription,
+   DialogFooter,
+   DialogHeader,
+   DialogTitle,
+} from "@/components/ui/dialog";
+import { Truck, Loader2, Plus } from "lucide-react";
 import type { Employee, CreateEmployeeForm, Operator } from "@/dtos/employee.dto";
 
 import {
@@ -13,10 +21,10 @@ import {
 
 import {
    TipoIdentificacionEmpleado,
-   TipoRolEmpleado,
 } from "@/dtos/employee.dto";
 
 import { useEmployeeStore } from "@/stores/useEmployeeStore";
+import { useRolEmpleadoStore } from "@/stores/useRolEmpleadoStore";
 
 
 const SELECT_CLASS =
@@ -27,14 +35,9 @@ const tipoIdentificacionOptions = Object.entries(TipoIdentificacionEmpleado).map
    label: value,
 }));
 
-const rolesOptions = Object.entries(TipoRolEmpleado).map(([key, value]) => ({
-   value: key as keyof typeof TipoRolEmpleado,
-   label: value,
-}));
-
 // Las mismas tres frecuencias que acepta `payroll_cycles.frecuencia` (migración
 // 007). El salario del empleado está expresado en SU frecuencia y la nómina lo
-// prorratea a la del ciclo, así que un valor equivocado aquí paga de más o de
+// prorratea a la del ciclo, así que un valor equivocado paga de más o de
 // menos.
 const frecuenciaPagoOptions = [
    { value: "SEMANAL", label: "Semanal" },
@@ -64,11 +67,27 @@ export function EmployeeForm({
    loading,
    submitLabel = "Crear empleado",
 }: EmployeeFormProps) {
+   const { roles: rolesDisponibles, GetRoles } = useRolEmpleadoStore();
+
+   useEffect(() => {
+      GetRoles();
+   }, [GetRoles]);
+
+   const rolesOptions = rolesDisponibles.map((r) => ({
+      value: r.nombre,
+      label: r.label,
+   }));
+
+   // Determinar si el rol actual es de operador usando la BD
+   const esOperadorRol = rolesDisponibles.find(
+      (r) => r.nombre === (initialData?.rol ?? "INGENIERO")
+   )?.es_operador ?? false;
+
    const [values, setValues] = useState<CreateEmployeeForm>({
       nombre: initialData?.nombre ?? "",
       identificacion: initialData?.identificacion ?? "",
       tipo_identificacion: initialData?.tipo_identificacion ?? "CEDULA",
-      rol: initialData?.rol ?? "INGENIERO",
+      rol: initialData?.rol ?? (rolesOptions[0]?.value as CreateEmployeeForm["rol"] ?? "INGENIERO"),
       frecuencia_pago: initialData?.frecuencia_pago ?? "QUINCENAL",
        salario: initialData?.salario ?? 0,
        aplica_retenciones: initialData?.aplica_retenciones ?? false,
@@ -85,9 +104,19 @@ export function EmployeeForm({
    const [error, setError] = useState<string | null>(null);
    const [loadingOp, setLoadingOp] = useState(false);
 
+   // Mini dialog para crear rol inline
+   const [rolDialogOpen, setRolDialogOpen] = useState(false);
+   const [rolFormNombre, setRolFormNombre] = useState("");
+   const [rolFormLabel, setRolFormLabel] = useState("");
+   const [rolFormEsOperador, setRolFormEsOperador] = useState(false);
+   const [rolFormError, setRolFormError] = useState<string | null>(null);
+   const [rolFormLoading, setRolFormLoading] = useState(false);
+   const { CreateRole } = useRolEmpleadoStore();
+
    const hasFetchedOp = useRef(existingOperador !== undefined);
 
-   const isOperador = values.rol === "OPERADOR";
+   // Determinar si el rol seleccionado es de operador
+   const isOperador = rolesDisponibles.find((r) => r.nombre === values.rol)?.es_operador ?? false;
 
    const { GetOperadorByEmpleadoId } = useEmployeeStore();
 
@@ -135,6 +164,32 @@ export function EmployeeForm({
       setOperadorData((prev) => ({ ...prev, [field]: value }));
    }
 
+   async function handleCreateRol() {
+      setRolFormError(null);
+      setRolFormLoading(true);
+      try {
+         const result = await CreateRole({
+            nombre: rolFormNombre,
+            label: rolFormLabel,
+            es_operador: rolFormEsOperador,
+            color: "#3b82f6",
+         });
+         if (result instanceof Error) {
+            setRolFormError(result.message);
+            return;
+         }
+         // Refrescar roles y auto-seleccionar el nuevo
+         await GetRoles();
+         set("rol", rolFormNombre as CreateEmployeeForm["rol"]);
+         setRolDialogOpen(false);
+         setRolFormNombre("");
+         setRolFormLabel("");
+         setRolFormEsOperador(false);
+      } finally {
+         setRolFormLoading(false);
+      }
+   }
+
    function handleIdentificacionChange(e: React.ChangeEvent<HTMLInputElement>) {
       const cleanValue = e.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
       set("identificacion", cleanValue);
@@ -166,6 +221,7 @@ export function EmployeeForm({
    }
 
    return (
+      <>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
          <div className="flex flex-col gap-1.5">
             <Label htmlFor="ef-nombre">Nombre completo *</Label>
@@ -207,21 +263,38 @@ export function EmployeeForm({
             </div>
          </div>
 
-         <div className="flex flex-col gap-1.5">
-            <Label htmlFor="ef-rol">Rol *</Label>
-            <select
-               id="ef-rol"
-               value={values.rol}
-               onChange={(e) => set("rol", e.target.value as CreateEmployeeForm["rol"])}
-               className={SELECT_CLASS}
-               required
-            >
-               {/* Options generadas desde el schema */}
-               {rolesOptions.map((r) => (
-                  <option key={r.value} value={r.value}>{r.label}</option>
-               ))}
-            </select>
-         </div>
+          <div className="flex flex-col gap-1.5">
+             <Label htmlFor="ef-rol">Rol *</Label>
+             <div className="flex gap-2">
+                <select
+                   id="ef-rol"
+                   value={values.rol}
+                   onChange={(e) => set("rol", e.target.value as CreateEmployeeForm["rol"])}
+                   className={SELECT_CLASS}
+                   required
+                >
+                   {rolesOptions.map((r) => (
+                      <option key={r.value} value={r.value}>{r.label}</option>
+                   ))}
+                </select>
+                <Button
+                   type="button"
+                   variant="outline"
+                   size="icon"
+                   className="shrink-0 h-9 w-9"
+                   title="Crear nuevo rol"
+                   onClick={() => {
+                      setRolFormNombre("");
+                      setRolFormLabel("");
+                      setRolFormEsOperador(false);
+                      setRolFormError(null);
+                      setRolDialogOpen(true);
+                   }}
+                >
+                   <Plus className="size-4" />
+                </Button>
+             </div>
+          </div>
 
          {isOperador && (
             <div className="flex flex-col gap-3 rounded-lg border border-brand-blue/20 bg-brand-blue/5 p-3 relative">
@@ -304,16 +377,90 @@ export function EmployeeForm({
 
          {error && <p className="text-sm font-medium text-destructive">{error}</p>}
 
-         <div className="flex gap-2 justify-end pt-2">
-            {onCancel && (
-               <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
-                  Cancelar
-               </Button>
-            )}
-            <Button type="submit" disabled={loading}>
-               {loading ? "Guardando…" : submitLabel}
-            </Button>
-         </div>
-      </form>
+          <div className="flex gap-2 justify-end pt-2">
+             {onCancel && (
+                <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
+                   Cancelar
+                </Button>
+             )}
+             <Button type="submit" disabled={loading}>
+                {loading ? "Guardando…" : submitLabel}
+             </Button>
+          </div>
+       </form>
+
+       {/* ── Mini dialog: Crear rol inline ── */}
+       <Dialog open={rolDialogOpen} onOpenChange={setRolDialogOpen}>
+          <DialogContent className="sm:max-w-sm">
+             <DialogHeader>
+                <DialogTitle>Nuevo Rol de Empleado</DialogTitle>
+                <DialogDescription>
+                   Define un nuevo rol para asignar a los empleados.
+                </DialogDescription>
+             </DialogHeader>
+
+             <div className="flex flex-col gap-3 py-2">
+                <div className="flex flex-col gap-1.5">
+                   <Label>Nombre (clave interna) *</Label>
+                   <Input
+                      value={rolFormNombre}
+                      onChange={(e) =>
+                         setRolFormNombre(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, ""))
+                      }
+                      placeholder="Ej: SUPERVISOR"
+                      disabled={rolFormLoading}
+                      maxLength={32}
+                   />
+                   <p className="text-xs text-muted-foreground">
+                      Uppercase, sin espacios. Se usa internamente.
+                   </p>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                   <Label>Etiqueta visible *</Label>
+                   <Input
+                      value={rolFormLabel}
+                      onChange={(e) => setRolFormLabel(e.target.value)}
+                      placeholder="Ej: Supervisor"
+                      disabled={rolFormLoading}
+                   />
+                </div>
+
+                <label className="flex items-center gap-2 text-sm">
+                   <input
+                      type="checkbox"
+                      checked={rolFormEsOperador}
+                      onChange={(e) => setRolFormEsOperador(e.target.checked)}
+                      className="rounded border-input"
+                      disabled={rolFormLoading}
+                   />
+                   <Truck className="size-4 text-muted-foreground" />
+                   Este rol es de operador (cobra por producción en nómina)
+                </label>
+             </div>
+
+             {rolFormError && (
+                <p className="text-sm text-destructive">{rolFormError}</p>
+             )}
+
+             <DialogFooter>
+                <Button
+                   variant="outline"
+                   onClick={() => setRolDialogOpen(false)}
+                   disabled={rolFormLoading}
+                >
+                   Cancelar
+                </Button>
+                <Button
+                   onClick={handleCreateRol}
+                   disabled={rolFormLoading || !rolFormNombre || !rolFormLabel}
+                >
+                   {rolFormLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
+                   Crear y seleccionar
+                </Button>
+             </DialogFooter>
+          </DialogContent>
+       </Dialog>
+      </>
    );
 }

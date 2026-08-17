@@ -18,11 +18,12 @@ export function DashboardHeader() {
       // Fetch initial count
       fetchUnreadCount();
 
-      // Poll for updates every 15 seconds
-      const interval = setInterval(fetchUnreadCount, 15000);
+
+      // Poll for updates every 60 seconds
+      const interval = setInterval(fetchUnreadCount, 60000);
 
       return () => clearInterval(interval);
-   // eslint-disable-next-line react-hooks/exhaustive-deps
+      // eslint-disable-next-line react-hooks/exhaustive-deps
    }, [session?.user]);
 
    return (

@@ -43,7 +43,8 @@ export function AppointmentTable({ appointments, onEdit, onDelete }: Appointment
          <table className="w-full text-sm">
             <thead>
                <tr className="bg-brand-blue">
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Fecha agendada</th>
+                   <th className="px-2 py-3 w-10"></th>
+                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Fecha agendada</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Cliente</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Motivo</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">Asignado a</th>
@@ -59,12 +60,17 @@ export function AppointmentTable({ appointments, onEdit, onDelete }: Appointment
                   const horaFmt = isValidDate ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
 
                   return (
-                     <tr 
-                        key={cita.id} 
-                        onClick={() => router.push(`/dashboard/citas/${cita.id}`)}
-                        className="border-t border-border hover:bg-brand-blue/5 transition-colors cursor-pointer"
-                     >
-                        <td className="px-4 py-3 whitespace-nowrap">
+                      <tr 
+                         key={cita.id} 
+                         onClick={() => router.push(`/dashboard/citas/${cita.id}`)}
+                         className="border-t border-border hover:bg-brand-blue/5 transition-colors cursor-pointer"
+                      >
+                         <td className="px-2 py-3">
+                            <button onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/citas/${cita.id}`) }} className="rounded-md p-1.5 text-brand-blue hover:bg-brand-blue/10 transition-colors" title="Ver detalle">
+                               <Eye className="size-4" />
+                            </button>
+                         </td>
+                         <td className="px-4 py-3 whitespace-nowrap">
                            <div className="flex items-center gap-1.5 font-medium text-foreground">
                               <Calendar className="size-3.5 text-brand-blue dark:text-blue-400" />
                               {fechaFmt}

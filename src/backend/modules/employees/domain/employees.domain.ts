@@ -100,6 +100,7 @@ export interface OperadorProps {
    toJSON(): any;
    id: string;
    empleado_id: string;
+   referencia?: number;
    licencia: string | null;
    nombre: string;
    identificacion: string;
