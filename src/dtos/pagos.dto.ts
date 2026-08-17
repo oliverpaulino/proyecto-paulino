@@ -6,6 +6,7 @@ export const MetodoPago = {
    TRANSFERENCIA: "Transferencia",
    TARJETA: "Tarjeta",
    DESCUENTO_NOMINA: "Descuento de Nómina",
+   CAPITAL_PROYECTO: "Capital del Proyecto",
 } as const;
 
 export const TipoMovimiento = {
@@ -15,6 +16,92 @@ export const TipoMovimiento = {
 
 const METODOS_PAGO = Object.keys(MetodoPago) as [keyof typeof MetodoPago, ...Array<keyof typeof MetodoPago>];
 const TIPOS_MOVIMIENTO = Object.keys(TipoMovimiento) as [keyof typeof TipoMovimiento, ...Array<keyof typeof TipoMovimiento>];
+
+export type TipoMetodoPago = keyof typeof MetodoPago;
+export type TipoMovimientoPago = keyof typeof TipoMovimiento;
+
+export const TIPOS_DESTINO_PAGO = ["GASTO", "DEDUCCION", "PROYECTO", "ORDEN_COMPRA", "CONDUCE"] as const;
+export type TipoDestinoPago = (typeof TIPOS_DESTINO_PAGO)[number];
+
+/**
+ * Config funcional de cada destino de pago. El form la usa para que los
+ * enums (método de pago y tipo de movimiento) varíen según el destino
+ * elegido, en vez de usar los catálogos globales MetodoPago/TipoMovimiento.
+ */
+export type ConfigPagoDestino = {
+   /** Si el destino recibe pagos en absoluto. */
+   recibePago: boolean;
+   destino: TipoDestinoPago;
+   /** Métodos de pago permitidos para este destino (valor + label). */
+   tipoMetodoPagoPosible: { value: TipoMetodoPago; label: string }[];
+   /** Movimientos permitidos (ENTRADA y/o SALIDA). */
+   tipoMovimientoPosibles: { value: TipoMovimientoPago; label: string }[];
+};
+
+export const ConfigPagoPorDestino: Record<TipoDestinoPago, ConfigPagoDestino> = {
+   GASTO: {
+      recibePago: true,
+      destino: "GASTO",
+      tipoMetodoPagoPosible: [
+         { value: "TRANSFERENCIA", label: MetodoPago.TRANSFERENCIA },
+         { value: "EFECTIVO", label: MetodoPago.EFECTIVO },
+         { value: "TARJETA", label: MetodoPago.TARJETA },
+         { value: "CHEQUE", label: MetodoPago.CHEQUE },
+      ],
+      tipoMovimientoPosibles: [
+         { value: "SALIDA", label: TipoMovimiento.SALIDA },
+         { value: "ENTRADA", label: TipoMovimiento.ENTRADA },
+      ],
+   },
+   DEDUCCION: {
+      recibePago: true,
+      destino: "DEDUCCION",
+      tipoMetodoPagoPosible: [
+         { value: "DESCUENTO_NOMINA", label: MetodoPago.DESCUENTO_NOMINA },
+         { value: "TRANSFERENCIA", label: MetodoPago.TRANSFERENCIA },
+         { value: "EFECTIVO", label: MetodoPago.EFECTIVO },
+         { value: "TARJETA", label: MetodoPago.TARJETA },
+         { value: "CHEQUE", label: MetodoPago.CHEQUE },
+      ],
+      tipoMovimientoPosibles: [{ value: "ENTRADA", label: TipoMovimiento.ENTRADA }],
+   },
+   PROYECTO: {
+      recibePago: true,
+      destino: "PROYECTO",
+      tipoMetodoPagoPosible: [
+         { value: "TRANSFERENCIA", label: MetodoPago.TRANSFERENCIA },
+         { value: "EFECTIVO", label: MetodoPago.EFECTIVO },
+         { value: "TARJETA", label: MetodoPago.TARJETA },
+         { value: "CHEQUE", label: MetodoPago.CHEQUE },
+      ],
+      tipoMovimientoPosibles: [
+         { value: "ENTRADA", label: TipoMovimiento.ENTRADA },
+         { value: "SALIDA", label: TipoMovimiento.SALIDA },
+      ],
+   },
+   ORDEN_COMPRA: {
+      recibePago: true,
+      destino: "ORDEN_COMPRA",
+      tipoMetodoPagoPosible: [
+         { value: "TRANSFERENCIA", label: MetodoPago.TRANSFERENCIA },
+         { value: "EFECTIVO", label: MetodoPago.EFECTIVO },
+         { value: "TARJETA", label: MetodoPago.TARJETA },
+         { value: "CHEQUE", label: MetodoPago.CHEQUE },
+      ],
+      tipoMovimientoPosibles: [{ value: "SALIDA", label: TipoMovimiento.SALIDA }],
+   },
+   CONDUCE: {
+      recibePago: true,
+      destino: "CONDUCE",
+      tipoMetodoPagoPosible: [
+         { value: "TRANSFERENCIA", label: MetodoPago.TRANSFERENCIA },
+         { value: "EFECTIVO", label: MetodoPago.EFECTIVO },
+         { value: "TARJETA", label: MetodoPago.TARJETA },
+         { value: "CHEQUE", label: MetodoPago.CHEQUE },
+      ],
+      tipoMovimientoPosibles: [{ value: "ENTRADA", label: TipoMovimiento.ENTRADA }],
+   },
+};
 
 export const PagoDTO = z.object({
    id: z.string().uuid(),
@@ -81,7 +168,52 @@ export const DeletePagoSchema = z.object({
    deleted_reason: z.string().min(1, "Debe proveer una razón").optional(),
 });
 
+/**
+ * Información polimórfica del destino de un pago (sección informativa del
+ * form). Los campos dependen del tipo (ver `getInfoDestino` en el repo de
+ * pagos); los no aplicables van en 0. Los topes `aceptaPagoEntrada` /
+ * `aceptaPagoSalida` son el monto máximo que admite cada movimiento
+ * (null = sin tope, y 0 = no acepta ese movimiento).
+ */
+export const InfoDestinoPagoSchema = z.object({
+   tipo: z.enum(TIPOS_DESTINO_PAGO),
+   referencia: z.string(),
+   concepto: z.string().nullable(),
+   estado: z.string().nullable(),
+
+   // GASTO nacido de una orden de compra: referencia de la OC a la que
+   // deben ir los pagos de salida en su lugar (null si no aplica).
+   ordenCompraReferencia: z.string().nullable(),
+
+   montoTotal: z.number(),
+   capital: z.number(),
+
+   // GASTO
+   cobrableProyecto: z.boolean(),
+   cobrableCliente: z.number(),
+   cobrableEmpresa: z.number(),
+
+   // Pagos acumulados
+   pagadoCliente: z.number(),
+   pagadoEmpresa: z.number(),
+
+   // DEDUCCION
+   totalPagado: z.number(),
+
+   // PROYECTO
+   totalAbonado: z.number(),
+   totalUtilizado: z.number(),
+
+   // ORDEN_COMPRA
+   montoPagado: z.number(),
+
+   // Topes por movimiento (null = sin tope)
+   aceptaPagoEntrada: z.number().nullable(),
+   aceptaPagoSalida: z.number(),
+});
+
 export type Pago = z.infer<typeof PagoDTO>;
 export type CreatePagoForm = z.infer<typeof CreatePagoSchema>;
 export type UpdatePagoForm = z.infer<typeof UpdatePagoSchema>;
 export type DeletePagoForm = z.infer<typeof DeletePagoSchema>;
+export type InfoDestinoPago = z.infer<typeof InfoDestinoPagoSchema>;

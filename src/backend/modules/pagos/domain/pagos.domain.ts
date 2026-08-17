@@ -99,17 +99,55 @@ export interface DeletePagoDTO {
    deleted_reason?: string;
 };
 
-export interface SaldoPendienteOrdenCompra {
-   total: number;
-   pagado: number;
-   estado: string;
-}
+export type TipoDestinoPago = "GASTO" | "DEDUCCION" | "PROYECTO" | "ORDEN_COMPRA" | "CONDUCE";
 
-export interface SaldoPendienteConduce {
-   conduce_id: string;
-   monto_total: number;
-   pagado: number;
-   cliente_id: string;
+/**
+ * Información polimórfica del destino de un pago, calculada según el tipo:
+ * - GASTO:        monto_total, cobrable_cliente (parte que paga el cliente) y
+ *                 cobrable_empresa (resto). aceptaPagoSalida = 0 si el gasto
+ *                 nace de una orden de compra.
+ * - DEDUCCION:    totalPagado = Σ ENTRADA (el empleado amortiza).
+ * - ORDEN_COMPRA: montoPagado = Σ SALIDA (la empresa paga al proveedor).
+ * - PROYECTO:     capital = Σ ENTRADA − Σ SALIDA (avances menos usos);
+ *                 aceptaPagoEntrada = null porque las entradas no tienen tope.
+ *
+ * `aceptaPagoEntrada` / `aceptaPagoSalida` son el tope (monto máximo) para
+ * cada movimiento. null = sin tope; 0 = no acepta ese movimiento.
+ */
+export interface InfoDestinoPago {
+   tipo: TipoDestinoPago;
+   referencia: string;
+   concepto: string | null;
+   estado: string | null;
+
+   /** GASTO nacido de una orden de compra: referencia de la OC a la que deben
+    * ir los pagos de salida en su lugar (null si no aplica). */
+   ordenCompraReferencia: string | null;
+
+   montoTotal: number;
+   capital: number;
+
+   // GASTO
+   cobrableProyecto: boolean;
+   cobrableCliente: number;
+   cobrableEmpresa: number;
+
+   // Pagos acumulados
+   pagadoCliente: number;
+   pagadoEmpresa: number;
+
+   // DEDUCCION
+   totalPagado: number;
+
+   // PROYECTO
+   totalAbonado: number;
+   totalUtilizado: number;
+
+   // ORDEN_COMPRA
+   montoPagado: number;
+
+   aceptaPagoEntrada: number | null;
+   aceptaPagoSalida: number;
 }
 
 export interface IPagoRepository {
@@ -142,9 +180,14 @@ export interface IPagoRepository {
    delete(id: string, data: DeletePagoDTO): Promise<boolean>;
    restore(id: string): Promise<Pago | null>;
 
-   /** Total y pagado directo de una OC. `null` si la orden no existe. */
-   getSaldoPendienteOrdenCompra(ordenCompraId: string): Promise<SaldoPendienteOrdenCompra | null>;
-
-   /** Total y pagado directo de un conduce. `null` si el conduce no existe. */
-   getSaldoPendienteConduce(conduceId: string): Promise<SaldoPendienteConduce | null>;
+   /** Balance polimórfico del destino indicado. Debe venir exactamente un id. */
+   getInfoDestino(params: {
+      gasto_empresa_id?: string | null;
+      deduccion_empleado_id?: string | null;
+      conduce_id?: string | null;
+      proyecto_id?: string | null;
+      orden_compra_id?: string | null;
+      /** Si se pasa, solo suma pagos con created_at < fecha (para ver estado "antes"). */
+      fecha?: string;
+   }): Promise<InfoDestinoPago | null>;
 }

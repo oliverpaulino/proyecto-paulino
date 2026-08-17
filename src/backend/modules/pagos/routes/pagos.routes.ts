@@ -20,6 +20,7 @@ function extractParams(c: any) {
       deduccion_empleado_id: c.req.query("deduccion_empleado_id"),
       conduce_id: c.req.query("conduce_id"),
       orden_compra_id: c.req.query("orden_compra_id"),
+      proyecto_id: c.req.query("proyecto_id"),
       // Pagos vinculados a un equipo (vía gasto / deducción / orden de compra).
       equipo_id: c.req.query("equipo_id"),
       proveedor_id: c.req.query("proveedor_id"),
@@ -41,6 +42,40 @@ pagosRoute.get("/deleted", async (c) => {
       return c.json(pagos);
    } catch (err: unknown) {
       return c.json({ error: err instanceof Error ? err.message : "Error al obtener pagos anulados" }, 400);
+   }
+});
+
+/**
+ * Información polimórfica del destino de un pago (Gasto, Deducción, Proyecto,
+ * Orden de Compra o Conduce): monto total, balance pendiente, cobrable, etc.
+ * GET /api/pagos/destino-info?gasto_empresa_id=&proyecto_id=&...
+ */
+pagosRoute.get("/destino-info", async (c) => {
+   try {
+      const params = {
+         gasto_empresa_id: c.req.query("gasto_empresa_id") ?? null,
+         deduccion_empleado_id: c.req.query("deduccion_empleado_id") ?? null,
+         conduce_id: c.req.query("conduce_id") ?? null,
+         proyecto_id: c.req.query("proyecto_id") ?? null,
+         orden_compra_id: c.req.query("orden_compra_id") ?? null,
+         fecha: c.req.query("fecha") ?? undefined,
+      };
+
+      // Contar solo los IDs de destino (excluir fecha)
+      const { fecha: _fecha, ...destinos } = params;
+      const count = Object.values(destinos).filter(Boolean).length;
+      if (count !== 1) {
+         return c.json(
+            { error: "Debe proporcionar exactamente un destino (gasto_empresa_id, deduccion_empleado_id, conduce_id, proyecto_id u orden_compra_id)." },
+            400
+         );
+      }
+
+      const info = await service.getInfoDestino(params);
+      if (!info) return c.json({ error: "Destino no encontrado" }, 404);
+      return c.json(info);
+   } catch (err: unknown) {
+      return c.json({ error: err instanceof Error ? err.message : "Error al obtener la información del destino" }, 400);
    }
 });
 

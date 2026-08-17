@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { 
    AlertTriangle, 
@@ -15,7 +15,11 @@ import {
    ArrowDownRight,
    Link as LinkIcon,
    Clock,
-   ArrowLeft
+   ArrowLeft,
+   Info,
+   Loader2,
+   TrendingUp,
+   TrendingDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,16 +31,25 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Pago, UpdatePagoForm, MetodoPago } from "@/dtos/pagos.dto";
+import { Pago, UpdatePagoForm, MetodoPago, InfoDestinoPago } from "@/dtos/pagos.dto";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { usePagoStore } from "@/stores/usePagoStore";
 import { DeletePagoDialog } from "../../components/delete-pago-dialog";
 import { RestorePagoDialog } from "../../components/restore-pago-dialog";
 import { PagoForm } from "../../components/pago-form";
+import { GastoInfoCard } from "../../components/info-cards/gasto-info-card";
+import { DeduccionInfoCard } from "../../components/info-cards/deduccion-info-card";
+import { ProyectoInfoCard } from "../../components/info-cards/proyecto-info-card";
+import { OrdenCompraInfoCard } from "../../components/info-cards/orden-compra-info-card";
+import { ConduceInfoCard } from "../../components/info-cards/conduce-info-card";
 
 export function PagoDetail({ pago, onRefresh }: { pago: Pago; onRefresh: () => void }) {
-   const { DeletePago, UpdatePago, RestorePago } = usePagoStore();
+   const {
+      DeletePago, UpdatePago, RestorePago,
+      GetDestinoInfo, destinoInfo, destinoInfoLoading, clearDestinoInfo,
+      GetDestinoInfoBefore, destinoInfoBefore, destinoInfoBeforeLoading, clearDestinoInfoBefore,
+   } = usePagoStore();
    const router = useRouter();
 
    const [actionLoading, setActionLoading] = useState(false);
@@ -49,6 +62,27 @@ export function PagoDetail({ pago, onRefresh }: { pago: Pago; onRefresh: () => v
    const isEntrada = pago.tipo_movimiento === 'ENTRADA';
    
    const metodoPagoLabel = MetodoPago[pago.metodo_pago as keyof typeof MetodoPago] ?? pago.metodo_pago;
+
+   // Cargar información del destino actual y del estado "antes" del pago
+   useEffect(() => {
+      const params: Record<string, string> = {};
+      if (pago.gasto_empresa_id) params.gasto_empresa_id = pago.gasto_empresa_id;
+      if (pago.deduccion_empleado_id) params.deduccion_empleado_id = pago.deduccion_empleado_id;
+      if (pago.conduce_id) params.conduce_id = pago.conduce_id;
+      if (pago.proyecto_id) params.proyecto_id = pago.proyecto_id;
+      if (pago.orden_compra_id) params.orden_compra_id = pago.orden_compra_id;
+
+      if (Object.keys(params).length === 1) {
+         GetDestinoInfo(params);
+         // Estado "antes" de este pago (created_at < fecha del pago)
+         GetDestinoInfoBefore({ ...params, fecha: new Date(pago.fecha).toISOString() });
+      }
+
+      return () => {
+         clearDestinoInfo();
+         clearDestinoInfoBefore();
+      };
+   }, [pago, GetDestinoInfo, clearDestinoInfo, GetDestinoInfoBefore, clearDestinoInfoBefore]);
 
    const handleDelete = async (reason: string) => {
       setActionLoading(true);
@@ -91,6 +125,10 @@ export function PagoDetail({ pago, onRefresh }: { pago: Pago; onRefresh: () => v
    {
       label: "Deducción de Empleado",
       value: pago.deduccion_codigo_referencia,
+   },
+   {
+      label: "Conduce",
+      value: pago.conduce_numero_referencia,
    },
    {
       label: "Proyecto",
@@ -173,6 +211,9 @@ export function PagoDetail({ pago, onRefresh }: { pago: Pago; onRefresh: () => v
                </TabsTrigger>
                <TabsTrigger value="clasificacion" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
                   Auditoría
+               </TabsTrigger>
+               <TabsTrigger value="destino" className="flex-none rounded-full border border-border bg-background px-4 data-[state=active]:border-brand-blue data-[state=active]:bg-brand-blue data-[state=active]:text-white">
+                  Información de Destino
                </TabsTrigger>
             </TabsList>
 
@@ -277,6 +318,28 @@ export function PagoDetail({ pago, onRefresh }: { pago: Pago; onRefresh: () => v
                         )}
                      </CardContent>
                   </Card>
+             </TabsContent>
+
+            {/* ── INFORMACIÓN DE DESTINO ── */}
+            <TabsContent value="destino" className="space-y-4">
+               {destinoInfoLoading || destinoInfoBeforeLoading ? (
+                  <div className="flex items-center justify-center gap-3 rounded-xl border border-border bg-muted/10 p-8 text-sm text-muted-foreground">
+                     <Loader2 className="size-5 animate-spin text-brand-blue" />
+                     Consultando el balance del destino…
+                  </div>
+               ) : destinoInfo ? (
+                  <DestinoInfoView
+                     info={destinoInfo}
+                     infoBefore={destinoInfoBefore}
+                     pago={pago}
+                     isEntrada={isEntrada}
+                  />
+               ) : (
+                  <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/10 p-8 text-sm text-muted-foreground">
+                     <Info className="size-5 text-brand-blue" />
+                     No se pudo obtener la información del destino de este pago.
+                  </div>
+               )}
             </TabsContent>
          </Tabs>
 
@@ -308,6 +371,127 @@ export function PagoDetail({ pago, onRefresh }: { pago: Pago; onRefresh: () => v
                />
             </DialogContent>
          </Dialog>
+      </div>
+   );
+}
+
+/** Componente auxiliar que renderiza el info card correcto según el tipo de destino. */
+function DestinoInfoCardContent({ info, loading, esEntrada, monto, adjustment, hideNuevoSaldo }: {
+   info: InfoDestinoPago | null;
+   loading: boolean;
+   esEntrada: boolean;
+   monto: number;
+   adjustment: number;
+   hideNuevoSaldo?: boolean;
+}) {
+   const common = { info, loading, esEntrada, monto, adjustment, hideNuevoSaldo };
+
+   switch (info?.tipo) {
+      case "GASTO":
+         return <GastoInfoCard {...common} />;
+      case "DEDUCCION":
+         return <DeduccionInfoCard {...common} />;
+      case "CONDUCE":
+         return <ConduceInfoCard {...common} />;
+      case "PROYECTO":
+         return <ProyectoInfoCard {...common} />;
+      case "ORDEN_COMPRA":
+         return <OrdenCompraInfoCard {...common} />;
+      default:
+         return null;
+   }
+}
+
+/** Vista de solo lectura del balance del destino de un pago. */
+function DestinoInfoView({
+   info,
+   infoBefore,
+   pago,
+   isEntrada,
+}: {
+   info: InfoDestinoPago;
+   infoBefore: InfoDestinoPago | null;
+   pago: Pago;
+   isEntrada: boolean;
+}) {
+   return (
+      <div className="space-y-4">
+         {/* Encabezado del destino */}
+         <div className="rounded-xl border border-brand-blue/20 bg-brand-blue/5 p-4">
+            <div className="flex items-center gap-2 mb-3">
+               <Info className="size-4 text-brand-blue" />
+               <p className="text-sm font-semibold text-foreground">
+                  {info.tipo}: {info.referencia}
+               </p>
+            </div>
+            {info.concepto && (
+               <p className="text-sm text-muted-foreground mb-3">{info.concepto}</p>
+            )}
+            {info.estado && (
+               <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-secondary text-secondary-foreground">
+                  Estado: {info.estado}
+               </span>
+            )}
+         </div>
+
+         {/* Impacto de este pago */}
+         {infoBefore && (
+            <Card>
+               <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                     {isEntrada ? <TrendingUp className="size-5 text-green-600" /> : <TrendingDown className="size-5 text-rose-600" />}
+                     Impacto de Este Pago
+                  </CardTitle>
+                  <CardDescription>
+                     Cómo afecta este pago al balance del destino (estado antes vs. después).
+                  </CardDescription>
+               </CardHeader>
+               <CardContent className="space-y-4">
+                  {/* Estado ANTES del pago - mismo card que el form */}
+                  <div className="rounded-xl border border-border bg-muted/10 p-4 space-y-3">
+                     <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        Antes de Este Pago
+                     </p>
+                     <DestinoInfoCardContent
+                        info={infoBefore}
+                        loading={false}
+                        esEntrada={isEntrada}
+                        monto={0}
+                        adjustment={0}
+                        hideNuevoSaldo
+                     />
+                  </div>
+
+                  {/* Estado DESPUÉS del pago - mismo card que el form */}
+                  <div className="rounded-xl border border-brand-blue/20 bg-brand-blue/5 p-4 space-y-3">
+                     <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        Después de Este Pago
+                     </p>
+                     <DestinoInfoCardContent
+                        info={info}
+                        loading={false}
+                        esEntrada={isEntrada}
+                        monto={0}
+                        adjustment={0}
+                        hideNuevoSaldo
+                     />
+                  </div>
+
+                  {/* Resumen del impacto */}
+                  <div className="rounded-lg border border-brand-blue/20 bg-brand-blue/5 p-3">
+                     <p className="text-sm text-muted-foreground">
+                        <span className="font-semibold text-foreground">Este pago: </span>
+                        <span className={`font-bold ${isEntrada ? "text-green-600" : "text-rose-600"}`}>
+                           ${pago.monto_pagado.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        </span>
+                        <span className="text-muted-foreground">
+                           {" "}({isEntrada ? "entrada a favor del destino" : "salida en contra del destino"})
+                        </span>
+                     </p>
+                  </div>
+               </CardContent>
+            </Card>
+         )}
       </div>
    );
 }
