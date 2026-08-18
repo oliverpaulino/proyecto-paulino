@@ -53,6 +53,8 @@ export type UpdateAppointmentDTO = Partial<CreateAppointmentDTO>;
 export interface AppointmentUIProps extends AppointmentProps {
     cliente_nombre: string | null;
     employee_nombre: string | null;
+    cliente_codigo_referencia: string | null;
+    employee_codigo_referencia: string | null;
 }
 
 export class AppointmentUI {
@@ -76,6 +78,8 @@ export class AppointmentUI {
     get updated_at() { return this.props.updated_at; }
     get cliente_nombre() { return this.props.cliente_nombre; }
     get employee_nombre() { return this.props.employee_nombre; }
+    get cliente_codigo_referencia() { return this.props.cliente_codigo_referencia; }
+    get employee_codigo_referencia() { return this.props.employee_codigo_referencia; }
 
     toJSON(): AppointmentUIProps {
         return { ...this.props };

@@ -60,6 +60,8 @@ export type Appointment = z.infer<typeof AppointmentDTO>;
 export interface AppointmentUI extends Appointment {
    cliente_nombre: string | null;
    employee_nombre: string | null;
+   cliente_codigo_referencia: string | null;
+   employee_codigo_referencia: string | null;
 }
 
 export type CreateAppointmentForm = z.infer<typeof CreateAppointmentSchema>;

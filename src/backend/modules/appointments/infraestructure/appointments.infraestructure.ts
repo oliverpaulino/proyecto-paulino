@@ -33,6 +33,12 @@ export class KyselyAppointmentRepository implements IAppointmentRepository {
          ...row,
          cliente_nombre: row.cliente_nombre || "Sin cliente",
          employee_nombre: row.employee_nombre || "Sin asignar",
+         cliente_codigo_referencia: row.cliente_referencia != null
+            ? `CLI-${String(row.cliente_referencia).padStart(3, "0")}`
+            : null,
+         employee_codigo_referencia: row.empleado_referencia != null
+            ? `EMP-${String(row.empleado_referencia).padStart(3, "0")}`
+            : null,
          codigoReferencia: this.buildCodigoReferencia(row.referencia),
          estado: row.estado as EstadoCita,
          fecha: new Date(row.fecha),
@@ -67,7 +73,9 @@ export class KyselyAppointmentRepository implements IAppointmentRepository {
 
          query = query.select([
             "cliente.nombre as cliente_nombre",
-            "empleado.nombre as employee_nombre"
+            "cliente.referencia as cliente_referencia",
+            "empleado.nombre as employee_nombre",
+            "empleado.referencia as empleado_referencia"
          ]);
 
          const rows = await query
@@ -85,7 +93,9 @@ export class KyselyAppointmentRepository implements IAppointmentRepository {
          .leftJoin("empleado", "empleado.id", "cita.employee_id")
          .select([
             "cliente.nombre as cliente_nombre",
-            "empleado.nombre as employee_nombre"
+            "cliente.referencia as cliente_referencia",
+            "empleado.nombre as employee_nombre",
+            "empleado.referencia as empleado_referencia"
          ])
          .where("cita.id", "=", id)
          .executeTakeFirst();
@@ -141,7 +151,9 @@ export class KyselyAppointmentRepository implements IAppointmentRepository {
          .leftJoin("empleado", "empleado.id", "cita.employee_id")
          .select([
             "cliente.nombre as cliente_nombre",
-            "empleado.nombre as employee_nombre"
+            "cliente.referencia as cliente_referencia",
+            "empleado.nombre as employee_nombre",
+            "empleado.referencia as empleado_referencia"
          ])
          .where("cita.cliente_id", "=", clientId)
          .orderBy("cita.fecha", "desc")
@@ -158,7 +170,9 @@ export class KyselyAppointmentRepository implements IAppointmentRepository {
          .leftJoin("empleado", "empleado.id", "cita.employee_id")
          .select([
             "cliente.nombre as cliente_nombre",
-            "empleado.nombre as employee_nombre"
+            "cliente.referencia as cliente_referencia",
+            "empleado.nombre as employee_nombre",
+            "empleado.referencia as empleado_referencia"
          ])
          .where("cita.employee_id", "=", employeeId)
          .orderBy("cita.fecha", "asc")
@@ -176,7 +190,9 @@ export class KyselyAppointmentRepository implements IAppointmentRepository {
          .innerJoin("user_employee_link", "user_employee_link.empleado_id", "empleado.id")
          .select([
             "cliente.nombre as cliente_nombre",
-            "empleado.nombre as employee_nombre"
+            "cliente.referencia as cliente_referencia",
+            "empleado.nombre as employee_nombre",
+            "empleado.referencia as empleado_referencia"
          ])
          .where("user_employee_link.user_id", "=", userId)
          .orderBy("cita.fecha", "asc")

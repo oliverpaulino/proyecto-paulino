@@ -9,6 +9,7 @@ import { useAppointmentStore } from "@/stores/useAppointmentStore";
 import { type AppointmentUI, type CreateAppointmentForm } from "@/dtos/appointment.dto";
 import { AppointmentTable } from "../components/appointment-table";
 import { AppointmentForm } from "../components/appointment-form";
+import { PageSizeSelector } from "@/components/page-size-selector";
 
 export function AppointmentsGeneralView() {
    const { Appointments, loading, pagination, GetAppointments, UpdateAppointment, DeleteAppointment } =
@@ -42,9 +43,13 @@ export function AppointmentsGeneralView() {
       }
    }
 
-   function goToPageSafe(newPage: number) {
-      GetAppointments({ page: newPage, limit: 20, force: true });
+   function handlePageSizeChange(newSize: number) {
+      GetAppointments({ page: 1, limit: newSize, force: true });
    }
+
+   const { page, limit, total, totalPages } = pagination;
+   const from = total === 0 ? 0 : (page - 1) * limit + 1;
+   const to = Math.min(page * limit, total);
 
    return (
       <div className="flex flex-col gap-4">
@@ -58,18 +63,34 @@ export function AppointmentsGeneralView() {
             <AppointmentTable appointments={Appointments} onEdit={setEditTarget} onDelete={setDeleteTarget} />
          )}
 
-         <div className="flex items-center justify-between px-2 pt-2 text-xs text-muted-foreground">
-            <span>Total: <strong>{pagination.total}</strong> citas registradas</span>
-            <div className="flex items-center gap-1.5">
-               <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => goToPageSafe(pagination.page - 1)} disabled={!pagination.hasPrev || loading}>
-                  <ChevronLeft className="size-3.5 mr-1" /> Anterior
-               </Button>
-               <span className="font-medium px-2 text-foreground">Pág. {pagination.page} / {pagination.totalPages || 1}</span>
-               <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => goToPageSafe(pagination.page + 1)} disabled={!pagination.hasNext || loading}>
-                  Siguiente <ChevronRight className="size-3.5 ml-1" />
-               </Button>
+         {total > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+               <PageSizeSelector value={limit} onChange={handlePageSizeChange} />
+               <div className="flex flex-wrap items-center gap-4">
+                  <span>
+                     Mostrando {from}–{to} de {total}
+                  </span>
+                  <div className="flex gap-2">
+                     <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!pagination.hasPrev || loading}
+                        onClick={() => GetAppointments({ page: page - 1, limit, force: true })}
+                     >
+                        <ChevronLeft className="size-4" /> Anterior
+                     </Button>
+                     <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!pagination.hasNext || loading}
+                        onClick={() => GetAppointments({ page: page + 1, limit, force: true })}
+                     >
+                        Siguiente <ChevronRight className="size-4" />
+                     </Button>
+                  </div>
+               </div>
             </div>
-         </div>
+         )}
 
          <Dialog open={!!editTarget} onOpenChange={(op) => !op && setEditTarget(null)}>
             <DialogContent className="sm:max-w-lg">
