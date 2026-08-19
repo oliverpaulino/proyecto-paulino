@@ -1061,26 +1061,27 @@ export class KyselyNominaRepository implements INominaRepository {
       let cambiadas = 0;
 
       for (const f of filas) {
-         // Primero se registran los cobros de este ciclo en `deduccion_cuota`;
-         // la deuda pendiente se lee después, para que refleje la cuota de
-         // ESTE ciclo. En paralelo, la lectura podía ganarle al registro y
-         // sobrar el pendiente en la nómina.
-         const periodo = await this.getDeduccionesDelPeriodo(
-            f.empleado_id,
-            cycleId,
-            ciclo.fecha_inicio,
-            ciclo.fecha_fin
-         );
-         const [total, pendiente] = await Promise.all([
-            this.getDeudaTotal(f.empleado_id),
-            this.getDeudaPendiente(f.empleado_id),
-         ]);
+          // Primero se registran los cobros de este ciclo en `deduccion_cuota`;
+          // la deuda pendiente se lee después, para que refleje la cuota de
+          // ESTE ciclo. En paralelo, la lectura podía ganarle al registro y
+          // sobrar el pendiente en la nómina.
+          const periodo = await this.getDeduccionesDelPeriodo(
+             f.empleado_id,
+             cycleId,
+             ciclo.fecha_inicio,
+             ciclo.fecha_fin
+          );
+          const pendiente = await this.getDeudaPendiente(f.empleado_id);
 
-         if (
-            periodo === num(f.deducciones) &&
-            total === num(f.deuda_total) &&
-            pendiente === num(f.deuda_pendiente)
-         ) {
+          // `deuda_total` = lo pendiente ANTES de este pago, para que la UI
+          // muestre en "Total deducciones" lo que se debía antes del período.
+          const total = pendiente + periodo;
+
+          if (
+             periodo === num(f.deducciones) &&
+             total === num(f.deuda_total) &&
+             pendiente === num(f.deuda_pendiente)
+          ) {
             continue;
          }
 

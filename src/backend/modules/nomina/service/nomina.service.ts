@@ -322,6 +322,11 @@ export class NominaService {
             paralelo, la lectura de `getDeudaPendiente` podía ganarle al
             registro y sobrar el monto de este ciclo en la deuda que se
             congela al cerrar la nómina.
+
+            `deuda_total` se guarda como lo pendiente ANTES de este pago
+            (= deuda_pendiente + deducciones) para que la UI muestre en
+            "Total deducciones" lo que el empleado debía antes de este
+            período, y en "Pendiente" lo que queda después.
          */
          const deducciones = await this.repo.getDeduccionesDelPeriodo(
             emp.id,
@@ -329,10 +334,7 @@ export class NominaService {
             ciclo.fecha_inicio,
             ciclo.fecha_fin
          );
-         const [deudaTotal, deudaPendiente] = await Promise.all([
-            this.repo.getDeudaTotal(emp.id),
-            this.repo.getDeudaPendiente(emp.id),
-         ]);
+         const deudaPendiente = await this.repo.getDeudaPendiente(emp.id);
 
          // El seguro es un campo libre: al recalcular se respeta el valor que
          // el usuario ya haya puesto para este empleado en este ciclo. Se lee
@@ -372,7 +374,7 @@ export class NominaService {
                base_isr: 0,
                isr_anio_escala: null,
                deducciones,
-               deuda_total: deudaTotal,
+               deuda_total: deudaPendiente + deducciones,
                deuda_pendiente: deudaPendiente,
                neto_pagar: neto,
                total_conduces: suyos.length,

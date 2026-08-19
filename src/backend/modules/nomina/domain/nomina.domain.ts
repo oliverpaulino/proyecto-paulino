@@ -188,8 +188,10 @@ export interface PayrollCycleEmployeeProps {
     */
    deducciones: number;
 
-   deuda_total: number;
-   deuda_pendiente: number;
+    /** Deuda pendiente antes de este período (= deuda_pendiente + deducciones). */
+    deuda_total: number;
+    /** Deuda pendiente después de este período. */
+    deuda_pendiente: number;
 
    neto_pagar: number;
 

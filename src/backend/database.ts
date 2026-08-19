@@ -416,8 +416,8 @@ export interface DB {
       // tabla `deduccion`: para descontar más, se CREA una deducción nueva,
       // nunca se sobrescribe este monto.
       deducciones: Generated<number>;
-      deuda_total: Generated<number>;
-      deuda_pendiente: Generated<number>;
+       deuda_total: Generated<number>; // pendiente antes de este período (= deuda_pendiente + deducciones)
+       deuda_pendiente: Generated<number>; // pendiente después de este período
       neto_pagar: Generated<number>;
       total_conduces: Generated<number>;
       // Conduces sin persona que se atribuyeron infiriendo por

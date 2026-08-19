@@ -1161,7 +1161,7 @@ export function NominaTable({
                   <th className="px-3 py-3 text-left font-semibold">Nombre</th>
                   <th className="px-3 py-3 text-right font-semibold">Precio viaje/hora</th>
                   <th className="px-3 py-3 text-right font-semibold">Seguro</th>
-                  <th className="px-3 py-3 text-right font-semibold" title="Suma de todas las deducciones del empleado, pagadas y pendientes">Total deducciones</th>
+                   <th className="px-3 py-3 text-right font-semibold" title="Deuda pendiente antes de este período">Total deducciones</th>
                   <th className="px-3 py-3 text-right font-semibold">Se cobra</th>
                   <th className="px-3 py-3 text-right font-semibold">Pendiente</th>
                   <th className="px-3 py-3 text-right font-semibold">Neto</th>
