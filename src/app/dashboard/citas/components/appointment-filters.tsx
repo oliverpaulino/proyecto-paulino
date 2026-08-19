@@ -39,10 +39,10 @@ export function AppointmentFilters({ viewLimit }: { viewLimit: number }) {
    }
 
    return (
-      <div className="flex flex-wrap items-center gap-3">
-         <TableSearch value={searchInput} onValueChange={setSearchInput} onSearch={setSearchQuery} placeholder="Buscar cliente o motivo..." className="w-full sm:w-64" />
+      <div className="flex flex-wrap items-center gap-3 w-full shrink-0">
+         <TableSearch value={searchInput} onValueChange={setSearchInput} onSearch={setSearchQuery} placeholder="Buscar cliente o motivo..." className="flex-1 min-w-[200px]" />
 
-         <div className="flex items-center gap-1.5 bg-input/20 px-2.5 py-0.5 rounded-4xl border border-input">
+         <div className="flex items-center gap-1.5 bg-input/20 px-2.5 py-0.5 rounded-4xl border border-input shrink-0">
             <span className="text-[11px] font-semibold text-muted-foreground uppercase">Desde:</span>
             <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} max={endDate} className="h-7 w-32 border-0 bg-transparent p-0 text-xs shadow-none" />
             <span className="text-muted-foreground text-xs font-bold">—</span>
@@ -50,7 +50,7 @@ export function AppointmentFilters({ viewLimit }: { viewLimit: number }) {
             <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} min={startDate} className="h-7 w-32 border-0 bg-transparent p-0 text-xs shadow-none" />
          </div>
         
-        <label className="flex items-center gap-1.5 cursor-pointer select-none">
+        <label className="flex items-center gap-1.5 cursor-pointer select-none shrink-0">
             <span className="text-[11px] font-semibold text-muted-foreground uppercase">
                 Solo mis citas:
             </span>
@@ -70,7 +70,7 @@ export function AppointmentFilters({ viewLimit }: { viewLimit: number }) {
         </label>
 
          {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={handleResetFilters} className="h-9 px-2.5 text-xs text-muted-foreground">
+            <Button variant="ghost" size="sm" onClick={handleResetFilters} className="h-9 px-2.5 text-xs text-muted-foreground shrink-0">
                <RotateCcw className="size-3.5 mr-1" /> Limpiar
             </Button>
          )}
