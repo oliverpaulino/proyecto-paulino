@@ -130,16 +130,6 @@ export function LoginForm({ className, ...props }: Props) {
         </div>
       </form>
 
-      <p className="text-center text-sm mt-6 text-muted-foreground opacity-0 animate-item-in [animation-delay:500ms]">
-        ¿No tienes cuenta?{" "}
-        <Link
-          href="/auth/signup"
-          className="font-medium underline decoration-[#ff6f59]/50 underline-offset-4 hover:decoration-[#ff6f59]"
-        >
-          Regístrate
-        </Link>
-      </p>
-
       <style jsx global>{`
         @keyframes cardIn {
           from { opacity: 0; transform: translateY(24px) scale(0.98); }
