@@ -116,6 +116,15 @@ export interface CreateOperadorDTO {
    licencia_vencimiento?: Date | null;
 }
 
+export interface OperadorInsertProps {
+   id: string;
+   empleado_id: string;
+   licencia: string | null;
+   fecha_vencimiento: Date | null;
+   created_at: Date;
+   updated_at: Date;
+}
+
 export interface UpdateOperadorDTO {
    licencia?: string | null;
    licencia_vencimiento?: Date | null;
@@ -161,6 +170,6 @@ export interface IEmployeeRepository {
    createContact(data: ContactEmpleadoProps): Promise<ContactEmpleadoProps>;
    updateContact(id: string, data: Partial<ContactEmpleadoProps>): Promise<ContactEmpleadoProps>;
    deleteContact(id: string): Promise<boolean>;
-   createOperator(data: OperadorProps): Promise<OperadorProps>;
+   createOperator(data: OperadorInsertProps): Promise<OperadorProps>;
    updateOperator(id: string, data: Partial<OperadorProps>): Promise<OperadorProps>;
 }

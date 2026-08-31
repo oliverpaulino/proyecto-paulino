@@ -109,20 +109,14 @@ export class EmployeeService {
       const existing = await this.repo.getOperatorByEmployeeId(data.empleado_id);
       if (existing) throw new Error("Este empleado ya tiene un perfil de operador");
 
-      const operatorData: OperadorProps = {
+      return this.repo.createOperator({
          id: crypto.randomUUID(),
          empleado_id: data.empleado_id,
          licencia: data.licencia ?? null,
          fecha_vencimiento: data.fecha_vencimiento ? new Date(data.fecha_vencimiento) : null,
          created_at: new Date(),
-         updated_at: new Date(),
-         toJSON: function () {
-            throw new Error("Function not implemented.");
-         },
-         nombre: "",
-         identificacion: ""
-      };
-      return this.repo.createOperator(operatorData);
+         updated_at: new Date()
+      });
    }
 
    async updateOperator(id: string, data: { licencia?: string | null; fecha_vencimiento?: string | null }): Promise<OperadorProps> {

@@ -8,6 +8,7 @@ import {
    TipoRolEmpleado,
    ContactEmpleadoProps,
    OperadorProps,
+   OperadorInsertProps,
 } from "../domain/employees.domain";
 import { DB } from "@/backend/database";
 
@@ -292,32 +293,55 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
       return Number(result.numDeletedRows) > 0;
    }
 
-   async createOperator(data: OperadorProps): Promise<OperadorProps> {
+   async createOperator(data: OperadorInsertProps): Promise<OperadorProps> {
       const row = await this.db
          .insertInto("operador")
-         .values(data as any)
+         .values({
+            id: data.id,
+            empleado_id: data.empleado_id,
+            licencia: data.licencia ?? null,
+            fecha_vencimiento: data.fecha_vencimiento ? new Date(data.fecha_vencimiento) : null,
+            created_at: new Date(),
+            updated_at: new Date(),
+         } as any)
          .returningAll()
          .executeTakeFirstOrThrow();
 
       return {
          ...row,
+         nombre: "",
+         identificacion: "",
          created_at: new Date(row.created_at),
          updated_at: new Date(row.updated_at),
+         toJSON() {
+            return { ...row };
+         },
       } as OperadorProps;
    }
 
    async updateOperator(id: string, data: Partial<OperadorProps>): Promise<OperadorProps> {
       const row = await this.db
          .updateTable("operador")
-         .set(data as any)
+         .set({
+            ...(data.licencia !== undefined ? { licencia: data.licencia } : {}),
+            ...(data.fecha_vencimiento !== undefined
+               ? { fecha_vencimiento: data.fecha_vencimiento ? new Date(data.fecha_vencimiento) : null }
+               : {}),
+            updated_at: new Date(),
+         } as any)
          .where("id", "=", id)
          .returningAll()
          .executeTakeFirstOrThrow();
 
       return {
          ...row,
+         nombre: "",
+         identificacion: "",
          created_at: new Date(row.created_at),
          updated_at: new Date(row.updated_at),
+         toJSON() {
+            return { ...row };
+         },
       } as OperadorProps;
    }
 

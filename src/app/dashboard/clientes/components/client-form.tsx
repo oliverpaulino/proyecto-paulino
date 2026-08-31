@@ -184,25 +184,7 @@ export function ClientForm({
          }
       }
 
-      if (values.tipo_identificacion === "CEDULA") {
-         const validation = GeneralSchemasDTO.CedulaSchema.safeParse(values.identificacion);
-         if (!validation.success) {
-            setError(validation.error.issues[0].message);
-            return false;
-         }
-      } else if (values.tipo_identificacion === "RNC") {
-         const validation = GeneralSchemasDTO.RncSchema.safeParse(values.identificacion);
-         if (!validation.success) {
-            setError(validation.error.issues[0].message);
-            return false;
-         }
-      } else if (values.tipo_identificacion === "PASAPORTE") {
-         const validation = GeneralSchemasDTO.PasaporteSchema.safeParse(values.identificacion);
-         if (!validation.success) {
-            setError(validation.error.issues[0].message);
-            return false;
-         }
-      }
+
 
       return true;
    }

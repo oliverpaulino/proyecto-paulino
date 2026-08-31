@@ -157,7 +157,10 @@ export function EmployeeTable({
                     </PermissionGuard>
                     <PermissionGuard resource="users" action="delete">
                       <button
-                        onClick={() => onDelete(employee)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(employee);
+                        }}
                         className="rounded-md p-1.5 text-brand-red hover:bg-brand-red/10 transition-colors"
                         title="Eliminar"
                       >

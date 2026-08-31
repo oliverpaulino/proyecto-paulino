@@ -89,9 +89,9 @@ export function EmployeeForm({
       tipo_identificacion: initialData?.tipo_identificacion ?? "CEDULA",
       rol: initialData?.rol ?? (rolesOptions[0]?.value as CreateEmployeeForm["rol"] ?? "INGENIERO"),
       frecuencia_pago: initialData?.frecuencia_pago ?? "QUINCENAL",
-       salario: initialData?.salario ?? 0,
-       aplica_retenciones: initialData?.aplica_retenciones ?? false,
-       activo: initialData?.activo ?? true,
+      salario: initialData?.salario ?? 0,
+      aplica_retenciones: initialData?.aplica_retenciones ?? false,
+      activo: initialData?.activo ?? true,
    });
 
    const [operadorData, setOperadorData] = useState<OperadorFormData>({
@@ -199,20 +199,6 @@ export function EmployeeForm({
       e.preventDefault();
       setError(null);
 
-      if (values.tipo_identificacion === "CEDULA") {
-         const validation = GeneralSchemasDTO.CedulaSchema.safeParse(values.identificacion);
-         if (!validation.success) {
-            setError(validation.error.issues[0].message);
-            return;
-         }
-      } else if (values.tipo_identificacion === "PASAPORTE") {
-         const validation = GeneralSchemasDTO.PasaporteSchema.safeParse(values.identificacion);
-         if (!validation.success) {
-            setError(validation.error.issues[0].message);
-            return;
-         }
-      }
-
       try {
          await onSubmit(values, isOperador ? operadorData : undefined);
       } catch (err: unknown) {
@@ -222,245 +208,245 @@ export function EmployeeForm({
 
    return (
       <>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-         <div className="flex flex-col gap-1.5">
-            <Label htmlFor="ef-nombre">Nombre completo *</Label>
-            <Input
-               id="ef-nombre"
-               value={values.nombre}
-               onChange={(e) => set("nombre", e.target.value)}
-               placeholder="Nombre del empleado"
-               required
-            />
-         </div>
-
-         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
-               <Label htmlFor="ef-tipo-id">Tipo ID</Label>
-               <select
-                  id="ef-tipo-id"
-                  value={values.tipo_identificacion}
-                  onChange={(e) => set("tipo_identificacion", e.target.value as CreateEmployeeForm["tipo_identificacion"])}
-                  className={SELECT_CLASS}
-                  required
-               >
-                  {/* Options generadas desde el schema */}
-                  {tipoIdentificacionOptions.map((t) => (
-                     <option key={t.value} value={t.value}>{t.label}</option>
-                  ))}
-               </select>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-               <Label htmlFor="ef-identificacion">Identificación *</Label>
+               <Label htmlFor="ef-nombre">Nombre completo *</Label>
                <Input
-                  id="ef-identificacion"
-                  value={values.identificacion}
-                  onChange={handleIdentificacionChange}
-                  placeholder={values.tipo_identificacion === "CEDULA" ? "Ej: 40212345678" : "Ej: RD1234567"}
-                  required
-               />
-            </div>
-         </div>
-
-          <div className="flex flex-col gap-1.5">
-             <Label htmlFor="ef-rol">Rol *</Label>
-             <div className="flex gap-2">
-                <select
-                   id="ef-rol"
-                   value={values.rol}
-                   onChange={(e) => set("rol", e.target.value as CreateEmployeeForm["rol"])}
-                   className={SELECT_CLASS}
-                   required
-                >
-                   {rolesOptions.map((r) => (
-                      <option key={r.value} value={r.value}>{r.label}</option>
-                   ))}
-                </select>
-                <Button
-                   type="button"
-                   variant="outline"
-                   size="icon"
-                   className="shrink-0 h-9 w-9"
-                   title="Crear nuevo rol"
-                   onClick={() => {
-                      setRolFormNombre("");
-                      setRolFormLabel("");
-                      setRolFormEsOperador(false);
-                      setRolFormError(null);
-                      setRolDialogOpen(true);
-                   }}
-                >
-                   <Plus className="size-4" />
-                </Button>
-             </div>
-          </div>
-
-         {isOperador && (
-            <div className="flex flex-col gap-3 rounded-lg border border-brand-blue/20 bg-brand-blue/5 p-3 relative">
-               <div className="flex items-center gap-2 text-sm font-medium text-brand-blue dark:text-blue-400">
-                  <Truck className="size-4" />
-                  Datos de operador
-
-                  {loadingOp && <Loader2 className="size-3 animate-spin ml-2 text-muted-foreground" />}
-               </div>
-
-               <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="ef-licencia">Número de licencia</Label>
-                  <Input
-                     id="ef-licencia"
-                     value={operadorData.licencia}
-                     onChange={(e) => setOp("licencia", e.target.value)}
-                     placeholder="Ej: A-0000000"
-                     disabled={loadingOp}
-                  />
-               </div>
-               <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="ef-vencimiento">Fecha de vencimiento</Label>
-                  <Input
-                     id="ef-vencimiento"
-                     type="date"
-                     value={operadorData.fecha_vencimiento}
-                     onChange={(e) => setOp("fecha_vencimiento", e.target.value)}
-                     disabled={loadingOp}
-                  />
-               </div>
-            </div>
-         )}
-
-         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-               <Label htmlFor="ef-salario">Salario (RD$) *</Label>
-               <Input
-                  id="ef-salario"
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={values.salario}
-                  onChange={(e) => set("salario", Number(e.target.value))}
-                  placeholder="0.00"
+                  id="ef-nombre"
+                  value={values.nombre}
+                  onChange={(e) => set("nombre", e.target.value)}
+                  placeholder="Nombre del empleado"
                   required
                />
             </div>
 
-            <div className="flex flex-col gap-1.5">
-               <Label htmlFor="ef-frecuencia">Frecuencia de pago *</Label>
-               <select
-                  id="ef-frecuencia"
-                  value={values.frecuencia_pago}
-                  onChange={(e) => set("frecuencia_pago", e.target.value)}
-                  className={SELECT_CLASS}
-                  required
-               >
-                  {frecuenciaPagoOptions.map((f) => (
-                     <option key={f.value} value={f.value}>{f.label}</option>
-                  ))}
-               </select>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+               <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="ef-tipo-id">Tipo ID</Label>
+                  <select
+                     id="ef-tipo-id"
+                     value={values.tipo_identificacion}
+                     onChange={(e) => set("tipo_identificacion", e.target.value as CreateEmployeeForm["tipo_identificacion"])}
+                     className={SELECT_CLASS}
+                     required
+                  >
+                     {/* Options generadas desde el schema */}
+                     {tipoIdentificacionOptions.map((t) => (
+                        <option key={t.value} value={t.value}>{t.label}</option>
+                     ))}
+                  </select>
+               </div>
+
+               <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="ef-identificacion">Identificación *</Label>
+                  <Input
+                     id="ef-identificacion"
+                     value={values.identificacion}
+                     onChange={handleIdentificacionChange}
+                     placeholder={values.tipo_identificacion === "CEDULA" ? "Ej: 40212345678" : "Ej: RD1234567"}
+                     required
+                  />
+               </div>
             </div>
-         </div>
 
-         <p className="text-xs text-muted-foreground -mt-1">
-            El salario se interpreta según esta frecuencia y se prorratea al período
-            del ciclo de nómina.
-         </p>
+            <div className="flex flex-col gap-1.5">
+               <Label htmlFor="ef-rol">Rol *</Label>
+               <div className="flex gap-2">
+                  <select
+                     id="ef-rol"
+                     value={values.rol}
+                     onChange={(e) => set("rol", e.target.value as CreateEmployeeForm["rol"])}
+                     className={SELECT_CLASS}
+                     required
+                  >
+                     {rolesOptions.map((r) => (
+                        <option key={r.value} value={r.value}>{r.label}</option>
+                     ))}
+                  </select>
+                  <Button
+                     type="button"
+                     variant="outline"
+                     size="icon"
+                     className="shrink-0 h-9 w-9"
+                     title="Crear nuevo rol"
+                     onClick={() => {
+                        setRolFormNombre("");
+                        setRolFormLabel("");
+                        setRolFormEsOperador(false);
+                        setRolFormError(null);
+                        setRolDialogOpen(true);
+                     }}
+                  >
+                     <Plus className="size-4" />
+                  </Button>
+               </div>
+            </div>
 
-         <div className="flex items-center gap-2">
-            <input
-               id="ef-activo"
-               type="checkbox"
-               checked={values.activo}
-               onChange={(e) => set("activo", e.target.checked)}
-               className="rounded border-input"
-            />
-            <Label htmlFor="ef-activo">Empleado activo</Label>
-         </div>
+            {isOperador && (
+               <div className="flex flex-col gap-3 rounded-lg border border-brand-blue/20 bg-brand-blue/5 p-3 relative">
+                  <div className="flex items-center gap-2 text-sm font-medium text-brand-blue dark:text-blue-400">
+                     <Truck className="size-4" />
+                     Datos de operador
 
-         {error && <p className="text-sm font-medium text-destructive">{error}</p>}
+                     {loadingOp && <Loader2 className="size-3 animate-spin ml-2 text-muted-foreground" />}
+                  </div>
 
-          <div className="flex gap-2 justify-end pt-2">
-             {onCancel && (
-                <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
-                   Cancelar
-                </Button>
-             )}
-             <Button type="submit" disabled={loading}>
-                {loading ? "Guardando…" : submitLabel}
-             </Button>
-          </div>
-       </form>
+                  <div className="flex flex-col gap-1.5">
+                     <Label htmlFor="ef-licencia">Número de licencia</Label>
+                     <Input
+                        id="ef-licencia"
+                        value={operadorData.licencia}
+                        onChange={(e) => setOp("licencia", e.target.value)}
+                        placeholder="Ej: A-0000000"
+                        disabled={loadingOp}
+                     />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                     <Label htmlFor="ef-vencimiento">Fecha de vencimiento</Label>
+                     <Input
+                        id="ef-vencimiento"
+                        type="date"
+                        value={operadorData.fecha_vencimiento}
+                        onChange={(e) => setOp("fecha_vencimiento", e.target.value)}
+                        disabled={loadingOp}
+                     />
+                  </div>
+               </div>
+            )}
 
-       {/* ── Mini dialog: Crear rol inline ── */}
-       <Dialog open={rolDialogOpen} onOpenChange={setRolDialogOpen}>
-          <DialogContent className="sm:max-w-sm">
-             <DialogHeader>
-                <DialogTitle>Nuevo Rol de Empleado</DialogTitle>
-                <DialogDescription>
-                   Define un nuevo rol para asignar a los empleados.
-                </DialogDescription>
-             </DialogHeader>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+               <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="ef-salario">Salario (RD$) *</Label>
+                  <Input
+                     id="ef-salario"
+                     type="number"
+                     min={0}
+                     step={0.01}
+                     value={values.salario}
+                     onChange={(e) => set("salario", Number(e.target.value))}
+                     placeholder="0.00"
+                     required
+                  />
+               </div>
 
-             <div className="flex flex-col gap-3 py-2">
-                <div className="flex flex-col gap-1.5">
-                   <Label>Nombre (clave interna) *</Label>
-                   <Input
-                      value={rolFormNombre}
-                      onChange={(e) =>
-                         setRolFormNombre(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, ""))
-                      }
-                      placeholder="Ej: SUPERVISOR"
-                      disabled={rolFormLoading}
-                      maxLength={32}
-                   />
-                   <p className="text-xs text-muted-foreground">
-                      Uppercase, sin espacios. Se usa internamente.
-                   </p>
-                </div>
+               <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="ef-frecuencia">Frecuencia de pago *</Label>
+                  <select
+                     id="ef-frecuencia"
+                     value={values.frecuencia_pago}
+                     onChange={(e) => set("frecuencia_pago", e.target.value)}
+                     className={SELECT_CLASS}
+                     required
+                  >
+                     {frecuenciaPagoOptions.map((f) => (
+                        <option key={f.value} value={f.value}>{f.label}</option>
+                     ))}
+                  </select>
+               </div>
+            </div>
 
-                <div className="flex flex-col gap-1.5">
-                   <Label>Etiqueta visible *</Label>
-                   <Input
-                      value={rolFormLabel}
-                      onChange={(e) => setRolFormLabel(e.target.value)}
-                      placeholder="Ej: Supervisor"
-                      disabled={rolFormLoading}
-                   />
-                </div>
+            <p className="text-xs text-muted-foreground -mt-1">
+               El salario se interpreta según esta frecuencia y se prorratea al período
+               del ciclo de nómina.
+            </p>
 
-                <label className="flex items-center gap-2 text-sm">
-                   <input
-                      type="checkbox"
-                      checked={rolFormEsOperador}
-                      onChange={(e) => setRolFormEsOperador(e.target.checked)}
-                      className="rounded border-input"
-                      disabled={rolFormLoading}
-                   />
-                   <Truck className="size-4 text-muted-foreground" />
-                   Este rol es de operador (cobra por producción en nómina)
-                </label>
-             </div>
+            <div className="flex items-center gap-2">
+               <input
+                  id="ef-activo"
+                  type="checkbox"
+                  checked={values.activo}
+                  onChange={(e) => set("activo", e.target.checked)}
+                  className="rounded border-input"
+               />
+               <Label htmlFor="ef-activo">Empleado activo</Label>
+            </div>
 
-             {rolFormError && (
-                <p className="text-sm text-destructive">{rolFormError}</p>
-             )}
+            {error && <p className="text-sm font-medium text-destructive">{error}</p>}
 
-             <DialogFooter>
-                <Button
-                   variant="outline"
-                   onClick={() => setRolDialogOpen(false)}
-                   disabled={rolFormLoading}
-                >
-                   Cancelar
-                </Button>
-                <Button
-                   onClick={handleCreateRol}
-                   disabled={rolFormLoading || !rolFormNombre || !rolFormLabel}
-                >
-                   {rolFormLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
-                   Crear y seleccionar
-                </Button>
-             </DialogFooter>
-          </DialogContent>
-       </Dialog>
+            <div className="flex gap-2 justify-end pt-2">
+               {onCancel && (
+                  <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
+                     Cancelar
+                  </Button>
+               )}
+               <Button type="submit" disabled={loading}>
+                  {loading ? "Guardando…" : submitLabel}
+               </Button>
+            </div>
+         </form>
+
+         {/* ── Mini dialog: Crear rol inline ── */}
+         <Dialog open={rolDialogOpen} onOpenChange={setRolDialogOpen}>
+            <DialogContent className="sm:max-w-sm">
+               <DialogHeader>
+                  <DialogTitle>Nuevo Rol de Empleado</DialogTitle>
+                  <DialogDescription>
+                     Define un nuevo rol para asignar a los empleados.
+                  </DialogDescription>
+               </DialogHeader>
+
+               <div className="flex flex-col gap-3 py-2">
+                  <div className="flex flex-col gap-1.5">
+                     <Label>Nombre (clave interna) *</Label>
+                     <Input
+                        value={rolFormNombre}
+                        onChange={(e) =>
+                           setRolFormNombre(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, ""))
+                        }
+                        placeholder="Ej: SUPERVISOR"
+                        disabled={rolFormLoading}
+                        maxLength={32}
+                     />
+                     <p className="text-xs text-muted-foreground">
+                        Uppercase, sin espacios. Se usa internamente.
+                     </p>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                     <Label>Etiqueta visible *</Label>
+                     <Input
+                        value={rolFormLabel}
+                        onChange={(e) => setRolFormLabel(e.target.value)}
+                        placeholder="Ej: Supervisor"
+                        disabled={rolFormLoading}
+                     />
+                  </div>
+
+                  <label className="flex items-center gap-2 text-sm">
+                     <input
+                        type="checkbox"
+                        checked={rolFormEsOperador}
+                        onChange={(e) => setRolFormEsOperador(e.target.checked)}
+                        className="rounded border-input"
+                        disabled={rolFormLoading}
+                     />
+                     <Truck className="size-4 text-muted-foreground" />
+                     Este rol es de operador (cobra por producción en nómina)
+                  </label>
+               </div>
+
+               {rolFormError && (
+                  <p className="text-sm text-destructive">{rolFormError}</p>
+               )}
+
+               <DialogFooter>
+                  <Button
+                     variant="outline"
+                     onClick={() => setRolDialogOpen(false)}
+                     disabled={rolFormLoading}
+                  >
+                     Cancelar
+                  </Button>
+                  <Button
+                     onClick={handleCreateRol}
+                     disabled={rolFormLoading || !rolFormNombre || !rolFormLabel}
+                  >
+                     {rolFormLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
+                     Crear y seleccionar
+                  </Button>
+               </DialogFooter>
+            </DialogContent>
+         </Dialog>
       </>
    );
 }
