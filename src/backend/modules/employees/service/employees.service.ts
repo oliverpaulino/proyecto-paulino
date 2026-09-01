@@ -6,20 +6,31 @@ import {
    UpdateEmployeeDTO,
    ContactEmpleadoProps,
    OperadorProps,
-   SaveTarifasBulkPayload
+   SaveTarifasBulkPayload,
+   PaginatedResult,
+   EmployeeStats,
 } from "../domain/employees.domain";
 ``
 export class EmployeeService {
    constructor(private readonly repo: IEmployeeRepository) { }
 
-   async getAll(params?: { page?: number; limit?: number; search?: string }): Promise<EmployeeProps[]> {
-      const employees = await this.repo.findAll(params);
-      return employees.map((e) => e.toJSON());
+   async getAll(params?: { page?: number; limit?: number; search?: string }): Promise<PaginatedResult<EmployeeProps>> {
+      const result = await this.repo.findAll(params);
+      return {
+         data: result.data.map((e) => e.toJSON()),
+         total: result.total,
+         page: result.page,
+         totalPages: result.totalPages,
+      };
    }
 
    async getAllOperators(params?: { page?: number; limit?: number; search?: string }): Promise<OperadorProps[]> {
       const operators = await this.repo.findAllOperators(params);
       return operators.map(o => o.toJSON());
+   }
+
+   async getStats(): Promise<EmployeeStats> {
+      return this.repo.countStats();
    }
    async getUnlinked(): Promise<EmployeeProps[]> {
       const employees = await this.repo.findUnlinkedEmployees();

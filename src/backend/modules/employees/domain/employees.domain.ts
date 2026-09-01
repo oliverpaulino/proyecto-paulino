@@ -141,14 +141,28 @@ export interface SaveTarifasBulkPayload {
    tarifas: TarifaBulkInput[];
 }
 
+export interface PaginatedResult<T> {
+   data: T[];
+   total: number;
+   page: number;
+   totalPages: number;
+}
+
+export interface EmployeeStats {
+   total: number;
+   activos: number;
+   inactivos: number;
+}
+
 export interface IEmployeeRepository {
    getEmployeeDetails: (empleadoId: string) => Promise<any>;
    upsertTarifasCategoria: (empleado_id: string, tarifas: TarifaBulkInput[]) => Promise<any>;
    deleteTarifa: (tarifaId: string) => Promise<{ id: string; empleado_id: string; monto_pago: number } | undefined>;
    createTarifa(data: { empleado_id: string; categoria_equipo_tarifa_id: string; monto_pago: number; }): unknown;
    updateTarifa(tarifaId: string, monto_pago: number, frecuencia_pago: string): Promise<{ id: string; empleado_id: string; monto_pago: number } | null>;
-   findAll(params?: { page?: number; limit?: number; search?: string }): Promise<Employee[]>;
+   findAll(params?: { page?: number; limit?: number; search?: string }): Promise<PaginatedResult<Employee>>;
    findAllOperators(params?: { page?: number; limit?: number; search?: string }): Promise<OperadorProps[]>;
+   countStats(): Promise<EmployeeStats>;
    findById(id: string): Promise<Employee | null>;
    findOperatorById(id: string): Promise<OperadorProps | null>;
    /**

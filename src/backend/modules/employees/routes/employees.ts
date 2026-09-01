@@ -40,6 +40,12 @@ employeesRoute.get("/", async (c) => {
 
 
 
+// GET /api/employees/stats
+employeesRoute.get("/stats", async (c) => {
+   const stats = await service.getStats();
+   return c.json(stats);
+});
+
 employeesRoute.get("/operators", async (c) => {
    const page = parseInt(c.req.query("page") || "1", 10);
    const limit = parseInt(c.req.query("limit") || "10", 10);

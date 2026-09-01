@@ -9,6 +9,8 @@ import {
    ContactEmpleadoProps,
    OperadorProps,
    OperadorInsertProps,
+   PaginatedResult,
+   EmployeeStats,
 } from "../domain/employees.domain";
 import { DB } from "@/backend/database";
 
@@ -31,31 +33,66 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
       })
    }
 
-   async findAll(params?: { page?: number; limit?: number; search?: string }): Promise<Employee[]> {
-      const { page = 1, limit = 10, search = "" } = params || {};
-      let query = this.db
-         .selectFrom("empleado")
-         .selectAll();
-
-      if (search) {
-         const cleaned = search.trim().toUpperCase();
+   private buildSearchWhere(search: string) {
+      return (eb: any) => {
+         const term = search.trim().toLowerCase();
+         const cleaned = term.toUpperCase();
          const refDigits = (cleaned.startsWith("EMP-") ? cleaned.slice(4) : cleaned).replace(/\D/g, "");
-         query = query.where((eb) =>
-            eb.or([
-               eb("empleado.nombre", "like", `%${search}%`),
-               eb("empleado.identificacion", "like", `%${search}%`),
-               ...(refDigits ? [eb("empleado.referencia", "=", Number(refDigits))] : []),
-            ])
-         );
-      }
+         return eb.or([
+            eb("empleado.nombre", "ilike", `%${term}%`),
+            eb("empleado.identificacion", "ilike", `%${term}%`),
+            ...(refDigits ? [eb("empleado.referencia", "=", Number(refDigits))] : []),
+         ]);
+      };
+   }
 
-      const rows = await query
-         .orderBy("created_at", "desc")
-         .offset((page - 1) * limit)
-         .limit(limit)
-         .execute();
+   async findAll(params?: { page?: number; limit?: number; search?: string }): Promise<PaginatedResult<Employee>> {
+      const { page = 1, limit = 10, search = "" } = params || {};
 
-      return rows.map((row) => this.mapToEntity(row));
+      const buildWhere = search ? this.buildSearchWhere(search) : undefined;
+
+      const [countRow, rows] = await Promise.all([
+         this.db
+            .selectFrom("empleado")
+            .select((eb) => eb.fn.count("id").as("count"))
+            .$call((qb) => (buildWhere ? qb.where(buildWhere) : qb))
+            .executeTakeFirst(),
+         this.db
+            .selectFrom("empleado")
+            .selectAll()
+            .$call((qb) => (buildWhere ? qb.where(buildWhere) : qb))
+            .orderBy("created_at", "desc")
+            .offset((page - 1) * limit)
+            .limit(limit)
+            .execute(),
+      ]);
+
+      const total = Number(countRow?.count ?? 0);
+      const totalPages = Math.max(1, Math.ceil(total / limit));
+
+      return {
+         data: rows.map((row) => this.mapToEntity(row)),
+         total,
+         page,
+         totalPages,
+      };
+   }
+
+   async countStats(): Promise<EmployeeStats> {
+      const row = await this.db
+         .selectFrom("empleado")
+         .select((eb) => [
+            eb.fn.count("id").as("total"),
+            eb.fn.count("id").filterWhere("activo", "=", true).as("activos"),
+            eb.fn.count("id").filterWhere("activo", "=", false).as("inactivos"),
+         ])
+         .executeTakeFirst();
+
+      return {
+         total: Number(row?.total ?? 0),
+         activos: Number(row?.activos ?? 0),
+         inactivos: Number(row?.inactivos ?? 0),
+      };
    }
 
    async findAllOperators(params?: { page?: number; limit?: number; search?: string }): Promise<OperadorProps[]> {

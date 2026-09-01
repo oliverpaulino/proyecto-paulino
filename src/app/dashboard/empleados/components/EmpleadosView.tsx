@@ -9,7 +9,7 @@ import {
    DialogHeader,
    DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, Users } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Users } from "lucide-react";
 import { useEmployeeStore } from "@/stores/useEmployeeStore";
 import type { Employee } from "@/dtos/employee.dto";
 import { TableSearch } from "@/components/table-search";
@@ -47,32 +47,23 @@ const STAT_STYLES = {
 
 
 export default function EmpleadosView() {
-   const { Employees, loading, GetEmployees, CreateEmployee, UpdateEmployee, DeleteEmployee } =
+   const { Employees, loading, pagination, stats, GetEmployees, GetEmployeeStats, SearchEmployees, NextPage, PrevPage, CreateEmployee, UpdateEmployee, DeleteEmployee } =
       useEmployeeStore();
 
    const [formLoading, setFormLoading] = useState(false);
    const [searchInput, setSearchInput] = useState("");
-   const [search, setSearch] = useState("");
    const [createOpen, setCreateOpen] = useState(false);
    const [editTarget, setEditTarget] = useState<Employee | null>(null);
    const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
 
    useEffect(() => {
-      GetEmployees();
-   }, [GetEmployees]);
+      GetEmployees({ page: 1, limit: 10, force: true });
+      GetEmployeeStats();
+   }, [GetEmployees, GetEmployeeStats]);
 
-   const filtered = Employees.filter((e) => {
-      const q = search.toLowerCase();
-      return (
-         e.nombre.toLowerCase().includes(q) ||
-         e.identificacion.includes(q) ||
-         e.rol.toLowerCase().includes(q)
-      );
-   });
-
-   const total = Employees.length;
-   const activos = Employees.filter((e) => e.activo).length;
-   const inactivos = Employees.filter((e) => !e.activo).length;
+   const total = stats.total;
+   const activos = stats.activos;
+   const inactivos = stats.inactivos;
 
    async function handleCreate(data: Parameters<typeof CreateEmployee>[0], operadorData?: OperadorFormData) {
       setFormLoading(true);
@@ -142,7 +133,7 @@ export default function EmpleadosView() {
             <TableSearch
                value={searchInput}
                onValueChange={setSearchInput}
-               onSearch={setSearch}
+               onSearch={SearchEmployees}
                placeholder="Buscar empleados..."
                debounceDelay={350}
                className="w-full max-w-sm"
@@ -165,11 +156,31 @@ export default function EmpleadosView() {
                Cargando empleados…
             </div>
          ) : (
-            <EmployeeTable
-               employees={filtered}
-               onEdit={setEditTarget}
-               onDelete={setDeleteTarget}
-            />
+            <div className="flex flex-col gap-4">
+               <EmployeeTable
+                  employees={Employees}
+                  onEdit={setEditTarget}
+                  onDelete={setDeleteTarget}
+               />
+
+               {/* Paginación */}
+               <div className="flex flex-col gap-3 items-center justify-between border-t border-border pt-4 sm:flex-row">
+                  <span className="text-sm text-muted-foreground">
+                     Total: <strong>{pagination.total}</strong> empleados
+                  </span>
+                  <div className="flex items-center gap-2">
+                     <Button variant="outline" size="sm" onClick={PrevPage} disabled={!pagination.hasPrev || loading}>
+                        <ChevronLeft className="size-4 mr-1" /> Anterior
+                     </Button>
+                     <span className="text-xs font-medium px-2 text-foreground">
+                        Pág. {pagination.page} / {pagination.totalPages || 1}
+                     </span>
+                     <Button variant="outline" size="sm" onClick={NextPage} disabled={!pagination.hasNext || loading}>
+                        Siguiente <ChevronRight className="size-4 ml-1" />
+                     </Button>
+                  </div>
+               </div>
+            </div>
          )}
 
          {/* Create Dialog */}

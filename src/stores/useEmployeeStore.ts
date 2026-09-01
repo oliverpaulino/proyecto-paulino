@@ -21,6 +21,8 @@ type EmployeeStore = {
    Contacts: ContactEmployee[];
    selectedEmployee: EmployeeDetails | null;
    loading: boolean;
+   stats: { total: number; activos: number; inactivos: number };
+   search: string;
    pagination: {
       page: number;
       limit: number;
@@ -35,6 +37,7 @@ type EmployeeStore = {
    _fetchedDetails: Set<string>;
 
    GetEmployees: (params?: { page?: number; limit?: number; search?: string; force?: boolean }) => Promise<void>;
+   GetEmployeeStats: (force?: boolean) => Promise<void>;
    GetOperators: (params?: { page?: number; limit?: number; search?: string; force?: boolean }) => Promise<void>;
    GetUnlinkedEmployees: (params?: { page?: number; limit?: number; search?: string; force?: boolean }) => Promise<void>;
    GetLinkedEmployeesByUserId: (userId: string) => Promise<Employee[]>;
@@ -81,9 +84,11 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
    Contacts: [],
    selectedEmployee: null,
    loading: false,
+   stats: { total: 0, activos: 0, inactivos: 0 },
+   search: "",
    pagination: {
       page: 1,
-      limit: 20,
+      limit: 10,
       total: 0,
       totalPages: 0,
       hasNext: false,
@@ -102,30 +107,25 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
    },
 
    GetEmployees: async (params = {}) => {
-      const { page = 1, limit = 20, search = "", force = false } = params;
+      const { page = 1, limit = 10, search = "", force = false } = params;
       const cacheKey = `${page}:${limit}:${search}`;
       if (!force && get()._fetchedEmployeeLists.has(cacheKey)) return;
 
       set({ loading: true });
       try {
-         const res = await fetch(`/api/employees`);
+         const qs = new URLSearchParams({ page: String(page), limit: String(limit) });
+         if (search) qs.set("search", search);
+
+         const res = await fetch(`/api/employees?${qs.toString()}`);
          if (!res.ok) throw new Error("Error al cargar empleados");
 
-         const allEmployees: Employee[] = await res.json();
-
-         const filtered = search
-            ? allEmployees.filter((e) =>
-               e.nombre.toLowerCase().includes(search.toLowerCase()) ||
-               e.identificacion.includes(search)
-            )
-            : allEmployees;
-
-         const total = filtered.length;
-         const totalPages = Math.max(1, Math.ceil(total / limit));
-         const start = (page - 1) * limit;
+         const result = await res.json();
+         const data: Employee[] = result.data ?? [];
+         const total = result.total ?? data.length;
+         const totalPages = result.totalPages ?? Math.max(1, Math.ceil(total / limit));
 
          set((state) => ({
-            Employees: filtered.slice(start, start + limit),
+            Employees: data,
             pagination: {
                page,
                limit,
@@ -141,6 +141,17 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
          throw error;
       } finally {
          set({ loading: false });
+      }
+   },
+
+   GetEmployeeStats: async (force = false) => {
+      try {
+         const res = await fetch(`/api/employees/stats`);
+         if (!res.ok) throw new Error("Error al cargar estadísticas de empleados");
+         const stats = await res.json();
+         set({ stats });
+      } catch (error) {
+         console.error(error);
       }
    },
 
@@ -366,19 +377,20 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
    },
 
    NextPage: async () => {
-      const { pagination } = get();
-      if (pagination.hasNext) await get().GetEmployees({ page: pagination.page + 1, limit: pagination.limit, force: true });
+      const { pagination, search } = get();
+      if (pagination.hasNext) await get().GetEmployees({ page: pagination.page + 1, limit: pagination.limit, search, force: true });
    },
    PrevPage: async () => {
-      const { pagination } = get();
-      if (pagination.hasPrev) await get().GetEmployees({ page: pagination.page - 1, limit: pagination.limit, force: true });
+      const { pagination, search } = get();
+      if (pagination.hasPrev) await get().GetEmployees({ page: pagination.page - 1, limit: pagination.limit, search, force: true });
    },
    GoToPage: async (page) => {
-      const { pagination } = get();
-      if (page >= 1 && page <= pagination.totalPages) await get().GetEmployees({ page, limit: pagination.limit, force: true });
+      const { pagination, search } = get();
+      if (page >= 1 && page <= pagination.totalPages) await get().GetEmployees({ page, limit: pagination.limit, search, force: true });
    },
    SearchEmployees: async (search) => {
       const { pagination } = get();
+      set({ search });
       await get().GetEmployees({ page: 1, limit: pagination.limit, search, force: true });
    },
 
