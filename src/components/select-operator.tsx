@@ -88,16 +88,17 @@ export function SelectBuscadorOperator({
       // eslint-disable-next-line react-hooks/exhaustive-deps
    }, []);
 
-   // Sincroniza el texto visible cada vez que cambian `value` o la lista de operadores,
-   // no solo cuando cambia `initialLabel`.
+   // Sincroniza el texto visible cuando cambian `value` o la lista de operadores.
+   // Salta si el usuario está escribiendo (hasTyped) para no borrar lo que tipeó.
    useEffect(() => {
+      if (hasTyped) return;
       if (!value) {
          setInputValue(initialLabel);
          return;
       }
       const match = operators.find((o) => o.id === value);
       if (match) setInputValue(match.nombre);
-   }, [value, operators, initialLabel]);
+   }, [value, operators, initialLabel, hasTyped]);
 
    useEffect(() => {
       function handleClickOutside(event: MouseEvent) {

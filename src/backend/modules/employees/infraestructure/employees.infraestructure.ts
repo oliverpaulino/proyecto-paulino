@@ -103,11 +103,12 @@ export class KyselyEmployeeRepository implements IEmployeeRepository {
          .selectAll();
 
       if (search) {
+         const term = search.trim().toLowerCase();
          query = query.where((eb) =>
             eb.or([
-               eb("empleado.nombre", "like", `%${search}%`),
-               eb("empleado.identificacion", "like", `%${search}%`),
-               eb("operador.licencia", "like", `%${search}%`),
+               eb("empleado.nombre", "ilike", `%${term}%`),
+               eb("empleado.identificacion", "ilike", `%${term}%`),
+               eb("operador.licencia", "ilike", `%${term}%`),
             ])
          );
       }

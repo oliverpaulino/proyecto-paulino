@@ -25,6 +25,7 @@ export function SelectBuscadorEmployee({
 }: SelectBuscadorEmployeeProps) {
    const { Employees, UnlinkedEmployees, loading, GetEmployees, GetUnlinkedEmployees } = useEmployeeStore();
    const [isOpen, setIsOpen] = useState(false);
+   const [hasTyped, setHasTyped] = useState(false);
    const [inputValue, setInputValue] = useState(initialLabel);
    const containerRef = useRef<HTMLDivElement>(null);
 
@@ -33,8 +34,9 @@ export function SelectBuscadorEmployee({
    const currentEmployeesList = unlinkedOnly ? UnlinkedEmployees : Employees;
 
    useEffect(() => {
+      if (hasTyped) return;
       setInputValue(initialLabel);
-   }, [initialLabel]);
+   }, [initialLabel, hasTyped]);
 
    useEffect(() => {
       function handleClickOutside(event: MouseEvent) {
@@ -61,6 +63,7 @@ export function SelectBuscadorEmployee({
 
    const handleSelect = (employee: Employee) => {
       setInputValue(employee.nombre);
+      setHasTyped(false);
       onChange(employee.id);
       setIsOpen(false);
    };
@@ -81,10 +84,11 @@ export function SelectBuscadorEmployee({
                value={inputValue}
                onChange={(e) => {
                   setInputValue(e.target.value);
+                  setHasTyped(true);
                   if (e.target.value === "") onChange(null);
                   if (!isOpen) setIsOpen(true);
                }}
-               onFocus={() => setIsOpen(true)}
+               onFocus={() => { setHasTyped(false); setIsOpen(true); }}
                disabled={disabled}
                placeholder={placeholder}
                className="h-10 w-full rounded-md border border-input bg-input/30 pl-9 pr-9 py-2 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
